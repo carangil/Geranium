@@ -18,6 +18,7 @@ typedef struct mem_header_s
 } mem_header_t;
 
 
+/* Allocate memory.  Takes size and destructor */
 void* ram_alloc(zsize size, void (*destructor)(void*) )
 {
 	mem_header_t* x;

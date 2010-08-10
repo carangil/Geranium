@@ -14,6 +14,7 @@ typedef unsigned char		zbool;
 #define ztrue 1
 #define zfalse 0
 
+//I actually got a compile error that NULL was undefined!
 #ifndef NULL
 #define NULL 0
 #endif

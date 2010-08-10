@@ -3,14 +3,12 @@
 #include <stdio.h>
 #include "vector.h"
 
-/* A simple, generic vector 'class' in C.  */
+// A simple, generic vector 'class' in C.  
+// A vector just stores void*
 
-/* This destructor is automatically called by ram_free 
-   It must be manually called if the vec_t structure is 'owned' by the stack or a higher-level structure 
-*/ 
-void vec_destructor(void* x)
+// Frees the internal contents of a vec_t structure 
+void vec_cleanup(vec_t* vec)
 {
-	vec_t* vec = x;
 	zuint32 i;
 
 	if (!vec) 
@@ -24,40 +22,42 @@ void vec_destructor(void* x)
 		}
 		ram_shallow_free(vec->elements);  //free the array
 	}
+}
 
-	if (vec->allocated)
-		ram_shallow_free(vec);  //free the outer vector pointer, if it was allocated
+// This is the destructor function called by ram_free, passed as arg to ram_alloc
+void _vec_destructor(void* x)
+{
+	vec_cleanup((vec_t*) x); //free the contents of this structure
+	ram_shallow_free(x);	   //then free the 'host' structure
 }
 
 /* This creates a vector */ 
 vec_t* vec_mk(vec_t* v, zsize initial_size)
 {  
+	zbool allocated = zfalse;
+
 	if (!v)
 	{
 		//no input pointer specified, so just allocate one, with proper destructor
-		v =  (vec_t*) ram_alloc( sizeof(vec_t), vec_destructor);
+		v =  (vec_t*) ram_alloc( sizeof(vec_t), _vec_destructor);
 
 		if (!v) 
 			return NULL; //failed to allocate
 
-		v->allocated = 1;  //flag that we created the allocation
-	}
-	else
-	{
-		v->allocated = 0;
+		allocated = ztrue;  //flag that we created the allocation
 	}
 
 	v->_size = initial_size;
 	v->count = 0;  //vector is empty
 	v->elements = ram_alloc(v->_size * sizeof(void*), NULL );
 	
-	//failed to allocate elements
+	
 	if (! (v->elements))
 	{
-		if (v->allocated)
-		{
+		//failed to allocate elements
+		if (allocated)
 			ram_free(v);  //kill our vector
-		}
+		
 		v = NULL;
 	}
 
@@ -79,7 +79,7 @@ zbool vec_add(vec_t* v, void* item)
 	{
 		//too big, time to grow
 		void ** el = ram_resize(v->elements, v->_size * sizeof(void*) *2);
-
+		
 		if (el)
 		{
 			v->elements=el;

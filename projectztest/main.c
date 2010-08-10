@@ -124,6 +124,8 @@ test_t* t1=0;
 
 void test_vectors()
 {
+	vec_t  svec;
+
 	vec_t* vec = NULL;
 	
 	vec = vec_mk(NULL, 2);
@@ -157,12 +159,32 @@ void test_vectors()
 	ram_free(vec);
 
 	printf("allocations left: %d\n", ram_allocs());
+
+
+	//now try a statically allocated svec structure
+
+	if (!vec_mk(&svec, 2))
+	{
+		printf("Could not allocate!\n");
+	}
+	
+	vec_add(&svec, ram_strdup("S0"));
+	vec_add(&svec, ram_strdup("S1"));
+	vec_add(&svec, ram_strdup("S2"));
+	vec_add(&svec, ram_strdup("S3"));
+	vec_add(&svec, ram_strdup("S4"));
+
+	vec_print(&svec);
+
+	vec_cleanup(&svec);
+
+	printf("allocations left: %d\n", ram_allocs());
 }
 
 int main(int argc, char** argv)
 {
 
-	test_mem();
+	//test_mem();
 	test_vectors();
 	
 
