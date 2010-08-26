@@ -1,8 +1,15 @@
+// projectZ - This file is part of a project named 'projectZ'
+// ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
+// Commercial use prohibited.
+
+
 #include "..\ztypes.h"
 #include "..\memory\ram.h"
 #include "..\structures\vector.h"
 #include <stdio.h>
-
+#include "..\graphics\gx_sys.h"
+#include "..\graphics\gx_image.h"
+#include "..\graphics\gx_sprite.h"
 
 
 typedef struct test_s
@@ -10,9 +17,6 @@ typedef struct test_s
 	char* string;
 	struct test_s* next;
 } test_t;
-
-
-
 
 
 
@@ -181,13 +185,67 @@ void test_vectors()
 	printf("allocations left: %d\n", ram_allocs());
 }
 
+
+void test_graphics()
+{
+
+	zfloat32 xxx=0;
+	zfloat32 yyy=0;
+
+	gx_image_t* image1 = NULL;
+
+	gx_sprite_t* sprite = NULL;
+
+	printf("Init graphics\n");
+	gx_init(640, 480 , "Test Graphics Window");
+
+	gx_clear_color(1,.5,.2,1);
+	gx_frame_clear(ztrue,zfalse);
+	gx_frame_show();
+
+	image1 = gx_image_load_tga( "rgbatarga.tga");
+	gx_image_enable(image1);
+
+	sprite = gx_sprite_mk(image1,100,100, image1->width, image1->height, .1, .1);
+	
+
+
+	while( gx_window_event() == GX_LOOP_NOTHING)
+	{
+		int i;
+
+		printf(" Window is alive\n");
+		gx_setup_2d(-1,1,1,-1);
+
+		gx_frame_clear(ztrue,zfalse);
+
+
+		
+		gx_sprite_draw(sprite, xxx,yyy);
+
+		xxx+=.01;
+		yyy+=.03;
+
+		if (xxx>1) xxx=-1;
+		if (yyy>1) yyy=-1;
+	
+
+		//gx_image_test(image1);
+
+		gx_frame_show();
+	}
+
+}
+
 int main(int argc, char** argv)
 {
 
 	//test_mem();
-	test_vectors();
-	
+	//test_vectors();
+	test_graphics();
+
+
+	printf("allocations left: %d\n", ram_allocs());
 
 	return 0;
-
 }

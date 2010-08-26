@@ -60,7 +60,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="glew32.lib freeglut.lib"
 				LinkIncremental="1"
+				AdditionalLibraryDirectories="&quot;..\..\3rdparty\freeglut-MSVC-2.6.0-3.mp\freeglut\lib&quot;;&quot;..\..\3rdparty\glew-1.5.3-win32\glew-1.5.3\lib&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"

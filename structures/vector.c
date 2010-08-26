@@ -1,3 +1,8 @@
+// projectZ - This file is part of a project named 'projectZ'
+// ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
+// Commercial use prohibited.
+
+
 #include "../ztypes.h"
 #include "../memory/ram.h"
 #include <stdio.h>

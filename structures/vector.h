@@ -1,3 +1,8 @@
+// projectZ - This file is part of a project named 'projectZ'
+// ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
+// Commercial use prohibited.
+
+
 //structure definition of a vector
 typedef struct vec_s {
 	zuint32 _size;		// max number of elements physical array can fit

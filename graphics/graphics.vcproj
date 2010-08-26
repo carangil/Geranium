@@ -61,6 +61,8 @@
 			/>
 			<Tool
 				Name="VCLibrarianTool"
+				LinkLibraryDependencies="true"
+				AdditionalLibraryDirectories=""
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -148,7 +150,15 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\graphics_sys.c"
+				RelativePath=".\gx_image.c"
+				>
+			</File>
+			<File
+				RelativePath=".\gx_sprite.c"
+				>
+			</File>
+			<File
+				RelativePath=".\gx_sys.c"
 				>
 			</File>
 		</Filter>
@@ -158,7 +168,15 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath=".\graphics_sys.h"
+				RelativePath=".\gx_image.h"
+				>
+			</File>
+			<File
+				RelativePath=".\gx_sprite.h"
+				>
+			</File>
+			<File
+				RelativePath=".\gx_sys.h"
 				>
 			</File>
 		</Filter>

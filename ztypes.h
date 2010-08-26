@@ -1,3 +1,8 @@
+// projectZ - This file is part of a project named 'projectZ'
+// ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
+// Commercial use prohibited.
+
+
 /* Basic datatypes for my projects**/
 
 
@@ -9,6 +14,7 @@ typedef unsigned char		zbyte;
 typedef size_t				zsize;
 typedef unsigned long long	zuint64;
 typedef unsigned char		zbool;
+typedef char				zchar;
 
 /* Handy constants to make code look a little cleaner*/
 #define ztrue 1
