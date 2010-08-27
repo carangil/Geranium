@@ -82,5 +82,4 @@ void gx_sprite_draw(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool alpha_ble
 		glVertex2f(x , y + sprite->_sprite_height );
 
 	glEnd();
-	
 }

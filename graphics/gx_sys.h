@@ -21,3 +21,9 @@ void gx_setup_2d(float left,  float top, float right, float bottom);
 
 zuint32 gx_width();
 zuint32 gx_height();
+
+
+
+
+
+

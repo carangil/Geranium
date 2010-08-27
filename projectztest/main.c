@@ -10,6 +10,7 @@
 #include "..\graphics\gx_sys.h"
 #include "..\graphics\gx_image.h"
 #include "..\graphics\gx_sprite.h"
+#include "..\graphics\gx_buffers.h"
 
 
 typedef struct test_s
@@ -192,6 +193,8 @@ void test_graphics()
 	zfloat32 xxx=0;
 	zfloat32 yyy=0;
 
+	gx_vbuffer_t * vbuf = NULL;
+	
 	gx_image_t* image1 = NULL;
 
 	gx_sprite_t* sprite = NULL;
@@ -209,6 +212,23 @@ void test_graphics()
 	sprite = gx_sprite_mk(image1,100,100, image1->width, image1->height, .1, .1);
 	
 
+	vbuf = gx_vbuffer_mk(100,0,ztrue);
+	
+	gx_vbuffer_add_color(vbuf, 1, 1, 1, 1);
+	gx_vbuffer_add_vertex(vbuf, .1,.2,0);
+
+	gx_vbuffer_add_color(vbuf, 0, 1, 0, 1);
+	gx_vbuffer_add_vertex(vbuf, .2,.25,0);
+
+
+	gx_vbuffer_add_color(vbuf, 0, 0, 1, 1);
+	gx_vbuffer_add_vertex(vbuf, .2,.3,0);
+
+	gx_vbuffer_add_color(vbuf, 1, 1, 1, 1);
+	gx_vbuffer_add_vertex(vbuf, .55,.32,0);
+	gx_vbuffer_enable(vbuf);
+
+
 
 	while( gx_window_event() == GX_LOOP_NOTHING)
 	{
@@ -219,9 +239,10 @@ void test_graphics()
 
 		gx_frame_clear(ztrue,zfalse);
 
-
+//		gx_test_draw_vertices(vbuf);
+		gx_vbuffer_draw(vbuf, 0,4, gx_lines, zfalse);
 		
-		gx_sprite_draw(sprite, xxx,yyy);
+	//	gx_sprite_draw(sprite, xxx,yyy);
 
 		xxx+=.01;
 		yyy+=.03;
