@@ -26,29 +26,50 @@ static zint32 _gx_window_height=0;
 static zint32 _gx_auto_viewport_adjust=ztrue; /*true to automatically adjust viewport*/
 
 // Required glut callbacks
-void _gx_callback_keyboard(char key, int x, int y)
+
+#define KEYBSIZE 10
+static zchar _keybuffer[KEYBSIZE];
+static zuint32 _kbpos=0;
+
+ void _gx_callback_keyboard(char key, int x, int y)
 {
-	printf(" %c at %d %d\n", key,x,y);
-	if (key=='Q') 
-		_gx_doshutdown=GX_LOOP_EXIT;
+
+	if (_kbpos < KEYBSIZE)
+	{
+		_keybuffer[_kbpos++]= key;
+	}
+
+	//printf(" %c at %d %d\n", key,x,y);
+	//if (key=='Q') 
+	//	_gx_doshutdown=GX_LOOP_EXIT;
 }
 
-void _gx_callback_mouseclick(int button, int state, int x, int y)
+zchar gx_getkey()  //goes to 
+{
+	if (_kbpos)
+	{
+		return _keybuffer[--_kbpos];
+	}
+	return 0;  //no key!
+}
+
+
+static void _gx_callback_mouseclick(int button, int state, int x, int y)
 {
 	printf("mouseclick %d %d %d %d", button, state, x, y);
 }
 
-void _gx_callback_mousepassive(int x, int y)
+static void _gx_callback_mousepassive(int x, int y)
 {
 	printf("mousemove passive %d %d\n", x, y);
 }
 
-void _gx_callback_mouseactive(int x, int y)
+static void _gx_callback_mouseactive(int x, int y)
 {
 	printf("mousemove active %d %d\n", x, y);
 }
 
-void _gx_callback_reshape(int w, int h) //called when window is resized
+static void _gx_callback_reshape(int w, int h) //called when window is resized
 {
 	printf(" window resize %d %d\n", w, h);
 
@@ -63,7 +84,7 @@ void _gx_callback_reshape(int w, int h) //called when window is resized
 
 }
 
-void _gx_callback_disp()
+static void _gx_callback_disp()
 {
 	/*Don't do anything here, its just required to keep GLUT happy*/
 }
@@ -146,8 +167,29 @@ void gx_setup_2d(float left,  float top, float right, float bottom)
 	glLoadIdentity();
 	glOrtho(left, right, bottom, top, -1.0,1.0);
 	glMatrixMode(GL_MODELVIEW);
+
+	//makes most sense to disable depth:
+	glDepthMask(GL_FALSE);  //don't write to depth bufer
+	glDisable(GL_DEPTH_TEST); //don't test depth buffer when drawing
 }
 
+
+/* Three dim coord system */
+
+void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist)
+{
+	glMatrixMode (GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective (fovy,aspect,neardist,fardist);
+	glMatrixMode (GL_MODELVIEW);
+
+	//probably want depth buffer:
+	glClearDepth(1.0); //when clearing depth buffer, set to infinity
+	glDepthRange(0,1);  //set range for full depth bufer
+	glDepthFunc(GL_LEQUAL);  //draw things equally far or closer
+	glDepthMask(GL_TRUE); //write to depth bufer
+	glEnable(GL_DEPTH_TEST);  //enable depth testing
+}
 
 zfloat32 gx_get_image_dimensions(zuint32* width, zuint32* height)
 {
@@ -158,4 +200,13 @@ zfloat32 gx_get_image_dimensions(zuint32* width, zuint32* height)
 		*width = _gx_window_width;
 
 	return ((zfloat32) _gx_window_width) / ((zfloat32)_gx_window_height);
+}
+
+
+
+void gx_camera_pos(float x, float y, float z)
+{
+	glLoadIdentity();
+	glTranslatef(-x,-y,-z);
+
 }

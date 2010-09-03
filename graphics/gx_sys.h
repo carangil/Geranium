@@ -18,12 +18,14 @@ void gx_clear_color(float r, float g, float b, float a);
 void gx_frame_clear(zbool color, zbool depth);
 void gx_frame_show();
 void gx_setup_2d(float left,  float top, float right, float bottom);
+void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist);
 
-zuint32 gx_width();
-zuint32 gx_height();
+zfloat32 gx_get_image_dimensions(zuint32* width, zuint32* height);
+
+//todo: move from system into its own file:
+
+void gx_camera_pos(float x, float y, float z);
 
 
-
-
-
+zchar gx_getkey() ; //get rid of this crap!
 

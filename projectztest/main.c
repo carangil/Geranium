@@ -190,59 +190,125 @@ void test_vectors()
 void test_graphics()
 {
 
+	zfloat32 cx=0;
+	zfloat32 cy=.5;
+	zfloat32 cz=1;
+
+
+	
+	zfloat32 cxs=0;
+	zfloat32 cys=0;
+	zfloat32 czs=0;
+
 	zfloat32 xxx=0;
 	zfloat32 yyy=0;
 
 	gx_vbuffer_t * vbuf = NULL;
-	
 	gx_image_t* image1 = NULL;
-
 	gx_sprite_t* sprite = NULL;
+
+	gx_image_t* heightmap = NULL;
+
+	gx_vbuffer_t* heightmesh = NULL;
 
 	printf("Init graphics\n");
 	gx_init(640, 480 , "Test Graphics Window");
 
 	gx_clear_color(1,.5,.2,1);
-	gx_frame_clear(ztrue,zfalse);
+	gx_frame_clear(ztrue,ztrue);
 	gx_frame_show();
 
 	image1 = gx_image_load_tga( "rgbatarga.tga");
 	gx_image_enable(image1);
 
+	
+
 	sprite = gx_sprite_mk(image1,100,100, image1->width, image1->height, .1, .1);
+
+	vbuf = gx_vbuffer_mk(100, 12, ztrue, 1);
 	
-
-	vbuf = gx_vbuffer_mk(100,0,ztrue);
-	
-	gx_vbuffer_add_color(vbuf, 1, 1, 1, 1);
-	gx_vbuffer_add_vertex(vbuf, .1,.2,0);
-
-	gx_vbuffer_add_color(vbuf, 0, 1, 0, 1);
-	gx_vbuffer_add_vertex(vbuf, .2,.25,0);
+	{
+		zuint32 v0=GX_INDEX_INVALID;
+		zuint32 v1=GX_INDEX_INVALID;
+		zuint32 v2=GX_INDEX_INVALID;
+		zuint32 v3=GX_INDEX_INVALID;
+		zuint32 v4=GX_INDEX_INVALID;
 
 
-	gx_vbuffer_add_color(vbuf, 0, 0, 1, 1);
-	gx_vbuffer_add_vertex(vbuf, .2,.3,0);
+		gx_vbuffer_add_tex(vbuf, 0, 0,0);
+		gx_vbuffer_add_color(vbuf, 1, 1, 1, 1);
+		v0=gx_vbuffer_add_vertex(vbuf, .1,.1,0);
 
-	gx_vbuffer_add_color(vbuf, 1, 1, 1, 1);
-	gx_vbuffer_add_vertex(vbuf, .55,.32,0);
-	gx_vbuffer_enable(vbuf);
+		gx_vbuffer_add_tex(vbuf,0, 0,1);
+		gx_vbuffer_add_color(vbuf, 0, 1, 0, 1);
+		v1=gx_vbuffer_add_vertex(vbuf, .2, .1,0);
+
+		gx_vbuffer_add_tex(vbuf,0, 1,1);
+		gx_vbuffer_add_color(vbuf, 0, 0, 1, 1);
+		v2=gx_vbuffer_add_vertex(vbuf, 0,.2,0);
+
+		gx_vbuffer_add_tex(vbuf,0, 1,1);
+		gx_vbuffer_add_color(vbuf, 0, 0, 1, 1);
+		v3=gx_vbuffer_add_vertex(vbuf, .3,.2,0);
 
 
+		gx_vbuffer_add_tex(vbuf,0, 1,1);
+		gx_vbuffer_add_color(vbuf, 0, 0, 1, 1);
+		v4=gx_vbuffer_add_vertex(vbuf, .15,.3,0);
+
+		/*
+        4
+
+    2       3
+
+      0   1
+*/
+
+
+
+		gx_vbuffer_add_index(vbuf, v0);
+		gx_vbuffer_add_index(vbuf, v4);
+
+		gx_vbuffer_add_index(vbuf, v4);
+		gx_vbuffer_add_index(vbuf, v1);
+
+		gx_vbuffer_add_index(vbuf, v1);
+		gx_vbuffer_add_index(vbuf, v2);
+
+		gx_vbuffer_add_index(vbuf, v2);
+		gx_vbuffer_add_index(vbuf, v3);
+
+
+		gx_vbuffer_add_index(vbuf, v3);
+		gx_vbuffer_add_index(vbuf, v0);
+
+	}
+
+
+	gx_vbuffer_update(vbuf);  //make sure latest data is ready
+
+	heightmap = gx_image_load_tga("heightmap.tga");
+	heightmesh = gx_mesh_from_image(heightmap, 1, .05,1, ztrue);
+	gx_vbuffer_update(heightmesh);
 
 	while( gx_window_event() == GX_LOOP_NOTHING)
 	{
 		int i;
 
 		printf(" Window is alive\n");
+		
+		gx_frame_clear(ztrue,ztrue);
+
 		gx_setup_2d(-1,1,1,-1);
 
-		gx_frame_clear(ztrue,zfalse);
-
-//		gx_test_draw_vertices(vbuf);
-		gx_vbuffer_draw(vbuf, 0,4, gx_lines, zfalse);
 		
-	//	gx_sprite_draw(sprite, xxx,yyy);
+
+
+		gx_vbuffer_draw(vbuf,2,4, gx_lines, ztrue);
+
+	
+		
+		gx_sprite_draw(sprite, xxx,yyy);
 
 		xxx+=.01;
 		yyy+=.03;
@@ -250,8 +316,40 @@ void test_graphics()
 		if (xxx>1) xxx=-1;
 		if (yyy>1) yyy=-1;
 	
+		gx_setup_3d( 70.0, gx_get_image_dimensions(NULL,NULL), .1, 1000);
 
-		//gx_image_test(image1);
+
+		{
+			char c = gx_getkey();
+			switch(c)
+			{
+			case'w':
+				czs-=.01; break;
+
+			case's':
+				czs+=.01; break;
+
+			case'a':
+				cxs-=.01; break;
+			case'd':
+				cxs+=.01; break;
+
+			case'-':
+				cys+=.01; break;
+
+			case'+':
+				cys-=.01; break;
+			}
+
+			cx+=cxs;
+			cy+=cys;
+			cz+=czs;
+
+		}
+		
+		gx_camera_pos(cx,cy,cz);
+
+		gx_vbuffer_draw(heightmesh,0,heightmesh->index_count, gx_triangles, ztrue);
 
 		gx_frame_show();
 	}
