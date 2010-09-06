@@ -61,4 +61,16 @@ void gx_test_draw_vertices(gx_vbuffer_t* v);
 
 void gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i);
 
-gx_vbuffer_t* gx_mesh_from_image(gx_image_t* image, zfloat32 xsize, zfloat32 ysize, zfloat32 zsize, zbool use_color);
+gx_vbuffer_t* gx_mesh_from_image(gx_image_t* image, 
+								zfloat32 xoff,
+								zfloat32 yoff,
+								zfloat32 zoff,
+								zbyte xaxis,
+								zbyte yaxis,
+ 								zbyte zaxis,
+								 zfloat32 xsize, 
+								 zfloat32 ysize, 
+								 zfloat32 zsize, 
+								 zbool use_color,
+								 zbool use_texture
+								 );

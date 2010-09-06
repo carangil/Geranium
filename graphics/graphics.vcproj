@@ -154,6 +154,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\gx_drawstyle.c"
+				>
+			</File>
+			<File
 				RelativePath=".\gx_image.c"
 				>
 			</File>
@@ -173,6 +177,10 @@
 			>
 			<File
 				RelativePath=".\gx_buffers.h"
+				>
+			</File>
+			<File
+				RelativePath=".\gx_drawstyle.h"
 				>
 			</File>
 			<File

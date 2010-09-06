@@ -202,9 +202,13 @@ void gx_vbuffer_add_tex(gx_vbuffer_t* v, zuint32 texture, zfloat32 s, zfloat32 t
 
 	if (!v)
 		return;
-
-	if (!v->color_data)
+	
+	if (texture >= v->num_textures)
 		return;
+
+	if (!v->texcoord_data[texture])
+		return;
+
 
 	if (v->vertex_count == v->vertex_capacity)
 		return; //we are full!
@@ -257,9 +261,7 @@ void gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i)
 
 
 
-//global buffer data
 
-zuint32 _gx_texture_enabled_count = 0;  //specified how many texture units have been turned on
 
 
 //drawing a vbuffer
@@ -276,9 +278,6 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 
 	if (stop <=start)
 		return;
-
-	
-	glDisable(GL_TEXTURE_2D);
 
 
 	if (v->_vertex_vbo)
@@ -305,6 +304,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,  v->_index_vbo);
 	}
 
+	
 	for (i=0;i<v->num_textures;i++)
 	{
 		glClientActiveTexture(GL_TEXTURE0+i);
@@ -312,7 +312,6 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0, 0);
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	}
-
 
 
 
@@ -376,17 +375,39 @@ void gx_test_draw_vertices(gx_vbuffer_t* v)
 //lame way to create geometry: axis-aligned image
 //this type of geometry-related crap should be shoved into a separate file
 #if 1
-gx_vbuffer_t* gx_mesh_from_image(gx_image_t* image, zfloat32 xsize, zfloat32 ysize, zfloat32 zsize, zbool use_color)
+gx_vbuffer_t* gx_mesh_from_image(gx_image_t* image, 
+								zfloat32 xoff,
+								zfloat32 yoff,
+								zfloat32 zoff,
+								zbyte xaxis,
+								zbyte yaxis,
+ 								zbyte zaxis,
+								zfloat32 xsize, 
+								zfloat32 ysize, 
+								zfloat32 zsize, 
+								zbool use_color,
+								zuint32 num_texture)
 {
-	zuint32 i,j;
-
+	zuint32 i,j,t;
+	float coord[3];
+	
 	zuint32 numpoints = image->width * image->height;
 	zuint32 numtriangles = (image->width-1) * (image->height -1)  *2 ;
 	
-	gx_vbuffer_t* vbuf = gx_vbuffer_mk(numpoints,numtriangles*3, use_color, 0);
+	gx_vbuffer_t* vbuf = gx_vbuffer_mk(numpoints,numtriangles*3, 
+		use_color, 
+		num_texture );
 
 	zuint32* lastcol = ram_alloc( sizeof(zuint32) * image->height, NULL);
 
+	if (xaxis>2 || yaxis>2 || zaxis>2)
+	{
+		//use defaults if user was stupid
+		xaxis=1;
+		yaxis=2;
+		zaxis=3;
+	}
+	
 	
 	//create vertices for each point
 	for (i=0;i<image->width;i++)
@@ -401,14 +422,20 @@ gx_vbuffer_t* gx_mesh_from_image(gx_image_t* image, zfloat32 xsize, zfloat32 ysi
 			if(use_color)
 			{
 				gx_vbuffer_add_color(vbuf, hf,hf,hf,1);
-	
 			}
 
-			nv = gx_vbuffer_add_vertex(vbuf, 
-										(i*xsize) / (image->width-1),
-										 ysize * hf  ,
-										(j*zsize) / (image->height-1)
-										);
+			for (t=0; t< num_texture;t++)
+			{
+				//give all texture layers the same coordinates
+				gx_vbuffer_add_tex(vbuf, t,  ((i) / (float)(image->width -1)), ((j) / (float)(image->width -1)));
+			}
+
+			coord[0]= xoff +  (i*xsize) / (image->width-1);
+			coord[1]= yoff +   ysize * hf;
+			coord[2]= zoff +  (j*zsize) / (image->height-1);
+
+
+			nv = gx_vbuffer_add_vertex(vbuf, coord[xaxis], coord[yaxis], coord [zaxis]  );
 
 
 			if (i>0)

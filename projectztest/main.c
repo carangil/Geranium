@@ -4,6 +4,7 @@
 
 
 #include "..\ztypes.h"
+#include "..\vmath.h"
 #include "..\memory\ram.h"
 #include "..\structures\vector.h"
 #include <stdio.h>
@@ -44,11 +45,6 @@ test_t* mk_test(char* z , test_t* next)
 	return t;
 }
 
-
-
-
-
-
 typedef struct inner_s
 {
 	char* a;
@@ -62,8 +58,6 @@ void inner_free(inner_t* x)
 
 	ram_shallow_free(x);
 }
-
-
 
 typedef struct outer_s
 {
@@ -195,7 +189,13 @@ void test_graphics()
 	zfloat32 cz=1;
 
 
-	
+	vec3 camera_pos;
+	vec3 camera_up;
+	vec3 camera_right;
+	vec3 camera_forward;
+
+
+
 	zfloat32 cxs=0;
 	zfloat32 cys=0;
 	zfloat32 czs=0;
@@ -204,7 +204,8 @@ void test_graphics()
 	zfloat32 yyy=0;
 
 	gx_vbuffer_t * vbuf = NULL;
-	gx_image_t* image1 = NULL;
+	gx_image_t *image1 = NULL;
+	gx_image_t *image2 = NULL;
 	gx_sprite_t* sprite = NULL;
 
 	gx_image_t* heightmap = NULL;
@@ -214,14 +215,20 @@ void test_graphics()
 	printf("Init graphics\n");
 	gx_init(640, 480 , "Test Graphics Window");
 
-	gx_clear_color(1,.5,.2,1);
+	gx_clear_color(.1,.1,.6,1);
 	gx_frame_clear(ztrue,ztrue);
 	gx_frame_show();
 
 	image1 = gx_image_load_tga( "rgbatarga.tga");
-	gx_image_enable(image1);
-
+	image2 = gx_image_load_tga( "tex2.tga");
 	
+	
+	//gx_image_enable(image1);  //don't need to enable because first use will
+
+	vec3set(camera_pos,		0,	.5,	1);
+	vec3set(camera_right,	1,	0,	0);
+	vec3set(camera_up,		0,	1,	0);
+	vec3set(camera_forward,	0,	0,	-1);
 
 	sprite = gx_sprite_mk(image1,100,100, image1->width, image1->height, .1, .1);
 
@@ -288,27 +295,38 @@ void test_graphics()
 	gx_vbuffer_update(vbuf);  //make sure latest data is ready
 
 	heightmap = gx_image_load_tga("heightmap.tga");
-	heightmesh = gx_mesh_from_image(heightmap, 1, .05,1, ztrue);
+
+	heightmesh = gx_mesh_from_image(heightmap, 0.0,0.0,0.0,   //offset
+		0,1,2,        //axis swizzle
+		3.0,.1,3.0,  //scaling
+		ztrue, 2);
+
 	gx_vbuffer_update(heightmesh);
+
+	gx_mouse_capture(ztrue); //capture the mouse for relative motion
 
 	while( gx_window_event() == GX_LOOP_NOTHING)
 	{
 		int i;
+		zint32 mx, my;
 
-		printf(" Window is alive\n");
-		
+
+		gx_mouse_pos(&mx, &my);
+
+		printf(" mouse position %d %d\n", mx, my);
+
 		gx_frame_clear(ztrue,ztrue);
 
-		gx_setup_2d(-1,1,1,-1);
+		//gx_setup_2d(-1,1,1,-1);
 
 		
 
 
-		gx_vbuffer_draw(vbuf,2,4, gx_lines, ztrue);
+		//gx_vbuffer_draw(vbuf,2,4, gx_lines, ztrue);
 
 	
 		
-		gx_sprite_draw(sprite, xxx,yyy);
+		//gx_sprite_draw(sprite, xxx,yyy);
 
 		xxx+=.01;
 		yyy+=.03;
@@ -321,33 +339,96 @@ void test_graphics()
 
 		{
 			char c = gx_getkey();
+			zfloat32 yaw	= 0.0;
+			zfloat32 pitch	= 0.0;
+			zfloat32 roll	= 0.0;
+
 			switch(c)
 			{
+			case 'Q':
+				exit(0);
+
+
 			case'w':
-				czs-=.01; break;
+				czs+=.01; break;
 
 			case's':
-				czs+=.01; break;
+				czs-=.01; break;
 
 			case'a':
 				cxs-=.01; break;
 			case'd':
 				cxs+=.01; break;
 
-			case'-':
+			case'r':
 				cys+=.01; break;
 
-			case'+':
+			case'f':
 				cys-=.01; break;
+
+			case'8':
+				pitch = .05;
+				break;
+
+			case'2':
+				pitch = -.05;
+				break;
+
+
+			case'6':
+				yaw = .05;
+				break;
+
+			case'4':
+				yaw = -.05;
+				break;
+
+			case'q':
+				roll = .05;
+				break;
+
+			case'e':
+				roll = -.05;
+				break;
+
+
 			}
 
-			cx+=cxs;
-			cy+=cys;
-			cz+=czs;
+
+			pitch += my*.001;
+			yaw += mx*.001;
+
+
+			//cx+=cxs;
+			//cy+=cys;
+			//cz+=czs;
+
+			vec3madd(camera_pos, cxs, camera_right);
+			vec3madd(camera_pos, cys, camera_up);
+			vec3madd(camera_pos, czs, camera_forward);
+
+
+			//try some spin crap
+			gx_spin(yaw, pitch, roll,&camera_right, &camera_up, &camera_forward);
+
 
 		}
 		
-		gx_camera_pos(cx,cy,cz);
+	//	vec3set(camera_pos, cx, cy, cz);
+
+		
+		gx_camera_pos_rot( &camera_pos, &camera_right, &camera_up, &camera_forward);
+
+		//gx_camera_pos(cx,cy,cz);
+		//gx_camera_pos_rot( position, vec3* xaxis, vec3* yaxis, vec3* zaxis);
+		
+		//_gx_set_active_textures( NULL , 0);
+		{
+			gx_image_t * txlist[2];
+			txlist[0]=image1;
+			txlist[1]=image2;
+			gx_set_active_textures( txlist, 2);
+		}
 
 		gx_vbuffer_draw(heightmesh,0,heightmesh->index_count, gx_triangles, ztrue);
 
@@ -362,9 +443,19 @@ int main(int argc, char** argv)
 	//test_mem();
 	//test_vectors();
 	test_graphics();
+#if 0
+	vec3 a;
+	vec3 b;
+	
+	vec3set(a, 1.1, 2.22, 3.333);
+	printf(" %f %f %f \n", a.vec3p[0], a.vec3p[1], a.vec3p[2]);
+	vec3mov(b,a);
+	printf(" %f %f %f \n", b.vec3p[0], b.vec3p[1], b.vec3p[2]);	
+	b.vec3y= 22.222;
+	printf(" %f %f %f \n", b.vec3p[0], b.vec3p[1], b.vec3p[2]);	
 
 
 	printf("allocations left: %d\n", ram_allocs());
-
+#endif 
 	return 0;
 }

@@ -1,0 +1,54 @@
+// projectZ - This file is part of a project named 'projectZ'
+// ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
+// Commercial use prohibited.
+
+#include "../ztypes.h"
+#include "../memory/ram.h"
+#include <stdio.h>
+#include "gx_image.h"
+#include "gx_buffers.h"
+#include "gx_drawstyle.h"
+
+
+
+#include "gl/glew.h"
+#include "gl/wglew.h"
+#include "gl/freeglut.h"
+
+void gx_drawstyle_activate(gx_drawstyle_t* style)
+{
+	
+	zuint32 i=0;
+
+	if (!style)
+		return;
+
+	//set blending mode
+
+	if (style->blending)
+	{
+		glEnable(GL_BLEND);
+		
+		if (gx_blend_alpha ==  style->blending)
+		{
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);	
+		}
+		else if (gx_blend_add ==  style->blending)
+		{
+			glBlendFunc(GL_ONE, GL_ONE);	
+		}
+		else if(gx_blend_multiply == style->blending)
+		{
+			glBlendFunc(GL_DST_COLOR, GL_ZERO);
+		}
+		
+	
+	}
+	else
+		glDisable(GL_BLEND);
+
+
+	//activate all set textures
+	_gx_set_active_textures(style->textures, style->numtextures);
+
+}

@@ -8,6 +8,7 @@
 
 //#include "gl\glext.h"
 #include "../ztypes.h"
+#include "../vmath.h"
 
 #include "gl/glew.h"
 #include "gl/wglew.h"
@@ -15,7 +16,8 @@
 //#include <gl/GL.h>
 #include "gl/freeglut.h"
 #include "gx_sys.h"
-
+#include <math.h>
+#include <windows.h>
 
 
 static int _gx_doshutdown = GX_LOOP_NOTHING;
@@ -59,14 +61,81 @@ static void _gx_callback_mouseclick(int button, int state, int x, int y)
 	printf("mouseclick %d %d %d %d", button, state, x, y);
 }
 
+
+static zbool	_gx_mouse_capture = zfalse;
+static zuint32	_gx_mouse_capture_last_x = 0;
+static zuint32	_gx_mouse_capture_last_y = 0; 
+
+static zuint32	_gx_last_mouse_x = 0;
+static zuint32	_gx_last_mouse_y = 0; 
+
+
+
+void gx_mouse_capture(zbool cap)
+{
+	if (cap)
+	{
+		_gx_mouse_capture_last_x=_gx_window_width/2;
+		_gx_mouse_capture_last_y=_gx_window_height/2;
+		
+		//windows function!
+		SetCursorPos(_gx_mouse_capture_last_x,_gx_mouse_capture_last_y);
+		_gx_mouse_capture = ztrue;
+	}
+	else
+	{
+		_gx_mouse_capture = zfalse;
+	}
+}
+
+void gx_mouse_pos(zint32* x, zint32* y)
+{
+
+	if (!_gx_mouse_capture)
+	{
+		*x = _gx_last_mouse_x;
+		*y = _gx_last_mouse_y;
+
+	}
+	else
+	{
+		POINT point;
+		GetCursorPos(&point);
+		
+		
+		*x = point.x - _gx_mouse_capture_last_x;
+		*y = point.y - _gx_mouse_capture_last_y;
+
+		_gx_mouse_capture_last_x=_gx_window_width/2;
+		_gx_mouse_capture_last_y=_gx_window_height/2;
+		
+	
+	
+		if ( *x || *y)
+			SetCursorPos(_gx_mouse_capture_last_x,_gx_mouse_capture_last_y);
+		
+
+	}
+}
+
 static void _gx_callback_mousepassive(int x, int y)
 {
-	printf("mousemove passive %d %d\n", x, y);
+
+	
+	_gx_last_mouse_x = x;
+	_gx_last_mouse_y = y;
+
+
 }
+
+
 
 static void _gx_callback_mouseactive(int x, int y)
 {
+
+	
 	printf("mousemove active %d %d\n", x, y);
+	
 }
 
 static void _gx_callback_reshape(int w, int h) //called when window is resized
@@ -204,9 +273,75 @@ zfloat32 gx_get_image_dimensions(zuint32* width, zuint32* height)
 
 
 
+
+//move this camera crap out of sys
+
 void gx_camera_pos(float x, float y, float z)
 {
 	glLoadIdentity();
 	glTranslatef(-x,-y,-z);
+
+}
+
+//
+
+void gx_camera_pos_rot(vec3* position, vec3* xaxis, vec3* yaxis, vec3* zaxis)
+{
+	zfloat32 matr[]={
+					     xaxis->vec3x, yaxis->vec3x, -zaxis->vec3x,0,
+					     xaxis->vec3y, yaxis->vec3y, -zaxis->vec3y,0,
+					     xaxis->vec3z, yaxis->vec3z, -zaxis->vec3z,0,
+					     0,0,0,1};
+	glLoadIdentity();
+	
+	glMultMatrixf((float*)&matr);
+				
+	glTranslatef( -position->vec3x, -position->vec3y, -position->vec3z);
+}
+
+//spin crap
+void gx_spin(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up, vec3* forward)
+{
+
+	//roll
+
+	if (roll != 0.0)
+	{
+		//add a little bit of the right vector to the up vector:
+		
+		vec3madd((*up), roll, (*right));
+
+		//make the new up vector unit-length
+		vec3scale(  (*up),  1.0/  sqrt( vec3abs_sq( (*up) ) ) ); 
+		
+	//cross product to give new right vector
+		vec3cross( (*right), (*forward), (*up)  );
+	}
+
+	//yaw
+	if (yaw != 0.0)
+	{
+		//add some 'right' to 'forward'
+		vec3madd( (*forward), yaw, (*right));
+
+		//make forward unit-length
+		vec3scale(  (*forward),  1.0/  sqrt( vec3abs_sq( (*forward) ) ) ); 
+
+		//remake right vector;
+		vec3cross( (*right), (*forward), (*up)  );
+	}
+
+	if (pitch != 0.0)
+	{
+		//add some 'up' to the forward vector
+		vec3madd( (*forward), pitch, (*up));
+
+		//normalize the new forward vector
+		vec3scale(  (*forward),  1.0/  sqrt( vec3abs_sq( (*forward) ) ) ); 
+
+		//remake the up vector
+		vec3cross( (*up), (*right), (*forward)  );
+	}
+
 
 }

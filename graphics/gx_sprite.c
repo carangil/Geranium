@@ -59,8 +59,12 @@ void gx_sprite_draw(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool alpha_ble
 	}
 	
 	glColor4f(1,1,1,1);
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, sprite->image->_gl_texture_number);
+
+	//sprite renderer must go through the 'texture mananger'
+	//_gx_image_enable( sprite->image);
+	gx_set_active_textures(& (sprite->image) , 1);
+ 
+	
 	
 	if (alpha_blend)
 		glEnable(GL_BLEND);

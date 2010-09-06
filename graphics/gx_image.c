@@ -3,7 +3,7 @@
 // Commercial use prohibited.
 
 
-//this file is for loading  (and maybe saving) image files
+
 
 #include "../ztypes.h"
 #include "../memory/ram.h"
@@ -105,31 +105,39 @@ gx_image_t* gx_image_load_tga( zchar* f)
 	return image;
 }
 
-zbool gx_image_enable(gx_image_t* image)
+
+//enables an image for use in rendering (sends it to opengl for use in sprites or texture mapping
+zbool _gx_image_enable(gx_image_t* image)
 {
 	if (!image)
 		return zfalse;
 
 	//if image is already loaded to opengl, say we've succeeded
-	if (image->_sent_to_gl)
-		return ztrue;
-
-
-	//attempt to create texture object in GL
-	glGenTextures(1, &(image->_gl_texture_number) );
+	if (! image->_sent_to_gl)
+	{
+		//attempt to create texture object in GL
+		glGenTextures(1, &(image->_gl_texture_number) );
+	}
 	
+	//bind the texture for the current texture unit
 	glBindTexture (GL_TEXTURE_2D,  image->_gl_texture_number );
 	
-	if (image->bpp == 3)
-		gluBuild2DMipmaps(GL_TEXTURE_2D, 3, image->width, image->height, GL_RGB, GL_UNSIGNED_BYTE, image->data);
-	else if (image->bpp == 4)
-		gluBuild2DMipmaps(GL_TEXTURE_2D, 4, image->width, image->height, GL_RGBA, GL_UNSIGNED_BYTE, image->data);
-	else if (image->bpp ==1)
-		gluBuild2DMipmaps(GL_TEXTURE_2D, 1, image->width, image->height, GL_LUMINANCE, GL_UNSIGNED_BYTE, image->data);
-	else
-		printf(" unsupported texture format\n");
+	
+	if (! image->_sent_to_gl)
+	{
+		//send the texture to opengl if it hasn't been already
 
-	image->_sent_to_gl = ztrue;
+		if (image->bpp == 3)
+			gluBuild2DMipmaps(GL_TEXTURE_2D, 3, image->width, image->height, GL_RGB, GL_UNSIGNED_BYTE, image->data);
+		else if (image->bpp == 4)
+			gluBuild2DMipmaps(GL_TEXTURE_2D, 4, image->width, image->height, GL_RGBA, GL_UNSIGNED_BYTE, image->data);
+		else if (image->bpp ==1)
+			gluBuild2DMipmaps(GL_TEXTURE_2D, 1, image->width, image->height, GL_LUMINANCE, GL_UNSIGNED_BYTE, image->data);
+		else
+			printf(" unsupported texture format\n");
+
+		image->_sent_to_gl = ztrue;
+	}
 
 	return ztrue;
 }
@@ -171,4 +179,38 @@ void gx_image_test(gx_image_t* image)
 	glVertex2f(0,1);
 	
 	glEnd();
+}
+
+
+
+//manage opengl texture unit state
+//This turns a set of textures on/off
+
+static zuint32 _gx_texture_enabled_count = 0;  //specified how many texture units have been turned on
+void gx_set_active_textures(gx_image_t** texes, zuint32 numtex)
+{
+	zuint32 i = 0;
+
+	for (i=0;i<numtex;i++)
+	{
+		glActiveTexture(GL_TEXTURE0 + i);  //set active texture unit
+		
+		if (i>=_gx_texture_enabled_count)
+		{	
+			//if we haven't enabled this unit yet, enable it
+			glEnable(GL_TEXTURE_2D);
+			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL); //default as alpha blending
+		}
+
+		_gx_image_enable(texes[i]); //enable this image for use on the current texture unit
+	}
+
+	//disable any texture units we had enabled but don't need anymore
+	for (i=numtex;i<_gx_texture_enabled_count;i++)
+	{
+		glActiveTexture(GL_TEXTURE0+i);
+		glDisable(GL_TEXTURE_2D);
+	}
+
+	_gx_texture_enabled_count = numtex;
 }

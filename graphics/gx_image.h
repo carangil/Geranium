@@ -18,5 +18,9 @@ typedef struct
 
 
 void gx_image_test(gx_image_t* image);
-zbool gx_image_enable(gx_image_t* image);
+
+zbool _gx_image_enable(gx_image_t* image);
+
 gx_image_t* gx_image_load_tga( zchar* f);
+
+void gx_set_active_textures(gx_image_t** texes, zuint32 numtex);
