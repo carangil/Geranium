@@ -22,22 +22,16 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 
 zfloat32 gx_get_image_dimensions(zuint32* width, zuint32* height);
 
-//todo: move from system into its own file:
-
-void gx_camera_pos(float x, float y, float z);
-
-void gx_camera_pos_rot(vec3* position, vec3* xaxis, vec3* yaxis, vec3* zaxis);
-
-
-//rotates 3 vectors around each other
-void gx_spin(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up, vec3* forward);
-
 
 
 //move this IO stuff somewhere else
 zchar gx_getkey() ; //get rid of this crap!
-
 void gx_mouse_pos(zuint32* x, zuint32* y);
 void gx_mouse_capture(zbool cap);
 zbool gx_key_state(zbyte a);
+
+
+
+
+
 

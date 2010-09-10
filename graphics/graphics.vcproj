@@ -162,6 +162,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\gx_misc.c"
+				>
+			</File>
+			<File
 				RelativePath=".\gx_sprite.c"
 				>
 			</File>
@@ -189,6 +193,10 @@
 			</File>
 			<File
 				RelativePath=".\gx_image.h"
+				>
+			</File>
+			<File
+				RelativePath=".\gx_misc.h"
 				>
 			</File>
 			<File

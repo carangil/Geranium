@@ -41,7 +41,6 @@ void _gx_callback_keyboard(char key, int x, int y)
 
 }
 
-
 void _gx_callback_keyboard_up(char key, int x, int y)
 {
 	_gx_keystate[  (unsigned char) key] = zfalse;  //indicate the key is not pressed
@@ -287,77 +286,3 @@ zfloat32 gx_get_image_dimensions(zuint32* width, zuint32* height)
 	return ((zfloat32) _gx_window_width) / ((zfloat32)_gx_window_height);
 }
 
-
-
-
-//move this camera crap out of sys
-
-void gx_camera_pos(float x, float y, float z)
-{
-	glLoadIdentity();
-	glTranslatef(-x,-y,-z);
-
-}
-
-//
-
-void gx_camera_pos_rot(vec3* position, vec3* xaxis, vec3* yaxis, vec3* zaxis)
-{
-	zfloat32 matr[]={
-					     xaxis->vec3x, yaxis->vec3x, -zaxis->vec3x,0,
-					     xaxis->vec3y, yaxis->vec3y, -zaxis->vec3y,0,
-					     xaxis->vec3z, yaxis->vec3z, -zaxis->vec3z,0,
-					     0,0,0,1};
-	glLoadIdentity();
-	
-	glMultMatrixf((float*)&matr);
-				
-	glTranslatef( -position->vec3x, -position->vec3y, -position->vec3z);
-}
-
-//spin crap
-void gx_spin(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up, vec3* forward)
-{
-
-	//roll
-
-	if (roll != 0.0)
-	{
-		//add a little bit of the right vector to the up vector:
-		
-		vec3madd(*up, roll, *right);
-
-		//make the new up vector unit-length
-		vec3scale(  *up,  1.0/  sqrt( vec3abs_sq( *up ) ) ); 
-		
-	//cross product to give new right vector
-		vec3cross( *right, *forward, *up  );
-	}
-
-	//yaw
-	if (yaw != 0.0)
-	{
-		//add some 'right' to 'forward'
-		vec3madd( *forward, yaw, *right);
-
-		//make forward unit-length
-		vec3scale(  *forward,  1.0/  sqrt( vec3abs_sq( *forward ) ) ); 
-
-		//remake right vector;
-		vec3cross( *right, *forward, *up  );
-	}
-
-	if (pitch != 0.0)
-	{
-		//add some 'up' to the forward vector
-		vec3madd( *forward, pitch, *up);
-
-		//normalize the new forward vector
-		vec3scale(  *forward,  1.0/  sqrt( vec3abs_sq( *forward ) ) ); 
-
-		//remake the up vector
-		vec3cross( *up, *right, *forward  );
-	}
-
-
-}

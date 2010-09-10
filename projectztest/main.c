@@ -12,6 +12,7 @@
 #include "..\graphics\gx_image.h"
 #include "..\graphics\gx_sprite.h"
 #include "..\graphics\gx_buffers.h"
+#include "..\graphics\gx_misc.h"
 
 
 typedef struct test_s
@@ -210,8 +211,12 @@ void test_graphics()
 	gx_sprite_t* sprite = NULL;
 
 	gx_image_t* heightmap = NULL;
-
 	gx_vbuffer_t* heightmesh = NULL;
+
+	gx_image_t* heightmap2 = NULL;
+	gx_vbuffer_t* heightmesh2 = NULL;
+
+
 
 	printf("Init graphics\n");
 	gx_init(640, 480 , "Test Graphics Window");
@@ -304,17 +309,24 @@ void test_graphics()
 
 	gx_vbuffer_update(heightmesh);
 
+	heightmap2 = gx_image_load_tga("hmap.tga");
+
+	heightmesh2 = gx_mesh_from_image(heightmap2, 0.0,0.0,-3.0,   //offset
+		0,1,2,        //axis swizzle
+		3.0,.1,3.0,  //scaling
+		ztrue, 2);
+
+		gx_vbuffer_update(heightmesh2);
+
+
 	gx_mouse_capture(ztrue); //capture the mouse for relative motion
 
 
 
 	while( gx_window_event() == GX_LOOP_NOTHING)
 	{
-		int i;
+	
 		zint32 mx, my;
-
-
-
 		
 
 		gx_mouse_pos(&mx, &my);
@@ -360,7 +372,6 @@ void test_graphics()
 			if (gx_key_state('s')) czs=-.02;
 			if (gx_key_state('a')) cxs=-.02;
 			if (gx_key_state('d')) cxs=+.02;
-
 			if (gx_key_state('r')) cys=+.02;
 			if (gx_key_state('f')) cys=-.02;
 
@@ -368,14 +379,11 @@ void test_graphics()
 			if (gx_key_state('q')) roll=-.02;
 			if (gx_key_state('e')) roll=.02;
 
-
 			if (gx_key_state('4')) yaw=-.02;
 			if (gx_key_state('6')) yaw=.02;
 
 			if (gx_key_state('8')) pitch=-.02;
 			if (gx_key_state('2')) pitch=.02;
-
-
 
 			c = gx_getkey();
 			if (c=='Q') 
@@ -383,31 +391,19 @@ void test_graphics()
 
 			pitch += my*.001;
 			yaw += mx*.001;
-
-			//cx+=cxs;
-			//cy+=cys;
-			//cz+=czs;
-
+	
 			vec3madd(camera_pos, cxs, camera_right);
 			vec3madd(camera_pos, cys, camera_up);
 			vec3madd(camera_pos, czs, camera_forward);
 
-
 			//try some spin crap
 			gx_spin(yaw, pitch, roll,&camera_right, &camera_up, &camera_forward);
 
-
 		}
 		
-	//	vec3set(camera_pos, cx, cy, cz);
-
-		
+			
 		gx_camera_pos_rot( &camera_pos, &camera_right, &camera_up, &camera_forward);
-
-		//gx_camera_pos(cx,cy,cz);
-		//gx_camera_pos_rot( position, vec3* xaxis, vec3* yaxis, vec3* zaxis);
 		
-		//_gx_set_active_textures( NULL , 0);
 		{
 			gx_image_t * txlist[2];
 			txlist[0]=image1;
@@ -416,6 +412,9 @@ void test_graphics()
 		}
 
 		gx_vbuffer_draw(heightmesh,0,heightmesh->index_count, gx_triangles, ztrue);
+
+		gx_set_active_textures(NULL,0);
+		gx_vbuffer_draw(heightmesh2,0,heightmesh2->index_count, gx_triangles, ztrue);
 
 		gx_frame_show();
 	}
