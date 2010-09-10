@@ -9,9 +9,9 @@
 #include "gx_buffers.h"
 
 
-#include "gl/glew.h"
-#include "gl/wglew.h"
-#include "gl/freeglut.h"
+#include "glstuff.h"
+
+
 
 #define GX_UPDATE_FREQ  GL_STATIC_DRAW
 
@@ -260,14 +260,7 @@ void gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i)
 }
 
 
-
-
-
-
 //drawing a vbuffer
-
-
-
 void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e prim  , zbool indexed)
 {
 	zuint32 i;
@@ -451,8 +444,9 @@ gx_vbuffer_t* gx_mesh_from_image(gx_image_t* image,
 				{
 
 					gx_vbuffer_add_index(vbuf, nv);
-					gx_vbuffer_add_index(vbuf, lastcol[j]);
+					
 					gx_vbuffer_add_index(vbuf, lastcol[j-1]);
+					gx_vbuffer_add_index(vbuf, lastcol[j]);
 
 				}
 			}

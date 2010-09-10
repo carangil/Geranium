@@ -11,9 +11,8 @@
 
 
 
-#include "gl/glew.h"
-#include "gl/wglew.h"
-#include "gl/freeglut.h"
+#include "glstuff.h"
+
 
 void gx_drawstyle_activate(gx_drawstyle_t* style)
 {

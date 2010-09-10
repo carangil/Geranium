@@ -39,4 +39,5 @@ zchar gx_getkey() ; //get rid of this crap!
 
 void gx_mouse_pos(zuint32* x, zuint32* y);
 void gx_mouse_capture(zbool cap);
+zbool gx_key_state(zbyte a);
 

@@ -2,26 +2,20 @@
 // ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
-
 #include <stdio.h>
 #include <windows.h>
 
-//#include "gl\glext.h"
+
 #include "../ztypes.h"
 #include "../vmath.h"
 
-#include "gl/glew.h"
-#include "gl/wglew.h"
+#include "glstuff.h"
 
-//#include <gl/GL.h>
-#include "gl/freeglut.h"
 #include "gx_sys.h"
 #include <math.h>
-#include <windows.h>
 
 
 static int _gx_doshutdown = GX_LOOP_NOTHING;
-
 
 static zint32 _gx_window_width=0;
 static zint32 _gx_window_height=0;
@@ -33,7 +27,9 @@ static zint32 _gx_auto_viewport_adjust=ztrue; /*true to automatically adjust vie
 static zchar _keybuffer[KEYBSIZE];
 static zuint32 _kbpos=0;
 
- void _gx_callback_keyboard(char key, int x, int y)
+zbool _gx_keystate[256];
+
+void _gx_callback_keyboard(char key, int x, int y)
 {
 
 	if (_kbpos < KEYBSIZE)
@@ -41,9 +37,20 @@ static zuint32 _kbpos=0;
 		_keybuffer[_kbpos++]= key;
 	}
 
-	//printf(" %c at %d %d\n", key,x,y);
-	//if (key=='Q') 
-	//	_gx_doshutdown=GX_LOOP_EXIT;
+	_gx_keystate[  (unsigned char) key] = ztrue;  //indicate the key is pressed
+
+}
+
+
+void _gx_callback_keyboard_up(char key, int x, int y)
+{
+	_gx_keystate[  (unsigned char) key] = zfalse;  //indicate the key is not pressed
+}
+
+//returns the state of a single key
+zbool gx_key_state(zbyte a)
+{
+	return _gx_keystate[a];
 }
 
 zchar gx_getkey()  //goes to 
@@ -168,6 +175,8 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	char *fakeargv0;
 	char ** fakeargv= &fakeargv0;
 	
+	memset(_gx_keystate, 0, sizeof(_gx_keystate));		
+
 	glutInit(&fakeargc, fakeargv);
 	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
 	
@@ -178,6 +187,7 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	//set callbacks
 	glutReshapeFunc(_gx_callback_reshape);
 	glutKeyboardFunc(_gx_callback_keyboard);
+	glutKeyboardUpFunc(_gx_callback_keyboard_up);
 	glutMouseFunc(_gx_callback_mouseclick);
 	glutMotionFunc(_gx_callback_mouseactive);
 	glutPassiveMotionFunc(_gx_callback_mousepassive);
@@ -240,6 +250,9 @@ void gx_setup_2d(float left,  float top, float right, float bottom)
 	//makes most sense to disable depth:
 	glDepthMask(GL_FALSE);  //don't write to depth bufer
 	glDisable(GL_DEPTH_TEST); //don't test depth buffer when drawing
+
+	glDisable(GL_CULL_FACE);
+
 }
 
 
@@ -258,6 +271,9 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 	glDepthFunc(GL_LEQUAL);  //draw things equally far or closer
 	glDepthMask(GL_TRUE); //write to depth bufer
 	glEnable(GL_DEPTH_TEST);  //enable depth testing
+
+	//glEnable(GL_CULL_FACE); //we want face culling (for now)
+	//glCullFace(GL_BACK);
 }
 
 zfloat32 gx_get_image_dimensions(zuint32* width, zuint32* height)
@@ -309,38 +325,38 @@ void gx_spin(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up,
 	{
 		//add a little bit of the right vector to the up vector:
 		
-		vec3madd((*up), roll, (*right));
+		vec3madd(*up, roll, *right);
 
 		//make the new up vector unit-length
-		vec3scale(  (*up),  1.0/  sqrt( vec3abs_sq( (*up) ) ) ); 
+		vec3scale(  *up,  1.0/  sqrt( vec3abs_sq( *up ) ) ); 
 		
 	//cross product to give new right vector
-		vec3cross( (*right), (*forward), (*up)  );
+		vec3cross( *right, *forward, *up  );
 	}
 
 	//yaw
 	if (yaw != 0.0)
 	{
 		//add some 'right' to 'forward'
-		vec3madd( (*forward), yaw, (*right));
+		vec3madd( *forward, yaw, *right);
 
 		//make forward unit-length
-		vec3scale(  (*forward),  1.0/  sqrt( vec3abs_sq( (*forward) ) ) ); 
+		vec3scale(  *forward,  1.0/  sqrt( vec3abs_sq( *forward ) ) ); 
 
 		//remake right vector;
-		vec3cross( (*right), (*forward), (*up)  );
+		vec3cross( *right, *forward, *up  );
 	}
 
 	if (pitch != 0.0)
 	{
 		//add some 'up' to the forward vector
-		vec3madd( (*forward), pitch, (*up));
+		vec3madd( *forward, pitch, *up);
 
 		//normalize the new forward vector
-		vec3scale(  (*forward),  1.0/  sqrt( vec3abs_sq( (*forward) ) ) ); 
+		vec3scale(  *forward,  1.0/  sqrt( vec3abs_sq( *forward ) ) ); 
 
 		//remake the up vector
-		vec3cross( (*up), (*right), (*forward)  );
+		vec3cross( *up, *right, *forward  );
 	}
 
 

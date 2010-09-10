@@ -9,21 +9,9 @@
 #include "../memory/ram.h"
 #include <stdio.h>
 #include "gx_image.h"
+#include "glstuff.h"
 
 
-//#include <stdio.h>
-//#include <windows.h>
-
-//#include "gl\glext.h"
-//#include "../ztypes.h"
-
-#include "gl/glew.h"
-#include "gl/wglew.h"
-#include "gl/freeglut.h"
-
-//#include <gl/GL.h>
-
-//#include "gx_sys.h"
 
 void _gx_destruct_image(void* x)
 {
@@ -31,10 +19,12 @@ void _gx_destruct_image(void* x)
 	if  (i->data)
 		ram_free(i->data);
 
+	//need to free it from openGL as well
+
 	ram_shallow_free(i);
 }
 
-//Taken from 
+//Taken from 2005
 gx_image_t* gx_image_load_tga( zchar* f)
 {
 	gx_image_t* image = NULL;
@@ -112,7 +102,6 @@ zbool _gx_image_enable(gx_image_t* image)
 	if (!image)
 		return zfalse;
 
-	//if image is already loaded to opengl, say we've succeeded
 	if (! image->_sent_to_gl)
 	{
 		//attempt to create texture object in GL
@@ -142,17 +131,14 @@ zbool _gx_image_enable(gx_image_t* image)
 	return ztrue;
 }
 
+
 zbool gx_image_disable(gx_image_t* image)
 {
 	//TODO: release the texture from OPENGL
 }
 
 
-
-
-
-
-//garbage test function
+//garbage test function: puts an image on the screen
 void gx_image_test(gx_image_t* image)
 {
 

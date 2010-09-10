@@ -6,9 +6,7 @@
 #include "../memory/ram.h"
 #include <stdio.h>
 
-#include "gl/glew.h"
-#include "gl/wglew.h"
-#include "gl/freeglut.h"
+#include "glstuff.h"
 
 #include "gx_image.h"
 #include "gx_sprite.h"

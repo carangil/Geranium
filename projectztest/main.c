@@ -199,6 +199,7 @@ void test_graphics()
 	zfloat32 cxs=0;
 	zfloat32 cys=0;
 	zfloat32 czs=0;
+	zfloat32 rolls=0;
 
 	zfloat32 xxx=0;
 	zfloat32 yyy=0;
@@ -305,11 +306,16 @@ void test_graphics()
 
 	gx_mouse_capture(ztrue); //capture the mouse for relative motion
 
+
+
 	while( gx_window_event() == GX_LOOP_NOTHING)
 	{
 		int i;
 		zint32 mx, my;
 
+
+
+		
 
 		gx_mouse_pos(&mx, &my);
 
@@ -338,66 +344,45 @@ void test_graphics()
 
 
 		{
-			char c = gx_getkey();
+			char c;
+			
 			zfloat32 yaw	= 0.0;
 			zfloat32 pitch	= 0.0;
-			zfloat32 roll	= 0.0;
+			zfloat32 roll	= rolls;
+			
+			czs=0;
+			cys=0;
+			cxs=0;
 
-			switch(c)
-			{
-			case 'Q':
-				exit(0);
 
 
-			case'w':
-				czs+=.01; break;
+			if (gx_key_state('w')) czs=.02;
+			if (gx_key_state('s')) czs=-.02;
+			if (gx_key_state('a')) cxs=-.02;
+			if (gx_key_state('d')) cxs=+.02;
 
-			case's':
-				czs-=.01; break;
+			if (gx_key_state('r')) cys=+.02;
+			if (gx_key_state('f')) cys=-.02;
 
-			case'a':
-				cxs-=.01; break;
-			case'd':
-				cxs+=.01; break;
 
-			case'r':
-				cys+=.01; break;
+			if (gx_key_state('q')) roll=-.02;
+			if (gx_key_state('e')) roll=.02;
 
-			case'f':
-				cys-=.01; break;
 
-			case'8':
-				pitch = .05;
+			if (gx_key_state('4')) yaw=-.02;
+			if (gx_key_state('6')) yaw=.02;
+
+			if (gx_key_state('8')) pitch=-.02;
+			if (gx_key_state('2')) pitch=.02;
+
+
+
+			c = gx_getkey();
+			if (c=='Q') 
 				break;
-
-			case'2':
-				pitch = -.05;
-				break;
-
-
-			case'6':
-				yaw = .05;
-				break;
-
-			case'4':
-				yaw = -.05;
-				break;
-
-			case'q':
-				roll = .05;
-				break;
-
-			case'e':
-				roll = -.05;
-				break;
-
-
-			}
-
 
 			pitch += my*.001;
 			yaw += mx*.001;
-
 
 			//cx+=cxs;
 			//cy+=cys;
@@ -455,7 +440,8 @@ int main(int argc, char** argv)
 	printf(" %f %f %f \n", b.vec3p[0], b.vec3p[1], b.vec3p[2]);	
 
 
-	printf("allocations left: %d\n", ram_allocs());
+
 #endif 
+		printf("allocations left: %d\n", ram_allocs());
 	return 0;
 }
