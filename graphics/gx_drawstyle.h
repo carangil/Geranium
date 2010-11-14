@@ -24,3 +24,4 @@ typedef struct
 } gx_drawstyle_t;
 
 
+void gx_drawstyle_activate(gx_drawstyle_t* style);

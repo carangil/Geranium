@@ -4,40 +4,37 @@
 
 #include <stdio.h>
 #include <windows.h>
+//todo:  move any windows-specific functions out of here
 
 
 #include "../ztypes.h"
 #include "../vmath.h"
-
 #include "glstuff.h"
-
 #include "gx_sys.h"
 #include <math.h>
 
-
-static int _gx_doshutdown = GX_LOOP_NOTHING;
-
+//internal data
 static zint32 _gx_window_width=0;
 static zint32 _gx_window_height=0;
 static zint32 _gx_auto_viewport_adjust=ztrue; /*true to automatically adjust viewport*/
 
-// Required glut callbacks
-
+//keyboard data
 #define KEYBSIZE 10
 static zchar _keybuffer[KEYBSIZE];
 static zuint32 _kbpos=0;
+zbool _gx_keystate[256];  //up/down state of all possible chars
 
-zbool _gx_keystate[256];
+// Required glut callbacks
 
 void _gx_callback_keyboard(char key, int x, int y)
 {
 
 	if (_kbpos < KEYBSIZE)
 	{
-		_keybuffer[_kbpos++]= key;
+		_keybuffer[_kbpos++]= key;  //store keys in keyboard buffer
 	}
 
-	_gx_keystate[  (unsigned char) key] = ztrue;  //indicate the key is pressed
+	_gx_keystate[  (unsigned char) key] = ztrue;  //store updated key state
 
 }
 
@@ -49,7 +46,7 @@ void _gx_callback_keyboard_up(char key, int x, int y)
 //returns the state of a single key
 zbool gx_key_state(zbyte a)
 {
-	return _gx_keystate[a];
+	return _gx_keystate[ (unsigned char) a];
 }
 
 zchar gx_getkey()  //goes to 
@@ -94,13 +91,14 @@ void gx_mouse_capture(zbool cap)
 	}
 }
 
-void gx_mouse_pos(zint32* x, zint32* y)
+void gx_mouse_pos(zint32* x, zint32* y, zbool* rel)
 {
 
 	if (!_gx_mouse_capture)
 	{
 		*x = _gx_last_mouse_x;
 		*y = _gx_last_mouse_y;
+		*rel = zfalse;
 
 	}
 	else
@@ -108,6 +106,7 @@ void gx_mouse_pos(zint32* x, zint32* y)
 		POINT point;
 		GetCursorPos(&point);
 		
+		*rel = ztrue;
 		
 		*x = point.x - _gx_mouse_capture_last_x;
 		*y = point.y - _gx_mouse_capture_last_y;
@@ -126,11 +125,9 @@ void gx_mouse_pos(zint32* x, zint32* y)
 
 static void _gx_callback_mousepassive(int x, int y)
 {
-
-	
+	//called when mouse is moved with no buttons pressed
 	_gx_last_mouse_x = x;
 	_gx_last_mouse_y = y;
-
 
 }
 
@@ -138,10 +135,9 @@ static void _gx_callback_mousepassive(int x, int y)
 
 static void _gx_callback_mouseactive(int x, int y)
 {
-
-	
-	printf("mousemove active %d %d\n", x, y);
-	
+	//called when mouse is moved with button pressd
+	_gx_last_mouse_x = x;
+	_gx_last_mouse_y = y;
 }
 
 static void _gx_callback_reshape(int w, int h) //called when window is resized
@@ -211,10 +207,9 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 
 //Window event handling:  must call this function periodically to handle events
 
-zint32 gx_window_event()
+void gx_window_event()
 {
 	glutMainLoopEvent();
-	return _gx_doshutdown;
 }
 
 /* Simple framebuffer control */
@@ -237,6 +232,19 @@ void gx_frame_show()
 {
 	glutSwapBuffers();
 }
+
+zfloat32 gx_frame_get_dimensions(zuint32* width, zuint32* height)
+{
+	if (height)
+		*height = _gx_window_height;
+
+	if (width)
+		*width = _gx_window_width;
+
+	return ((zfloat32) _gx_window_width) / ((zfloat32)_gx_window_height);
+}
+
+
 
 /* Two dimensional coord system */
 void gx_setup_2d(float left,  float top, float right, float bottom)
@@ -273,16 +281,5 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 
 	//glEnable(GL_CULL_FACE); //we want face culling (for now)
 	//glCullFace(GL_BACK);
-}
-
-zfloat32 gx_get_image_dimensions(zuint32* width, zuint32* height)
-{
-	if (height)
-		*height = _gx_window_height;
-
-	if (width)
-		*width = _gx_window_width;
-
-	return ((zfloat32) _gx_window_width) / ((zfloat32)_gx_window_height);
 }
 

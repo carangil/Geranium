@@ -54,23 +54,31 @@ void gx_vbuffer_add_tex(gx_vbuffer_t* v, zuint32 texture, zfloat32 s, zfloat32 t
 void gx_vbuffer_add_color(gx_vbuffer_t* v, zfloat32 r, zfloat32 g, zfloat32 b, zfloat32 a);
 zint32 gx_vbuffer_add_vertex(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z);
 
+
+//returns how much space is in a vbuffer
+zuint32 vbuffer_remaining(gx_vbuffer_t* v, zuint32* index_remaining);
+
 void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e prim  , zbool indexed);
 
 
 void gx_test_draw_vertices(gx_vbuffer_t* v);
 
-void gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i);
+//returns the index of the index added
+zint32 gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i);
 
-gx_vbuffer_t* gx_mesh_from_image(gx_image_t* image, 
-								zfloat32 xoff,
-								zfloat32 yoff,
-								zfloat32 zoff,
-								zbyte xaxis,
-								zbyte yaxis,
- 								zbyte zaxis,
-								 zfloat32 xsize, 
-								 zfloat32 ysize, 
-								 zfloat32 zsize, 
-								 zbool use_color,
-								 zbool use_texture
-								 );
+gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
+									gx_image_t* image, 
+									zfloat32 xoff,
+									zfloat32 yoff,
+									zfloat32 zoff,
+									zbyte xaxis,
+									zbyte yaxis,
+ 									zbyte zaxis,
+									zfloat32 xsize, 
+									zfloat32 ysize, 
+									zfloat32 zsize, 
+									zbool use_color,
+									zuint32 num_texture,
+									zuint32* start,
+									zuint32* end
+									);

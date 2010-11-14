@@ -13,6 +13,9 @@
 
 #include "glstuff.h"
 
+//activate a drawstyle
+//NOTE: there is not yet a constructor for styles, only functions that use them.  The user must create them
+//		I may add a constructor later, but is not necessary at this point.
 
 void gx_drawstyle_activate(gx_drawstyle_t* style)
 {
@@ -48,6 +51,6 @@ void gx_drawstyle_activate(gx_drawstyle_t* style)
 
 
 	//activate all set textures
-	_gx_set_active_textures(style->textures, style->numtextures);
+	gx_set_active_textures(style->textures, style->numtextures);
 
 }

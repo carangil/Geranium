@@ -9,6 +9,7 @@
 
 /*****************
  *RAM allocation
+ *Note:  This is NOT yet thread safe.
  *****************/
 
 /* stats */

@@ -45,6 +45,12 @@ typedef union
 	(_v3_a).named.z += (_v3_b).named.z;	\
 }
 
+#define vec3sub(_v3_a, _v3_b) {		\
+	(_v3_a).named.x -= (_v3_b).named.x;	\
+	(_v3_a).named.y -= (_v3_b).named.y;	\
+	(_v3_a).named.z -= (_v3_b).named.z;	\
+}
+
 // a= a*s
 
 #define vec3scale(_v3_a,  _v3_s) {  \
@@ -64,6 +70,10 @@ typedef union
 #define __sq(__sqx)  ((__sqx)*(__sqx))
 
 
+#define vec3dot(_v3_a,_v3_b) \
+(((_v3_a).named.x *  (_v3_b).named.x) + ((_v3_a).named.y *  (_v3_b).named.y) + ((_v3_a).named.z *  (_v3_b).named.z))
+
+
 /* Square of the absolute value of vector*/
 
 #define vec3abs_sq(_v3_a) (__sq((_v3_a).named.x)+__sq((_v3_a).named.y)+__sq((_v3_a).named.z))
@@ -74,3 +84,4 @@ typedef union
 	(_v3_a).named.z += (_v3_b).named.z *(_v3_s);\
 }
 
+#define vec3print(_v3_b) printf("<%f %f %f>", (_v3_b).named.x, (_v3_b).named.y, (_v3_b).named.z );

@@ -19,7 +19,10 @@ typedef struct
 
 } gx_sprite_t;
 
-gx_sprite_t* gx_sprite_mk(gx_image_t*, zint32 left, zint32 top, zint32 right, zint32 bottom, zfloat32 width, zfloat32 height);
+gx_sprite_t* gx_sprite_mk(gx_image_t* image, zint32 left, zint32 bottom, zint32 width, zint32 height, zfloat32 sprite_width, zfloat32 sprite_height);
 
 
-void gx_sprite_draw(gx_sprite_t* sprite, zfloat32 x, zfloat32 y);
+void gx_sprite_draw(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool alpha_blend);
+
+void gx_sprite_draw_rotozoom(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool alpha_blend,  zfloat32 xo, zfloat32 yo, zfloat32 zoom, zfloat32 ang);
+

@@ -21,6 +21,11 @@ void _gx_destruct_image(void* x)
 
 	//need to free it from openGL as well
 
+	if (i->_sent_to_gl)
+	{
+		glDeleteTextures(1, & (i->_gl_texture_number) );
+	}
+
 	ram_shallow_free(i);
 }
 
@@ -132,9 +137,17 @@ zbool _gx_image_enable(gx_image_t* image)
 }
 
 
-zbool gx_image_disable(gx_image_t* image)
+zbool gx_image_disable(gx_image_t* i)
 {
-	//TODO: release the texture from OPENGL
+	//TODO: need this function?  Why disable an image in gl and keep the data in ram?
+
+	if (i->_sent_to_gl)
+	{
+		glDeleteTextures(1, & (i->_gl_texture_number) );
+	}
+
+	i->_sent_to_gl=zfalse;
+	i->_gl_texture_number=0;
 }
 
 
@@ -185,7 +198,11 @@ void gx_set_active_textures(gx_image_t** texes, zuint32 numtex)
 		{	
 			//if we haven't enabled this unit yet, enable it
 			glEnable(GL_TEXTURE_2D);
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL); //default as alpha blending
+
+			if (i==0)
+				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); 
+			else
+				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL); //default as alpha blending
 		}
 
 		_gx_image_enable(texes[i]); //enable this image for use on the current texture unit

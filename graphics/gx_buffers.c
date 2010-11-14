@@ -13,7 +13,7 @@
 
 
 
-#define GX_UPDATE_FREQ  GL_STATIC_DRAW
+#define GX_UPDATE_FREQ  GL_DYNAMIC_DRAW
 
 
 static void _destruct_vbuffer(void* x)
@@ -240,7 +240,7 @@ zint32 gx_vbuffer_add_vertex(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z
 
 
 
-void gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i)
+zint32 gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i)
 {
 	if (!v)
 		return;
@@ -256,7 +256,25 @@ void gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i)
 
 	v->index_data[  (v->index_count) ++ ] = i;
 	
+	return v->index_count-1;
 	
+}
+
+zuint32 gx_remaining_indices(gx_vbuffer_t* v)
+{
+	if (!v)
+		return 0;
+	
+	return v->index_capacity - v->index_count;
+	
+}
+
+zuint32 gx_remaining_vertices(gx_vbuffer_t* v)
+{
+	if (!v)
+		return 0;
+
+	return v->vertex_capacity - v->vertex_count;
 }
 
 
@@ -367,31 +385,46 @@ void gx_test_draw_vertices(gx_vbuffer_t* v)
 
 //lame way to create geometry: axis-aligned image
 //this type of geometry-related crap should be shoved into a separate file
+//if the user sets the preferred buffer argument, if the data will fit, it will be put in the existing buffer
 #if 1
-gx_vbuffer_t* gx_mesh_from_image(gx_image_t* image, 
-								zfloat32 xoff,
-								zfloat32 yoff,
-								zfloat32 zoff,
-								zbyte xaxis,
-								zbyte yaxis,
- 								zbyte zaxis,
-								zfloat32 xsize, 
-								zfloat32 ysize, 
-								zfloat32 zsize, 
-								zbool use_color,
-								zuint32 num_texture)
+gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
+									gx_image_t* image, 
+									zfloat32 xoff,
+									zfloat32 yoff,
+									zfloat32 zoff,
+									zbyte xaxis,
+									zbyte yaxis,
+ 									zbyte zaxis,
+									zfloat32 xsize, 
+									zfloat32 ysize, 
+									zfloat32 zsize, 
+									zbool use_color,
+									zuint32 num_texture,
+									zuint32* start,  //start and end return the draw start and end calls for the vbuffer
+									zuint32* end
+									)
 {
 	zuint32 i,j,t;
 	float coord[3];
 	
+	gx_vbuffer_t* vbuf = NULL;
+
+	zuint32* lastcol = NULL;
 	zuint32 numpoints = image->width * image->height;
 	zuint32 numtriangles = (image->width-1) * (image->height -1)  *2 ;
-	
-	gx_vbuffer_t* vbuf = gx_vbuffer_mk(numpoints,numtriangles*3, 
-		use_color, 
-		num_texture );
 
-	zuint32* lastcol = ram_alloc( sizeof(zuint32) * image->height, NULL);
+	if (!preferred_buffer || gx_remaining_indices(preferred_buffer)<(numtriangles*3) || gx_remaining_vertices < numpoints)
+	{
+		vbuf = gx_vbuffer_mk(numpoints,numtriangles*3, 
+			use_color, 
+			num_texture );
+	}
+	else
+	{
+		vbuf = preferred_buffer;
+	}
+	
+	lastcol = ram_alloc( sizeof(zuint32) * image->height, NULL);
 
 	if (xaxis>2 || yaxis>2 || zaxis>2)
 	{
@@ -400,6 +433,10 @@ gx_vbuffer_t* gx_mesh_from_image(gx_image_t* image,
 		yaxis=2;
 		zaxis=3;
 	}
+	
+	if (start)
+		*start = vbuf->index_count;
+
 	
 	
 	//create vertices for each point
@@ -423,12 +460,12 @@ gx_vbuffer_t* gx_mesh_from_image(gx_image_t* image,
 				gx_vbuffer_add_tex(vbuf, t,  ((i) / (float)(image->width -1)), ((j) / (float)(image->width -1)));
 			}
 
-			coord[0]= xoff +  (i*xsize) / (image->width-1);
-			coord[1]= yoff +   ysize * hf;
-			coord[2]= zoff +  (j*zsize) / (image->height-1);
+			coord[0]= (i*xsize) / (image->width-1);
+			coord[1]= ysize * hf;
+			coord[2]= (j*zsize) / (image->height-1);
 
 
-			nv = gx_vbuffer_add_vertex(vbuf, coord[xaxis], coord[yaxis], coord [zaxis]  );
+			nv = gx_vbuffer_add_vertex(vbuf, coord[xaxis]+xoff, coord[yaxis]+yoff, coord [zaxis] +zoff );
 
 
 			if (i>0)
@@ -457,6 +494,8 @@ gx_vbuffer_t* gx_mesh_from_image(gx_image_t* image,
 		}
 	}
 
+	if (end)
+		*end = vbuf->index_count;
 
 	return vbuf;
 
