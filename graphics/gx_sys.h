@@ -2,6 +2,7 @@
 // ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
+#define DOPRINTF
 
 #define GX_OK 0
 #define GX_ERROR 1
@@ -10,6 +11,7 @@
 
 void gx_window_event();
 int gx_init(int width, int height, char* window_title);
+void gx_disable();
 
 void gx_clear_color(float r, float g, float b, float a);
 void gx_frame_clear(zbool color, zbool depth);
@@ -23,11 +25,14 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 
 
 
-//move this IO stuff somewhere else
-zchar gx_getkey() ; //get rid of this crap!
+//read keyboard
+zchar gx_getkey();
+zbool gx_key_state(zbyte a);
+
+//read mouse
 void gx_mouse_pos(zuint32* x, zuint32* y, zbool* rel);
 void gx_mouse_capture(zbool cap);
-zbool gx_key_state(zbyte a);
+
 
 
 

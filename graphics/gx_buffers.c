@@ -23,7 +23,7 @@ static void _destruct_vbuffer(void* x)
 
 	if (v->_sent_to_gl)
 	{
-		//todo: Free any buffers still in opengl
+		//todo: Free any buffers still in opengl	
 	}
 
 	ram_free(v->color_data);
@@ -38,9 +38,7 @@ static void _destruct_vbuffer(void* x)
 	ram_shallow_free(v);
 }
 
-#define VERTEX_COMPONENTS 3
-#define COLOR_COMPONENTS 4
-#define TEXTURE_COMPONENTS 2
+
 
 gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices, 
 							zuint32 num_indices, 
@@ -81,6 +79,10 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 			return NULL;
 		}
 		v->index_capacity = num_indices;
+
+
+		//experimental
+		v->index_notify = ram_alloc(sizeof(zuint32*) * num_indices, NULL);
 	}
 
 	if (use_color)  //if using color buffer, define it
@@ -277,6 +279,22 @@ zuint32 gx_remaining_vertices(gx_vbuffer_t* v)
 	return v->vertex_capacity - v->vertex_count;
 }
 
+//clearing a vbuffer
+void gx_vbuffer_clear(gx_vbuffer_t* v, zbool clear_index, zbool clear_vertex)
+{
+	if (!v)
+		return;
+
+	if (clear_index)
+		v->index_count = 0;
+
+	if (clear_vertex)
+		v->vertex_count = 0;
+
+}
+
+
+static zuint32 _gx_texture_pointer_enabled_count = 0;  //specified how many texture units have been turned on
 
 //drawing a vbuffer
 void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e prim  , zbool indexed)
@@ -297,6 +315,12 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		glVertexPointer(VERTEX_COMPONENTS, GL_FLOAT, 0, 0);
 		glEnableClientState(GL_VERTEX_ARRAY);	
 	}
+	else
+	{
+#ifdef DOPRINTF
+		printf(" Warning... no data to draw!\n");
+#endif
+	}
 
 	if (v->_color_vbo)
 	{
@@ -315,7 +339,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,  v->_index_vbo);
 	}
 
-	
+	//enable pointers for the textures we care about
 	for (i=0;i<v->num_textures;i++)
 	{
 		glClientActiveTexture(GL_TEXTURE0+i);
@@ -324,6 +348,13 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	}
 
+	//disable texture pointers for any leftover units
+	for (i=v->num_textures; i< _gx_texture_pointer_enabled_count; i++)
+	{
+		glClientActiveTexture(GL_TEXTURE0+i);
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	}
+	_gx_texture_pointer_enabled_count = v->num_textures; //keep track of how many we have enabled currently
 
 
 	switch(prim)

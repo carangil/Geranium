@@ -129,7 +129,9 @@ void gx_mesh_draw(gx_mesh_t* mesh_in)
 		
 		if (mesh == mesh_in)  
 		{
+#ifdef DOPRINTF 
 			printf(" Warning: breaking mesh cycle\n");
+#endif
 			//cycle detected!
 			break;
 		}
@@ -227,6 +229,8 @@ void gx_sector_outline(gx_sector_t* sector)
 	glColor3f(1,1,1);
 	glDisable(GL_BLEND);
 	
+	gx_set_active_textures(NULL,0);
+
 	if (!sector)
 		return;
 

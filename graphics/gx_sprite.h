@@ -26,3 +26,8 @@ void gx_sprite_draw(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool alpha_ble
 
 void gx_sprite_draw_rotozoom(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool alpha_blend,  zfloat32 xo, zfloat32 yo, zfloat32 zoom, zfloat32 ang);
 
+void gx_text_draw(gx_image_t* font,  zfloat32 x, zfloat32 y,  zfloat32 angle, zchar* string);
+
+void gx_text_size(zfloat32 width, zfloat32 height);
+
+void gx_text_color(zfloat32 r,zfloat32 g,zfloat32 b, zfloat32 a);

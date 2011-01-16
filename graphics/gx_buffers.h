@@ -26,6 +26,7 @@ typedef struct {
 	zuint32 index_count;     //number of indices currently stored
 	zuint32 index_capacity;  //number of indices that can fit
 
+	zuint32** index_notify;  //write new index here when an index moves  (EXPERIMENTAL)
 
 	//opengl information:
 	zbool   _sent_to_gl;
@@ -54,9 +55,13 @@ void gx_vbuffer_add_tex(gx_vbuffer_t* v, zuint32 texture, zfloat32 s, zfloat32 t
 void gx_vbuffer_add_color(gx_vbuffer_t* v, zfloat32 r, zfloat32 g, zfloat32 b, zfloat32 a);
 zint32 gx_vbuffer_add_vertex(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z);
 
+//clears data in a buffer:
+void gx_vbuffer_clear(gx_vbuffer_t* v, zbool clear_index, zbool clear_vertex);
 
 //returns how much space is in a vbuffer
-zuint32 vbuffer_remaining(gx_vbuffer_t* v, zuint32* index_remaining);
+zuint32 gx_remaining_vertices(gx_vbuffer_t* v);
+zuint32 gx_remaining_indices(gx_vbuffer_t* v);
+
 
 void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e prim  , zbool indexed);
 
@@ -82,3 +87,18 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 									zuint32* start,
 									zuint32* end
 									);
+
+
+//access vertex data
+
+#define VERTEX_COMPONENTS 3
+#define COLOR_COMPONENTS 4
+#define TEXTURE_COMPONENTS 2
+
+//experimental accessors
+
+#define vbuffer_x(vbbb, iii)  ((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS])
+#define vbuffer_y(vbbb, iii)  ((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS]+1)
+#define vbuffer_z(vbbb, iii)  ((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS]+2)
+
+#define vbuffer_v(vbbb, iii)   ((vec3*)(&((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS])))

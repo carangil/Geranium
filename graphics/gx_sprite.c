@@ -50,7 +50,9 @@ void gx_sprite_draw(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool alpha_ble
 #if 0
 	if (!sprite->image->_sent_to_gl)
 	{
+		#ifdef DOPRINTF 
 		printf(" Trying to draw a sprite from in image that hasn't been sent to the graphics card!\n");
+		#endif
 		//todo:  just sent it?
 		return;
 	}
@@ -63,7 +65,10 @@ void gx_sprite_draw(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool alpha_ble
 	gx_set_active_textures(& (sprite->image) , 1);
  
 	
-	
+	//NOTE:  turning on alpha blending here conflicts with any 3d 'drawstyle' thats applied
+	//       after drawing the sprite the current drawstyle should be deactivated
+
+
 	if (alpha_blend)
 		glEnable(GL_BLEND);
 	else
@@ -135,4 +140,91 @@ void gx_sprite_draw_rotozoom(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool 
 
 	glPopMatrix();
 
+}
+
+// simple text
+
+static zfloat32 _gx_fontsize_w = .1;
+static zfloat32 _gx_fontsize_h = .1;
+static zfloat32 _gx_fontr=1;
+static zfloat32 _gx_fontg=1;
+static zfloat32 _gx_fontb=1;
+static zfloat32 _gx_fonta=1;
+
+
+void gx_text_size(zfloat32 width, zfloat32 height)
+{
+	_gx_fontsize_w = width;
+	_gx_fontsize_h = height;
+}
+
+void gx_text_color(zfloat32 r,zfloat32 g,zfloat32 b, zfloat32 a)
+{
+	_gx_fontr=r;
+	_gx_fontg=g;
+	_gx_fontb=b;
+	_gx_fonta=a;
+
+}
+
+
+void gx_text_draw(gx_image_t* font,  zfloat32 x, zfloat32 y,  zfloat32 angle, zchar* string)
+{
+	float sx;
+	float sy;
+	float sx2;
+	float sy2;
+	
+	if (!string || !string[0] || !font)
+		return;
+
+
+	gx_set_active_textures( &font, 1);
+
+	glColor4f(_gx_fontr, _gx_fontg,_gx_fontb, _gx_fonta);
+
+	glPushMatrix();
+
+	glTranslatef(x,y,0);
+	glRotatef(angle, 0,0,1);
+	
+	x=0;
+	y=0;
+
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	
+	glBegin(GL_QUADS);
+
+	while(*string)
+	{
+	
+		sx = (*string % 16 )/16.0 + (1.0/512.0);
+		sy = (*string / 16 )/16.0 + (1.0/512.0);
+		sx2 = (*string % 16+1)/16.0 - (1.0/512.0);
+		sy2 = (*string / 16+1)/16.0 - (1.0/512.0);
+
+		glTexCoord2f( sx, 1-sy);
+		glVertex2f( x,y);
+
+		glTexCoord2f( sx2, 1-sy);
+		glVertex2f( x+_gx_fontsize_w,y);
+
+		
+		glTexCoord2f( sx2, 1-sy2);
+		glVertex2f( x+_gx_fontsize_w,y+_gx_fontsize_h);
+
+		glTexCoord2f( sx, 1-sy2);
+		glVertex2f( x,y+_gx_fontsize_h);
+
+		x+= _gx_fontsize_w;
+
+		string++;
+	}
+
+	
+	glEnd();
+
+	glPopMatrix();
 }

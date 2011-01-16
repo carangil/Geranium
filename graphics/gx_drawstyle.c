@@ -16,6 +16,8 @@
 //activate a drawstyle
 //NOTE: there is not yet a constructor for styles, only functions that use them.  The user must create them
 //		I may add a constructor later, but is not necessary at this point.
+//
+//  When shaders are implemented, they will appear here
 
 void gx_drawstyle_activate(gx_drawstyle_t* style)
 {
@@ -44,7 +46,6 @@ void gx_drawstyle_activate(gx_drawstyle_t* style)
 			glBlendFunc(GL_DST_COLOR, GL_ZERO);
 		}
 		
-	
 	}
 	else
 		glDisable(GL_BLEND);

@@ -162,6 +162,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\gx_line.c"
+				>
+			</File>
+			<File
 				RelativePath=".\gx_misc.c"
 				>
 			</File>
@@ -193,6 +197,10 @@
 			</File>
 			<File
 				RelativePath=".\gx_image.h"
+				>
+			</File>
+			<File
+				RelativePath=".\gx_line.h"
 				>
 			</File>
 			<File

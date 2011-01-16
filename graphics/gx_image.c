@@ -60,13 +60,16 @@ gx_image_t* gx_image_load_tga( zchar* f)
 		ram_free(image);
 		return NULL;
 	}
-
+#ifdef DOPRINTF 
 	printf(" %d by %d at %d bpp \n", image->width, image->height, image->bpp );
+#endif
 
+#ifdef DOPRINTF 
 	if (  (image->width > 2048) || (image->height > 2048))
 	{
 		printf(" Probably wrong image format\n");
 	}
+#endif
 
 	image->data = ram_alloc(image->height * image->width * image->bpp, NULL);
 
@@ -75,6 +78,7 @@ gx_image_t* gx_image_load_tga( zchar* f)
 		/*read in all data*/
 		fread( image->data, 1,image->height*image->width*image->bpp, fi);
 
+	
 		if ((image->bpp == 3) || (image->bpp == 4))
 		{
 			//TARGA goes BLUE GREEN RED  byte order
@@ -101,7 +105,7 @@ gx_image_t* gx_image_load_tga( zchar* f)
 }
 
 
-//enables an image for use in rendering (sends it to opengl for use in sprites or texture mapping
+//enables an image for use in rendering (sends it to opengl for use in sprites or texture mapping)
 zbool _gx_image_enable(gx_image_t* image)
 {
 	if (!image)
@@ -124,11 +128,13 @@ zbool _gx_image_enable(gx_image_t* image)
 		if (image->bpp == 3)
 			gluBuild2DMipmaps(GL_TEXTURE_2D, 3, image->width, image->height, GL_RGB, GL_UNSIGNED_BYTE, image->data);
 		else if (image->bpp == 4)
-			gluBuild2DMipmaps(GL_TEXTURE_2D, 4, image->width, image->height, GL_RGBA, GL_UNSIGNED_BYTE, image->data);
-		else if (image->bpp ==1)
-			gluBuild2DMipmaps(GL_TEXTURE_2D, 1, image->width, image->height, GL_LUMINANCE, GL_UNSIGNED_BYTE, image->data);
+			gluBuild2DMipmaps(GL_TEXTURE_2D, 4, image->width, image->height, GL_RGBA, GL_UNSIGNED_BYTE, image->data);			
+		else if (image->bpp == 1)
+			gluBuild2DMipmaps(GL_TEXTURE_2D, GL_INTENSITY, image->width, image->height, GL_LUMINANCE, GL_UNSIGNED_BYTE, image->data);
+#ifdef DOPRINTF 
 		else
 			printf(" unsupported texture format\n");
+#endif
 
 		image->_sent_to_gl = ztrue;
 	}

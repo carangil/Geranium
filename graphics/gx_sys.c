@@ -3,8 +3,6 @@
 // Commercial use prohibited.
 
 #include <stdio.h>
-#include <windows.h>
-//todo:  move any windows-specific functions out of here
 
 
 #include "../ztypes.h"
@@ -19,20 +17,23 @@ static zint32 _gx_window_height=0;
 static zint32 _gx_auto_viewport_adjust=ztrue; /*true to automatically adjust viewport*/
 
 //keyboard data
-#define KEYBSIZE 10
-static zchar _keybuffer[KEYBSIZE];
-static zuint32 _kbpos=0;
+
+static zchar _keybuffer = 0;;
 zbool _gx_keystate[256];  //up/down state of all possible chars
 
-// Required glut callbacks
+//mouse data
+static zbool	_gx_mouse_capture = zfalse;
+static zuint32	_gx_mouse_capture_last_x = 0;
+static zuint32	_gx_mouse_capture_last_y = 0; 
+static zuint32	_gx_last_mouse_x = 0;
+static zuint32	_gx_last_mouse_y = 0; 
+
+// GLUT callbacks
 
 void _gx_callback_keyboard(char key, int x, int y)
 {
-
-	if (_kbpos < KEYBSIZE)
-	{
-		_keybuffer[_kbpos++]= key;  //store keys in keyboard buffer
-	}
+	_keybuffer = key;  //store last key pressed
+	
 
 	_gx_keystate[  (unsigned char) key] = ztrue;  //store updated key state
 
@@ -43,106 +44,40 @@ void _gx_callback_keyboard_up(char key, int x, int y)
 	_gx_keystate[  (unsigned char) key] = zfalse;  //indicate the key is not pressed
 }
 
-//returns the state of a single key
-zbool gx_key_state(zbyte a)
-{
-	return _gx_keystate[ (unsigned char) a];
-}
-
-zchar gx_getkey()  //goes to 
-{
-	if (_kbpos)
-	{
-		return _keybuffer[--_kbpos];
-	}
-	return 0;  //no key!
-}
-
 
 static void _gx_callback_mouseclick(int button, int state, int x, int y)
 {
+#ifdef DOPRINTF 
 	printf("mouseclick %d %d %d %d", button, state, x, y);
+#endif
 }
 
-
-static zbool	_gx_mouse_capture = zfalse;
-static zuint32	_gx_mouse_capture_last_x = 0;
-static zuint32	_gx_mouse_capture_last_y = 0; 
-
-static zuint32	_gx_last_mouse_x = 0;
-static zuint32	_gx_last_mouse_y = 0; 
-
-
-
-void gx_mouse_capture(zbool cap)
-{
-	if (cap)
-	{
-		_gx_mouse_capture_last_x=_gx_window_width/2;
-		_gx_mouse_capture_last_y=_gx_window_height/2;
-		
-		//windows function!
-		SetCursorPos(_gx_mouse_capture_last_x,_gx_mouse_capture_last_y);
-		_gx_mouse_capture = ztrue;
-	}
-	else
-	{
-		_gx_mouse_capture = zfalse;
-	}
-}
-
-void gx_mouse_pos(zint32* x, zint32* y, zbool* rel)
-{
-
-	if (!_gx_mouse_capture)
-	{
-		*x = _gx_last_mouse_x;
-		*y = _gx_last_mouse_y;
-		*rel = zfalse;
-
-	}
-	else
-	{
-		POINT point;
-		GetCursorPos(&point);
-		
-		*rel = ztrue;
-		
-		*x = point.x - _gx_mouse_capture_last_x;
-		*y = point.y - _gx_mouse_capture_last_y;
-
-		_gx_mouse_capture_last_x=_gx_window_width/2;
-		_gx_mouse_capture_last_y=_gx_window_height/2;
-		
-	
-	
-		if ( *x || *y)
-			SetCursorPos(_gx_mouse_capture_last_x,_gx_mouse_capture_last_y);
-		
-
-	}
-}
-
-static void _gx_callback_mousepassive(int x, int y)
-{
-	//called when mouse is moved with no buttons pressed
-	_gx_last_mouse_x = x;
-	_gx_last_mouse_y = y;
-
-}
 
 
 
 static void _gx_callback_mouseactive(int x, int y)
 {
-	//called when mouse is moved with button pressd
-	_gx_last_mouse_x = x;
-	_gx_last_mouse_y = y;
+
+		_gx_last_mouse_x = x;
+		_gx_last_mouse_y = y;
+	
 }
+
+
+static void _gx_callback_mousepassive(int x, int y)
+{
+	//called when mouse is moved and no buttons are pressed
+	//at this point, there is no reason to differentiate behavior (clicks already cause events)
+
+	_gx_callback_mouseactive(x,y);
+}
+
 
 static void _gx_callback_reshape(int w, int h) //called when window is resized
 {
+#ifdef DOPRINTF 
 	printf(" window resize %d %d\n", w, h);
+#endif
 
 	/*Remember window size*/
 	_gx_window_width=w;
@@ -163,6 +98,9 @@ static void _gx_callback_disp()
 
 //Initialization 
 
+static int _gx_window = 0;
+
+
 int gx_init(zint32 width, zint32 height, zchar* window_title )
 {
 	/* Fake argc/argv fool GLUT into getting different parameters */
@@ -177,7 +115,7 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	
 	glutInitWindowSize(width, height);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_ALPHA | GLUT_DEPTH | GLUT_STENCIL );
-	glutCreateWindow(window_title);
+	_gx_window = glutCreateWindow(window_title);
 
 	//set callbacks
 	glutReshapeFunc(_gx_callback_reshape);
@@ -187,14 +125,20 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	glutMotionFunc(_gx_callback_mouseactive);
 	glutPassiveMotionFunc(_gx_callback_mousepassive);
 	glutDisplayFunc(_gx_callback_disp);
+	//glPointSize(3.0);
 	
+
 	_gx_callback_reshape( width, height);  //reshape will use defaults
 
 	gx_setup_2d(-1.0, -1.0, 1.0, 1.0) ;  //default coords are -1,-1 to 1,1
 
+	_gx_line_init();  //initialize line drawing functions
+
 	if (glewInit()!=GLEW_OK)
 	{
+#ifdef DOPRINTF 
 		printf("Cannot initialize GLEW\n");
+#endif
 		return GX_ERROR;
 	}
 
@@ -205,11 +149,92 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	return GX_OK;
 }
 
+//uninitialize code
+void gx_disable()
+{
+	if (_gx_window)
+		glutDestroyWindow(_gx_window);
+	_gx_window = 0;
+	
+	_gx_line_disable();
+}
+
+
 //Window event handling:  must call this function periodically to handle events
 
 void gx_window_event()
 {
 	glutMainLoopEvent();
+}
+
+/* Window input-ouput */
+
+
+//returns the state of a single key.  true means pressed
+zbool gx_key_state(zbyte a)
+{
+	return _gx_keystate[ (unsigned char) a];
+}
+
+zchar gx_getkey()   //returns last key pressed
+{
+	char c = _keybuffer;
+	_keybuffer=0;
+	return c;
+}
+
+
+void gx_mouse_capture(zbool cap)
+{
+  	if (cap)
+	{
+		//center mouse in window
+
+		_gx_mouse_capture_last_x=_gx_window_width/2;
+		_gx_mouse_capture_last_y=_gx_window_height/2;		
+
+		_gx_last_mouse_x = 0;
+		_gx_last_mouse_y = 0;
+
+		_gx_mouse_capture = ztrue;
+
+		glutWarpPointer( _gx_mouse_capture_last_x, _gx_mouse_capture_last_y);	
+		glutSetCursor(GLUT_CURSOR_NONE); //hide mouse pointer
+	}
+	else
+	{
+		_gx_mouse_capture = zfalse;
+		glutSetCursor(GLUT_CURSOR_INHERIT); //bring back mouse pointer
+	}
+}
+
+void gx_mouse_pos(zint32* x, zint32* y, zbool* rel)
+{
+	
+		if (rel)
+			*rel = _gx_mouse_capture;
+
+		if (!_gx_mouse_capture)
+		{
+
+			*x = _gx_last_mouse_x;
+			*y = _gx_last_mouse_y;
+		}
+		else
+		{
+			
+			*x = _gx_last_mouse_x - _gx_mouse_capture_last_x;
+			*y = _gx_last_mouse_y - _gx_mouse_capture_last_y;
+
+			if ( *x || *y)  //if the mouse moved, re-center it
+			{
+
+				_gx_mouse_capture_last_x=_gx_window_width/2;
+				_gx_mouse_capture_last_y=_gx_window_height/2;		
+				glutWarpPointer( _gx_mouse_capture_last_x, _gx_mouse_capture_last_y);
+
+			}
+		}
 }
 
 /* Simple framebuffer control */

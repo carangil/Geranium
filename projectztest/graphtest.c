@@ -21,6 +21,7 @@ gx_sector_t* draw_sector(gx_sector_t* sector, vec3* camera_position, vec3* camer
 	vec3 diff;
 	zfloat32 dist=0;
 	gx_portal_t * p;
+	int i;
 
 	zfloat32 cosang=0;
 
@@ -30,6 +31,13 @@ gx_sector_t* draw_sector(gx_sector_t* sector, vec3* camera_position, vec3* camer
 	//draw the sector outline
 	gx_sector_outline(sector);
 	
+	
+
+	for (i=0;i<sector->meshes.count; i++)
+	{
+		gx_mesh_draw( vec_get_at( &(sector->meshes) , i)); 	
+	}
+
 	
 	p = sector->portals;
 
@@ -230,9 +238,9 @@ void graphtest_main()
 
 	sharebuffer = gx_vbuffer_mk( 256*256*4, 3*256*256*4, ztrue, 2);
 
-	heightbuffer = gx_vbuffer_from_image( sharebuffer, heightmap, 0.0,0.0,0.0,   //offset
+	heightbuffer = gx_vbuffer_from_image( sharebuffer, heightmap, 0.0,0.0,-1.0,   //offset
 		0,1,2,        //axis swizzle
-		3.0,.3,3.0,  //scaling
+		1.0,.3,2.0,  //scaling
 		ztrue, 2, &start, &end);
 
 //	
@@ -245,7 +253,7 @@ void graphtest_main()
 
 	heightbuffer2 = gx_vbuffer_from_image(sharebuffer, heightmap2, 0.0,0.0,-3.0,   //offset
 		0,1,2,        //axis swizzle
-		3.0,.3,3.0,  //scaling
+		1.0,.3,2.0,  //scaling
 		ztrue, 2, &start, &end);
 
 
@@ -269,11 +277,7 @@ void graphtest_main()
 	ds2.textures[0] = image2;
 	ds2.textures[1] = image1;
 
-
-
-
-
-	mesh0->next = mesh1;  //link both meshes
+	//mesh0->next = mesh1;  //link both meshes
 
 
 	{
@@ -291,8 +295,8 @@ void graphtest_main()
 		vec3set(maxs, 1,1, -1);
 		sector1 = gx_sector_mk(&mins, &maxs);
 
-		vec3set(mins, 1,0, -2);
-		vec3set(maxs, 2,2, -4);
+		vec3set(mins, 1,0, -4);
+		vec3set(maxs, 2,2, -2);
 		sector2 = gx_sector_mk(&mins, &maxs);
 
 		vec3set(pos, .5,.5 ,-1);
@@ -305,6 +309,10 @@ void graphtest_main()
 
 	}
 
+
+	vec_add(   & (sector0->meshes)  , mesh0);
+
+	vec_add(   & (sector1->meshes)  , mesh1);
 
 	gx_mouse_capture(ztrue); //capture the mouse for relative motion
 
@@ -394,9 +402,38 @@ void graphtest_main()
 			pitch += my*.001;
 			yaw += mx*.001;
 	
+
+
+	//restrict motion to current sector
+			if ( camera_pos.named.x > camera_sector->max.named.x)
+				camera_pos.named.x = camera_sector->max.named.x;
+
+			if ( camera_pos.named.y > camera_sector->max.named.y)
+				camera_pos.named.y = camera_sector->max.named.y;
+
+			if ( camera_pos.named.z > camera_sector->max.named.z)
+				camera_pos.named.z = camera_sector->max.named.z ;
+
+			if ( camera_pos.named.x < camera_sector->min.named.x)
+				camera_pos.named.x = camera_sector->min.named.x;
+
+			if ( camera_pos.named.y < camera_sector->min.named.y)
+				camera_pos.named.y = camera_sector->min.named.y;
+
+			if ( camera_pos.named.z < camera_sector->min.named.z)
+				camera_pos.named.z = camera_sector->min.named.z ;
+
+
+
+			//move camera
 			vec3madd(camera_pos, cxs, camera_right);
 			vec3madd(camera_pos, cys, camera_up);
 			vec3madd(camera_pos, czs, camera_forward);
+			
+		
+
+
+
 
 			//try some spin crap
 			gx_spin(yaw, pitch, roll,&camera_right, &camera_up, &camera_forward);
@@ -508,9 +545,10 @@ void graphtest_main2()
 	//sprites
 	gx_sprite_t* ship[3];
 	gx_sprite_t* aster[2];
-
 	gx_sprite_t* bullet=NULL;
 	
+	int start_count=8;
+
 	int add_asteroids=0;
 	float add_asteroids_size=0;
 	float killed_x;
@@ -518,6 +556,7 @@ void graphtest_main2()
 	float killed_xs;
 	float killed_ys;
 
+	int nodamping=0;
 
 	int shipstate=0;
 	int bullet_time = 0;
@@ -556,14 +595,14 @@ void graphtest_main2()
 	ents[0].oy=.05;
 	ents[0].size = .05;
 
-	for(i=1;i<START_ENTS;i++)
+	for(i=1;i<start_count;i++)
 	{
 		ents[i].x=  ((rand()&15)-8)/8.0  ;
 		ents[i].y=((rand()&15)-8)/8.0;
 		ents[i].xspeed=((rand()&15)-8)/8.0 *.005 ;
 		ents[i].yspeed=((rand()&15)-8)/8.0 *.005;
 		ents[i].rotation=0;
-		ents[i].rotation_speed=((rand()&15)-8)/8.0 ;
+		//ents[i].	
 		ents[i].sprite=  aster[i & 1] ;
 		ents[i].ox= .15;
 		ents[i].oy= .15;
@@ -571,7 +610,7 @@ void graphtest_main2()
 		ents[i].size = .15;
 		
 	}
-	active_ents = START_ENTS;
+	active_ents = start_count;
 
 	gx_clear_color(0,0,0,1);
 	
@@ -587,7 +626,15 @@ void graphtest_main2()
 
 		if (c=='Q') break;
 
-		
+		if (active_ents==1)
+		{
+			//only player remains
+
+				add_asteroids=++start_count;
+				add_asteroids_size= .15 ;
+
+
+		}
 
 		if (c==' ' && (bullet_index == -1 ))
 		{
@@ -596,8 +643,8 @@ void graphtest_main2()
 			ents[active_ents].y=ents[0].y;
 
 		
-			ents[active_ents].xspeed = .01 * cos( ents[0].rotation / 180.0 *3.14159) + ents[0].xspeed*.1;
-			ents[active_ents].yspeed = .01 * sin( ents[0].rotation / 180.0 *3.14159) + ents[0].yspeed*.1;
+			ents[active_ents].xspeed = .03 * cos( ents[0].rotation / 180.0 *3.14159) + ents[0].xspeed*.1;
+			ents[active_ents].yspeed = .03 * sin( ents[0].rotation / 180.0 *3.14159) + ents[0].yspeed*.1;
 
 			ents[0].xspeed -= .005 * cos( ents[0].rotation / 180.0 *3.14159) ;
 			ents[0].yspeed -= .005 * sin( ents[0].rotation / 180.0 *3.14159) ;
@@ -611,7 +658,7 @@ void graphtest_main2()
 			ents[active_ents].size=0;
 
 			bullet_index = active_ents;
-			bullet_time = 240;
+			bullet_time = 60;
 			active_ents++;
 
 		}
@@ -630,11 +677,19 @@ void graphtest_main2()
 		
 
 		if (gx_key_state('4'))
+		{
 			ents[0].rotation_speed = 5;
+			nodamping=0;
+		}
 		else if (gx_key_state('6'))
+		{
 			ents[0].rotation_speed =-5;
-		else
-			ents[0].rotation_speed=0;
+			nodamping=0;
+		}
+		else if (!nodamping)
+		{
+			ents[0].rotation_speed =0;
+		}
 
 
 		gx_frame_clear(ztrue, ztrue);
@@ -651,6 +706,34 @@ void graphtest_main2()
 			for (i=1;i<active_ents;i++)
 			{
 				d= ent_dist(ents, ents+i);
+
+				if (d< ents[i].size)
+				{  //hit player  need to treat like a bullet hit
+
+					ents[0].xspeed += ents[i].xspeed*.5;
+					ents[0].yspeed += ents[i].yspeed*.5;
+					ents[0].rotation_speed = - ents[i].rotation_speed*10;
+					nodamping=1;
+
+
+					
+					add_asteroids=1;
+					add_asteroids_size=  ents[i].size/2;
+					killed_x  = ents[i].x;
+					killed_y  = ents[i].y;
+					killed_xs  = ents[i].xspeed;
+					killed_ys  = ents[i].yspeed;
+
+					ents[i] = ents[active_ents -1];
+
+					if (bullet_index == active_ents-1)
+						bullet_index = i;
+
+					active_ents--;
+					i--;
+
+				}
+				
 				//d=d*d*d*d;
 
 				if (d>.1)
@@ -687,7 +770,7 @@ void graphtest_main2()
 			//check for collisions
 			if (i>0 && (i!= bullet_index) && (bullet_index >=0) )
 			{
-				if ( ent_dist( ents+bullet_index, ents+i) < ents[i].size)
+				if ( ent_dist( ents+bullet_index, ents+i) < ents[i].size  *(1.4) )
 				{
 					
 
@@ -777,5 +860,1093 @@ void graphtest_main2()
 	ram_free(aster[1]);
 	
 	ram_free(image1);
+
+}
+
+
+
+zbool test_point(vec3* in)
+{
+	int iter;
+	int axis;
+	
+	zfloat32 magnitude=0;
+
+
+	vec3 c;
+	vec3 v;
+
+	vec3set(v,0,0,0);
+	vec3mov(c, *in);
+	
+	for (iter=0;iter < 3;iter++)
+	{
+		//early reject outside cube
+		if ((in->array[iter] < -6) ||(in->array[iter] > 6))
+			return zfalse;
+
+	}
+
+
+
+
+	/*
+	for (each axis)
+  if (v[axis]>1) v[axis] = 2-v[axis];
+  else if (v[axis]<-1) v[axis] = -2-v[axis];
+if (v.magnitude() < 0.5) v *= 4;
+else if (v.magnitude() < 1) v /= square(v.magnitude());
+v = scale*v + c;
+
+*/
+
+	for (iter=0;iter<12;iter++)
+	{
+		for (axis=0;axis<3;axis++)
+		{
+			float magnitude;
+
+			if ( v.array[axis] > 1)
+				v.array[axis] = 2-v.array[axis];
+			else if (v.array[axis]<-1)
+				v.array[axis]= -2-v.array[axis];
+
+		}
+
+		magnitude = sqrt(vec3abs_sq(v));
+
+		if (magnitude >32)
+			return zfalse;
+
+		if (  magnitude < .5 )
+		{
+			vec3scale(v, 4);
+		}
+		else if (magnitude < 1)
+		{
+			vec3scale(v, 1/(magnitude*magnitude));
+		}
+			
+
+		vec3scale(v, 2);
+
+		vec3add(v, c);
+	}
+
+	return ztrue;
+}
+
+
+
+//even more crap
+void graphtest3()
+{
+
+	int i;
+
+	//camera vars
+	vec3 camera_pos;
+	vec3 camera_up;
+	vec3 camera_right;
+	vec3 camera_forward;
+
+
+	gx_vbuffer_t* vb= NULL;
+
+	//initialize graphics
+	if (GX_OK != gx_init(640, 480 , "Test Graphics Window"))
+	{
+		printf("Init Fail\n");
+		return;
+	}
+	
+
+
+	//camera init
+	vec3set(camera_pos,		0,	0,	10);
+	vec3set(camera_right,	1,	0,	0);
+	vec3set(camera_up,		0,	1,	0);
+	vec3set(camera_forward,	0,	0,	-1);
+
+
+
+	vb = gx_vbuffer_mk(100*100*100 *10, 100*100*100*6, ztrue, 0);
+
+//	for (i=0;i<5000;i++)
+//	{
+//		gx_vbuffer_add_color( vb, 1, 1, 1,1);
+//		gx_vbuffer_add_vertex(vb, (rand()&255)/255.0,(rand()&255)/255.0,(rand()&255)/255.0);
+//
+//	}
+
+	{
+		int i;
+		int j;
+		int k;
+
+	
+		//float x;
+		//float y;
+		//float z;
+
+		vec3 v;
+
+		vec3 vx;
+		vec3 vy;
+		
+		
+
+
+#define SSS ( 50/8.0 )
+		float ss= 1/SSS;
+
+		for (i=0;i<100;i++)
+		{
+		
+
+			v.named.x =  (i-50)/SSS;
+			vx.named.x = (i+1-50)/SSS;
+		
+			printf("%d\n", i);
+		
+			for (j=0;j<100;j++)
+			{
+				v.named.y = (j-50)/SSS;
+				vx.named.x = (i+1-50)/SSS;
+
+				for (k=99;k>80;k--)
+				{
+					v.named.z = (k-50)/SSS;
+
+					
+					
+
+					if   ( test_point (&v) )
+					{
+						int ver;
+
+#define CC				gx_vbuffer_add_color(vb, cos(v.named.z) ,cos(v.named.z*10), .5*.25*cos(v.named.z*100),1);
+
+
+						CC
+						gx_vbuffer_add_vertex(vb, v.named.x,v.named.y,v.named.z);
+
+						CC
+						gx_vbuffer_add_vertex(vb, v.named.x+ss,v.named.y,v.named.z);
+
+
+					
+						CC
+
+						gx_vbuffer_add_vertex(vb, v.named.x+ss,v.named.y+ss,v.named.z);
+						
+						CC
+						ver = gx_vbuffer_add_vertex(vb, v.named.x,v.named.y+ss,v.named.z);
+
+						
+
+						gx_vbuffer_add_index(vb, ver-3);
+						gx_vbuffer_add_index(vb, ver-2);
+						gx_vbuffer_add_index(vb, ver-1);
+						
+						gx_vbuffer_add_index(vb, ver-3);
+						gx_vbuffer_add_index(vb, ver-1);
+						gx_vbuffer_add_index(vb, ver );
+
+
+
+					}
+
+
+				}
+			}
+		}
+
+	}
+
+	gx_vbuffer_update(vb);
+
+	while(1)
+	{
+
+		zchar c = gx_getkey();
+
+
+		if (c=='Q') 
+			break;
+
+		//clear screen
+		gx_clear_color(.1,.1,.6,1);
+		gx_frame_clear(ztrue,ztrue);
+
+		//setup perspective
+		gx_setup_3d( 70.0, gx_frame_get_dimensions(NULL,NULL), .1, 1000);
+
+
+		//adjust camera position
+		{
+						
+			zfloat32 yaw	= 0.0;
+			zfloat32 pitch	= 0.0;
+			zfloat32 roll	= 0.0;
+			
+			zfloat32 czs=0;
+			zfloat32 cys=0;
+			zfloat32 cxs=0;
+
+			if (gx_key_state('w')) czs=.02;
+			if (gx_key_state('s')) czs=-.02;
+			if (gx_key_state('a')) cxs=-.02;
+			if (gx_key_state('d')) cxs=+.02;
+			if (gx_key_state('r')) cys=+.02;
+			if (gx_key_state('f')) cys=-.02;
+
+
+			if (gx_key_state('q')) roll=-.02;
+			if (gx_key_state('e')) roll=.02;
+
+			if (gx_key_state('4')) yaw=-.02;
+			if (gx_key_state('6')) yaw=.02;
+
+			if (gx_key_state('8')) pitch=-.02;
+			if (gx_key_state('2')) pitch=.02;
+
+			
+			//move camera
+			vec3madd(camera_pos, cxs, camera_right);
+			vec3madd(camera_pos, cys, camera_up);
+			vec3madd(camera_pos, czs, camera_forward);
+			
+		
+			//try some spin crap
+			gx_spin(yaw, pitch, roll,&camera_right, &camera_up, &camera_forward);
+
+		}
+
+		//set camera position
+		gx_camera_pos_rot( &camera_pos, &camera_right, &camera_up, &camera_forward);
+
+		/* render start*/
+
+		gx_vbuffer_draw(vb, 0, vb->index_count, gx_points, ztrue);
+
+		/*render end*/
+
+		gx_frame_show();
+
+		gx_window_event();
+	}
+
+}
+
+
+//even even more crap
+
+typedef struct tri_quadtree_s
+{
+
+	struct tri_quadtree_s* parent;
+	struct tri_quadtree_s* child[4];
+
+	gx_vbuffer_t* vb;
+	zint32 ver[3]; //what vertex numbers in our vbuffer
+	zint32 prim;  //what primitive number in our vbuffer
+	
+	vec3 middle;
+	zfloat32 size;
+
+} tri_quadtree_t;
+
+
+tri_quadtree_t * tri_quadtree_mk(gx_vbuffer_t* preferred, zint32 v0, zint32 v1, zint32 v2, zfloat32 size)
+{
+	tri_quadtree_t* tri = ram_alloc( sizeof(tri_quadtree_t) , NULL);
+
+	if (!tri)
+		return NULL;
+	
+	tri->vb=preferred;;
+	tri->ver[0] = v0;
+	tri->ver[1] = v1;
+	tri->ver[2] = v2;
+
+	tri->prim =		gx_vbuffer_add_index(tri->vb, v0);
+					gx_vbuffer_add_index(tri->vb, v1);
+					gx_vbuffer_add_index(tri->vb, v2);
+
+	tri->vb->index_notify[tri->prim] = &(tri->prim); //keep my prim up to date if indices move
+
+	tri->size = size;
+
+//	tri->size =  fabs( vbuffer_x( tri->vb, v0)    - vbuffer_x( tri->vb, v1) );
+//	tri->size +=  fabs( vbuffer_x( tri->vb, v0)    - vbuffer_x( tri->vb, v2) );
+//	tri->size +=  fabs( vbuffer_x( tri->vb, v1)    - vbuffer_x( tri->vb, v2) );
+
+//	tri->size +=  fabs( vbuffer_y( tri->vb, v0)    - vbuffer_y( tri->vb, v1) );
+//	tri->size +=  fabs( vbuffer_y( tri->vb, v0)    - vbuffer_y( tri->vb, v2) );
+//	tri->size +=  fabs( vbuffer_y( tri->vb, v1)    - vbuffer_y( tri->vb, v2) );
+
+//	tri->size +=  fabs( vbuffer_z( tri->vb, v0)    - vbuffer_z( tri->vb, v1) );
+//	tri->size +=  fabs( vbuffer_z( tri->vb, v0)    - vbuffer_z( tri->vb, v2) );
+//	tri->size +=  fabs( vbuffer_z( tri->vb, v1)    - vbuffer_z( tri->vb, v2) );
+
+//	printf(" size %f\n", tri->size);
+
+	
+	vec3mov(tri->middle, *vbuffer_v(tri->vb, v0));
+	vec3add(tri->middle, *vbuffer_v(tri->vb, v1));
+	vec3add(tri->middle, *vbuffer_v(tri->vb, v2));
+	vec3scale(tri->middle, 1.0f/3.0f);
+	
+//	vec3print(tri->middle);
+
+	return tri;
+}
+
+zbool ok(gx_vbuffer_t* vb, int a, int b, int c)
+{
+
+	zfloat32 dab;
+	zfloat32 dbc;
+	zfloat32 dca;
+	vec3 m;
+
+	vec3mov(m, *vbuffer_v(vb, a));
+	vec3sub(m, *vbuffer_v(vb, b));
+	dab = sqrt(vec3abs_sq(m));
+
+	vec3mov(m, *vbuffer_v(vb, b));
+	vec3sub(m, *vbuffer_v(vb, c));
+	dbc = sqrt(vec3abs_sq(m));
+
+	vec3mov(m, *vbuffer_v(vb, c));
+	vec3sub(m, *vbuffer_v(vb, a));
+	dca = sqrt(vec3abs_sq(m));
+
+	if ( dab > 3* dbc)
+		return zfalse;
+
+	if ( dab > 3* dca)
+		return zfalse;
+
+
+	if ( dbc > 3* dab)
+		return zfalse;
+
+	if ( dbc > 3* dca)
+		return zfalse;
+
+
+	if ( dca > 3* dab)
+		return zfalse;
+
+	if ( dca > 3* dbc)
+		return zfalse;
+
+
+	return ztrue;
+
+}
+
+void split_triangle(vec_t* triangles, tri_quadtree_t* tri, vec3* camera_pos)
+{
+	
+
+	vec3 a;
+	vec3 d;
+	int i;
+
+	int v_0_1=0;
+	int v_1_2=0;
+	int v_2_0=0;
+	int v0;
+	int v1;
+	int v2;
+
+//	printf(" split %p\n", tri); 
+//	if ( ! (tri->child[0]    || tri->child[1] || tri->child[2] || tri->child[3]       ))
+	{
+		//if there are no children, create them
+
+		v0=tri->ver[0];
+		v1=tri->ver[1];
+		v2=tri->ver[2];
+
+	#define CCC  	gx_vbuffer_add_color(tri->vb, (a.named.z-5),(a.named.z-5),     (a.named.z-5)       ,1);
+
+
+		//midpoint between vertex 0 and 1
+		vec3mov(a, *vbuffer_v(tri->vb, v0));
+		vec3add(a, *vbuffer_v(tri->vb, v1));
+		vec3scale(a, 0.5f);
+	//	a.named.z+=.05;
+
+
+
+		//set up ray from camera to point
+		vec3mov(d, a);  
+		vec3sub(d, *camera_pos);
+		vec3scale( d,   1/sqrt(vec3abs_sq(d)));
+//		vec3print(d);
+		vec3scale(d, .001);
+		//for (a.named.z=6.0;a.named.z>2.5;a.named.z-=.001)
+		if (test_point(&a))
+			vec3sub(a,d);
+		
+
+		for (i=0;i<1000;i++)
+		{
+			if (test_point(&a))
+			{
+				CCC
+				v_0_1 = gx_vbuffer_add_vertex(tri->vb, a.named.x, a.named.y, a.named.z);
+
+				break;
+			}
+			vec3add(a, d);
+		}
+	
+
+
+
+
+
+		//midpoint between vertex 1 and 2
+		vec3mov(a, *vbuffer_v(tri->vb, v1));
+		vec3add(a, *vbuffer_v(tri->vb, v2));
+		vec3scale(a, 0.5f);
+	//	a.named.z+=.05;
+
+
+
+//		for (a.named.z=6.0;a.named.z>2.5;a.named.z-=.001)
+//		{
+//			if (test_point(&a))
+//				break;
+//		}
+
+		//set up ray from camera to point
+		vec3mov(d, a);  
+		vec3sub(d, *camera_pos);
+		vec3scale( d,   1/sqrt(vec3abs_sq(d)));
+//		vec3print(d);
+		vec3scale(d, .001);
+		//for (a.named.z=6.0;a.named.z>2.5;a.named.z-=.001)
+		if (test_point(&a))
+			vec3sub(a,d);
+		
+
+		for (i=0;i<1000;i++)
+		{
+			if (test_point(&a))
+			{
+				CCC
+				v_1_2 = gx_vbuffer_add_vertex(tri->vb, a.named.x, a.named.y, a.named.z);
+
+				break;
+			}
+			vec3add(a, d);
+		}
+
+
+
+	
+
+		//midpoint between vertex 2 and 0
+		vec3mov(a, *vbuffer_v(tri->vb, v2));
+		vec3add(a, *vbuffer_v(tri->vb, v0));
+		vec3scale(a, 0.5f);
+		//a.named.z+=.05;
+		
+//		for (a.named.z=6.0;a.named.z>2.5;a.named.z-=.001)
+//		{
+//			if (test_point(&a))
+//				break;
+//		}
+
+		//set up ray from camera to point
+		vec3mov(d, a);  
+		vec3sub(d, *camera_pos);
+		
+		vec3scale( d,   1/sqrt(vec3abs_sq(d)));
+//		vec3print(d);
+		vec3scale(d, .001);
+		//for (a.named.z=6.0;a.named.z>2.5;a.named.z-=.001)
+		if (test_point(&a))
+			vec3sub(a,d);
+			
+
+		for (i=0;i<1000;i++)
+		{
+			if (test_point(&a))
+			{
+				CCC
+				v_2_0 = gx_vbuffer_add_vertex(tri->vb, a.named.x, a.named.y, a.named.z);
+				break;
+			}
+			vec3add(a, d);
+		}
+
+
+
+
+
+		//create triangles
+
+		if ((v_0_1 && v_2_0) &&ok( tri->vb, v0, v_0_1, v_2_0))
+		{
+			 tri->child[0]= tri_quadtree_mk( tri->vb, v0, v_0_1, v_2_0, tri->size/4);
+			 tri->child[0]->parent =tri;
+		}
+		
+		if ((v_0_1 && v_1_2)&&ok(tri->vb,v_0_1, v1, v_1_2))
+		{
+			tri->child[1]= tri_quadtree_mk( tri->vb, v_0_1, v1, v_1_2, tri->size/4);
+			tri->child[1]->parent =tri;
+		}
+		
+		if ((v_2_0 && v_1_2)&&ok(tri->vb, v_2_0, v_1_2, v2))
+		{
+			tri->child[2]=tri_quadtree_mk( tri->vb, v_2_0, v_1_2, v2, tri->size/4);
+			tri->child[2]->parent =tri;
+		}
+		
+		if ((v_0_1 && v_1_2 && v_2_0)&&ok(tri->vb,v_0_1, v_1_2, v_2_0))
+		{
+			tri->child[3]=tri_quadtree_mk( tri->vb, v_0_1, v_1_2, v_2_0, tri->size/4);
+			tri->child[3]->parent =tri;
+		}
+		
+
+	}
+	
+	{
+		int i;
+		for (i=0;i<4;i++)
+			if (tri->child[i])
+				vec_add(triangles, tri->child[i]);
+	}
+
+
+}
+
+
+void remove_prim_from_vbuffer(gx_vbuffer_t* v, int prim)
+{
+	
+	v->index_count -=3;
+
+	v->index_data[prim] = v->index_data[ v->index_count ];
+	v->index_data[prim+1] = v->index_data[ v->index_count +1];
+	v->index_data[prim+2] = v->index_data[ v->index_count +2];
+
+
+	v->index_notify[prim] = v->index_notify[v->index_count];
+
+	if (v->index_notify[prim])
+	{
+		*(v->index_notify[prim]) = prim;
+	}
+
+}
+
+void process_triangles(vec_t* triangles, vec3* camera_pos)
+{
+	int i;
+	int oc = triangles->count;
+	//printf(" %d triangles\n", triangles->count);
+	for (i=0;i<oc;i++)
+	{
+		tri_quadtree_t* tri = vec_get_at(triangles, i);
+
+		zfloat32 screensize;
+		vec3 m;
+
+		vec3mov(m, tri->middle); 
+		vec3sub(m, *camera_pos);
+
+		screensize = tri->size / (vec3abs_sq(m));
+	//	printf(" %f\n", screensize);
+
+		
+		if (screensize >.01)
+		{
+			vec_remove_unordered(triangles, i); //remove the current triangle from the list
+			remove_prim_from_vbuffer(tri->vb, tri->prim);
+			tri->prim=0;
+
+			split_triangle(triangles, tri, camera_pos);				
+		}
+		if (screensize< .01/5)
+		{
+			int j;
+			
+			if (tri->parent)
+			{
+				vec_remove_unordered(triangles, i); //remove triangle
+				remove_prim_from_vbuffer(tri->vb, tri->prim);
+				tri->prim=0;
+				
+				if (!tri->parent->prim)
+				{
+					vec_add(triangles, tri->parent);
+
+					tri->parent->prim = gx_vbuffer_add_index( tri->vb, tri->parent->ver[0]);
+					gx_vbuffer_add_index( tri->vb, tri->parent->ver[1]);
+					gx_vbuffer_add_index( tri->vb, tri->parent->ver[2]);
+				}
+
+				
+			}
+
+		}
+
+
+		
+		if (triangles->count < oc)
+			oc = triangles->count;
+	}
+	
+
+}
+
+typedef struct voxel
+{
+	int index;
+} voxel_t;
+
+
+
+
+
+int points[400][300];
+	int tris[400][300];
+
+
+void graphtest4()
+{
+
+	int i;
+	int j;
+
+	int ci=0;
+	int cj=0;
+
+	
+	
+
+
+
+	vec_t* triangles = NULL;
+
+	//camera vars
+	vec3 camera_pos;
+	vec3 camera_up;
+	vec3 camera_right;
+	vec3 camera_forward;
+
+	
+	gx_vbuffer_t* vb= NULL;
+
+	for (i=0;i<400;i++) for (j=0;j<300;j++)
+	{
+
+		points[i][j]=-1;
+		tris[i][j]=-1;
+
+	}
+
+	//initialize graphics
+	if (GX_OK != gx_init(640, 480 , "Test Graphics Window"))
+	{
+		printf("Init Fail\n");
+		return;
+	}
+	
+//	triangles = vec_mk(NULL, 100);
+
+	//camera init
+	vec3set(camera_pos,		0,	0,	9);
+	vec3set(camera_right,	1,	0,	0);
+	vec3set(camera_up,		0,	1,	0);
+	vec3set(camera_forward,	0,	0,	-1);
+
+
+
+	vb = gx_vbuffer_mk(100*100*100 *10, 100*100*100*6, ztrue, 0);
+
+//	gx_vbuffer_add_color(vb,1,1,1,1);
+//	gx_vbuffer_add_vertex(vb,-6,-6,6);
+
+//	gx_vbuffer_add_color(vb,1,0,1,1);
+//	gx_vbuffer_add_vertex(vb,6,-6,6);
+
+//	gx_vbuffer_add_color(vb,1,1,0,1);
+//	gx_vbuffer_add_vertex(vb,-6,6,6);
+
+//	gx_vbuffer_add_color(vb,1,1,0,1);
+//	gx_vbuffer_add_vertex(vb,6,6,6);
+
+
+	//add 
+	//vec_add(triangles,  tri_quadtree_mk(vb, 0, 1, 2, 500));
+	//vec_add(triangles,  tri_quadtree_mk(vb, 1,3,2, 500));
+
+
+	{
+
+		vec3 film;
+		zfloat32 t;
+		vec3 space;
+		vec3 spacex;
+		vec3 spacey;
+		
+		vec3 filmx;
+		vec3 filmy;
+
+
+		float d=0;
+		float dx=0;
+		float dy=0;
+
+
+		for (i=0;i<400;i+=5)
+		{
+		//	printf("trace row %d\n", i);
+			for (j=0;j<300;j+=5)
+			{
+
+				int hit;
+
+				vec3mov(film, camera_forward);
+				vec3madd(film, -(i-200)/200.0*.8, camera_right);
+				vec3madd(film, -(j-150)/150.0*.8, camera_up);
+				vec3scale(film, 1/sqrt(vec3abs_sq(film)));
+
+				vec3mov(filmx, camera_forward);
+				vec3madd(filmx, -(i+1-200)/200.0*.8, camera_right);
+				vec3madd(filmx, -(j-150)/150.0*.8, camera_up);
+				vec3scale(filmx, 1/sqrt(vec3abs_sq(film)));
+
+				vec3mov(filmy, camera_forward);
+				vec3madd(filmy, -(i-200)/200.0*.8, camera_right);
+				vec3madd(filmy, -(j+1-150)/150.0*.8, camera_up);
+				vec3scale(filmy, 1/sqrt(vec3abs_sq(film)));
+
+
+				//film now contains the vector from lens to a particular point on the 'film'
+
+
+				hit=0;
+
+
+				for (t=0;t<20;t+=.01)
+				{
+					vec3mov(spacex, camera_pos);
+					vec3madd(spacex, t, filmx);
+					
+					if ( test_point(&spacex))
+					{
+						hit++;
+						dx=t;
+						break;
+					}
+				}
+
+				for (t=0;t<20;t+=.01)
+				{
+					vec3mov(spacey, camera_pos);
+					vec3madd(spacey, t, filmy);
+					
+					if ( test_point(&spacey))
+					{
+						hit++;
+						dy=t;
+						break;
+					}
+				}
+
+
+
+
+
+				for (t=0;t<20;t+=.01)
+				{
+					vec3mov(space, camera_pos);
+					vec3madd(space, t, film);
+					
+					if ( test_point(&space) && (hit==2) )
+					{
+						hit++;
+						gx_vbuffer_add_color(vb, 1, 1 , 1 ,1);
+						//points[i][j] = gx_vbuffer_add_vertex(vb, space.named.x, space.named.y, space.named.z);
+					//	printf("{%f}", t);
+						break;
+					}
+				}
+
+
+
+
+
+
+
+
+			}
+		}
+
+
+	}
+
+	gx_vbuffer_update(vb);
+ci=0;
+cj=0;
+	while(1)
+	{
+
+		zchar c = gx_getkey();
+
+		/*update random points*/
+		{
+			int i =0;
+			int j=0;
+			vec3 film;
+			vec3 space;
+
+
+			vec3 filmx;
+			vec3 spacex;
+
+			vec3 filmy;
+			vec3 spacey;
+
+			float t;
+			int k;
+			float tts;
+
+			int hit;
+
+			float dx=0;
+			float dy=0;
+
+			for (k=0;k<50;k++){
+			//calculate random pixel
+			ci=ci+1;
+			if (ci >=400)
+			{
+				
+				ci=0;
+				cj++;
+			}
+
+			if (cj >=300)
+			{
+				ci=0;
+				cj=0;
+			}
+			cj = rand() % 300;
+
+			//calculate intersection
+
+			vec3mov(film, camera_forward);
+			vec3madd(film, -(ci-200)/200.0*.8, camera_right);
+			vec3madd(film, -(cj-150)/150.0*.8, camera_up);
+			vec3scale(film, 1/sqrt(vec3abs_sq(film)));
+
+
+			vec3mov(filmy, camera_forward);
+			vec3madd(filmy, -(ci-200)/200.0*.8, camera_right);
+			vec3madd(filmy, -(cj+1-150)/150.0*.8, camera_up);
+			vec3scale(filmy, 1/sqrt(vec3abs_sq(filmy)));
+
+
+			vec3mov(filmx, camera_forward);
+			vec3madd(filmx, -(ci+1-200)/200.0*.8, camera_right);
+			vec3madd(filmx, -(cj-150)/150.0*.8, camera_up);
+			vec3scale(filmx, 1/sqrt(vec3abs_sq(filmx)));
+
+
+
+
+
+			//film now contains the vector from lens to a particular point on the 'film'
+			//vec3print(film);
+			
+
+
+			hit=0;
+			
+			tts=.001;
+			for (t=0;t<100;t+=tts)
+			{
+				vec3mov(spacex, camera_pos);
+				vec3madd(spacex, t, filmx);
+				tts+=.0001;
+				if ( test_point(&spacex))
+				{
+					dx=t;
+					hit++;
+					break;
+				}
+			}
+
+
+			tts=.001;
+			for (t=0;t<100;t+=tts)
+			{
+				vec3mov(spacey, camera_pos);
+				vec3madd(spacey, t, filmy);
+				tts+=.0001;
+				if ( test_point(&spacey))
+				{
+					dy=t;
+					hit++;
+					break;
+				}
+			}
+
+
+
+
+
+
+			tts=0;
+			for (t=0;t<100;t+=tts)
+			{
+				vec3mov(space, camera_pos);
+				vec3madd(space, t, film);
+				tts+=.0001;
+				
+				
+
+				if ( test_point(&space) && (hit==2) )
+				{
+					if (points[ci][cj]==-1)
+					{
+						points[ci][cj] = gx_vbuffer_add_vertex(vb, space.named.x, space.named.y, space.named.z);
+					}
+
+					vb->color_data[COLOR_COMPONENTS * points[ci][cj] ] = (t-dx)*1000;
+					vb->color_data[COLOR_COMPONENTS * points[ci][cj] +1] = (t-dy)*1000;
+					vb->color_data[COLOR_COMPONENTS * points[ci][cj] +2] = (dy-dx)*1000;
+					vb->color_data[COLOR_COMPONENTS * points[ci][cj] +3] = 0;
+
+					vb->vertex_data[VERTEX_COMPONENTS * points[ci][cj] ] = space.named.x;
+					vb->vertex_data[VERTEX_COMPONENTS * points[ci][cj] +1] = space.named.y;
+					vb->vertex_data[VERTEX_COMPONENTS * points[ci][cj] +2] = space.named.z;
+					
+
+					//add a triangle
+					if (tris[ci][cj] == -1)
+					{
+						if ((ci <398) && (cj <298))
+						{
+							if ( ((points[ci+1][cj])!=-1) && ((points[ci][cj+1]!=-1)))
+							{
+								
+								gx_vbuffer_add_index(vb, points[ci][cj]);
+								gx_vbuffer_add_index(vb, points[ci][cj+1]);
+
+
+								gx_vbuffer_add_index(vb, points[ci+1][cj]);
+
+								//gx_vbuffer_add_index(vb, points[ci+1][cj]);
+								//_vbuffer_add_index(vb, points[ci][cj+1]);
+
+							}
+						}
+					}
+
+
+					//	printf("{%f}", t);
+					break;
+				}
+			}
+
+		}
+
+		}
+
+	//	process_triangles(triangles, &camera_pos);
+		gx_vbuffer_update(vb);
+
+		if (c=='Q') 
+			break;
+
+		//clear screen
+		gx_clear_color(0,0,0,1);
+		gx_frame_clear(ztrue,ztrue);
+
+		//setup perspective
+		gx_setup_3d( 70.0, gx_frame_get_dimensions(NULL,NULL), .0001, 1000);
+
+
+		//adjust camera position
+		{
+						
+			zfloat32 yaw	= 0.0;
+			zfloat32 pitch	= 0.0;
+			zfloat32 roll	= 0.0;
+			
+			zfloat32 czs=0;
+			zfloat32 cys=0;
+			zfloat32 cxs=0;
+
+			if (gx_key_state('w')) czs=.002;
+			if (gx_key_state('s')) czs=-.002;
+			if (gx_key_state('a')) cxs=-.002;
+			if (gx_key_state('d')) cxs=+.002;
+			if (gx_key_state('r')) cys=+.002;
+			if (gx_key_state('f')) cys=-.002;
+
+
+			if (gx_key_state('W')) czs=.02;
+			if (gx_key_state('S')) czs=-.02;
+			if (gx_key_state('A')) cxs=-.02;
+			if (gx_key_state('D')) cxs=+.02;
+			if (gx_key_state('R')) cys=+.02;
+			if (gx_key_state('F')) cys=-.02;
+
+
+
+
+			if (gx_key_state('q')) roll=-.02;
+			if (gx_key_state('e')) roll=.02;
+
+			if (gx_key_state('4')) yaw=-.02;
+			if (gx_key_state('6')) yaw=.02;
+
+			if (gx_key_state('8')) pitch=-.02;
+			if (gx_key_state('2')) pitch=.02;
+
+			
+			//move camera
+			vec3madd(camera_pos, cxs, camera_right);
+			vec3madd(camera_pos, cys, camera_up);
+			vec3madd(camera_pos, czs, camera_forward);
+			
+		
+			//try some spin crap
+			gx_spin(yaw, pitch, roll,&camera_right, &camera_up, &camera_forward);
+
+		}
+
+		//set camera position
+		gx_camera_pos_rot( &camera_pos, &camera_right, &camera_up, &camera_forward);
+
+		/* render start*/
+
+	//	gx_vbuffer_draw(vb, 0, vb->index_count, gx_triangles, ztrue);
+
+		gx_vbuffer_draw(vb, 0, vb->vertex_count, gx_points, zfalse);
+
+		
+
+		/*render end*/
+
+		gx_frame_show();
+
+		gx_window_event();
+	}
 
 }

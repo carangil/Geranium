@@ -21,6 +21,7 @@ typedef struct
 
 	//put any other parameters here too!
 
+
 } gx_drawstyle_t;
 
 
