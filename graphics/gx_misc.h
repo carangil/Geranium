@@ -13,26 +13,10 @@ void gx_spin(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up,
 
 
 
-typedef struct gx_mesh_s
-{
-	
-	gx_vbuffer_t*	data;
-	gx_drawstyle_t*	style;
-
-	zuint32			drawstart;	//vbuffer start and end points to draw
-	zuint32			drawend;
-	zbool			indexed;	//using indices?
-	struct gx_mesh_s*	next;  //next mesh segment  (large meshes may be composed of multiple segments)
-
-} gx_mesh_t;
-
-//defines a mesh
-gx_mesh_t*  gx_mesh_def(gx_vbuffer_t* v, gx_drawstyle_t* s, zuint32 drawstart, zuint32 drawend, zbool indexed);
-
-//draws a mesh
-void gx_mesh_draw(gx_mesh_t* mesh_in);
 
 
+void test_lighting_on();
+void test_lighting_off();
 
 #if 1
 

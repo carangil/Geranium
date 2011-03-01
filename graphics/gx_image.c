@@ -120,6 +120,9 @@ zbool _gx_image_enable(gx_image_t* image)
 	//bind the texture for the current texture unit
 	glBindTexture (GL_TEXTURE_2D,  image->_gl_texture_number );
 	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
 	
 	if (! image->_sent_to_gl)
 	{

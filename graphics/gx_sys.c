@@ -300,9 +300,11 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 	//probably want depth buffer:
 	glClearDepth(1.0); //when clearing depth buffer, set to infinity
 	glDepthRange(0,1);  //set range for full depth bufer
-	glDepthFunc(GL_LEQUAL);  //draw things equally far or closer
+	glDepthFunc(GL_LESS);  //draw things equally far or closer
 	glDepthMask(GL_TRUE); //write to depth bufer
 	glEnable(GL_DEPTH_TEST);  //enable depth testing
+
+	glDisable(GL_CULL_FACE); //we want face culling (for now)
 
 	//glEnable(GL_CULL_FACE); //we want face culling (for now)
 	//glCullFace(GL_BACK);

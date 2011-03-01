@@ -45,6 +45,8 @@
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
+				EnableEnhancedInstructionSet="2"
+				FloatingPointModel="2"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
@@ -150,31 +152,15 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\gx_buffers.c"
-				>
-			</File>
-			<File
-				RelativePath=".\gx_drawstyle.c"
-				>
-			</File>
-			<File
-				RelativePath=".\gx_image.c"
-				>
-			</File>
-			<File
 				RelativePath=".\gx_line.c"
 				>
 			</File>
 			<File
+				RelativePath=".\gx_mesh.c"
+				>
+			</File>
+			<File
 				RelativePath=".\gx_misc.c"
-				>
-			</File>
-			<File
-				RelativePath=".\gx_sprite.c"
-				>
-			</File>
-			<File
-				RelativePath=".\gx_sys.c"
 				>
 			</File>
 		</Filter>
@@ -183,10 +169,6 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
-			<File
-				RelativePath=".\glstuff.h"
-				>
-			</File>
 			<File
 				RelativePath=".\gx_buffers.h"
 				>
@@ -200,7 +182,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\gx_light.h"
+				>
+			</File>
+			<File
 				RelativePath=".\gx_line.h"
+				>
+			</File>
+			<File
+				RelativePath=".\gx_mesh.h"
 				>
 			</File>
 			<File
@@ -221,6 +211,38 @@
 			Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav"
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
+		</Filter>
+		<Filter
+			Name="gl_dependant"
+			>
+			<File
+				RelativePath=".\glstuff.h"
+				>
+			</File>
+			<File
+				RelativePath=".\gx_buffers.c"
+				>
+			</File>
+			<File
+				RelativePath=".\gx_drawstyle.c"
+				>
+			</File>
+			<File
+				RelativePath=".\gx_image.c"
+				>
+			</File>
+			<File
+				RelativePath=".\gx_light.c"
+				>
+			</File>
+			<File
+				RelativePath=".\gx_sprite.c"
+				>
+			</File>
+			<File
+				RelativePath=".\gx_sys.c"
+				>
+			</File>
 		</Filter>
 	</Files>
 	<Globals>

@@ -100,6 +100,15 @@ zbool vec_add(vec_t* v, void* item)
 	return ztrue;
 }
 
+//tries to add item to vector. if succesful returns item. if unsuccessfull returns null and FREEs the item
+void* vec_add_or_free(vec_t* v, void* item)
+{
+	if ( vec_add(v, item))
+		return item;
+
+	ram_free(item);
+	return NULL;
+}
 
 //removes an element, but does not preserve order of the items (last item fills the place of the removed item)
 //returns the element being removed, does not free it

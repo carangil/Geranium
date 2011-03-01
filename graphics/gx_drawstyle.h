@@ -12,12 +12,18 @@ typedef enum
 typedef struct
 {
 
-	//specity textures to draw with
+	//specify textures to draw with
 	gx_image_t** textures;  
 	zuint32 numtextures;
 
 	//use any kind of blending?
 	gx_blending_e blending;
+
+
+	//this controls specular reflections:
+	vec3 specular_color;  //diffuse material color come from texture; specular comes from here
+	zfloat32 specular_exponent; //shininess
+
 
 	//put any other parameters here too!
 

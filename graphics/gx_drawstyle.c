@@ -4,6 +4,7 @@
 
 #include "../ztypes.h"
 #include "../memory/ram.h"
+#include "../vmath.h"
 #include <stdio.h>
 #include "gx_image.h"
 #include "gx_buffers.h"
@@ -25,7 +26,18 @@ void gx_drawstyle_activate(gx_drawstyle_t* style)
 	zuint32 i=0;
 
 	if (!style)
+	{
+#if 1
+		//default style: 
+		
+		//no textures
+		gx_set_active_textures(NULL, 0);
+		glColor4f(1,1,1,1);
+		glDisable(GL_BLEND);
+#endif	
+
 		return;
+	}
 
 	//set blending mode
 
@@ -50,6 +62,28 @@ void gx_drawstyle_activate(gx_drawstyle_t* style)
 	else
 		glDisable(GL_BLEND);
 
+	//set specular color
+	{
+		float white[]={1,1,1,1};
+		float black[]={0,0,0,1};
+
+		float f[4];
+		f[0]=style->specular_color.array[0];
+		f[1]=style->specular_color.array[1];
+		f[2]=style->specular_color.array[2];
+		f[3]=1;
+
+		glLightModelfv(GL_LIGHT_MODEL_AMBIENT, black);
+
+		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, style->specular_exponent);
+
+		glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, f);
+
+		glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, black);
+		glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, white); //setting diffuse and ambient to white will just pass-through the texture color
+		glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, white);
+		
+	}
 
 	//activate all set textures
 	gx_set_active_textures(style->textures, style->numtextures);

@@ -4,14 +4,16 @@
 
 #include "../ztypes.h"
 #include "../memory/ram.h"
+#include "../vmath.h"
 #include <stdio.h>
 #include "gx_image.h"
 #include "gx_buffers.h"
 #include "gx_line.h"
+#include "gx_light.h"
 #include <math.h>
 
 
-//#include "glstuff.h"
+#include "glstuff.h"
 
 //This is a simple immediate-mode line and shape drawing API
 
@@ -19,17 +21,12 @@
 #define PI 3.14159
 #endif
 
-#ifndef GX_LINE_BUFFER_VERTEX_COUNT
-#define GX_LINE_BUFFER_VERTEX_COUNT (1024)
-#endif
 
-
+//TODO:  it is now obvious that I need a vec4 (or at least color-specific) data type
 static zfloat32 _gx_line_next_color_r=1.0;
 static zfloat32 _gx_line_next_color_g=1.0;
 static zfloat32 _gx_line_next_color_b=1.0;
 static zfloat32 _gx_line_next_color_a=1.0;
-
-static gx_vbuffer_t* _gx_line_buffer = NULL;
 
 //defines color for the next lines to be drawn
 void gx_line_color(zfloat32 r, zfloat32 g, zfloat32 b, zfloat32 a)
@@ -40,15 +37,29 @@ void gx_line_color(zfloat32 r, zfloat32 g, zfloat32 b, zfloat32 a)
 	_gx_line_next_color_a=a;
 }
 
+//#define GX_LINE_IMPLEMENTATION_WITH_VBO
+
+
+#ifdef GX_LINE_IMPLEMENTATION_WITH_VBO
+
+#ifndef GX_LINE_BUFFER_VERTEX_COUNT
+#define GX_LINE_BUFFER_VERTEX_COUNT (1024)
+#endif
+
+
+
+static gx_vbuffer_t* _gx_line_buffer = NULL;
+
+
 void _gx_line_init()
 {
 	//create a buffer
-	_gx_line_buffer = gx_vbuffer_mk(GX_LINE_BUFFER_VERTEX_COUNT, 0, ztrue, 0);
+	_gx_line_buffer = gx_vbuffer_mk(GX_LINE_BUFFER_VERTEX_COUNT, 0, ztrue,zfalse,  0);
 }
 
 void _gx_line_disable()
 {
-	//create a buffer
+	//kill a buffer
 	ram_free(_gx_line_buffer);
 }
 
@@ -85,6 +96,77 @@ void gx_line_finish()
 	gx_vbuffer_draw(_gx_line_buffer, 0, _gx_line_buffer->vertex_count, gx_lines, zfalse);
 
 	gx_vbuffer_clear(_gx_line_buffer,zfalse, ztrue); //clear out all data in this buffer
+
+}
+
+#else
+
+static zbool _gx_in_gl_begin_lines = zfalse;
+
+
+
+
+void gx_line_finish()
+{
+	if (_gx_in_gl_begin_lines)
+	{
+		glEnd();
+		_gx_in_gl_begin_lines = zfalse;
+	}
+}
+
+void gx_line(float x, float y, float x2, float y2)
+{
+	if (!_gx_in_gl_begin_lines)
+	{
+		gx_set_active_textures(NULL, 0);
+		gx_set_active_lights(NULL, 0);
+
+
+		glBegin(GL_LINES);
+		_gx_in_gl_begin_lines = ztrue;
+
+	}
+
+	glColor4f(_gx_line_next_color_r, _gx_line_next_color_g, _gx_line_next_color_b, _gx_line_next_color_a);
+
+	glVertex3f(x, y, 1);
+	glVertex3f(x2, y2, 1);
+	
+}
+
+
+//nothing special happens here
+void _gx_line_init()
+{
+}
+
+void _gx_line_disable()
+{
+}
+
+
+
+#endif
+
+
+
+
+void gx_line_thickness(int pixels)
+{
+
+	glLineWidth(pixels);
+}
+
+
+//functions below this line:  Use gx_line as a primitive to do drawing
+
+void gx_box(float xmin, float ymin, float xmax, float ymax)
+{
+	gx_line(xmin, ymin, xmax, ymin);
+	gx_line(xmax, ymin, xmax, ymax);
+	gx_line(xmax, ymax, xmin, ymax);
+	gx_line(xmin, ymax, xmin, ymin);
 
 }
 

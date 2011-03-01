@@ -12,6 +12,8 @@
 #include "..\graphics\gx_buffers.h"
 #include "..\graphics\gx_drawstyle.h"
 #include "..\graphics\gx_misc.h"
+#include "..\graphics\gx_mesh.h"
+#include "..\graphics\gx_light.h"
 
 
 
@@ -138,6 +140,8 @@ void graphtest_main()
 
 	gx_vbuffer_t * sharebuffer = NULL;
 
+	gx_vbuffer_t * normbuffer = NULL;
+
 
 	gx_vbuffer_t * vbuf = NULL;
 	gx_image_t *image1 = NULL;
@@ -151,13 +155,51 @@ void graphtest_main()
 	gx_vbuffer_t* heightbuffer2 = NULL;
 
 
+	gx_mesh_t* objmesh = NULL;
+	gx_image_t* objmeshtex = NULL;
+
+	gx_light_t* lights[8];
+	
+
+	{
+		vec3 pos;
+		vec3 color;
+		vec3 ambient;
+		vec3set(pos, 1,.5,0);
+		vec3set(color, 1, 1, 1);
+		vec3set(ambient, 0,.1,0);
+
+		lights[0] = gx_light_mk(gx_light_point, &pos, &color, &ambient);
+		
+		vec3set(pos, .5,0,0);
+		vec3set(color, 0, 1, 0);
+		lights[1] = gx_light_mk(gx_light_point, &pos, &color, &ambient);
+	}
 
 	printf("Init graphics\n");
-	gx_init(640, 480 , "Test Graphics Window");
+	gx_init(1280, 1024 , "Test Graphics Window");
 
-	gx_clear_color(.1,.1,.6,1);
+	gx_clear_color(0,0,0,1);
 	gx_frame_clear(ztrue,ztrue);
 	gx_frame_show();
+
+	objmeshtex  = gx_image_load_tga( "E:\\mark\\projects\\projectZ\\meshtexture.tga");
+	objmesh		= gx_mesh_load_obj(NULL, "E:\\mark\\projects\\projectZ\\mesh.obj", NULL);
+
+	//update whole mesh
+	{
+		int piece=0;
+		gx_mesh_t* z = objmesh;
+		
+		while(z)
+		{
+			printf("update piece %d\n", piece++);
+			gx_vbuffer_update(z->data);
+			z=z->next;
+		}
+	}
+
+
 
 	image1 = gx_image_load_tga( "rgbatarga.tga");
 	image2 = gx_image_load_tga( "tex2.tga");
@@ -172,7 +214,7 @@ void graphtest_main()
 
 	sprite = gx_sprite_mk(image1,100,100, image1->width, image1->height, .1, .1);
 
-	vbuf = gx_vbuffer_mk(100, 12, ztrue, 1);
+	vbuf = gx_vbuffer_mk(100, 12, ztrue,zfalse, 1);
 	
 	{
 		zuint32 v0=GX_INDEX_INVALID;
@@ -236,12 +278,15 @@ void graphtest_main()
 
 	heightmap = gx_image_load_tga("heightmap.tga");
 
-	sharebuffer = gx_vbuffer_mk( 256*256*4, 3*256*256*4, ztrue, 2);
+	sharebuffer = gx_vbuffer_mk( 256*256*4, 3*256*256*4, ztrue, zfalse, 2);
 
-	heightbuffer = gx_vbuffer_from_image( sharebuffer, heightmap, 0.0,0.0,-1.0,   //offset
+	normbuffer = gx_vbuffer_mk( 256*256*4, 3*256*256*4, zfalse, ztrue, 2);
+
+
+	heightbuffer = gx_vbuffer_from_image( normbuffer, heightmap, 0.0,0.0,-1.0,   //offset
 		0,1,2,        //axis swizzle
-		1.0,.3,2.0,  //scaling
-		ztrue, 2, &start, &end);
+		1.0,.1,2.0,  //scaling
+		zfalse, 2, &start, &end);
 
 //	
 
@@ -253,7 +298,7 @@ void graphtest_main()
 
 	heightbuffer2 = gx_vbuffer_from_image(sharebuffer, heightmap2, 0.0,0.0,-3.0,   //offset
 		0,1,2,        //axis swizzle
-		1.0,.3,2.0,  //scaling
+		1.0,.1,2.0,  //scaling
 		ztrue, 2, &start, &end);
 
 
@@ -351,7 +396,7 @@ void graphtest_main()
 		if (xxx>1) xxx=-1;
 		if (yyy>1) yyy=-1;
 	
-		gx_setup_3d( 70.0, gx_frame_get_dimensions(NULL,NULL), .1, 1000);
+		gx_setup_3d( 70.0, gx_frame_get_dimensions(NULL,NULL), .01, 1000);
 
 		
 
@@ -368,12 +413,12 @@ void graphtest_main()
 
 
 
-			if (gx_key_state('w')) czs=.02;
-			if (gx_key_state('s')) czs=-.02;
-			if (gx_key_state('a')) cxs=-.02;
-			if (gx_key_state('d')) cxs=+.02;
-			if (gx_key_state('r')) cys=+.02;
-			if (gx_key_state('f')) cys=-.02;
+			if (gx_key_state('w')) czs=.01;
+			if (gx_key_state('s')) czs=-.01;
+			if (gx_key_state('a')) cxs=-.01;
+			if (gx_key_state('d')) cxs=+.01;
+			if (gx_key_state('r')) cys=+.01;
+			if (gx_key_state('f')) cys=-.01;
 
 
 			if (gx_key_state('q')) roll=-.02;
@@ -403,7 +448,7 @@ void graphtest_main()
 			yaw += mx*.001;
 	
 
-
+#if 0
 	//restrict motion to current sector
 			if ( camera_pos.named.x > camera_sector->max.named.x)
 				camera_pos.named.x = camera_sector->max.named.x;
@@ -423,7 +468,7 @@ void graphtest_main()
 			if ( camera_pos.named.z < camera_sector->min.named.z)
 				camera_pos.named.z = camera_sector->min.named.z ;
 
-
+#endif
 
 			//move camera
 			vec3madd(camera_pos, cxs, camera_right);
@@ -447,7 +492,7 @@ void graphtest_main()
 
 	
 	//draw sectors, and return the new camera sector
-	camera_sector = draw_sector(camera_sector, &camera_pos, &camera_forward, camera_sector );
+//	camera_sector = draw_sector(camera_sector, &camera_pos, &camera_forward, camera_sector );
 
 
 	//gx_sector_outline(sector0);
@@ -471,7 +516,72 @@ void graphtest_main()
 
 	
 
-	//	gx_mesh_draw(mesh0);
+
+
+		mesh0->style = NULL;
+
+		
+
+	
+
+		{
+
+			gx_drawstyle_t ds1;
+			int j;
+			vec3 vv;
+			vec3set(vv, .5,.5,-1.5);
+
+			ds1.blending = ztrue;
+			ds1.numtextures = 1;
+			ds1.textures = &objmeshtex;
+			
+			ds1.specular_color.array[0]=0;
+			ds1.specular_color.array[1]=0;
+			ds1.specular_color.array[2]=1;
+
+			ds1.specular_exponent=100;
+
+			//ds1.textures = &image1;
+
+			gx_drawstyle_activate(&ds1);
+
+			gx_set_active_lights(lights, 1);
+			gx_set_active_textures( &objmeshtex  , 1);
+
+			test_lighting_on();
+			lights[0]->position.named.z -=.001;
+			lights[0]->position.named.x -=.001;
+			
+			
+		
+				
+			gx_mesh_draw_at(objmesh, &vv);
+			
+				
+			gx_set_active_textures(NULL,0);
+			gx_mesh_draw(mesh0);
+			
+			gx_set_active_lights(lights, 0); //no light
+			
+		
+			
+	
+
+			//test_lighting_off();
+
+			gx_set_active_textures(NULL, 0);
+			gx_debug_show_light(lights[0], .1);
+
+
+		}
+
+		//draw camera's sector
+
+		
+		camera_sector = draw_sector(camera_sector, &camera_pos, &camera_forward, camera_sector );
+		
+		
+		
 
 		gx_frame_show();
 	}
@@ -970,7 +1080,7 @@ void graphtest3()
 
 
 
-	vb = gx_vbuffer_mk(100*100*100 *10, 100*100*100*6, ztrue, 0);
+	vb = gx_vbuffer_mk(100*100*100 *10, 100*100*100*6, ztrue,zfalse, 0);
 
 //	for (i=0;i<5000;i++)
 //	{
@@ -1076,7 +1186,7 @@ void graphtest3()
 			break;
 
 		//clear screen
-		gx_clear_color(.1,.1,.6,1);
+		gx_clear_color(0,0,0,1);
 		gx_frame_clear(ztrue,ztrue);
 
 		//setup perspective
@@ -1573,7 +1683,7 @@ void graphtest4()
 
 
 
-	vb = gx_vbuffer_mk(100*100*100 *10, 100*100*100*6, ztrue, 0);
+	vb = gx_vbuffer_mk(100*100*100 *10, 100*100*100*6, ztrue,zfalse, 0);
 
 //	gx_vbuffer_add_color(vb,1,1,1,1);
 //	gx_vbuffer_add_vertex(vb,-6,-6,6);

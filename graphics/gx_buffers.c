@@ -3,6 +3,7 @@
 // Commercial use prohibited.
 
 #include "../ztypes.h"
+#include "../vmath.h"
 #include "../memory/ram.h"
 #include <stdio.h>
 #include "gx_image.h"
@@ -13,7 +14,7 @@
 
 
 
-#define GX_UPDATE_FREQ  GL_DYNAMIC_DRAW
+#define GX_UPDATE_FREQ  GL_STATIC_DRAW
 
 
 static void _destruct_vbuffer(void* x)
@@ -29,6 +30,7 @@ static void _destruct_vbuffer(void* x)
 	ram_free(v->color_data);
 	ram_free(v->index_data);
 	ram_free(v->vertex_data);
+	ram_free(v->normal_data);
 
 	for (i=0;i<v->num_textures;i++)
 	{
@@ -39,10 +41,10 @@ static void _destruct_vbuffer(void* x)
 }
 
 
-
 gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices, 
 							zuint32 num_indices, 
 							zbool use_color, 
+							zbool use_normal,
 							zuint32 texture_buffer_count)
 {
 
@@ -95,6 +97,16 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 		}
 	}
 
+	if (use_normal)  //if using normal buffer, define it
+	{
+		v->normal_data = ram_alloc(sizeof(zfloat32) * NORMAL_COMPONENTS * num_vertices, NULL);
+		if (!v->normal_data)
+		{
+			ram_free(v);
+			return NULL;
+		}
+	}
+
 	//allocate texture coordinate buffers
 	for (i=0;i<texture_buffer_count;i++)
 	{
@@ -130,6 +142,11 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 			glGenBuffers(1, &(v->_color_vbo));
 		}
 
+		if (v->normal_data)
+		{
+			glGenBuffers(1, &(v->_normal_vbo));
+		}
+
 		if (v->index_data)
 		{
 			glGenBuffers(1, &(v->_index_vbo));
@@ -155,6 +172,12 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 		glBufferData(GL_ARRAY_BUFFER, v->vertex_count * COLOR_COMPONENTS *sizeof(zfloat32) , v->color_data, GX_UPDATE_FREQ);
 	}
 
+	if (v->normal_data)
+	{
+		glBindBuffer(GL_ARRAY_BUFFER,  v->_normal_vbo );
+		glBufferData(GL_ARRAY_BUFFER, v->vertex_count * NORMAL_COMPONENTS *sizeof(zfloat32) , v->normal_data, GX_UPDATE_FREQ);
+	}
+
 	//copy data for all the texture buffers
 	for (i=0;i<v->num_textures;i++)
 	{
@@ -174,7 +197,24 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 
 
 
+//adds normal to a new vertex
+void gx_vbuffer_add_normal(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z)
+{
 
+	if (!v)
+		return;
+
+	if (!v->normal_data)
+		return;
+
+	if (v->vertex_count == v->vertex_capacity)
+		return; //we are full!
+
+	v->normal_data[NORMAL_COMPONENTS * v->vertex_count] = x;
+	v->normal_data[NORMAL_COMPONENTS * v->vertex_count + 1] = y;
+	v->normal_data[NORMAL_COMPONENTS * v->vertex_count + 2] = z;
+
+}
 
 //adds color to a new vertex
 void gx_vbuffer_add_color(gx_vbuffer_t* v, zfloat32 r, zfloat32 g, zfloat32 b, zfloat32 a)
@@ -322,6 +362,19 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 #endif
 	}
 
+
+	if (v->_normal_vbo)
+	{
+		glBindBuffer(GL_ARRAY_BUFFER,  v->_normal_vbo);
+		glNormalPointer( GL_FLOAT, 0, 0);
+		glEnableClientState(GL_NORMAL_ARRAY);
+	}
+	else
+	{
+		glDisableClientState(GL_NORMAL_ARRAY);
+	}
+
+
 	if (v->_color_vbo)
 	{
 		glBindBuffer(GL_ARRAY_BUFFER,  v->_color_vbo);
@@ -378,6 +431,14 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 			glDrawElements(GL_TRIANGLES, stop-start, GL_UNSIGNED_INT,sizeof(zuint32) * start);
 		else 
 			glDrawArrays(GL_TRIANGLES, start, stop-start);
+		break;
+
+
+	case gx_quads:
+		if (indexed)
+			glDrawElements(GL_QUADS, stop-start, GL_UNSIGNED_INT,sizeof(zuint32) * start);
+		else 
+			glDrawArrays(GL_QUADS, start, stop-start);
 		break;
 	}
 	
@@ -447,7 +508,7 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 	if (!preferred_buffer || gx_remaining_indices(preferred_buffer)<(numtriangles*3) || gx_remaining_vertices < numpoints)
 	{
 		vbuf = gx_vbuffer_mk(numpoints,numtriangles*3, 
-			use_color, 
+			use_color, zfalse,
 			num_texture );
 	}
 	else
@@ -475,11 +536,44 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 	{
 		for (j=0;j<image->height;j++)
 		{
-	
 
+			
 			zuint32 nv = -1;
-
+			
 			zfloat32 hf =  image->data[j*image->height +i]/255.0;
+
+
+			zfloat32 hfl= hf;
+			zfloat32 hfr= hf;
+			zfloat32 hfu= hf;
+			zfloat32 hfd= hf;
+			vec3 norm;
+			
+			if (i>0)
+				hfl =  image->data[j*image->height +i-1]/255.0;
+
+			if (i<image->width-1)
+				hfr =  image->data[j*image->height +i+1]/255.0;
+
+			if (j>0)
+				hfu =  image->data[(j-1)*image->height +i]/255.0;
+
+			if (j<image->height-1)
+				hfd =  image->data[(j+1)*image->height +i]/255.0;
+
+
+
+		
+		
+			vec3set(norm, 0,ysize,0); //normal pointing straight up
+
+			norm.named.x = ysize*(hfl-hfr);
+			norm.named.z =ysize* (hfu-hfd);
+			
+			gx_vbuffer_add_normal(vbuf, norm.named.x, norm.named.y, norm.named.z);
+
+
+
 			if(use_color)
 			{
 				gx_vbuffer_add_color(vbuf, hf,hf,hf,1);

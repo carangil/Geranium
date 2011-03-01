@@ -12,6 +12,7 @@ typedef struct {
 	//Vertex Information
 	zfloat32* vertex_data;   //position
 	zfloat32* color_data;    //optional color
+	zfloat32* normal_data;    //normal data
 	
 	
 	zfloat32* texcoord_data[GX_MAX_TEXTURES]; //texcoord data for each texture
@@ -33,6 +34,7 @@ typedef struct {
 	zuint32 _vertex_vbo;
 	zuint32 _index_vbo;
 	zuint32 _color_vbo;
+	zuint32 _normal_vbo;
 	zuint32 _texcoord_vbo[GX_MAX_TEXTURES];
 
 //	zuint32 index_vbo;
@@ -43,11 +45,19 @@ typedef enum
 {
 	gx_points  = 0,
 	gx_lines ,
-	gx_triangles 
+	gx_triangles ,
+	gx_quads
 } gx_prim_e;
 
 
-gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices, zuint32 num_indices, zbool use_color, zuint32 texture_buffer_count);
+//gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices, zuint32 num_indices, zbool use_color, zuint32 texture_buffer_count);
+void gx_vbuffer_add_normal(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z);
+
+gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices, 
+							zuint32 num_indices, 
+							zbool use_color, 
+							zbool use_normal,
+							zuint32 texture_buffer_count);
 
 zbool gx_vbuffer_update(gx_vbuffer_t* v);
 
@@ -94,6 +104,7 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 #define VERTEX_COMPONENTS 3
 #define COLOR_COMPONENTS 4
 #define TEXTURE_COMPONENTS 2
+#define NORMAL_COMPONENTS 3
 
 //experimental accessors
 

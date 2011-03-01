@@ -13,8 +13,8 @@ typedef struct vec_s {
 
 //fast and safe read/write into the vector
 #define vec_count(vec)			   ((vec)->count)
-#define vec_get_at(vec,pos)        ( (pos) < (vec)->count ?  (vec)->elements[(pos)] : NULL )
-#define vec_set_at(vec,pos,value)  ( (pos) < (vec)->count ?  (vec)->elements[(pos)] = value : NULL )
+#define vec_get_at(vec,pos)        ( ((unsigned int)(pos)) < (vec)->count ?  (vec)->elements[(pos)] : NULL )
+#define vec_set_at(vec,pos,value)  ( ((unsigned int)(pos)) < (vec)->count ?  (vec)->elements[(pos)] = value : NULL )
 
 //call this to cleanup the contents of a vec_t, without freeing the vec_t itself
 void vec_cleanup(void* x);
@@ -44,6 +44,11 @@ ram_free(myVec);
 
 //add item to vector, growing if necessary
 zbool vec_add(vec_t* v, void* item);
+
+//add item to vector, returns item if successful.  otherwise frees the item
+//why does this exist?
+//something = vec_add_or_free(v, ram_alloc(...,...));  returns a new item in a vector, or kills it without an extra cleanup step!
+void* vec_add_or_free(vec_t* v, void* item);
 
 //remove item from vector in constant time, order of the items is not preserved
 void* vec_remove_unordered(vec_t* v, int index);

@@ -25,7 +25,7 @@
 #include "gx_buffers.h"
 #include "gx_misc.h"
 
-
+#include <stdio.h>
 
 void gx_camera_pos(float x, float y, float z)
 {
@@ -96,48 +96,45 @@ void gx_spin(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up,
 }
 
 
-//mesh related stuff
-
-gx_mesh_t*  gx_mesh_def(gx_vbuffer_t* v, gx_drawstyle_t* s, zuint32 drawstart, zuint32 drawend, zbool indexed)
+void test_lighting_on()
 {
-	gx_mesh_t* m = NULL;
+	float gray[]={.9,.9,.9,1};
+	float white[]={1,1,1,1};
+	float black[]={0,0,0,1};
+	float red[]={1,0,0,1};
+	float dim[]={.05,.05,.05,1};
+	float light_position[]={1,1,0,0};
 
-	m = ram_alloc(sizeof(gx_mesh_t), NULL);  //no destructor since it doesn't contain any other structures it 'owns'
+	//glEnable(GL_LIGHTING);
+	//glEnable(GL_LIGHT0);
+
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, black);
+
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT,  white);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,  white);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE,   white);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION,  black);
+	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS,  100.0);
+
+
+//	glLightfv(GL_LIGHT0, GL_AMBIENT, dim);
+//	glLightfv(GL_LIGHT0, GL_SPECULAR, white);
+//	glLightfv(GL_LIGHT0, GL_DIFFUSE, white);
 	
-	if (m)
-	{
 
-		m->data = v;
-		m->style = s;
-		m->drawstart = drawstart;
-		m->drawend = drawend;
-		m->indexed = indexed;
-	}
-	return m;
+//	glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+
+
+
 }
 
-
-void gx_mesh_draw(gx_mesh_t* mesh_in)
+void test_lighting_off()
 {
-	gx_mesh_t* mesh = mesh_in;
+	//glDisable(GL_LIGHTING);
 
-	while(mesh)
-	{
-		gx_drawstyle_activate(mesh->style);
-		gx_vbuffer_draw(mesh->data, mesh->drawstart, mesh->drawend, gx_triangles, mesh->indexed);
-		mesh = mesh->next;
-		
-		if (mesh == mesh_in)  
-		{
-#ifdef DOPRINTF 
-			printf(" Warning: breaking mesh cycle\n");
-#endif
-			//cycle detected!
-			break;
-		}
-	}
 
 }
+
 
 
 

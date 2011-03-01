@@ -10,18 +10,26 @@
 #include "../graphics/gx_image.h"
 #include "../graphics/gx_sprite.h"
 #include "../graphics/gx_line.h"
+#include "../graphics/gx_buffers.h"
+#include "../vmath.h"
+#include "../graphics/gx_drawstyle.h"
+
 #include "../structures/vector.c"
 
-void systest_main();
-void graphtest_main();
-void graphtest_main2();
+
+
+#include "../graphics/gx_misc.h"
+
+void graphics_main();
 void game_main();
 
 void main(int argc, char** argv)
 {
 
-	graphtest4();
-	//game_main();
+	
+
+	graphtest_main();
+//	game_main();
 
 
 
@@ -109,7 +117,7 @@ void game_main()
 	zuint32		current_ship = 0;
 	zbool		fired = zfalse;
 	zuint32		bullet_time = 0;
-	zuint32		place_asteroids = 1;
+	zuint32		place_asteroids = 5;
 	zfloat32	place_asteroids_size = 1.0 ;
 	zbool		place_asteroids_random = ztrue;
 	zfloat32	place_asteroids_x;
@@ -274,16 +282,35 @@ void game_main()
 
 		//draw player
 		gx_sprite_draw_rotozoom(e_player.sprite, e_player.x, e_player.y, ztrue, e_player.offsetx, e_player.offsety, e_player.draw_size, e_player.rotation);
+		
+		gx_line_color(0,1,0,1);
 		gx_arcgon( e_player.x, e_player.y,  e_player.intersect_size, e_player.intersect_size,0, 2*3.14159, 50, zfalse);
 
+		gx_line_color(0,0,1,1);
+		gx_box
+			(e_player.x - e_player.intersect_size, e_player.y - e_player.intersect_size,
+			e_player.x + e_player.intersect_size, e_player.y + e_player.intersect_size);
+
+		
 		//lets draw circles around all the asteroids
+#if 1
+		gx_line_color(1,0,0,1);
 		for (i=0;i<e_aster->count;i++)
 		{
 			entity_t* e = (entity_t*) vec_get_at(e_aster, i);
 			if (e)
 				gx_arcgon( e->x, e->y, e->intersect_size, e->intersect_size,0, 2*3.14159, 50, zfalse);
 		}
+		
+
+#endif 
+
+		gx_line_color(1,0,0,1);
+		
+
 		gx_line_finish();
+
+		gx_line_color(1,1,1,1);
 				
 		gx_frame_show();
 		gx_window_event(); //process window system events (must be called once per loop)
