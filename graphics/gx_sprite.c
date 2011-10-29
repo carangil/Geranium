@@ -4,6 +4,7 @@
 
 #include "../ztypes.h"
 #include "../memory/ram.h"
+#include "../vmath.h"
 #include <stdio.h>
 
 #include "glstuff.h"
@@ -70,9 +71,16 @@ void gx_sprite_draw(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool alpha_ble
 
 
 	if (alpha_blend)
+	{
 		glEnable(GL_BLEND);
+	
+		
+		
+	}
 	else
+	{
 		glDisable(GL_BLEND);
+	}
 
 	glBegin(GL_QUADS);
 	
@@ -91,7 +99,7 @@ void gx_sprite_draw(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool alpha_ble
 	glEnd();
 }
 
-
+//todo: regular sprite draw and rotozoom function should be merged
 void gx_sprite_draw_rotozoom(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool alpha_blend,  zfloat32 xo, zfloat32 yo, zfloat32 zoom, zfloat32 ang)
 {
 
@@ -227,4 +235,95 @@ void gx_text_draw(gx_image_t* font,  zfloat32 x, zfloat32 y,  zfloat32 angle, zc
 	glEnd();
 
 	glPopMatrix();
+}
+
+
+
+//need to draw a sprite in 3d
+//todo: this functino is crappy, fix it
+//crappy sprite renderer
+void gx_sprite_draw_3d(gx_sprite_t* sprite, vec3* position, vec3* up, vec3* right , zbool alpha_blend, zbool center)
+{
+
+	vec3 p;
+
+	if (!sprite || ! sprite->image || ! position || ! up || ! right)
+		return;
+
+#if 0
+	if (!sprite->image->_sent_to_gl)
+	{
+		#ifdef DOPRINTF 
+		printf(" Trying to draw a sprite from in image that hasn't been sent to the graphics card!\n");
+		#endif
+		//todo:  just sent it?
+		return;
+	}
+#endif
+	
+	glColor4f(1,1,1,1);
+
+	//sprite renderer must go through the 'texture mananger'
+	//_gx_image_enable( sprite->image);
+	gx_set_active_textures(& (sprite->image) , 1);
+ 	
+	//NOTE:  turning on alpha blending here conflicts with any 3d 'drawstyle' thats applied
+	//       after drawing the sprite the current drawstyle should be deactivated
+
+	
+
+	if (alpha_blend)
+	{
+		glEnable(GL_BLEND);
+		glEnable(GL_ALPHA_TEST);
+		glAlphaFunc(GL_GREATER, .05);
+	}
+	else
+	{
+		glDisable(GL_BLEND);
+	}
+
+	glBegin(GL_QUADS);
+	
+		glTexCoord2f(sprite->_tx, sprite->_ty );
+		vec3mov(p, *position);
+		if (center)
+		{
+			vec3madd(p, -0.5*sprite->_sprite_width, *right);
+			vec3madd(p, -0.5*sprite->_sprite_height, *up);
+		}
+		glVertex3fv(&p);
+
+		glTexCoord2f(sprite->_tx2, sprite->_ty );
+		vec3mov(p, *position);
+		vec3madd(p, sprite->_sprite_width, *right);
+		if (center)
+		{
+			vec3madd(p, -0.5*sprite->_sprite_width, *right);
+			vec3madd(p, -0.5*sprite->_sprite_height, *up);
+		}
+		glVertex3fv(&p);
+
+		glTexCoord2f(sprite->_tx2, sprite->_ty2 );
+		vec3mov(p, *position);
+		vec3madd(p, sprite->_sprite_height, *up);
+		vec3madd(p, sprite->_sprite_width, *right);
+		if (center)
+		{
+			vec3madd(p, -0.5*sprite->_sprite_width, *right);
+			vec3madd(p, -0.5*sprite->_sprite_height, *up);
+		}
+		glVertex3fv(&p);
+
+		glTexCoord2f(sprite->_tx, sprite->_ty2 );
+		vec3mov(p, *position);
+		vec3madd(p, sprite->_sprite_height, *up);
+		if (center)
+		{
+			vec3madd(p, -0.5*sprite->_sprite_width, *right);
+			vec3madd(p, -0.5*sprite->_sprite_height, *up);
+		}
+		glVertex3fv(&p);
+
+	glEnd();
 }

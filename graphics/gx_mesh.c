@@ -38,6 +38,7 @@ gx_mesh_t*  gx_mesh_def(gx_vbuffer_t* v, gx_drawstyle_t* s, zuint32 drawstart, z
 		m->drawstart = drawstart;
 		m->drawend = drawend;
 		m->indexed = indexed;
+		m->prim = gx_triangles;  //default triangles unless override
 	}
 	return m;
 }
@@ -46,7 +47,7 @@ gx_mesh_t*  gx_mesh_def(gx_vbuffer_t* v, gx_drawstyle_t* s, zuint32 drawstart, z
 void gx_mesh_draw(gx_mesh_t* mesh_in)
 {
 	gx_mesh_t* mesh = mesh_in;
-
+//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	while(mesh)
 	{
 		
@@ -54,7 +55,7 @@ void gx_mesh_draw(gx_mesh_t* mesh_in)
 		if (mesh->style)
 			gx_drawstyle_activate(mesh->style);
 
-		gx_vbuffer_draw(mesh->data, mesh->drawstart, mesh->drawend, gx_triangles, mesh->indexed);
+		gx_vbuffer_draw(mesh->data, mesh->drawstart, mesh->drawend, mesh->prim, mesh->indexed);
 		mesh = mesh->next;
 		
 		if (mesh == mesh_in)  
@@ -74,6 +75,7 @@ void gx_mesh_draw_at(gx_mesh_t* mesh_in, vec3* pos )
 {
 	gx_mesh_t* mesh = mesh_in;
 
+	
 	glPushMatrix();
 	glTranslatef( pos->named.x, pos->named.y, pos->named.z);
 
@@ -219,6 +221,9 @@ typedef struct coord2_s
 #define MESH_VERTEX_COUNT 65535
 #define MESH_INDEX_COUNT  65535
 
+//face point limit: 3 - triangle 4-quad 6-hexagon etc
+#define FACE_POINT_LIMIT 8
+
 gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignoregroups)
 {
 	gx_mesh_t* m = NULL;
@@ -242,9 +247,9 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 
 	v_t_n_combo_t* tmp_combo = NULL;
 
-	v_t_n_combo_t* face_point[4];
+	v_t_n_combo_t* face_point[FACE_POINT_LIMIT];
 	int face_point_count=0;
-
+	
 	gx_vbuffer_t* current_vbuffer = NULL;
 
 	if (!f)
@@ -295,7 +300,9 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 				v3->x *=.05;
 				v3->y *=.05;
 				v3->z *=.05;
-
+#ifdef DOPRINTFS
+				printf("v(%d)", vertices.count);
+#endif
 				
 			}	
 		}
@@ -309,6 +316,10 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 				fscanf(f,"%f %f", &v2->s, &v2->t);
 			}
 			
+#ifdef DOPRINTFS
+				printf("vt(%d)", texcoords.count);
+#endif
+
 		}
 		//surface normal
 		else if (!strcmp(buffer, "vn"))
@@ -319,6 +330,11 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 				fscanf(f,"%f %f %f", &v3->x, &v3->y, &v3->z);
 			
 			}	
+
+#ifdef DOPRINTFS
+			printf("v(%d)", normals.count);
+#endif
+
 		}
 		//group command
 		else if (!strcmp(buffer, "g"))
@@ -353,6 +369,9 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 			face_point_count = 0;
 		
 			delim = '/';
+#ifdef DOPRINTFS
+			printf("f ");
+#endif
 
 			//read we are reading until end of the line or we have 4 points
 			while ((delim != '\r')&& (delim !='\n')  )
@@ -360,6 +379,9 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 				delim = '/';
 
 				delim = read_to_delim(f, buffer, sizeof(buffer), " /\r\n\t");
+				
+				if (delim < 0) //error reading
+					break;
 
 				if (strlen(buffer)==0)
 					continue;  //if we get empty vertex, forget about it (means we got multiple whitespace between vertices, probably)
@@ -389,6 +411,9 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 					tmp_combo->vn = atoi(buffer);
 				}
 				
+				#ifdef DOPRINTFS
+					printf("<%d/%d/%d>", tmp_combo->v, tmp_combo->vt, tmp_combo->vn);
+				#endif
 
 				//check this vertex for this particular combination;
 				{
@@ -418,8 +443,11 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 							found = ztrue;
 //							printf(" Repeat combination %d/%d/%d\n", search_combo->v,search_combo->vt,search_combo->vn);
 
-							if (face_point_count >=4)
+							if (face_point_count >=FACE_POINT_LIMIT)
+							{
+								printf(".TOO MANY POINTS IN ONE FACE %d\n", face_point_count);
 								break;
+							}
 
 							face_point[face_point_count++] = search_combo;  //we found an existing point for our face
 							break;
@@ -439,8 +467,13 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 						tmp_combo->next = vv->combos;
 						vv->combos = tmp_combo;
 
-							if (face_point_count >=4)
-								break;
+						if (face_point_count >=FACE_POINT_LIMIT)
+						{
+							printf("/TOO MANY POINTS IN ONE FACE %d\n", face_point_count);
+							tmp_combo = NULL;  //need to throw this away (the vertex owns the combo now(
+							break;
+						}
+
 						face_point[face_point_count++] = tmp_combo;  //keep track of our face's combos
 
 						tmp_combo = NULL;  //give up our pointer to it
@@ -541,16 +574,16 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 
 				}
 
-			
+#if 0
+				//triangle/quad only case
 
 				//now put in all the indices
 				gx_vbuffer_add_index(current_vbuffer, face_point[0]->vbuffer_vertex);
 				gx_vbuffer_add_index(current_vbuffer, face_point[1]->vbuffer_vertex);
 				gx_vbuffer_add_index(current_vbuffer, face_point[2]->vbuffer_vertex);
-				
-				current_mesh->drawend +=3;
+					current_mesh->drawend +=3;
 
-				if (face_point_count == 4)
+				if (face_point_count >= 4)
 				{
 
 					gx_vbuffer_add_index(current_vbuffer, face_point[0]->vbuffer_vertex);
@@ -558,6 +591,21 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 					gx_vbuffer_add_index(current_vbuffer, face_point[3]->vbuffer_vertex);
 					current_mesh->drawend +=3;
 				}
+#endif
+
+				//general case
+
+			
+ 
+				for (j=2;j<face_point_count;j++)
+				{
+					gx_vbuffer_add_index(current_vbuffer, face_point[0]->vbuffer_vertex);
+					gx_vbuffer_add_index(current_vbuffer, face_point[j-1]->vbuffer_vertex);
+					gx_vbuffer_add_index(current_vbuffer, face_point[j]->vbuffer_vertex);
+					current_mesh->drawend +=3;
+				}
+
+
 				
 				
 			
@@ -571,7 +619,7 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 			//face (triangle/quad)
 		} 
 		
-		//read until end of line
+		//read until end of line or file
 		while (  (delim!='\n') && (delim!='\r') && (delim>0))
 		{
 			delim = read_to_delim(f, buffer, sizeof(buffer),  " \n\r\t" );
@@ -580,6 +628,9 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 			
 	}
 
+	#ifdef DOPRINTFS
+				printf("done\n");
+#endif
 	//free left over tmp_combo
 	if (tmp_combo)
 		ram_free(tmp_combo);

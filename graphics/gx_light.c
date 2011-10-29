@@ -57,11 +57,22 @@ void gx_set_active_lights(gx_light_t** lights, zuint32 count)
 
 	glEnable(GL_NORMALIZE);
 
+
+	
 	if (count == 0 || !lights)
 	{
+		for (i=0;i<_number_active_lights;i++)
+		{
+			//disable all active lights
+			glDisable(GL_LIGHT0 + i);  //disable any lights we no longer want
+		}
+
 		//if lighting was on, turn it off
 		if (_number_active_lights)
 			glDisable(GL_LIGHTING);
+
+		//note for above:  instead of just disabling lighting, it was necessary to disable all the enabled lights,
+		//because if later we turn lights back on, but fewer than currently, some higher number lights will be stuck on
 
 		_number_active_lights = 0;
 		return;
@@ -124,7 +135,7 @@ void gx_set_active_lights(gx_light_t** lights, zuint32 count)
 
 	}
 
-	for (i= count; count < _number_active_lights;i++)
+	for (i= count; i < _number_active_lights;i++)
 	{
 		glDisable(GL_LIGHT0 + i);  //disable any lights we no longer want
 	}

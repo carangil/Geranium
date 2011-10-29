@@ -16,6 +16,7 @@ typedef struct gx_mesh_s
 	zbool			indexed;	//using indices?
 	struct gx_mesh_s*	next;  //next mesh segment  (large meshes may be composed of multiple segments)
 
+	gx_prim_e		prim;	//type of mesh
 } gx_mesh_t;
 
 //defines a mesh

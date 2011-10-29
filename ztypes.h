@@ -5,6 +5,7 @@
 
 /* Basic datatypes for my projects**/
 
+#include <stdlib.h>
 
 typedef int					zint32;
 typedef unsigned int		zuint32;

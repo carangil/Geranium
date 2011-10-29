@@ -2,6 +2,7 @@
 // ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
+#include <malloc.h>
 
 void* ram_alloc(zsize size, void (*destructor) (void* thing)  );
 void* ram_resize(void* ram, zsize newsize);

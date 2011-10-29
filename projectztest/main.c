@@ -6,12 +6,13 @@
 #include <math.h>
 #include "../ztypes.h"
 #include "../memory/ram.h"
+#include "../vmath.h"
 #include "../graphics/gx_sys.h"
 #include "../graphics/gx_image.h"
 #include "../graphics/gx_sprite.h"
 #include "../graphics/gx_line.h"
 #include "../graphics/gx_buffers.h"
-#include "../vmath.h"
+
 #include "../graphics/gx_drawstyle.h"
 
 #include "../structures/vector.c"

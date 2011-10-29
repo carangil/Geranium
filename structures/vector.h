@@ -15,9 +15,10 @@ typedef struct vec_s {
 #define vec_count(vec)			   ((vec)->count)
 #define vec_get_at(vec,pos)        ( ((unsigned int)(pos)) < (vec)->count ?  (vec)->elements[(pos)] : NULL )
 #define vec_set_at(vec,pos,value)  ( ((unsigned int)(pos)) < (vec)->count ?  (vec)->elements[(pos)] = value : NULL )
+#define vec_get_x_at(vec, type, pos)  ((type)( ((unsigned int)(pos)) < (vec)->count ?  (vec)->elements[(pos)] : NULL ))
 
 //call this to cleanup the contents of a vec_t, without freeing the vec_t itself
-void vec_cleanup(void* x);
+void vec_cleanup(vec_t* x);
 
 //constructor
 vec_t* vec_mk(vec_t* v, zsize initial_size);

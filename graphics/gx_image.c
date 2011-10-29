@@ -54,7 +54,9 @@ gx_image_t* gx_image_load_tga( zchar* f)
 	image->height = buf[2] | ( buf[3]<<8);
 	image->bpp = buf[4] / 8 ;    //we want bytes per pixel, not bits
 
-	if ( (image->bpp==0) || (image->bpp == 2) || (image->bpp >4))
+	//bpp == 2 should be  grayscale + alpha
+
+	if ( (image->bpp==0) || /*(image->bpp == 2) ||*/ (image->bpp >4))
 	{
 		//invalid ranges
 		ram_free(image);

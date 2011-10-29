@@ -7,6 +7,7 @@
 #include "../memory/ram.h"
 #include <stdio.h>
 #include "vector.h"
+#include <string.h>
 
 // A simple, generic vector 'class' in C.  
 // A vector just stores void*
@@ -23,6 +24,8 @@ void vec_cleanup(vec_t* vec)
 	{
 		for (i=0;i<vec->count;i++)
 		{
+			if (i==0x3af)
+ 				printf("boo");
 			ram_free(vec->elements[i]);  //free each element
 		}
 		ram_shallow_free(vec->elements);  //free the array
@@ -146,7 +149,7 @@ void* vec_remove_ordered(vec_t* v, int index)
 		
 	printf(" memmove to  %d from %d    %d  items \n", index, index+1, ((v->count - index)-1));
 
-	memmove( v->elements+index, v->elements+index+1, sizeof(void*)* ((v->count - index)-1)   );
+	memmove(v->elements+index, v->elements+index+1, sizeof(void*)* ((v->count - index)-1)   );
 
 	v->count--;
 

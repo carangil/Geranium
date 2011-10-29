@@ -45,11 +45,55 @@ void _gx_callback_keyboard_up(char key, int x, int y)
 }
 
 
+
+
+
+zbool gx_mousebuttons[] = {zfalse, zfalse, zfalse};
+
+zbool gx_mouse_state(zuint32 button)
+{
+	if (button <= GX_MOUSE_MAX)
+	{
+		return gx_mousebuttons[button];
+
+	}
+
+	return zfalse;
+}
+
 static void _gx_callback_mouseclick(int button, int state, int x, int y)
 {
+
+
+	zbool val;
+
+	if (state==GLUT_DOWN)
+		val = ztrue;
+	else 
+		val = zfalse;
+	
+	switch (button)
+	{
+
+	case GLUT_LEFT_BUTTON:
+		gx_mousebuttons[GX_MOUSE_LEFT] = val;
+		break;
+
+	case GLUT_MIDDLE_BUTTON:
+		gx_mousebuttons[GX_MOUSE_MIDDLE] = val;
+		break;
+
+	case GLUT_RIGHT_BUTTON:
+		gx_mousebuttons[GX_MOUSE_RIGHT] = val;
+		break;
+
+
+	}
+
 #ifdef DOPRINTF 
 	printf("mouseclick %d %d %d %d", button, state, x, y);
 #endif
+
 }
 
 
@@ -125,7 +169,7 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	glutMotionFunc(_gx_callback_mouseactive);
 	glutPassiveMotionFunc(_gx_callback_mousepassive);
 	glutDisplayFunc(_gx_callback_disp);
-	//glPointSize(3.0);
+	glPointSize(2.0);
 	
 
 	_gx_callback_reshape( width, height);  //reshape will use defaults
@@ -145,6 +189,9 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	//default blending mode is alpha, but is off by default
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glDisable(GL_BLEND);
+
+
+	
 
 	return GX_OK;
 }
@@ -281,7 +328,9 @@ void gx_setup_2d(float left,  float top, float right, float bottom)
 
 	//makes most sense to disable depth:
 	glDepthMask(GL_FALSE);  //don't write to depth bufer
+
 	glDisable(GL_DEPTH_TEST); //don't test depth buffer when drawing
+
 
 	glDisable(GL_CULL_FACE);
 
@@ -300,7 +349,7 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 	//probably want depth buffer:
 	glClearDepth(1.0); //when clearing depth buffer, set to infinity
 	glDepthRange(0,1);  //set range for full depth bufer
-	glDepthFunc(GL_LESS);  //draw things equally far or closer
+	glDepthFunc(GL_LEQUAL);  //draw things equally far or closer
 	glDepthMask(GL_TRUE); //write to depth bufer
 	glEnable(GL_DEPTH_TEST);  //enable depth testing
 
@@ -308,5 +357,141 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 
 	//glEnable(GL_CULL_FACE); //we want face culling (for now)
 	//glCullFace(GL_BACK);
+}
+
+//depth buffer
+void gx_zbuffer(zbool en)
+{
+	if (en)
+		glEnable(GL_DEPTH_TEST);
+	else
+		glDisable(GL_DEPTH_TEST);
+	
+}
+
+
+//simple matrix based commands
+
+
+
+
+static zint32 _gx_matrix_depth = 0;  //nothing pushes
+
+static _gx_restore_camera_matrix()
+{
+	if (_gx_matrix_depth ==1)
+	{
+		glPopMatrix();
+		_gx_matrix_depth = 0;
+	}
+	else
+	{
+		printf(" Invalid matrix depth state! %d\n", _gx_matrix_depth);
+	}
+}
+
+
+static _gx_save_camera_matrix()
+{
+	if (_gx_matrix_depth ==0)
+	{
+		glPushMatrix();
+		_gx_matrix_depth = 1;
+	}
+	else
+	{
+		printf(" Invalid matrix depth state! %d\n", _gx_matrix_depth);
+	}
+}
+
+static _gx_reset_matrix()
+{
+
+	if (_gx_matrix_depth ==1)
+	{
+		glPopMatrix();
+		_gx_matrix_depth = 0;
+	}
+
+	if (_gx_matrix_depth != 0)
+	{
+		printf(" Invalid matrix depth state! %d\n", _gx_matrix_depth);
+	}
+
+	glLoadIdentity();
+}
+
+
+void gx_camera_pos_rot(vec3* position, vec3* xaxis, vec3* yaxis, vec3* zaxis)
+{
+
+ 	_gx_reset_matrix();
+
+
+	if (xaxis && yaxis && zaxis)
+	{
+		zfloat32 matr[]={	
+			xaxis->vec3x, yaxis->vec3x, -zaxis->vec3x,0,
+			xaxis->vec3y, yaxis->vec3y, -zaxis->vec3y,0,
+			xaxis->vec3z, yaxis->vec3z, -zaxis->vec3z,0,
+			0,0,0,1};
+
+			glLoadMatrixf((float*)&matr);			
+	}
+
+	if (position)
+		glTranslatef( -position->vec3x, -position->vec3y, -position->vec3z);
+
+	//now that we have a fresh camera matrix, lets save it
+	_gx_save_camera_matrix();
+	
+}
+
+void gx_home()
+{  
+	_gx_restore_camera_matrix();
+	_gx_save_camera_matrix();
+}
+
+void gx_camera_home()
+{	//reset transform AND camera
+	_gx_reset_matrix();
+}
+
+
+
+
+void gx_move3d(vec3* amount)
+{
+	if (amount)
+		glTranslatef(amount->named.x, amount->named.y, amount->named.z);
+}
+
+//specify 3x3 matrix
+void gx_rotate_3x3(vec3* xaxis, vec3* yaxis, vec3* zaxis )
+{
+	if (xaxis && yaxis && zaxis)
+	{
+		zfloat32 matr[]={
+					     xaxis->vec3x, xaxis->vec3y, xaxis->vec3z,0,
+					     yaxis->vec3x, yaxis->vec3y, yaxis->vec3z,0,
+					     zaxis->vec3x, zaxis->vec3y, zaxis->vec3z,0,
+					     0,0,0,1};
+
+		glMultMatrixf((float*)&matr);
+	}
+}
+
+void gx_scale3d(vec3* scale)
+{
+	if (!scale)
+		return;
+
+	glScalef( scale->named.x, scale->named.y, scale->named.z);
+}
+
+void gx_scale(float scale)
+{
+	glScalef( scale, scale, scale);
 }
 

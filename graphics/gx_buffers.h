@@ -64,6 +64,9 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v);
 void gx_vbuffer_add_tex(gx_vbuffer_t* v, zuint32 texture, zfloat32 s, zfloat32 t);
 void gx_vbuffer_add_color(gx_vbuffer_t* v, zfloat32 r, zfloat32 g, zfloat32 b, zfloat32 a);
 zint32 gx_vbuffer_add_vertex(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z);
+#define gx_vbuffer_add_vertexv(AAA,BBB) gx_vbuffer_add_vertex(AAA, (BBB).vec3x, (BBB).vec3y, (BBB).vec3z)
+
+zint32 gx_vbuffer_import_vertex(gx_vbuffer_t* dest, gx_vbuffer_t* src, zint32 vertex);
 
 //clears data in a buffer:
 void gx_vbuffer_clear(gx_vbuffer_t* v, zbool clear_index, zbool clear_vertex);
@@ -108,8 +111,12 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 
 //experimental accessors
 
-#define vbuffer_x(vbbb, iii)  ((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS])
-#define vbuffer_y(vbbb, iii)  ((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS]+1)
-#define vbuffer_z(vbbb, iii)  ((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS]+2)
+#define gx_vbuffer_x(vbbb, iii)  ((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS])
+#define gx_vbuffer_y(vbbb, iii)  ((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS+1])
+#define gx_vbuffer_z(vbbb, iii)  ((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS+2])
 
-#define vbuffer_v(vbbb, iii)   ((vec3*)(&((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS])))
+#define gx_vbuffer_v(vbbb, iii)   ((vec3*)(&((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS])))
+
+
+#define gx_vbuffer_s(vbbb, iii, ttt)  ((vbbb)->texcoord_data[ttt][(iii)* TEXTURE_COMPONENTS])
+#define gx_vbuffer_t(vbbb, iii, ttt)  ((vbbb)->texcoord_data[ttt][(iii)* TEXTURE_COMPONENTS+1])

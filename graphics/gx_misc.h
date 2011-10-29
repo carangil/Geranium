@@ -4,7 +4,7 @@
 
 
 void gx_camera_pos(float x, float y, float z);
-void gx_camera_pos_rot(vec3* position, vec3* xaxis, vec3* yaxis, vec3* zaxis);
+
 
 //rotates 3 vectors around each other
 void gx_spin(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up, vec3* forward);
@@ -38,6 +38,8 @@ typedef struct gx_sector_s
 	vec_t meshes;  //meshes to draw in this sector
 	struct portal_s* portals;
 			
+	zbool visiting;
+	int tag;  //user defined value
 } gx_sector_t;
 
 
@@ -49,7 +51,7 @@ typedef struct gx_portal_s
 	vec3 pos;			  //position of portal
 	zfloat32 radius;	  //size
 	gx_sector_t* target;  //target sector
-	struct portal_s* next_portal;
+	struct gx_portal_s* next_portal;
 } gx_portal_t;
 
 

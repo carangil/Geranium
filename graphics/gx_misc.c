@@ -34,19 +34,9 @@ void gx_camera_pos(float x, float y, float z)
 
 }
 
-void gx_camera_pos_rot(vec3* position, vec3* xaxis, vec3* yaxis, vec3* zaxis)
-{
-	zfloat32 matr[]={
-					     xaxis->vec3x, yaxis->vec3x, -zaxis->vec3x,0,
-					     xaxis->vec3y, yaxis->vec3y, -zaxis->vec3y,0,
-					     xaxis->vec3z, yaxis->vec3z, -zaxis->vec3z,0,
-					     0,0,0,1};
-	glLoadIdentity();
-	
-	glMultMatrixf((float*)&matr);
-				
-	glTranslatef( -position->vec3x, -position->vec3y, -position->vec3z);
-}
+
+
+
 
 //spin crap
 void gx_spin(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up, vec3* forward)
@@ -94,6 +84,7 @@ void gx_spin(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up,
 
 
 }
+
 
 
 void test_lighting_on()
@@ -174,6 +165,9 @@ void gx_portal_draw_test(gx_portal_t* p)
 		quadric = gluNewQuadric();
 	}
 	
+	gx_set_active_textures(NULL,0);
+
+
 	glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
 
 	glPushMatrix();
@@ -223,8 +217,8 @@ void gx_sector_outline(gx_sector_t* sector)
 	
 	//BTW this is the lamest way to draw a sector ever
 
-	glColor3f(1,1,1);
-	glDisable(GL_BLEND);
+	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
 	
 	gx_set_active_textures(NULL,0);
 
@@ -251,14 +245,34 @@ p0			 p4
 #define P5		glVertex3f( sector->max.vec3x, sector->min.vec3y, sector->max.vec3z);
 #define P6		glVertex3f( sector->max.vec3x, sector->max.vec3y, sector->min.vec3z);
 #define P7		glVertex3f( sector->max.vec3x, sector->max.vec3y, sector->max.vec3z);
+#if 0
+glEnable(GL_POLYGON_OFFSET_FILL);
+	glPolygonOffset(1,1);
+
+		glColor4f(1,.5,.2, .5);
+		glBegin(GL_QUADS);
+
+		P0 P1 P5 P4
+		P0 P1 P3 P2
+		P3 P7 P6 P2
+		P6 P7 P5 P4
+		P3 P7 P5 P1
+		P2 P6 P4 P0
 
 
+		glEnd();
+	
+#endif 
+#if 1
+		
+			glColor4f(1,1,1,1);
 	glBegin(GL_LINES);	
 		P0 P1 P1 P3 P3 P2 P2 P0
 		P4 P5 P5 P7 P7 P6 P6 P4
 		P0 P4 P4 P5 P5 P1 P1 P0
 		P2 P6 P6 P7 P7 P3 P3 P2
 	glEnd();
-	
-	
+#endif
+glEnable(GL_DEPTH_TEST);
+
 }

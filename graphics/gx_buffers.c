@@ -124,6 +124,9 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 
 
 //sends a vbuffer to the graphics card
+
+
+
 zbool gx_vbuffer_update(gx_vbuffer_t* v)
 {
 	zuint32 i = 0;
@@ -195,6 +198,33 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 }
 
 
+//only resends the index buffer to opengl
+zbool gx_vbuffer_update_indices_only(gx_vbuffer_t* v)
+{
+	zuint32 i = 0;
+
+	//TODO: specify flags for what type of data to update!
+
+	if (!v)
+		return zfalse;
+
+	if (!v->_sent_to_gl)
+	{
+		return zfalse;
+	}
+	
+	 if (v->index_data)
+	 {
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, v->_index_vbo);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, v->index_count * sizeof(v->index_data[0]  ) , v->index_data , GX_UPDATE_FREQ);
+	 }
+
+	return ztrue;
+}
+
+
+
+
 
 
 //adds normal to a new vertex
@@ -255,6 +285,10 @@ void gx_vbuffer_add_tex(gx_vbuffer_t* v, zuint32 texture, zfloat32 s, zfloat32 t
 	if (v->vertex_count == v->vertex_capacity)
 		return; //we are full!
 
+
+	if (texture >= v->num_textures)
+		return; //too many textures
+
 	v->texcoord_data[texture][TEXTURE_COMPONENTS * v->vertex_count] = s;
 	v->texcoord_data[texture][TEXTURE_COMPONENTS * v->vertex_count + 1] = t;
 
@@ -280,6 +314,21 @@ zint32 gx_vbuffer_add_vertex(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z
 	return v->vertex_count - 1;
 }
 
+
+
+zint32 gx_vbuffer_import_vertex(gx_vbuffer_t* dest, gx_vbuffer_t* src, zint32 vertex)
+{
+	int i;
+
+	if (dest == src)
+		return vertex;  //if want in same vbuffer, keep it
+
+	//otherwise clone to other vbuffer
+	
+	gx_vbuffer_add_tex(dest, 0, gx_vbuffer_s(src, vertex, 0), gx_vbuffer_t(src, vertex, 0));
+	return gx_vbuffer_add_vertexv( dest,*gx_vbuffer_v(src, vertex));
+
+}
 
 
 zint32 gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i)
@@ -475,6 +524,10 @@ void gx_test_draw_vertices(gx_vbuffer_t* v)
 }
 
 
+
+
+
+
 //lame way to create geometry: axis-aligned image
 //this type of geometry-related crap should be shoved into a separate file
 //if the user sets the preferred buffer argument, if the data will fit, it will be put in the existing buffer
@@ -500,6 +553,7 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 	float coord[3];
 	
 	gx_vbuffer_t* vbuf = NULL;
+	int bpp = 0;
 
 	zuint32* lastcol = NULL;
 	zuint32 numpoints = image->width * image->height;
@@ -516,6 +570,8 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 		vbuf = preferred_buffer;
 	}
 	
+	bpp = image->bpp;
+
 	lastcol = ram_alloc( sizeof(zuint32) * image->height, NULL);
 
 	if (xaxis>2 || yaxis>2 || zaxis>2)
@@ -540,30 +596,38 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 			
 			zuint32 nv = -1;
 			
-			zfloat32 hf =  image->data[j*image->height +i]/255.0;
+			zfloat32 hf =  image->data[ (j*image->height +i) * bpp]/255.0;
 
+		
 
 			zfloat32 hfl= hf;
 			zfloat32 hfr= hf;
 			zfloat32 hfu= hf;
 			zfloat32 hfd= hf;
 			vec3 norm;
-			
+		
+			if (bpp==2)
+			{
+				if (image->data[ (j*image->height +i)*bpp+1] == 0)
+				{
+					lastcol[j] = -1;// invalid;
+					continue;
+				}  //zero is not 'in' the heightmap
+			}
+
+
 			if (i>0)
-				hfl =  image->data[j*image->height +i-1]/255.0;
+				hfl =  image->data[(j*image->height +i-1)*bpp]/255.0;
 
 			if (i<image->width-1)
-				hfr =  image->data[j*image->height +i+1]/255.0;
+				hfr =  image->data[(j*image->height +i+1)*bpp]/255.0;
 
 			if (j>0)
-				hfu =  image->data[(j-1)*image->height +i]/255.0;
+				hfu =  image->data[((j-1)*image->height +i)*bpp]/255.0;
 
 			if (j<image->height-1)
-				hfd =  image->data[(j+1)*image->height +i]/255.0;
+				hfd =  image->data[((j+1)*image->height +i)*bpp]/255.0;
 
-
-
-		
 		
 			vec3set(norm, 0,ysize,0); //normal pointing straight up
 
@@ -597,6 +661,20 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 			{
 				if (j+1<image->height)
 				{
+					if (lastcol[j] == -1)
+					{
+						lastcol[j]=nv;
+						continue;
+					}
+
+
+					if (lastcol[j+1] == -1)
+					{
+						lastcol[j]=nv;
+						continue;
+					}
+
+
 					gx_vbuffer_add_index(vbuf, nv);
 					gx_vbuffer_add_index(vbuf, lastcol[j]);
 					gx_vbuffer_add_index(vbuf, lastcol[j+1]);
@@ -604,6 +682,22 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 
 				if(j>0)
 				{
+
+					if (lastcol[j] == -1)
+					{
+						lastcol[j]=nv;
+						continue;
+					}
+
+
+
+					if (lastcol[j-1] == -1)
+					{
+						lastcol[j]=nv;
+						continue;
+					}
+
+
 
 					gx_vbuffer_add_index(vbuf, nv);
 					
