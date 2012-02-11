@@ -7,7 +7,8 @@ void gx_camera_pos(float x, float y, float z);
 
 
 //rotates 3 vectors around each other
-void gx_spin(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up, vec3* forward);
+//void gx_spin(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up, vec3* forward);
+void gx_spin(zbool is_camera, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up, vec3* forward);
 
 
 
@@ -51,6 +52,9 @@ typedef struct gx_portal_s
 	vec3 pos;			  //position of portal
 	zfloat32 radius;	  //size
 	gx_sector_t* target;  //target sector
+
+	vec3 normal;  //look direction of the portal (maybe have circular portals?)
+
 	struct gx_portal_s* next_portal;
 } gx_portal_t;
 
@@ -61,7 +65,7 @@ gx_sector_t* gx_sector_mk(vec3* min, vec3* max );
 void gx_sector_outline(gx_sector_t* box);
 void gx_portal_draw_test(gx_portal_t* p);
 
-gx_portal_t* gx_sector_add_portal(gx_sector_t* sector, vec3* position, zfloat32 radius, gx_sector_t* target);
+gx_portal_t* gx_sector_add_portal(gx_sector_t* sector, vec3* position, zfloat32 radius, gx_sector_t* target, vec3* normal);
 
 
 #endif

@@ -546,7 +546,8 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 									zbool use_color,
 									zuint32 num_texture,
 									zuint32* start,  //start and end return the draw start and end calls for the vbuffer
-									zuint32* end
+									zuint32* end, 
+									zbool flipnorm
 									)
 {
 	zuint32 i,j,t;
@@ -631,8 +632,14 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 		
 			vec3set(norm, 0,ysize,0); //normal pointing straight up
 
-			norm.named.x = ysize*(hfl-hfr);
-			norm.named.z =ysize* (hfu-hfd);
+			norm.named.x = (hfl-hfr) /ysize;
+			norm.named.z =  (hfu-hfd)/ysize;
+			
+			if (flipnorm)
+			{
+
+				vec3scale(norm, -1);
+			}
 			
 			gx_vbuffer_add_normal(vbuf, norm.named.x, norm.named.y, norm.named.z);
 

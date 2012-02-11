@@ -242,6 +242,116 @@ void gx_text_draw(gx_image_t* font,  zfloat32 x, zfloat32 y,  zfloat32 angle, zc
 //need to draw a sprite in 3d
 //todo: this functino is crappy, fix it
 //crappy sprite renderer
+void crap_gx_sprite_draw_3d(gx_sprite_t* sprite, vec3* position, vec3* up, vec3* right , zbool alpha_blend, zbool center)
+{
+
+	vec3  sprite_upv;
+	vec3  sprite_rightv;
+
+	vec3 p;
+
+	vec3* sprite_up = &sprite_upv;
+	vec3* sprite_right = &sprite_rightv;
+
+	vec3 t_right;
+	vec3 t_up;
+
+	vec3set (*sprite_up, 0,1,0);
+	vec3set (*sprite_right, 0,0,1);
+
+	if (!sprite || ! sprite->image || ! position || ! up || ! right)
+		return;
+
+#if 0
+	if (!sprite->image->_sent_to_gl)
+	{
+		#ifdef DOPRINTF 
+		printf(" Trying to draw a sprite from in image that hasn't been sent to the graphics card!\n");
+		#endif
+		//todo:  just sent it?
+		return;
+	}
+#endif
+	
+	glColor4f(1,1,1,1);
+
+	//sprite renderer must go through the 'texture mananger'
+	//_gx_image_enable( sprite->image);
+	gx_set_active_textures(& (sprite->image) , 1);
+ 	
+	//NOTE:  turning on alpha blending here conflicts with any 3d 'drawstyle' thats applied
+	//       after drawing the sprite the current drawstyle should be deactivated
+
+	
+
+	if (alpha_blend)
+	{
+		glEnable(GL_BLEND);
+		glEnable(GL_ALPHA_TEST);
+		glAlphaFunc(GL_GREATER, .05);
+	}
+	else
+	{
+		glDisable(GL_BLEND);
+	}
+
+
+	//calculate sprite corner directions
+
+	vec3mov(t_up, *sprite_up);
+
+	vec3mov(t_right, *sprite_right);
+
+
+
+
+	glBegin(GL_QUADS);
+	
+		glTexCoord2f(sprite->_tx, sprite->_ty );
+		vec3mov(p, *position);
+		if (center)
+		{
+			vec3madd(p, -0.5*sprite->_sprite_width, t_right);
+			vec3madd(p, -0.5*sprite->_sprite_height, t_up);
+		}
+		glVertex3fv(&p);
+
+		glTexCoord2f(sprite->_tx2, sprite->_ty );
+		vec3mov(p, *position);
+		vec3madd(p, sprite->_sprite_width, t_right);
+		if (center)
+		{
+			vec3madd(p, -0.5*sprite->_sprite_width, t_right);
+			vec3madd(p, -0.5*sprite->_sprite_height, t_up);
+		}
+		glVertex3fv(&p);
+
+		glTexCoord2f(sprite->_tx2, sprite->_ty2 );
+		vec3mov(p, *position);
+		vec3madd(p, sprite->_sprite_height, t_up);
+		vec3madd(p, sprite->_sprite_width, t_right);
+		if (center)
+		{
+			vec3madd(p, -0.5*sprite->_sprite_width, t_right);
+			vec3madd(p, -0.5*sprite->_sprite_height, t_up);
+		}
+		glVertex3fv(&p);
+
+		glTexCoord2f(sprite->_tx, sprite->_ty2 );
+		vec3mov(p, *position);
+		vec3madd(p, sprite->_sprite_height, t_up);
+		if (center)
+		{
+			vec3madd(p, -0.5*sprite->_sprite_width, t_right);
+			vec3madd(p, -0.5*sprite->_sprite_height, t_up);
+		}
+		glVertex3fv(&p);
+
+	glEnd();
+}
+
+
+
 void gx_sprite_draw_3d(gx_sprite_t* sprite, vec3* position, vec3* up, vec3* right , zbool alpha_blend, zbool center)
 {
 

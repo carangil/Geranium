@@ -180,9 +180,9 @@ void sector_random(gx_sector_t* sector, int limit)
 
 
 
-	gx_sector_add_portal( sector, &portal_pos, 0.25, target); 
+//	gx_sector_add_portal( sector, &portal_pos, 0.25, target); 
 	//add reciprocal
-	gx_sector_add_portal( target,  &portal_pos, 0.25, sector);
+//	gx_sector_add_portal( target,  &portal_pos, 0.25, sector);
 
 	sector_random(target, limit-1);
 
@@ -591,6 +591,7 @@ void tqbuffer_process(tri_quadtree_buffer_t* tqbuffer, vec3* camera_pos)
 //main
 void graphtest_main()
 {
+	float f=0;
 	zbool processtq = zfalse;
 
 	zfloat32 cx=0;
@@ -664,15 +665,15 @@ void graphtest_main()
 		vec3 pos;
 		vec3 color;
 		vec3 ambient;
-		vec3set(pos, 1,.5,0);
-		vec3set(color, 1, 1, 1);
+		vec3set(pos, 1,1,0);
+		vec3set(color, 1, 0, 0);
 		vec3set(ambient, 0,0,0);
 
-		lights[0] = gx_light_mk(gx_light_point, &pos, &color, &ambient);
+		lights[0] = gx_light_mk(gx_light_directional, &pos, &color, &ambient);
 		
-		vec3set(pos, .5,0,0);
-		vec3set(color, 1, 1, 0);
-		lights[1] = gx_light_mk(gx_light_point, &pos, &color, &ambient);
+	//	vec3set(pos, .5,0,0);
+	//	vec3set(color, 1, 1, 0);
+	//	lights[1] = gx_light_mk(gx_light_point, &pos, &color, &ambient);
 	}
 
 	printf("Init graphics\n");
@@ -790,20 +791,20 @@ void graphtest_main()
 	heightbuffer = gx_vbuffer_from_image( normbuffer, heightmap, 0.0,0.0,-1.0,   //offset
 		0,1,2,        //axis swizzle
 		1.0,.2,1.0,  //scaling
-		zfalse, 2, &start, &end);
+		zfalse, 2, &start, &end, zfalse);
 
 //	
 
-	mesh0 = gx_mesh_def( heightbuffer, &ds1, start, end, ztrue);
+	mesh0 = gx_mesh_def( heightbuffer, NULL, start, end, ztrue);
 	
 	
 
 	heightmap2 = gx_image_load_tga("shipheight_bottom.tga");
 
-	heightbuffer2 = gx_vbuffer_from_image(sharebuffer, heightmap2, 0.0,0.0,-1.0,   //offset
+	heightbuffer2 = gx_vbuffer_from_image(normbuffer, heightmap2, 0.0,0.0,-1.0,   //offset
 		0,1,2,        //axis swizzle
-		1.0,-.2,1.0,  //scaling
-		ztrue, 2, &start, &end);
+		1.0,-.1,1.0,  //scaling
+		zfalse, 2, &start, &end, ztrue);
 
 
 	gx_vbuffer_update(heightbuffer);
@@ -811,7 +812,7 @@ void graphtest_main()
 		gx_vbuffer_update(heightbuffer2);
 
 
-	mesh1 = gx_mesh_def( heightbuffer2, &ds2, start, end, ztrue);
+	mesh1 = gx_mesh_def( heightbuffer2, NULL, start, end, ztrue);
 
 	ram_free(heightmap);
 	ram_free(heightmap2);
@@ -911,11 +912,16 @@ void graphtest_main()
 
 	while( 1)
 	{
+		
+
 	
 
 		zint32 mx, my;
 		zbool rel;
+	
+		f+=.001;
 		
+
 		//if (processtq)
 		//	tqbuffer_process(tqbuffer, &camera_pos);
 
@@ -1029,7 +1035,7 @@ void graphtest_main()
 			vec3madd(camera_pos, czs, camera_forward);
 			
 			//try some spin crap
-			gx_spin(yaw, pitch, roll,&camera_right, &camera_up, &camera_forward);
+			gx_spin(ztrue, yaw, pitch, roll,&camera_right, &camera_up, &camera_forward);
 
 		}
 					
@@ -1098,9 +1104,9 @@ void graphtest_main()
 			
 
 		
-			lights[0]->position.named.z -=.001;
-			lights[0]->position.named.x -=.001;
-			
+		//	lights[0]->position.named.z -=.001;
+		//	lights[0]->position.named.x -=.01;
+		//	lights[0]->position.named.y+=.001;
 			
 		
 
@@ -1115,6 +1121,7 @@ void graphtest_main()
 			
 			gx_drawstyle_activate(&ds1);
 
+#if 0
 			{
 				vec3 x,y,z;
 				vec3 s;
@@ -1135,20 +1142,36 @@ void graphtest_main()
 				aaa+=.005;
 
 			}
-
+#endif
 				
 			
 			
 			gx_home();  //reset transformations 
-			gx_set_active_lights(lights, 0);
+			
+			gx_set_active_textures(NULL, 0);
+			gx_debug_show_light(lights[0], .1);
+			
+			gx_set_active_lights(lights, 1);
+
+			
+
+
 
 			ds1.blending = 0;
 			gx_drawstyle_activate(&ds1);
 			gx_set_active_textures(&image1,1);
 			
+			{
+				vec3 v ;
+				//vec3set(v, f,0,0);
 
+				//gx_move3d(&v);
+
+			}
+			
+			gx_set_active_textures(NULL, 0);
  			gx_mesh_draw(mesh0);
-			//gx_mesh_draw(mesh1);
+			gx_mesh_draw(mesh1);
 
 		
 
@@ -1172,9 +1195,7 @@ void graphtest_main()
 #endif
 			
 
-			gx_set_active_textures(NULL, 0);
-			gx_debug_show_light(lights[0], .1);
-
+			
 
 			
 

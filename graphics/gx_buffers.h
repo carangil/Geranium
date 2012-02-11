@@ -98,7 +98,8 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 									zbool use_color,
 									zuint32 num_texture,
 									zuint32* start,
-									zuint32* end
+									zuint32* end,
+									zbool flipnorm
 									);
 
 

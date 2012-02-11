@@ -37,12 +37,14 @@ gx_light_t* gx_light_mk(gx_light_e type, vec3* position, vec3* color, vec3* ambi
 	}
 	else 
 	{
-		vec3set(li->color, 0,0,0);
+		vec3set(li->ambient, 0,0,0);
 	}
 
 	return li;
 }
 
+
+//number of light currently enabled
 static zuint32 _number_active_lights = 0;
 
 
@@ -55,26 +57,27 @@ void gx_set_active_lights(gx_light_t** lights, zuint32 count)
 
 	zuint32 i = 0;
 
-	glEnable(GL_NORMALIZE);
-
-
-	
+	// user specified zero lights no lights are null
 	if (count == 0 || !lights)
 	{
 		for (i=0;i<_number_active_lights;i++)
 		{
 			//disable all active lights
-			glDisable(GL_LIGHT0 + i);  //disable any lights we no longer want
+			glDisable(GL_LIGHT0 + i);  
 		}
 
 		//if lighting was on, turn it off
 		if (_number_active_lights)
+		{
 			glDisable(GL_LIGHTING);
+			glDisable(GL_NORMALIZE);
+		}
 
 		//note for above:  instead of just disabling lighting, it was necessary to disable all the enabled lights,
 		//because if later we turn lights back on, but fewer than currently, some higher number lights will be stuck on
 
 		_number_active_lights = 0;
+
 		return;
 	}
 
@@ -82,8 +85,8 @@ void gx_set_active_lights(gx_light_t** lights, zuint32 count)
 	{
 		//if lighting was off, turn it on
 		glEnable(GL_LIGHTING);
+		glEnable(GL_NORMALIZE);
 	}
-
 
 	for (i=0;i<count;i++)
 	{
@@ -92,9 +95,12 @@ void gx_set_active_lights(gx_light_t** lights, zuint32 count)
 		//TODO: OpenGL wants 4 component vectors, but I had previously chosen to use 3 components
 		//		perhaps this was a bad choice
 
-
+		
 		if (i>= _number_active_lights)
 			glEnable(GL_LIGHT0 + i); //enable light if it hasn't been enabled before
+
+		if (!lights[i]) 
+			continue;
 
 		//set ambient light
 		p[0]=lights[i]->ambient.array[0];

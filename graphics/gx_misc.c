@@ -39,7 +39,11 @@ void gx_camera_pos(float x, float y, float z)
 
 
 //spin crap
-void gx_spin(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up, vec3* forward)
+//FLIP switches the order
+// TRUE for camera matrices, FALSE for object matrices
+
+
+void gx_spin(zbool flip, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up, vec3* forward)
 {
 
 	//roll
@@ -54,7 +58,16 @@ void gx_spin(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up,
 		vec3scale(  *up,  1.0/  sqrt( vec3abs_sq( *up ) ) ); 
 		
 	//cross product to give new right vector
-		vec3cross( *right, *forward, *up  );
+
+		if (flip)
+		{
+			vec3cross( *right, *forward, *up  );
+		}
+		else
+		{
+			vec3cross( *right, *up, *forward  );
+		}
+		
 	}
 
 	//yaw
@@ -67,7 +80,14 @@ void gx_spin(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up,
 		vec3scale(  *forward,  1.0/  sqrt( vec3abs_sq( *forward ) ) ); 
 
 		//remake right vector;
-		vec3cross( *right, *forward, *up  );
+		if (flip)
+		{
+			vec3cross( *right, *forward, *up  );
+		}
+		else
+		{
+			vec3cross( *right, *up, *forward  );
+		}
 	}
 
 	if (pitch != 0.0)
@@ -79,7 +99,14 @@ void gx_spin(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* right, vec3* up,
 		vec3scale(  *forward,  1.0/  sqrt( vec3abs_sq( *forward ) ) ); 
 
 		//remake the up vector
-		vec3cross( *up, *right, *forward  );
+		if (flip)
+		{
+			vec3cross( *up, *right, *forward  );
+		}
+		else 
+		{
+			vec3cross( *up, *forward, *right  );
+		}
 	}
 
 
@@ -155,6 +182,8 @@ void gx_portal_draw_test(gx_portal_t* p)
 
 {
 	static GLUquadric* quadric = NULL;
+	vec3 nn;
+
 	if (!p)
 		return;
 	
@@ -187,9 +216,16 @@ void gx_portal_draw_test(gx_portal_t* p)
 	glColor3f(1,0,1);
 	glVertex3f(  p->pos.vec3x+.1, p->pos.vec3y, p->pos.vec3z+.1);
 	glEnd();
+
+	vec3mov(nn, p->pos);
+	vec3madd(nn, p->radius/3, p->normal);
+	glBegin(GL_LINES);
+	glVertex3fv(&p->pos);
+	glVertex3fv(&nn);
+	glEnd();
 }
 
-gx_portal_t* gx_sector_add_portal(gx_sector_t* sector, vec3* position, zfloat32 radius, gx_sector_t* target)
+gx_portal_t* gx_sector_add_portal(gx_sector_t* sector, vec3* position, zfloat32 radius, gx_sector_t* target, vec3* normal)
 {
 	//add a point-portal to a sector
 	
@@ -203,9 +239,11 @@ gx_portal_t* gx_sector_add_portal(gx_sector_t* sector, vec3* position, zfloat32 
 	if (p)
 	{
 		vec3mov (p->pos, *position);
+		vec3mov (p->normal, *normal);
 		p->radius = radius;
 		p->target = target;
 		p->next_portal = sector->portals; //add existing portal list to the tail of this portal
+		
 		sector->portals = p;  //set as head of a sector's portal list
 	}
 	return p;
