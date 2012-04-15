@@ -17,9 +17,18 @@ typedef unsigned long long	zuint64;
 typedef unsigned char		zbool;
 typedef char				zchar;
 
+/* should be 16-bit*/
+typedef unsigned short		zuint16;
+
 /* Handy constants to make code look a little cleaner*/
 #define ztrue 1
 #define zfalse 0
+
+typedef int zerror;
+#define ZOK 0
+#define ZERR 0xFFFFFFFF
+/* ZERR is a generic error value.  Use any nonzero value for custom error codes*/
+
 
 //I actually got a compile error that NULL was undefined!
 #ifndef NULL
