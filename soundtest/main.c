@@ -55,6 +55,7 @@ int main(int argc, char** args)
 
 	ERRORDISPLAY(sx_init());
 
+	
 	//sx_set_echo(10.0);
 
 	if ( 0 == sx_read_raw16("music.raw", zfalse, &data, NULL))
@@ -119,28 +120,33 @@ int main(int argc, char** args)
 		sx_set_reverb(&reverb);
 
 
-		sx_sound_play(sound, 1.0, 100);
-		sx_sound_play(sound, 1.0, 000);
-		sx_sound_play(sound, 1.0, 1000);
-		sx_sound_play(sound, 1.0, 1500);
-		sx_sound_play(sound, 1.0, 1400);
-		sx_sound_play(sound, 1.0, 110);
-		sx_sound_play(sound, 1.0, 4000);
-		sx_sound_play(sound, 1.0, 3500);
+		sx_sound_play(sound, 1.0, 0);
+	//	sx_sound_play(sound, 1.0, 000);
+	//	sx_sound_play(sound, 1.0, 1000);
+	//	sx_sound_play(sound, 1.0, 1500);
+	//	sx_sound_play(sound, 1.0, 1400);
+	//	sx_sound_play(sound, 1.0, 110);
+	//	sx_sound_play(sound, 1.0, 4000);
+	//	sx_sound_play(sound, 1.0, 3500);
+
+	
+		Sleep(1000);
 
 		while(1)
 		{
 
-			Sleep(50);
+			Sleep(20);
 			
-			if((i=  ((i+1)%100))==0)
-				sx_sound_play(sound, 1.0, 000);
+			if((i=  ((i+1)%5))==0)
+			{
+				printf("BOOOO-------------------------------------\n");
+				sx_sound_play(sound, 1.0, 10000 );
+			}
 
 
 			sx_process();
 
-
-
+			
 
 		}
 	}

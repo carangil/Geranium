@@ -31,13 +31,19 @@ typedef struct sx_sound_s
 //a source plays audio
 typedef struct sx_source_s
 {
+	//which buffer?
 	sx_sound_t*	sound;
-	ALuint		_al_source;
-
+	
 	//for delayed sounds
 	tm_microstamp_t created;
 	zuint32			time_to_start;
 
+	//sound properties
+	zfloat32		volume;  // 1.0 is full scale
+	
+	//openal data 
+	ALuint		_al_source;
+	zbool		_al_source_valid;
 } sx_source_t;
 
 //#define sx_buffer_data(sx_buffer_t_pointer)			((sx_buffer_t_pointer)->data)
