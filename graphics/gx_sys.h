@@ -47,10 +47,10 @@ void gx_home();  //resets any move / rotate/ scale transformations, but keeps ca
 void gx_camera_home();  //resets move and camera
 void gx_move3d(vec3* amount); //applies translation
 void gx_rotate_3x3(vec3* xaxis, vec3* yaxis, vec3* zaxis ); //applies a 3x3 matrix
+void gx_rotate_3x3_cam(vec3* xaxis, vec3* yaxis, vec3* zaxis );// applies a 3x3 camera matrix
+
 void gx_scale3d(vec3* scale); //scales
 void gx_scale(float scale); //uniform scales
-
-
 
 
 

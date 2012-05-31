@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="8.00"
-	Name="soundtest"
-	ProjectGUID="{7F2786FE-A1CC-482F-B819-3333B7D57749}"
-	RootNamespace="soundtest"
+	Name="gametest"
+	ProjectGUID="{37F9E1C7-9CD5-421F-A43B-ED1FC438C42A}"
+	RootNamespace="gametest"
 	Keyword="Win32Proj"
 	>
 	<Platforms>
@@ -48,6 +48,7 @@
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="4"
+				DisableSpecificWarnings="4305;4244"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -60,8 +61,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="openal32.lib"
+				AdditionalDependencies="glew32.lib freeglut.lib"
 				LinkIncremental="1"
+				AdditionalLibraryDirectories="&quot;..\..\3rdparty\freeglut-MSVC-2.6.0-3.mp\freeglut\lib&quot;;&quot;..\..\3rdparty\glew-1.5.3-win32\glew-1.5.3\lib&quot;"
 				GenerateDebugInformation="true"
 				SubSystem="1"
 				TargetMachine="1"
@@ -185,6 +187,14 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
+			<File
+				RelativePath="..\vmath.h"
+				>
+			</File>
+			<File
+				RelativePath="..\ztypes.h"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Resource Files"

@@ -26,6 +26,8 @@ int main(int argc, char** args)
 
 	sx_sound_t* music = NULL; 
 	sx_sound_t* sound = NULL; 
+	sx_sound_t* sound2 = NULL; 
+	sx_sound_t* sound3 = NULL; 
 	
 
 //	FILE* file = NULL;
@@ -79,6 +81,18 @@ int main(int argc, char** args)
 			sound = sx_sound_def(1, buffer_size, data, "hit");
 		}
 
+		
+		if (buffer_size = sx_read_raw16("fx/hit2.raw", zfalse, &data, NULL))
+		{
+			sound2 = sx_sound_def(1, buffer_size, data, "hit2");
+		}
+
+
+		if (buffer_size = sx_read_raw16("fx/rip.raw", zfalse, &data, NULL))
+		{
+			sound3 = sx_sound_def(1, buffer_size, data, "rip");
+		}
+
 	}
 
 
@@ -112,15 +126,15 @@ int main(int argc, char** args)
 
 
 
-		reverb.echo_gain = .1;
-		reverb.late_reverb_gain = .5;
-		reverb.late_reverb_decay = 10;
+		reverb.echo_gain = .5;
+		reverb.late_reverb_gain = .7;
+		reverb.late_reverb_decay = 20;
 		reverb.echo_delay = .1;
 
 		sx_set_reverb(&reverb);
 
 
-		sx_sound_play(sound, 1.0, 0);
+	//sx_sound_play(sound2, 1.0, 2,  0);
 	//	sx_sound_play(sound, 1.0, 000);
 	//	sx_sound_play(sound, 1.0, 1000);
 	//	sx_sound_play(sound, 1.0, 1500);
@@ -130,17 +144,21 @@ int main(int argc, char** args)
 	//	sx_sound_play(sound, 1.0, 3500);
 
 	
-		Sleep(1000);
-
+		//Sleep(1000);
+		i=-1;
 		while(1)
 		{
 
-			Sleep(20);
+			Sleep(50);
 			
-			if((i=  ((i+1)%5))==0)
+			if(((((i=i+1))%100))==0)
 			{
 				printf("BOOOO-------------------------------------\n");
-				sx_sound_play(sound, 1.0, 10000 );
+				sx_sound_play(sound, (rand() & 255) / 255.0 , (rand() & 63) / 255.0+.01, rand()&1023 );
+				sx_sound_play(sound2, (rand() & 255) / 255.0 , (rand() & 63) / 255.0+.01, rand()&1023 );
+				
+				if((i%500)==0)
+					sx_sound_play(sound3, (rand() & 255) / 255.0, (rand() & 511) / 255.0 + .5 , rand()&127);
 			}
 
 

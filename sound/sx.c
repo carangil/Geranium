@@ -393,7 +393,7 @@ void _sx_bind_and_play_source(sx_source_t* source)
 SHOWALERROR
 	alSourcei( source->_al_source, AL_BUFFER, source->sound->_al_buffer);
 SHOWALERROR
-	alSourcef( source->_al_source, AL_PITCH, 1.0);
+	alSourcef( source->_al_source, AL_PITCH, source->pitch);
 SHOWALERROR
 	alSourcef( source->_al_source, AL_GAIN, source->volume);
 SHOWALERROR
@@ -416,7 +416,7 @@ SHOWALERROR
 //generates a source and plays a sound
 //the source is automatically destroyed when the sound has completed
 
-void sx_sound_play(sx_sound_t* sound, zfloat32 volume, zuint32 milliseconds)
+void sx_sound_play(sx_sound_t* sound, zfloat32 volume, zfloat32 pitch,  zuint32 milliseconds)
 {
 	sx_source_t* source = NULL;
 
@@ -434,6 +434,7 @@ void sx_sound_play(sx_sound_t* sound, zfloat32 volume, zuint32 milliseconds)
 		if (source)
 		{
 			source->volume = volume;
+			source->pitch = pitch;
 
 			if (milliseconds ==0)
 			{

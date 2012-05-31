@@ -39,8 +39,8 @@ typedef struct gx_sector_s
 	vec_t meshes;  //meshes to draw in this sector
 	struct portal_s* portals;
 			
-	zbool visiting;
-	int tag;  //user defined value
+	int lastframe; //last frame number processed (to prevent cycles)
+	int rdepth; //number of hops from camera
 } gx_sector_t;
 
 

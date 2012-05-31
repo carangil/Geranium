@@ -40,6 +40,7 @@ typedef struct sx_source_s
 
 	//sound properties
 	zfloat32		volume;  // 1.0 is full scale
+	zfloat32		pitch;
 	
 	//openal data 
 	ALuint		_al_source;
@@ -60,7 +61,7 @@ sx_sound_t* sx_sound_def(zint32 channels, zsize data_len_bytes, zbyte* data, zch
 void sx_sound_delete(sx_sound_t* sound); //destroys a buffer
 
 //plays a buffer at 'milliseconds' time from now. 0 means play immediately
-void sx_sound_play(sx_sound_t* sound, zfloat32 volume, zuint32 milliseconds);  
+void sx_sound_play(sx_sound_t* sound, zfloat32 volume, zfloat32 pitch, zuint32 milliseconds);  
 
 
 

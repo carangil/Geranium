@@ -191,7 +191,20 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	glDisable(GL_BLEND);
 
 
-	
+	//cheap fog hack
+	{
+		float f;
+		vec3 p;
+		vec3set(p, 0,0,0);
+		glEnable(GL_FOG);
+		glFogi(GL_FOG_MODE, GL_LINEAR);
+		
+		glFogf(GL_FOG_START, 1.0);
+		glFogf(GL_FOG_END, 2000);
+		glFogf(GL_FOG_DENSITY, .5);
+		glFogfv(GL_FOG_COLOR, &p);
+
+	}
 
 	return GX_OK;
 }
@@ -442,6 +455,8 @@ void gx_camera_pos_rot(vec3* position, vec3* xaxis, vec3* yaxis, vec3* zaxis)
 	if (position)
 		glTranslatef( -position->vec3x, -position->vec3y, -position->vec3z);
 
+
+
 	//now that we have a fresh camera matrix, lets save it
 	_gx_save_camera_matrix();
 	
@@ -456,6 +471,7 @@ void gx_home()
 void gx_camera_home()
 {	//reset transform AND camera
 	_gx_reset_matrix();
+	
 }
 
 
@@ -476,6 +492,22 @@ void gx_rotate_3x3(vec3* xaxis, vec3* yaxis, vec3* zaxis )
 					     xaxis->vec3x, xaxis->vec3y, xaxis->vec3z,0,
 					     yaxis->vec3x, yaxis->vec3y, yaxis->vec3z,0,
 					     zaxis->vec3x, zaxis->vec3y, zaxis->vec3z,0,
+					     0,0,0,1};
+
+		glMultMatrixf((float*)&matr);
+	}
+}
+
+//specify 3x3 camera matrix (used when rotating an object whose orientation 
+//is determined by a camera-style matrix (identity = <1, 1, -1> )
+void gx_rotate_3x3_cam(vec3* xaxis, vec3* yaxis, vec3* zaxis )
+{
+	if (xaxis && yaxis && zaxis)
+	{
+		zfloat32 matr[]={
+					     xaxis->vec3x, xaxis->vec3y, xaxis->vec3z,0,
+					     yaxis->vec3x, yaxis->vec3y, yaxis->vec3z,0,
+					     -zaxis->vec3x, -zaxis->vec3y, -zaxis->vec3z,0,
 					     0,0,0,1};
 
 		glMultMatrixf((float*)&matr);
