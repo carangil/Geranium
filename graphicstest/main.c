@@ -68,7 +68,7 @@ void g_camera_init(g_camera_t* cam)
 
 
 //game constants
-#define STARCOUNT 2000
+#define STARCOUNT 1000
 
 
 char get_char_in_string_vec( vec_t* v, int row, int col)
@@ -455,6 +455,23 @@ int main(int argc, char** argv)
 			{
 				vec_add_or_free( &rows, ram_strdup(rowbuf));  //copy out
 			}
+
+			//flip upside down 
+
+			for (row=0; row < (vec_count(&rows)/2); row ++)
+			{
+				void* t1, *t2 ;
+
+				t1 = vec_get_at(&rows, row);
+				t2 = vec_get_at(&rows, vec_count(&rows) -1 -row );
+
+				vec_set_at(&rows, row, t2);
+				vec_set_at(&rows, vec_count(&rows) -1 -row, t1);
+
+
+
+			}
+
 
 
 			for (row=0;row < vec_count(&rows);row++)
@@ -876,7 +893,7 @@ int main(int argc, char** argv)
 
 		
 //		gx_vbuffer_draw( sheet->vb,  sheet->indexstart[sheetlevel],  sheet->indexstop[sheetlevel], gx_quads, ztrue);
-#if 0
+#if 1
 		{
 			int i;
 			for (i=0;i<vec_count(&sectors); i++)
@@ -884,8 +901,8 @@ int main(int argc, char** argv)
 				gx_portal_t* p;
 				gx_sector_t* s = vec_get_at(&sectors, i);
 
-				//gx_sector_outline(s);
-				draw_sector(s, zfalse);
+				gx_sector_outline(s);
+			//	draw_sector(s, zfalse);
 				p = s->portals;
 				
 				while(p)
@@ -906,7 +923,7 @@ int main(int argc, char** argv)
 		//gx_sector_outline(camera_sector);
 		
 		//don't let outside sector
-		restrict_point_to_box( &player_camera.camera_pos, &camera_sector->min, &camera_sector->max);
+	//	restrict_point_to_box( &player_camera.camera_pos, &camera_sector->min, &camera_sector->max);
 
 
 		frame_number++;
