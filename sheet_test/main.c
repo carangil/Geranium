@@ -325,6 +325,12 @@ int i,j;
 #if 1
 //maybe better sheet support
 
+#define EDGE_LEFT    0
+#define EDGE_RIGHT   1
+#define EDGE_TOP     2
+#define EDGE_BOTTOM  3
+
+
 typedef struct quadarray_s
 {
 	gx_vbuffer_t* vb;
@@ -336,6 +342,9 @@ typedef struct quadarray_s
 
 	struct quadarray_s* children[4];
 	struct quadarray_s* parent;
+	int self; //which one of my parent children am i?
+
+
 
 	vindex startindex;  //1st vertex
 	vindex endindex; //
@@ -345,7 +354,15 @@ typedef struct quadarray_s
 	float dsize;   //distance metric
 
 
+	//neighbors
+	struct quadarray_s* left;
+	struct quadarray_s* right;
+	struct quadarray_s* up;
+	struct quadarray_s* down;
 
+
+
+	
 	int tag;
 
 } quadarray_t ;
@@ -408,6 +425,207 @@ quadarray_t* quadarray_mk(int w, int h)
 
 void quadarray_norm(quadarray_t* qa);
 
+
+//order: 0,1
+//       2,3
+
+void quadarray_sew(quadarray_t* source, int source_edge, quadarray_t* dest, int dest_edge)
+{
+	int i;
+
+	vec3* s;
+	vec3* sn;
+	
+
+	if (dest->w != dest->h)
+		return;
+	if (dest->w != source->w)
+		return;
+
+	for (i=0;i<source->w;i++)
+	{
+
+		s = NULL;
+		//get
+		if (source_edge == EDGE_LEFT)
+		{
+			s = gx_vbuffer_v( source->vb, qa_vindex( source, 0,i));
+			sn= gx_vbuffer_n( source->vb, qa_vindex( source, 0,i));
+		}
+		else if (source_edge == EDGE_RIGHT)
+		{
+			s = gx_vbuffer_v( source->vb, qa_vindex( source, source->w-1,i));
+			sn= gx_vbuffer_n( source->vb, qa_vindex( source, source->w-1,i));
+		}
+		else if (source_edge == EDGE_TOP)
+		{
+			s = gx_vbuffer_v( source->vb, qa_vindex( source, i,0));
+			sn= gx_vbuffer_n( source->vb, qa_vindex( source, i,0));
+		}
+		else if (source_edge == EDGE_BOTTOM)
+		{
+			s = gx_vbuffer_v( source->vb, qa_vindex( source, i,source->h-1));
+			sn= gx_vbuffer_n( source->vb, qa_vindex( source, i,source->h-1));
+		}
+
+
+		//put
+//		{
+//		vec3 u;
+//		vec3set(u, 0,.1,0);
+//		vec3add(*s, u);
+//		}
+		
+
+  		if (dest_edge == EDGE_LEFT)
+		{
+  			*gx_vbuffer_v( dest->vb, qa_vindex( dest, 0,i)) = *s; 
+			*gx_vbuffer_n( dest->vb, qa_vindex( dest, 0,i)) = *sn; 
+		}
+  		else if (dest_edge == EDGE_RIGHT)
+		{
+			*gx_vbuffer_v( dest->vb, qa_vindex( dest, dest->w-1,i)) = *s;
+			*gx_vbuffer_n( dest->vb, qa_vindex( dest, dest->w-1,i)) = *sn;
+		}
+  		else if (dest_edge == EDGE_TOP)
+		{
+  			*gx_vbuffer_v( dest->vb, qa_vindex( dest, i,0)) = *s;
+			*gx_vbuffer_n( dest->vb, qa_vindex( dest, i,0)) = *sn;
+		}
+  		else if (dest_edge == EDGE_BOTTOM)
+		{
+  			*gx_vbuffer_v( dest->vb, qa_vindex( dest, i,dest->h-1)) = *s;
+			*gx_vbuffer_n( dest->vb, qa_vindex( dest, i,dest->h-1)) = *sn;
+		}
+			
+
+	}
+}
+
+// 0 1
+// 2 3
+
+void quadarray_patchup(quadarray_t* qa)
+{
+	quadarray_t* neighbor = NULL;
+
+	if (! qa->parent)
+		return;
+#if 1
+	//find neighbor to right of me.
+	neighbor = NULL;
+
+	if (qa->self == 0)
+		neighbor = qa->parent->children[1];
+
+	else if (qa->self == 2)
+		neighbor = qa->parent->children[3];
+
+	else if (qa->parent->right)
+	{
+
+		if (qa->self == 3)
+			neighbor = qa->parent->right->children[2];
+	
+		if (qa->self == 1)
+			neighbor = qa->parent->right->children[0];
+	}
+	
+
+	if (neighbor)
+	{
+		qa->right = neighbor;
+		neighbor->left = qa;
+		quadarray_sew(neighbor, EDGE_LEFT, qa, EDGE_RIGHT);
+	}
+#endif
+
+	//find neighbor to left of me
+	neighbor = NULL;
+
+	if (qa->self == 1)
+		neighbor = qa->parent->children[0];
+
+	else if (qa->self == 3)
+		neighbor = qa->parent->children[2];
+
+	else if (qa->parent->left)
+	{
+
+		if (qa->self == 0)
+			neighbor = qa->parent->left->children[1];
+	
+		if (qa->self == 2)
+			neighbor = qa->parent->left->children[3];
+	}
+	
+
+	if (neighbor)
+	{
+		qa->left = neighbor;
+		neighbor->right = qa;
+		quadarray_sew(neighbor, EDGE_RIGHT, qa, EDGE_LEFT);
+	}
+
+
+	//find neighbor below
+	neighbor = NULL;
+
+	if (qa->self == 0)
+		neighbor = qa->parent->children[2];
+
+	else if (qa->self == 1)
+		neighbor = qa->parent->children[3];
+
+	else if (qa->parent->down)
+	{
+
+		if (qa->self == 2)
+			neighbor = qa->parent->down->children[0];
+	
+		if (qa->self == 3)
+			neighbor = qa->parent->down->children[1];
+	}
+	
+
+	if (neighbor)
+	{
+		qa->down = neighbor;
+		neighbor->up = qa;
+		quadarray_sew(neighbor, EDGE_TOP, qa, EDGE_BOTTOM);
+	}
+
+
+//find neighbor above
+	neighbor = NULL;
+
+	if (qa->self == 2)
+		neighbor = qa->parent->children[0];
+
+	else if (qa->self == 3)
+		neighbor = qa->parent->children[1];
+
+	else if (qa->parent->up)
+	{
+
+		if (qa->self == 0)
+			neighbor = qa->parent->up->children[2];
+	
+		if (qa->self == 1)
+			neighbor = qa->parent->up->children[3];
+	}
+	
+
+	if (neighbor)
+	{
+		qa->up = neighbor;
+		neighbor->down = qa;
+		quadarray_sew(neighbor, EDGE_BOTTOM, qa, EDGE_TOP);
+	}
+
+
+}
+
 quadarray_t* quadarray_detail_2x(int self, quadarray_t* source, int a_start, int a_end, int b_start, int b_end)
 {
 	int a;
@@ -421,6 +639,7 @@ quadarray_t* quadarray_detail_2x(int self, quadarray_t* source, int a_start, int
 	int div;
 
 	dest= quadarray_mk(w,h);  //make new quadarray
+	dest->self = self;
 
 	for (y=0;y<h;y++)
 	{
@@ -478,10 +697,14 @@ quadarray_t* quadarray_detail_2x(int self, quadarray_t* source, int a_start, int
 	dest->dsize = source->dsize/2;  //decrease lengths by 2
 	
 	dest->center = *gx_vbuffer_v( dest->vb, qa_vindex( dest, dest->w/2,dest->h/2));
-	
 	dest->parent = source;
 	
+
 	quadarray_norm(dest);
+	
+	quadarray_patchup(dest); //find siblings and patch-up connections
+
+	
 	gx_vbuffer_update(dest->vb);
 	return dest;
 }
@@ -499,12 +722,17 @@ void quadarray_split(quadarray_t* source)
 	source->children[2] = quadarray_detail_2x(source, 0, source->w/2+1,        source->h/2,source->h );
 	source->children[3] = quadarray_detail_2x(source, source->w/2, source->w , source->h/2, source->h);*/
 
-
+	
 
 	source->children[0] = quadarray_detail_2x(0, source, 0, source->w/2+1, 0, source->h/2+1);
 	source->children[1] = quadarray_detail_2x(1, source, source->w/2, source->w , 0, source->h/2+1);
+	
+
 	source->children[2] = quadarray_detail_2x(2, source, 0, source->w/2+1,        source->h/2,source->h );
-	source->children[3] = quadarray_detail_2x(3, source, source->w/2, source->w , source->h/2, source->h);
+	source->children[3] = quadarray_detail_2x(3, source, source->w/2, source->w , source->h/2, source->h);	
+
+	
+
 
 	//child order: 0,1
 	//             2,3
@@ -790,11 +1018,11 @@ int main(int argc, char** argv)
 	
 
 	//make quadarray
-//	qa = quadarray_mk(65,65);  //make mesh of 64 by 64 quads( 65by65 points)
-	//qa = quadarray_mk(33,33);
-	qa = quadarray_mk(9,9);
+	//qa = quadarray_mk(65,65);  //make mesh of 64 by 64 quads( 65by65 points)
+	qa = quadarray_mk(33,33);
+	//qa = quadarray_mk(9,9);
 	qa->size = .25; //start at root size
-	qa->dsize = .4;
+	qa->dsize = .1;
 
 	{
 		float d;
@@ -805,8 +1033,8 @@ int main(int argc, char** argv)
 			for (b=0;b<qa->h;b++)
 			{
 				vec3* vv = gx_vbuffer_v( qa->vb, qa_vindex( qa, a,b));
-				vv->named.x = ((a-qa->w/2)/  (float) (qa->w-1)) *2 ;
-				vv->named.z =  ((b-qa->h/2)/ (float) (qa->h-1)) *2 ;
+				vv->named.x = ((a-qa->w/2)/  (float) (qa->w-1)) *sqrt(2) ;
+				vv->named.z =  ((b-qa->h/2)/ (float) (qa->h-1)) *sqrt(2) ;
 				vv->named.y =  1;
 				
 				//now normalize
@@ -999,9 +1227,11 @@ int main(int argc, char** argv)
 		{
 			gx_drawstyle_t ds;
 			ram_clear(&ds, sizeof(ds));
-
+		
 			vec3set( ds.specular_color, 1,1, 1);
 			ds.specular_exponent = 10;
+//			ds.blending = gx_blend_alpha;		
+//			ds.alpha = .5;
 			gx_drawstyle_activate(&ds);
 		}
 		
