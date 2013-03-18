@@ -24,16 +24,17 @@
 #include "gx_drawstyle.h"
 #include "gx_buffers.h"
 #include "gx_misc.h"
+#include "gx_mesh.h"
 
 #include <stdio.h>
 
-void gx_camera_pos(float x, float y, float z)
+/*void gx_camera_pos(float x, float y, float z)
 {
 	glLoadIdentity();
 	glTranslatef(-x,-y,-z);
 
 }
-
+*/
 
 
 
@@ -114,6 +115,18 @@ void gx_spin(zbool flip, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, vec3* righ
 
 
 
+void gx_camera_init(gx_camera_t* cam)
+{
+	if (cam)
+	{
+		vec3set( cam->camera_pos,		0.0f, 0.0f, 0.0f);
+		vec3set( cam->camera_right,		1.0f, 0.0f, 0.0f);
+		vec3set( cam->camera_up,		0.0f, 1.0f, 0.0f);
+		vec3set( cam->camera_forward,	0.0f, 0.0f, -1.0f);
+	}
+}
+
+
 void test_lighting_on()
 {
 	float gray[]={.9,.9,.9,1};
@@ -146,25 +159,25 @@ void test_lighting_on()
 
 }
 
-void test_lighting_off()
-{
-	//glDisable(GL_LIGHTING);
 
+//portals and sectors
+
+zbool sector_free(void* x)
+{
+
+	gx_sector_t* s = x;
+
+	vec_cleanup(& s->meshes);
+
+	return ztrue;
 
 }
-
-
-
-
-
-
-
 
 gx_sector_t* gx_sector_mk(vec3* min, vec3* max )
 {
 	gx_sector_t* b = NULL;
 
-	b = ram_alloc(sizeof(*b), NULL);
+	b = ram_alloc(sizeof(*b), sector_free);
 	if (!b)
 		return NULL;
 	
@@ -172,9 +185,25 @@ gx_sector_t* gx_sector_mk(vec3* min, vec3* max )
 	vec3mov( b->max, *max);
 	
 	vec_mk( &(b->meshes), 6);
-	
-	
+		
 	return b;
+}
+
+void gx_sector_draw(gx_sector_t* sect)
+{
+	int i;
+
+	if (!sect)
+		return;
+
+	for (i=0;i<vec_count(&sect->meshes);i++)
+	{
+
+		gx_mesh_draw( vec_get_at(&sect->meshes, i));
+
+	}
+
+
 }
 
 void gx_portal_draw_test(gx_portal_t* p)

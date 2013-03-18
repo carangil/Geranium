@@ -4,27 +4,26 @@
 #include "..\vmath.h"
 #include <stdio.h>
 
-
 typedef struct test_s
 {
 	char* string;
 	struct test_s* next;
 } test_t;
 
-
-
-void destruct_test(test_t* t)
+zbool destruct_test(test_t* t)
 {
-	test_t* p;
+	
 
-	while(t)
-	{
-		p = t->next;
-		ram_free(t->string);
-		ram_shallow_free(t);
-		t = p;
-	}
+	ram_free(t->string); //kill the string inside
 
+	//the test structure is a linked list of nodes
+	//we need to free the 'next' structure
+	//but not here, since we might stack overflow
+
+	if (t->next)
+		ram_destructor_tail(t->next);
+
+	return ztrue;
 }
 
 test_t* mk_test(char* z , test_t* next)
@@ -42,12 +41,12 @@ typedef struct inner_s
 	char* b;
 } inner_t;
 
-void inner_free(inner_t* x)
+zbool inner_free(inner_t* x)
 {
 	ram_free(x->a);
 	ram_free(x->b);
 
-	ram_shallow_free(x);
+	return ztrue;
 }
 
 typedef struct outer_s
@@ -56,11 +55,11 @@ typedef struct outer_s
 	inner_t* inner;
 } outer_t;
 
-void outer_free(outer_t* z)
+zbool outer_free(outer_t* z)
 {
 	ram_free(z->inner);
 	ram_free(z->string);
-	ram_shallow_free(z);
+	return ztrue;
 }
 
 
@@ -69,7 +68,7 @@ void outer_free(outer_t* z)
 void test_mem()
 {
 
-test_t* t1=0;
+	test_t* t1=0;
 
 	char* z = NULL;
 
@@ -89,9 +88,9 @@ test_t* t1=0;
 
 	ram_free(t1);
 
-	printf("%d\n", ram_allocs());
+	printf("%d allocs\n", ram_allocs());
 	
-
+	
 	{
 		outer_t* test = ram_alloc(sizeof(outer_t), outer_free);
 
@@ -105,7 +104,7 @@ test_t* t1=0;
 
 		ram_free(test);
 
-		printf("%d\n", ram_allocs());
+		printf("%d allocs\n", ram_allocs());
 
 	}
 

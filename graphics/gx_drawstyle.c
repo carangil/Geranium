@@ -8,9 +8,10 @@
 #include <stdio.h>
 #include "gx_image.h"
 #include "gx_buffers.h"
+
+#include "../structures/vector.h"
+
 #include "gx_drawstyle.h"
-
-
 
 #include "glstuff.h"
 
@@ -93,6 +94,35 @@ void gx_drawstyle_activate(gx_drawstyle_t* style)
 	}
 
 	//activate all set textures
-	gx_set_active_textures(style->textures, style->numtextures);
+	gx_set_active_textures(vec_elements(&style->textures), vec_count(&style->textures));
 
+}
+
+
+
+zbool drawstyle_free(void* x)
+{
+	gx_drawstyle_t* ds = x;
+
+	vec_cleanup(&ds->textures);
+}
+
+gx_drawstyle_t* gx_drawstyle_mk(gx_image_t* img)
+{
+	gx_drawstyle_t* ds;
+
+	ds = ram_alloc(sizeof(*ds), drawstyle_free);
+
+	if (ds)
+	{
+		vec_mk( & ds->textures,2);
+		
+		if(img)
+		{
+			ram_addref(img);
+			vec_add_or_free(&ds->textures, img);
+		}
+	}
+
+	return ds;
 }

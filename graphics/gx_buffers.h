@@ -29,7 +29,7 @@ typedef struct {
 	zuint32 index_count;     //number of indices currently stored
 	zuint32 index_capacity;  //number of indices that can fit
 
-	zuint32** index_notify;  //write new index here when an index moves  (EXPERIMENTAL)
+//	zuint32** index_notify;  //write new index here when an index moves  (EXPERIMENTAL)
 
 	//opengl information:
 	zbool   _sent_to_gl;
@@ -87,6 +87,13 @@ void gx_test_draw_vertices(gx_vbuffer_t* v);
 
 //returns the index of the index added
 zint32 gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i);
+
+
+
+zint32 gx_vbuffer_current_index(gx_vbuffer_t* v);
+zint32 gx_vbuffer_current_vertex(gx_vbuffer_t* v);
+
+
 
 gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 									gx_image_t* image, 

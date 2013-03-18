@@ -22,19 +22,28 @@
 
 #include <stdio.h>
 
+zbool mesh_free(void* x)
+{
+	gx_mesh_t* m = x;
+
+	ram_free(m->style);
+	ram_free(m->data);
+
+	return ztrue;
+}
 
 //define a mesh from a subset of a vbuffer.  The mesh has a particualr drawstyle applied to it.
 gx_mesh_t*  gx_mesh_def(gx_vbuffer_t* v, gx_drawstyle_t* s, zuint32 drawstart, zuint32 drawend, zbool indexed)
 {
 	gx_mesh_t* m = NULL;
 
-	m = ram_alloc(sizeof(gx_mesh_t), NULL);  //no destructor since it doesn't contain any other structures it 'owns'
+	m = ram_alloc(sizeof(gx_mesh_t), mesh_free);  //no destructor since it doesn't contain any other structures it 'owns'
 	
 	if (m)
 	{
 
-		m->data = v;
-		m->style = s;
+		m->data = ram_addref(v);
+		m->style = ram_addref(s);
 		m->drawstart = drawstart;
 		m->drawend = drawend;
 		m->indexed = indexed;
@@ -187,7 +196,7 @@ typedef struct coord3_s
 } coord3_t;
 
 //cleans up a coord3_t; pass into the allocation for a coord3_t
-void _coord3_s_cleanup(void* x)
+zbool _coord3_s_cleanup(void* x)
 {
 	coord3_t * s = x;
 	if (s)
@@ -202,7 +211,7 @@ void _coord3_s_cleanup(void* x)
 			
 		}
 	}
-	ram_shallow_free(s);
+	return ztrue;
 }
 
 //store 2-space number (texcoords)
@@ -268,6 +277,7 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 		current_mesh->drawend = current_mesh->drawstart;
 		current_mesh->indexed = ztrue;
 		current_mesh->data = current_vbuffer;
+		current_mesh->prim = gx_triangles;
 
 		mesh_start = current_mesh;
 	}
@@ -297,9 +307,9 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 				fscanf(f,"%f %f %f", &v3->x, &v3->y, &v3->z);
 
 				//remove this scaling later!
-				v3->x *=.05;
-				v3->y *=.05;
-				v3->z *=.05;
+			//	v3->x *=.05;
+			//	v3->y *=.05;
+			//	v3->z *=.05;
 #ifdef DOPRINTFS
 				printf("v(%d)", vertices.count);
 #endif
@@ -519,6 +529,7 @@ gx_mesh_t* gx_mesh_load_obj(gx_vbuffer_t* vbuf,  zchar* filename, zchar** ignore
 					new_mesh->drawstart = 0;
 					new_mesh->indexed = ztrue;
 					new_mesh->data = current_vbuffer;
+					new_mesh->prim = gx_triangles;
 
 					//new_mesh->next = current_mesh;
 					//current_mesh = new_mesh;

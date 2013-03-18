@@ -8,6 +8,7 @@ typedef struct vec_s {
 	zuint32 _size;		// max number of elements physical array can fit
 	zuint32 count;		//count of elements placed in physical array
 	void** elements;	//array of void pointers
+	zbool own_elements;  //should free elements when destroing structure?
 } vec_t;
 
 
@@ -16,6 +17,11 @@ typedef struct vec_s {
 #define vec_get_at(vec,pos)        ( ((unsigned int)(pos)) < (vec)->count ?  (vec)->elements[(pos)] : NULL )
 #define vec_set_at(vec,pos,value)  ( ((unsigned int)(pos)) < (vec)->count ?  (vec)->elements[(pos)] = value : NULL )
 #define vec_get_x_at(vec, type, pos)  ((type)( ((unsigned int)(pos)) < (vec)->count ?  (vec)->elements[(pos)] : NULL ))
+#define vec_elements(vec)  ((vec)->elements)
+
+//what index contains item pointer?  (caution: O(n))
+int vec_find_idx(vec_t* v, void* item);
+
 
 //call this to cleanup the contents of a vec_t, without freeing the vec_t itself
 void vec_cleanup(vec_t* x);
@@ -59,3 +65,5 @@ void* vec_remove_ordered(vec_t* v, int index);
 
 //simple diag function to print all the elements of the vector out as strings
 void vec_print( vec_t* v);
+
+

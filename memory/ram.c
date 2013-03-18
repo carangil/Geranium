@@ -2,10 +2,12 @@
 // ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
+#define _RAM_C
 
 #include "../ztypes.h"
 #include <malloc.h>
 #include <string.h>
+#include "ram.h"
 
 /*****************
  *RAM allocation
@@ -15,18 +17,40 @@
 /* stats */
 static zuint32 _ram_allocs = 0; //count of current allocations (to check for leaks)
 
-
 /* Memory block header */
 
 typedef struct mem_header_s
 {
-	void (*destructor)(void* block);
+	ram_destructor destructor;
 	int refcount;
 } mem_header_t;
 
 
+
+void* _ram_pending_free = NULL;
+
+
+//free later
+void ram_destructor_tail(void* block)
+{
+	if (!block)
+		return;
+
+	if (_ram_pending_free)
+	{
+		printf(" Warning: ram_destructor_tail called twice in one destructor\n");
+		ram_free(block);
+	}
+	else
+	{
+		_ram_pending_free = block;
+	}
+}
+
+
+
 /* Allocate memory.  Takes size and destructor */
-void* ram_alloc(zsize size, void (*destructor)(void*) )
+void* ram_alloc(zsize size, ram_destructor destructor)
 {
 	mem_header_t* x;
 
@@ -52,8 +76,10 @@ void* ram_alloc(zsize size, void (*destructor)(void*) )
 void ram_free(void* thing)
 {
 	mem_header_t* header = (mem_header_t*) thing;
+	zbool do_free = ztrue;
 
-	if (header) 
+	//if (header) 
+	while (1)  //might free more than 1 item
 	{
 		header--; //decrement pointer to header struct
 	
@@ -62,7 +88,13 @@ void ram_free(void* thing)
 		{
 			if (header->destructor)  //if a destructor was declared
 			{
-				header->destructor(thing); //destruct this thing (destructor must call ram_free)
+				//call the destructor
+				//if the destructor returns true, free it
+				if(header->destructor(thing)) 
+				{
+					free(header);
+					_ram_allocs--;
+				}
 			}
 			else
 			{
@@ -71,6 +103,15 @@ void ram_free(void* thing)
 			}
 		}
 
+		//if there are 'leftover' items to free, lets continue
+		if (_ram_pending_free)
+		{
+			header = thing = _ram_pending_free;
+			_ram_pending_free = NULL;
+			continue;
+		}
+
+		break;
 	}
 }
 
@@ -87,8 +128,10 @@ void* ram_addref(void* thing)
 
 //frees a block without calling its destructor.
 //does not obey reference counts
-void ram_shallow_free(void* thing)
+void ram_destructor_free(void* thing)
 {
+	printf(" Warning: ram_destructor_free is deprecated\n");
+#if 0
 	mem_header_t* header = (mem_header_t*) thing;
 
 	if (header) 
@@ -99,6 +142,7 @@ void ram_shallow_free(void* thing)
 
 		_ram_allocs--;
 	}
+#endif
 }
 
 
@@ -110,6 +154,10 @@ void* ram_resize(void* ram, zsize size)
 	if (header)
 	{
 		header --; //decrement to header
+
+		//cannot resize if more than one reference
+		if (header->refcount !=1 )
+			return NULL;
 
 		header = realloc(header, sizeof(mem_header_t) + size);  //attempt resize to new size;
 
@@ -148,7 +196,4 @@ zuint32 ram_allocs()
 {
 	return _ram_allocs;
 }
-
-
-
 

@@ -22,21 +22,24 @@ void vec_cleanup(vec_t* vec)
 
 	if (vec->elements) //if elements array is defined 
 	{
-		for (i=0;i<vec->count;i++)
+		if (vec->own_elements)
 		{
-			if (i==0x3af)
- 				printf("boo");
-			ram_free(vec->elements[i]);  //free each element
+			for (i=0;i<vec->count;i++)
+			{
+				if (i==0x3af)
+ 					printf("boo");
+				ram_free(vec->elements[i]);  //free each element
+			}
 		}
-		ram_shallow_free(vec->elements);  //free the array
+		ram_free(vec->elements);  //free the array
 	}
 }
 
 // This is the destructor function called by ram_free, passed as arg to ram_alloc
-void _vec_destructor(void* x)
+zbool _vec_destructor(void* x)
 {
 	vec_cleanup((vec_t*) x); //free the contents of this structure
-	ram_shallow_free(x);	   //then free the 'host' structure
+	return ztrue;
 }
 
 /* This creates a vector */ 
@@ -58,6 +61,8 @@ vec_t* vec_mk(vec_t* v, zsize initial_size)
 	v->_size = initial_size;
 	v->count = 0;  //vector is empty
 	v->elements = ram_alloc(v->_size * sizeof(void*), NULL );
+	v->own_elements = ztrue;  //default that the vector owns all the elements stored within
+
 	
 	
 	if (! (v->elements))
@@ -166,3 +171,14 @@ void vec_print( vec_t* v)
 	}
 }
 
+int vec_find_idx(vec_t* v, void* item)
+{
+	int a;
+	for (a=0;a<v->count;a++)
+	{
+		if (item == v->elements[a])
+			return a;
+	}
+
+	return -1;
+}

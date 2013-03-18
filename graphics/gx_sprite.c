@@ -12,7 +12,12 @@
 #include "gx_image.h"
 #include "gx_sprite.h"
 
-
+zbool _gx_sprite_t_kill(void* x)
+{
+	gx_sprite_t* sprite = x;
+	ram_free(sprite->image);
+	return ztrue;
+}
 
 gx_sprite_t* gx_sprite_mk(gx_image_t* image, zint32 left, zint32 bottom, zint32 width, zint32 height, zfloat32 sprite_width, zfloat32 sprite_height)
 {
@@ -21,25 +26,38 @@ gx_sprite_t* gx_sprite_mk(gx_image_t* image, zint32 left, zint32 bottom, zint32 
 	if (!image)
 		return NULL; //need an image to make a sprite from!
 
-	sprite = ram_alloc(sizeof(gx_sprite_t), NULL);  //no special destructor needed (sprites don't free their images)
+	sprite = ram_alloc(sizeof(gx_sprite_t), _gx_sprite_t_kill);  //no special destructor needed (sprites don't free their images)
 
 	if (!sprite)
 		return NULL;
 
-	
-	sprite->image = image;
-	sprite->_tx = ((zfloat32) left) / ((zfloat32) image->width-1);
-	sprite->_ty = ((zfloat32) bottom) / ((zfloat32) image->height-1);
+	/*
+	sprite->_tx = (1+2*left) / (zfloat32) (2*image->width);
+	sprite->_ty = (1+2*bottom) / (zfloat32) (2*image->height);
 
-	sprite->_tx2 = ((zfloat32) (left+width)) / ((zfloat32) image->width-1);
-	sprite->_ty2 = ((zfloat32) (bottom+height)) / ((zfloat32) image->height-1);
+	sprite->_tx2 = (1+2*(left + width) ) / (zfloat32) (2*image->width);
+	sprite->_ty2 = (1+2*(bottom + height) ) / (zfloat32) (2*image->width);
+	*/
+
+	sprite->_tx = (2*left) / (zfloat32) (2*image->width);
+	sprite->_ty = (2*bottom) / (zfloat32) (2*image->height);
+
+	sprite->_tx2 = (2*(left + width) ) / (zfloat32) (2*image->width);
+	sprite->_ty2 = (2*(bottom + height) ) / (zfloat32) (2*image->width);
 
 	sprite->_sprite_height = sprite_height;
 	sprite->_sprite_width = sprite_width;
 
+
+
+	sprite->image = image;
+	ram_addref(sprite->image);
+
 	return sprite;
 
 }
+
+
 
 //crappy sprite renderer
 void gx_sprite_draw(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool alpha_blend)
@@ -184,6 +202,8 @@ void gx_text_draw(gx_image_t* font,  zfloat32 x, zfloat32 y,  zfloat32 angle, zc
 	float sy;
 	float sx2;
 	float sy2;
+	int tw;
+	int th;
 	
 	if (!string || !string[0] || !font)
 		return;
@@ -201,6 +221,8 @@ void gx_text_draw(gx_image_t* font,  zfloat32 x, zfloat32 y,  zfloat32 angle, zc
 	x=0;
 	y=0;
 
+	tw = font->width /16;
+	th = font->height /16;
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -217,26 +239,39 @@ void gx_text_draw(gx_image_t* font,  zfloat32 x, zfloat32 y,  zfloat32 angle, zc
 		sy2 = (chr / 16+1)/16.0 +(1/512.0);
 		*/
 
-		int sxp = (*string%16) * 16;
-		int syp = (*string/16) * 16;
+		
+		int sxp = (*string%16) * tw;
+		int syp = (*string/16) * th;
 
+#if 0
 		sx = (sxp+.5) / 256.0;
 		sy = (syp+1.5) / 256.0;
 
 		sx2 = (sxp+15.5) / 256.0;
 		sy2 = (syp+15.5) / 256.0;
+#else
+		sx = (2*sxp) / (float)(font->width *2);
+		sy = (2*syp) / (float)(font->height *2);
 
-		glTexCoord2f( sx, 1-sy);
+		sx2 = (2*(sxp+(tw-1)) +1) / (float)(font->width *2);
+		sy2 = (2*(syp+(th-1)) +1) / (float)(font->height *2);
+
+
+#endif
+		
+
+
+		glTexCoord2f( sx, 1-sy2);
 		glVertex2f( x,y);
 
-		glTexCoord2f( sx2, 1-sy);
+		glTexCoord2f( sx2, 1-sy2);
 		glVertex2f( x+_gx_fontsize_w,y);
 
 		
-		glTexCoord2f( sx2, 1-sy2);
+		glTexCoord2f( sx2, 1-sy);
 		glVertex2f( x+_gx_fontsize_w,y+_gx_fontsize_h);
 
-		glTexCoord2f( sx, 1-sy2);
+		glTexCoord2f( sx, 1-sy);
 		glVertex2f( x,y+_gx_fontsize_h);
 
 		x+= _gx_fontsize_w + _gx_font_spacing_w;

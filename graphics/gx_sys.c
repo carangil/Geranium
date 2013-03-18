@@ -11,6 +11,14 @@
 #include "gx_sys.h"
 #include <math.h>
 
+//gl allocation count
+int _gx_gl_textures_gen = 0;
+int _gx_gl_vbos_gen = 0;
+int _gx_gl_textures_del = 0;
+int _gx_gl_vbos_del = 0;
+
+
+
 //internal data
 static zint32 _gx_window_width=0;
 static zint32 _gx_window_height=0;
@@ -191,7 +199,8 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 
 	_gx_callback_reshape( width, height);  //reshape will use defaults
 
-	gx_setup_2d(-1.0, -1.0, 1.0, 1.0) ;  //default coords are -1,-1 to 1,1
+	//gx_setup_2d(-1.0, -1.0, 1.0, 1.0) ;  //default coords are -1,-1 to 1,1
+	gx_setup_2d( 0, 0, width-1, height-1);
 
 	_gx_line_init();  //initialize line drawing functions
 
@@ -202,6 +211,22 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 #endif
 		return GX_ERROR;
 	}
+
+	if (! glGenBuffers)
+	{
+		//ARB fix
+		glGenBuffers = glGenBuffersARB;
+		glDeleteBuffers = glDeleteBuffersARB;
+		glBindBuffer = glBindBufferARB;
+		glBufferData = glBufferDataARB;
+	}
+
+	if (!glGenBuffers)
+	{
+		printf("Cannot initialize VBO functions.\n");
+		return GX_ERROR;
+	}
+
 
 	//default blending mode is alpha, but is off by default
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -214,14 +239,24 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	return GX_OK;
 }
 
+
 //uninitialize code
 void gx_disable()
 {
+	
+	_gx_line_disable();
+
 	if (_gx_window)
 		glutDestroyWindow(_gx_window);
 	_gx_window = 0;
 	
-	_gx_line_disable();
+	printf(" %d textures allocated\n", _gx_gl_textures_gen);
+	printf(" %d textures deleted\n", _gx_gl_textures_del);
+	printf(" %d vbos allocated\n", _gx_gl_vbos_gen);
+	printf(" %d vbos deleted\n", _gx_gl_vbos_del);
+
+
+
 }
 
 
@@ -399,6 +434,14 @@ void gx_setup_2d(float left,  float top, float right, float bottom)
 
 }
 
+void gx_setup_2d_pixels(int* width, int *height)
+{
+	//give dimensions to client application
+	gx_frame_get_dimensions(width, height);
+
+	gx_setup_2d(-.375, _gx_window_height-.375, _gx_window_width-.375, -.375);
+}
+
 
 /* Three dim coord system */
 
@@ -416,10 +459,10 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 	glDepthMask(GL_TRUE); //write to depth bufer
 	glEnable(GL_DEPTH_TEST);  //enable depth testing
 
-	//glDisable(GL_CULL_FACE); //we want face culling (for now)
+//	glDisable(GL_CULL_FACE); //we want face culling (for now)
 
-	glEnable(GL_CULL_FACE); //we want face culling (for now)
-	glCullFace(GL_BACK);
+	//glEnable(GL_CULL_FACE); //we want face culling (for now)
+	//glCullFace(GL_BACK);
 
 	//glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 //	glPolygonMode( GL_BACK, GL_LINE );

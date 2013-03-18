@@ -354,6 +354,7 @@ int main(int argc, char** argv)
 //	brick  = gx_image_load_tga( "brick_lowres.tga");
 //	brick  = gx_image_load_tga( "rock.tga");
 	//brick  = gx_image_load_tga( "red.tga");
+	ram_clear(&brick_ds, sizeof(brick_ds));
 	brick_ds.textures = &brick;
 	brick_ds.numtextures=1;
 
@@ -498,21 +499,30 @@ int main(int argc, char** argv)
 
 					char ch = vec_get_x_at( &rows, char*, row)[col];
 						
-
-					if (ch=='.')
+					
+					//room
+					if (ch=='.' || ((ch >='0') && (ch <= '9')) )
 					{
 						int meshstart=0;
 						int meshend=0;
 
-		
+						float ylev = 0;
+						float ylev2 = 0;
 
 						
 						vec3 min, max;
 						gx_sector_t* s = NULL;
 
-						vec3set(min,  col, -.5, -row-1);
+						if ((ch >='0') && (ch <= '9'))
+						{
+							ylev = ch-'0';
+							ylev=ylev/5;
+						}
 
-						vec3set(max, col+1, .5, -row);
+
+						vec3set(min,  col, -.5 +ylev, -row-1);
+
+						vec3set(max, col+1, .5 +ylev, -row);
 
 
 						meshstart = wall_buffer->vertex_count;
@@ -533,7 +543,7 @@ int main(int argc, char** argv)
 							if (t)
 							{
 								vec3 pos;
-								vec3set(pos, col+.5, 0 , -row  );
+								vec3set(pos, col+.5, ylev , -row  );
 
 								vec3set(norm, 0, 0, -1);
 								gx_sector_add_portal(s, &pos, PSIZE ,t, &norm); 
@@ -551,7 +561,7 @@ int main(int argc, char** argv)
 							if (t)
 							{
 								vec3 pos;
-								vec3set(pos, col , 0 , -row -.5);
+								vec3set(pos, col , ylev , -row -.5);
 
 								vec3set(norm, 1, 0, 0);
 								gx_sector_add_portal(s, &pos, PSIZE,t, & norm); 
@@ -564,37 +574,37 @@ int main(int argc, char** argv)
 						//create floor
 						gx_vbuffer_add_tex(wall_buffer, 0, 0, 0);
 						gx_vbuffer_add_normal(wall_buffer, 0, 1, 0);
-						gx_vbuffer_add_vertex(wall_buffer,  min.vec3x , -.5, min.vec3z);
+						gx_vbuffer_add_vertex(wall_buffer,  min.vec3x , -.5 + ylev, min.vec3z);
 
 						gx_vbuffer_add_tex(wall_buffer, 0, 0, 1);
 						gx_vbuffer_add_normal(wall_buffer, 0, 1, 0);
-						gx_vbuffer_add_vertex(wall_buffer,  min.vec3x , -.5, max.vec3z);
+						gx_vbuffer_add_vertex(wall_buffer,  min.vec3x , -.5+ ylev, max.vec3z);
 
 						gx_vbuffer_add_tex(wall_buffer, 0, 1, 1);
 						gx_vbuffer_add_normal(wall_buffer, 0, 1, 0);
-						gx_vbuffer_add_vertex(wall_buffer,  max.vec3x , -.5, max.vec3z);
+						gx_vbuffer_add_vertex(wall_buffer,  max.vec3x , -.5+ ylev, max.vec3z);
 
 						gx_vbuffer_add_tex(wall_buffer, 0, 1, 0);
 						gx_vbuffer_add_normal(wall_buffer, 0, 1, 0);
-						gx_vbuffer_add_vertex(wall_buffer,  max.vec3x , -.5, min.vec3z);
+						gx_vbuffer_add_vertex(wall_buffer,  max.vec3x , -.5+ ylev, min.vec3z);
 
 						//create ceiling
 #if 1
 						gx_vbuffer_add_tex(wall_buffer, 0, 0, 0);
 						gx_vbuffer_add_normal(wall_buffer, 0, -1, 0);
-						gx_vbuffer_add_vertex(wall_buffer,  min.vec3x ,  .5, min.vec3z);
+						gx_vbuffer_add_vertex(wall_buffer,  min.vec3x ,  .5+ ylev, min.vec3z);
 
 						gx_vbuffer_add_tex(wall_buffer, 0, 0, 1);
 						gx_vbuffer_add_normal(wall_buffer, 0, -1, 0);
-						gx_vbuffer_add_vertex(wall_buffer,  min.vec3x ,  .5, max.vec3z);
+						gx_vbuffer_add_vertex(wall_buffer,  min.vec3x ,  .5+ ylev, max.vec3z);
 
 						gx_vbuffer_add_tex(wall_buffer, 0, 1, 1);
 						gx_vbuffer_add_normal(wall_buffer, 0, -1, 0);
-						gx_vbuffer_add_vertex(wall_buffer,  max.vec3x ,  .5, max.vec3z);
+						gx_vbuffer_add_vertex(wall_buffer,  max.vec3x ,  .5+ ylev, max.vec3z);
 
 						gx_vbuffer_add_normal(wall_buffer, 0, -1, 0);
 						gx_vbuffer_add_tex(wall_buffer, 0, 1, 0);
-						gx_vbuffer_add_vertex(wall_buffer,  max.vec3x ,  .5, min.vec3z);
+						gx_vbuffer_add_vertex(wall_buffer,  max.vec3x ,  .5+ ylev, min.vec3z);
 
 #endif
 
@@ -605,25 +615,36 @@ int main(int argc, char** argv)
 							if ( col>0)
 								ch = vec_get_x_at( &rows, char*, row)[col-1];
 							else 
+							{
 								ch ='x';
+								ylev2 = ylev +1;
+							}
 
-							if (ch != '.')
+							//calc other level
+							if ((ch >='0') && (ch <= '9'))
+							{
+								ylev2 = ch-'0';
+								ylev2=ylev2/5;
+							}
+
+
+							if ( ylev2 > (ylev+.01) )
 							{
 								gx_vbuffer_add_normal(wall_buffer, 1, 0, 0);
 								gx_vbuffer_add_tex(wall_buffer, 0, 0, 0);
-								gx_vbuffer_add_vertex(wall_buffer,  min.vec3x , -.5, min.vec3z);
+								gx_vbuffer_add_vertex(wall_buffer,  min.vec3x , -.5 + ylev, min.vec3z);
 
 								gx_vbuffer_add_normal(wall_buffer, 1, 0, 0);
 								gx_vbuffer_add_tex(wall_buffer, 0, 0, 1);
-								gx_vbuffer_add_vertex(wall_buffer,  min.vec3x , .5, min.vec3z);
+								gx_vbuffer_add_vertex(wall_buffer,  min.vec3x , (-.5 +ylev2-ylev) , min.vec3z);
 
 								gx_vbuffer_add_normal(wall_buffer, 1, 0, 0);
 								gx_vbuffer_add_tex(wall_buffer, 0, 1, 1);
-								gx_vbuffer_add_vertex(wall_buffer,  min.vec3x , .5, max.vec3z);
+								gx_vbuffer_add_vertex(wall_buffer,  min.vec3x , (-.5 +ylev2-ylev), max.vec3z);
 
 								gx_vbuffer_add_normal(wall_buffer, 1, 0, 0);
 								gx_vbuffer_add_tex(wall_buffer, 0, 1, 0);
-								gx_vbuffer_add_vertex(wall_buffer,  min.vec3x , -.5, max.vec3z);
+								gx_vbuffer_add_vertex(wall_buffer,  min.vec3x , -.5 +ylev, max.vec3z);
 
 							}
 
@@ -635,7 +656,7 @@ int main(int argc, char** argv)
 							else 
 								ch ='x';
 
-							if (ch != '.')
+							if (ch == 'x')
 							{
 								gx_vbuffer_add_normal(wall_buffer, -1, 0, 0);
 								gx_vbuffer_add_tex(wall_buffer, 0, 0, 0);
@@ -664,7 +685,7 @@ int main(int argc, char** argv)
 							else 
 								ch ='x';
 
-							if (ch != '.')
+							if (ch == 'x')
 							{
 								gx_vbuffer_add_normal(wall_buffer, 0, 0, 1);
 								gx_vbuffer_add_tex(wall_buffer, 0, 0, 0);
@@ -691,7 +712,7 @@ int main(int argc, char** argv)
 							else 
 								ch ='x';
 
-							if (ch != '.')
+							if (ch == 'x')
 							{
 								gx_vbuffer_add_normal(wall_buffer, 0, 0, -1);
 								gx_vbuffer_add_tex(wall_buffer, 0, 0, 0);

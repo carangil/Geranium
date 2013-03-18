@@ -12,6 +12,7 @@ typedef struct
 	zfloat32 _ty;
 	zfloat32 _tx2;
 	zfloat32 _ty2;
+
 	
 	//size the sprite appears on the screen:
 	zfloat32 _sprite_width;

@@ -1,5 +1,5 @@
 // projectZ - This file is part of a project named 'projectZ'
-// ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
+// ProjectZ is (C) 2013 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
 
@@ -13,7 +13,8 @@
 
 
 
-void _gx_destruct_image(void* x)
+
+zbool _gx_destruct_image(void* x)
 {
 	gx_image_t* i = x;
 	if  (i->data)
@@ -24,10 +25,41 @@ void _gx_destruct_image(void* x)
 	if (i->_sent_to_gl)
 	{
 		glDeleteTextures(1, & (i->_gl_texture_number) );
+
+		_gx_gl_textures_del++;
+
+
 	}
 
-	ram_shallow_free(i);
+	return ztrue;
 }
+
+
+
+#if 0
+//create an blank image
+gx_image_t* gx_image_mk(zuint32 w, zuint32 h, zuint32 bpp)
+{
+	gx_image_t* image = NULL;
+
+	image = ram_alloc(sizeof(gx_image_t), _gx_destruct_image);
+
+	if (!image)
+		return NULL;
+
+	
+	image->width = w;
+	image->height = h;
+	image->bpp = bpp ;    //we want bytes per pixel, not bits
+
+	//bpp == 2 should be  grayscale + alpha, but not implemented yet
+
+	image->data = ram_alloc(image->height * image->width * image->bpp, NULL);
+
+	return image;
+}
+#endif
+
 
 //Taken from 2005
 gx_image_t* gx_image_load_tga( zchar* f)
@@ -81,7 +113,7 @@ gx_image_t* gx_image_load_tga( zchar* f)
 		fread( image->data, 1,image->height*image->width*image->bpp, fi);
 
 	
-		if ((image->bpp == 3) || (image->bpp == 4))
+		if ((image->bpp == GX_IMAGE_COLOR) || (image->bpp == GX_IMAGE_COLOR_ALPHA))
 		{
 			//TARGA goes BLUE GREEN RED  byte order
 			for (i=0;i< image->height * image->width * image->bpp ; i+= image->bpp)
@@ -103,8 +135,18 @@ gx_image_t* gx_image_load_tga( zchar* f)
 
 	fclose(fi);
 
+	
+
 	return image;
 }
+
+void gx_image_set_scaler(gx_image_t* image, int scaler)
+{
+	//transfers the image to hardware accelerating rendering
+	image->_scaler = scaler;
+	image->_sent_scaler = 0;
+}
+
 
 
 //enables an image for use in rendering (sends it to opengl for use in sprites or texture mapping)
@@ -117,31 +159,28 @@ zbool _gx_image_enable(gx_image_t* image)
 	{
 		//attempt to create texture object in GL
 		glGenTextures(1, &(image->_gl_texture_number) );
+		_gx_gl_textures_gen++;
 	}
 	
 	//bind the texture for the current texture unit
 	glBindTexture (GL_TEXTURE_2D,  image->_gl_texture_number );
 	
-	//smooth
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	
-	//blocky
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	
-
 	
 	if (! image->_sent_to_gl)
 	{
 		//send the texture to opengl if it hasn't been already
 
-		if (image->bpp == 3)
+		if (image->bpp == GX_IMAGE_COLOR) /* RGB textures */
 			gluBuild2DMipmaps(GL_TEXTURE_2D, 3, image->width, image->height, GL_RGB, GL_UNSIGNED_BYTE, image->data);
-		else if (image->bpp == 4)
+
+		else if (image->bpp == GX_IMAGE_COLOR_ALPHA) /* RGB with alpha */
 			gluBuild2DMipmaps(GL_TEXTURE_2D, 4, image->width, image->height, GL_RGBA, GL_UNSIGNED_BYTE, image->data);			
-		else if (image->bpp == 1)
+
+		else if (image->bpp == GX_IMAGE_GRAY) /* gray:  but GL_INTENSITY allows alpha blending as well */
 			gluBuild2DMipmaps(GL_TEXTURE_2D, GL_INTENSITY, image->width, image->height, GL_LUMINANCE, GL_UNSIGNED_BYTE, image->data);
+			//gluBuild2DMipmaps(GL_TEXTURE_2D, GL_ALPHA, image->width, image->height, GL_ALPHA, GL_UNSIGNED_BYTE, image->data);
+
 #ifdef DOPRINTF 
 		else
 			printf(" unsupported texture format\n");
@@ -149,6 +188,27 @@ zbool _gx_image_enable(gx_image_t* image)
 
 		image->_sent_to_gl = ztrue;
 	}
+
+	//mess with scaler
+	if (!image->_sent_scaler)
+	{
+
+		image->_sent_scaler = ztrue;
+
+		if (image->_scaler == GX_IMAGE_SCALER_BLOCKY)
+		{
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		}
+		else if (image->_scaler == GX_IMAGE_SCALER_SMOOTH)
+		{
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+			//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		}
+	
+	}
+
 
 	return ztrue;
 }
@@ -161,6 +221,7 @@ zbool gx_image_disable(gx_image_t* i)
 	if (i->_sent_to_gl)
 	{
 		glDeleteTextures(1, & (i->_gl_texture_number) );
+		_gx_gl_textures_del++;
 	}
 
 	i->_sent_to_gl=zfalse;
@@ -217,7 +278,7 @@ void gx_set_active_textures(gx_image_t** texes, zuint32 numtex)
 			glEnable(GL_TEXTURE_2D);
 
 			if (i==0)
-				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); 
+				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); //multiply againt light value
 			else
 				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL); //default as alpha blending
 		}

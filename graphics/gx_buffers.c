@@ -17,7 +17,7 @@
 #define GX_UPDATE_FREQ  GL_STATIC_DRAW
 
 
-static void _destruct_vbuffer(void* x)
+static zbool _destruct_vbuffer(void* x)
 {
 	gx_vbuffer_t* v = x;
 	zuint32 i;
@@ -25,6 +25,14 @@ static void _destruct_vbuffer(void* x)
 	if (v->_sent_to_gl)
 	{
 		//todo: Free any buffers still in opengl	
+		glDeleteBuffers(1,  &(v->_vertex_combined_vbo));
+		_gx_gl_vbos_del++;
+
+		if (v->index_data)
+		{
+			glDeleteBuffers(1, &(v->_index_vbo));
+			_gx_gl_vbos_del++;
+		}
 	}
 
 //	ram_free(v->color_data);
@@ -39,12 +47,9 @@ static void _destruct_vbuffer(void* x)
 	//free index data
 	ram_free(v->index_data);
 
-	for (i=0;i<v->num_textures;i++)
-	{
-		ram_free(v->texcoord_data);
-	}
+	
 
-	ram_shallow_free(v);
+	return ztrue;
 }
 
 
@@ -86,7 +91,7 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 
 
 		//experimental
-		v->index_notify = ram_alloc(sizeof(zuint32*) * num_indices, NULL);
+	//	v->index_notify = ram_alloc(sizeof(zuint32*) * num_indices, NULL);
 	}
 
 
@@ -151,7 +156,28 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 }
 
 
-//sends a vbuffer to the graphics card
+
+
+zint32 gx_vbuffer_current_index(gx_vbuffer_t* v)
+{
+
+	if (v)
+		return v->index_count;
+	else
+		return 0;
+}
+
+
+
+zint32 gx_vbuffer_current_vertex(gx_vbuffer_t* v)
+{
+
+	if (v)
+		return v->vertex_count;
+	else
+		return 0;
+}
+
 
 
 
@@ -167,6 +193,8 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 	if (!v->_sent_to_gl)
 	{
 		glGenBuffers(1, &(v->_vertex_combined_vbo));
+		_gx_gl_vbos_gen++;
+
 /*
 		if (v->color_data)
 		{
@@ -187,6 +215,7 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 		if (v->index_data)
 		{
 			glGenBuffers(1, &(v->_index_vbo));
+			_gx_gl_vbos_gen++;
 
 		}
 
@@ -384,6 +413,7 @@ zint32 gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i)
 	return v->index_count-1;
 	
 }
+
 
 zuint32 gx_remaining_indices(gx_vbuffer_t* v)
 {

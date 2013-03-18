@@ -17,8 +17,9 @@
 #include "../graphics/gx_line.h"
 #include "../graphics/gx_buffers.h"
 #include "../graphics/gx_light.h"
-#include "../graphics/gx_drawstyle.h"
 #include "../structures/vector.h"
+#include "../graphics/gx_drawstyle.h"
+
 #include "../graphics/gx_misc.h"
 #include "../graphics/gx_mesh.h"
 #include "meshtree.h"
@@ -1755,8 +1756,10 @@ int main(int argc, char** argv)
 	
 	//Load assets
 	spacerock  = gx_image_load_tga( "rocktile.tga");
-	spacerock_ds.textures = &spacerock;
-	spacerock_ds.numtextures=1;
+//	spacerock_ds.textures = &spacerock;
+//	spacerock_ds.numtextures=1;
+	vec_mk(&spacerock_ds.textures,1);
+	vec_add(&spacerock_ds.textures, spacerock);
 
 
 //	atmosphere  = gx_image_load_tga( "atmosphere.tga");
@@ -2531,8 +2534,10 @@ int main(int argc, char** argv)
 		ds_qa.specular_exponent = 10;
 		ds_qa.blending = gx_blend_nothing;
 		ds_qa.alpha = .5;
-		ds_qa.textures = spacerock_ds.textures;
-		ds_qa.numtextures = 1;
+
+		memcpy(&ds_qa.textures, &spacerock_ds.textures, sizeof(spacerock_ds.textures));
+	//	ds_qa.textures = spacerock_ds.textures;
+	//	ds_qa.numtextures = 1;
 
 		gx_drawstyle_activate(&ds_qa);
 		
