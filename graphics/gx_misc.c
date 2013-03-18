@@ -159,7 +159,6 @@ void test_lighting_off()
 
 
 
-//sector and portal crap.
 
 gx_sector_t* gx_sector_mk(vec3* min, vec3* max )
 {
@@ -218,7 +217,7 @@ void gx_portal_draw_test(gx_portal_t* p)
 	glEnd();
 
 	vec3mov(nn, p->pos);
-	vec3madd(nn, p->radius/3, p->normal);
+	vec3madd(nn, p->radius*3, p->normal);
 	glBegin(GL_LINES);
 	glVertex3fv(&p->pos);
 	glVertex3fv(&nn);
@@ -312,5 +311,156 @@ glEnable(GL_POLYGON_OFFSET_FILL);
 	glEnd();
 #endif
 glEnable(GL_DEPTH_TEST);
+
+}
+
+
+//Sheets
+//NOTE:  SHEET_POINT_AT is not safe!
+#define SHEET_POINT_AT(SSSS,XXXX,YYYY)    ((SSSS)->points[   (SSSS)->width*(YYYY) + XXXX ] )
+
+//create 2D rectanular sheet.  Does not have any points filled out yet
+gx_sheet_t * gx_sheet_quad_mk(gx_vbuffer_t* vb, int width, int height)
+{
+	gx_sheet_t* sheet = ram_alloc(sizeof(gx_sheet_t), NULL);
+	int a;
+
+	if (!sheet)
+		return NULL;
+
+	sheet->numpoints = 0;
+	sheet->width = width;
+	sheet->height = height;
+	sheet->maxpoints = width*height;
+	sheet->points = ram_alloc(sizeof(zint32) * sheet->maxpoints, NULL);
+	sheet->vb = vb;
+	sheet->num_edges = 4;
+	
+	
+	vec_mk( &sheet->edges[GX_SHEET_EDGE_TOP].indirect_vertices, width);
+	vec_mk( &sheet->edges[GX_SHEET_EDGE_BOTTOM].indirect_vertices, width);
+	for (a=0;a<width;a++)
+	{
+		vec_add(&(sheet->edges[GX_SHEET_EDGE_TOP].indirect_vertices), & SHEET_POINT_AT(sheet, a, 0));
+		vec_add(&(sheet->edges[GX_SHEET_EDGE_BOTTOM].indirect_vertices), & SHEET_POINT_AT(sheet, a, height-1));
+	}
+	
+	vec_mk( &sheet->edges[GX_SHEET_EDGE_LEFT].indirect_vertices, height);
+	vec_mk( &sheet->edges[GX_SHEET_EDGE_RIGHT].indirect_vertices, height);
+
+	for (a=0;a<height;a++)
+	{
+		vec_add(&sheet->edges[GX_SHEET_EDGE_LEFT].indirect_vertices, & SHEET_POINT_AT(sheet, 0, a));
+		vec_add(&sheet->edges[GX_SHEET_EDGE_RIGHT].indirect_vertices, & SHEET_POINT_AT(sheet, width-1, a));
+	}
+
+	return sheet;
+}
+
+int gx_sheet_set_at( gx_sheet_t* s, int x, int y,  int vertex)
+{
+	if (!s)
+		return GX_INDEX_INVALID;
+
+
+	SHEET_POINT_AT(s, x, y) = vertex;
+
+	return vertex;
+}
+
+void gx_sheet_show_buffer(gx_sheet_t* s)
+{
+	int a;
+	for (a=0;a< s->width * s->height;a++)
+	{
+		if (a%s->width ==0) printf("\n");
+		printf(" %02d", s->points[a]);
+	}
+
+}
+
+
+//#define		COPY_TEXCOORD  4
+//this function sets one edge of S to use vertices from T
+//assign indices will indicate they use the exact same vertex (in the same vbuffer).  texcoords and normals are shared
+//copy position will indicate they are separate vertices (can have different texcoords and normals), but the position is copied
+
+void gx_sew_sheets( gx_sheet_t* s, int s_edge, gx_sheet_t* t, int t_edge, int operation)
+{
+	int a;
+	
+	if (s->vb != t->vb)  //can't sew sheets that are in different vbuffers
+		return;
+	
+	if (s->edges[s_edge].indirect_vertices.count != t->edges[t_edge].indirect_vertices.count)
+		return;  //can't sew sheets that have different arity
+
+
+	for (a=0;a< s->edges[s_edge].indirect_vertices.count;a++)
+	{
+		if (operation & GX_ASSIGN_INDICES)
+		{
+			*(int*)(s->edges[s_edge].indirect_vertices.elements[a]) =  *(int*)(t->edges[t_edge].indirect_vertices.elements[a]);
+		}
+
+		if (operation & GX_COPY_POSITION)
+		{
+			vec3* spos = gx_vbuffer_v(s->vb, *(int*)(s->edges[s_edge].indirect_vertices.elements[a]));
+			vec3* tpos = gx_vbuffer_v(t->vb, *(int*)(t->edges[t_edge].indirect_vertices.elements[a]));;
+			
+			vec3mov (*spos, *tpos);
+		}
+
+	}
+
+}
+
+
+//place all the indices needed for this sheet into the specified vbuffer
+//after this step, the sheet can be discarded, but the renderable geometry will remain
+void gx_sheet_index(gx_sheet_t* s)
+{
+	int i;
+	int j;
+	for (i=0;i<s->width;i++)
+	{
+		for (j=0;j<s->height;j++)
+		{
+
+			gx_vbuffer_add_index(s->vb, SHEET_POINT_AT(s, i-1, j-1));
+			gx_vbuffer_add_index(s->vb, SHEET_POINT_AT(s, i,   j-1));
+			gx_vbuffer_add_index(s->vb, SHEET_POINT_AT(s, i,   j  ));
+			gx_vbuffer_add_index(s->vb, SHEET_POINT_AT(s, i-1 , j ));
+		}
+	}
+}
+
+
+
+
+
+void gx_test_sphere(vec3* pos, float radius)
+{
+	static GLUquadric* quadric = NULL;
+	
+
+
+	if (!quadric)
+	{
+		quadric = gluNewQuadric();
+	}
+	
+	gx_set_active_textures(NULL,0);
+
+
+	glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
+
+	glPushMatrix();
+	glTranslatef( pos->vec3x, pos->vec3y, pos->vec3z);
+	gluSphere(quadric, radius, 10, 10);
+	glPopMatrix();
+	
+	glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+//	gluDeleteQuadric(quadric);
 
 }

@@ -124,17 +124,24 @@ int main(int argc, char** args)
 
 		sx_reverb_t reverb;
 
+	
 
-
-		reverb.echo_gain = .5;
-		reverb.late_reverb_gain = .7;
-		reverb.late_reverb_decay = 20;
+		reverb.echo_gain = .3;
 		reverb.echo_delay = .1;
 
+		reverb.late_reverb_gain = 1;
+		reverb.late_reverb_decay = 20;
+
+		
+		
+		sx_sound_play(sound2, 0.5, 2,  0);
+
+		Sleep(1000);
+
 		sx_set_reverb(&reverb);
-
-
-	//sx_sound_play(sound2, 1.0, 2,  0);
+		sx_sound_play(sound2, 0.5, 2,  0);
+		
+		
 	//	sx_sound_play(sound, 1.0, 000);
 	//	sx_sound_play(sound, 1.0, 1000);
 	//	sx_sound_play(sound, 1.0, 1500);
@@ -144,21 +151,27 @@ int main(int argc, char** args)
 	//	sx_sound_play(sound, 1.0, 3500);
 
 	
-		//Sleep(1000);
+		Sleep(1000);
 		i=-1;
 		while(1)
 		{
 
-			Sleep(50);
+			Sleep(5);
 			
-			if(((((i=i+1))%100))==0)
+			if(((((i=i+1))%500))==0)
 			{
 				printf("BOOOO-------------------------------------\n");
-				sx_sound_play(sound, (rand() & 255) / 255.0 , (rand() & 63) / 255.0+.01, rand()&1023 );
-				sx_sound_play(sound2, (rand() & 255) / 255.0 , (rand() & 63) / 255.0+.01, rand()&1023 );
+				sx_sound_play(sound, (rand() & 255) / 255.0 , (rand() & 127) / 255.0+.01, rand()&511 );
+				sx_sound_play(sound2, (rand() & 255) / 255.0 , (rand() & 127) / 255.0+.01, rand()&511 );
+				sx_sound_play(sound2, (rand() & 255) / 255.0 , (rand() & 127) / 255.0+.01, rand()&511 );
 				
-				if((i%500)==0)
-					sx_sound_play(sound3, (rand() & 255) / 255.0, (rand() & 511) / 255.0 + .5 , rand()&127);
+				//if((i%300)==0)
+				//	sx_sound_play(sound3, (rand() & 255) / 255.0, (rand() & 511) / 255.0 + .01 , rand()&127);
+
+				//printf(" echo delay %f\n", reverb.echo_delay);
+				//reverb.echo_delay +=.01;
+				//sx_set_reverb(&reverb);
+
 			}
 
 

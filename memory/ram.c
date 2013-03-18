@@ -21,6 +21,7 @@ static zuint32 _ram_allocs = 0; //count of current allocations (to check for lea
 typedef struct mem_header_s
 {
 	void (*destructor)(void* block);
+	int refcount;
 } mem_header_t;
 
 
@@ -39,6 +40,8 @@ void* ram_alloc(zsize size, void (*destructor)(void*) )
 
 		x->destructor = destructor;
 
+		x->refcount = 1;
+
 		return x + 1;  //return just past the header
 	}
 
@@ -53,21 +56,37 @@ void ram_free(void* thing)
 	if (header) 
 	{
 		header--; //decrement pointer to header struct
-
-		if (header->destructor)  //if a destructor was declared
+	
+		header->refcount --;
+		if (header->refcount ==0)
 		{
-			header->destructor(thing); //destruct this thing (destructor must call ram_free)
-		}
-		else
-		{
-			free(header);
-			_ram_allocs--;
+			if (header->destructor)  //if a destructor was declared
+			{
+				header->destructor(thing); //destruct this thing (destructor must call ram_free)
+			}
+			else
+			{
+				free(header);
+				_ram_allocs--;
+			}
 		}
 
 	}
 }
 
+void* ram_addref(void* thing)
+{
+	mem_header_t* header = (mem_header_t*) thing;
+	if (header)
+	{
+		header --;
+		header->refcount++;
+	}
+	return thing;
+}
+
 //frees a block without calling its destructor.
+//does not obey reference counts
 void ram_shallow_free(void* thing)
 {
 	mem_header_t* header = (mem_header_t*) thing;

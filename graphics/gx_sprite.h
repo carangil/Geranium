@@ -30,6 +30,6 @@ void gx_sprite_draw_3d(gx_sprite_t* sprite, vec3* position, vec3* up, vec3* righ
 
 void gx_text_draw(gx_image_t* font,  zfloat32 x, zfloat32 y,  zfloat32 angle, zchar* string);
 
-void gx_text_size(zfloat32 width, zfloat32 height);
+void gx_text_size(zfloat32 width, zfloat32 height, zfloat32 w_spacing);
 
 void gx_text_color(zfloat32 r,zfloat32 g,zfloat32 b, zfloat32 a);

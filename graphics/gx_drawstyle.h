@@ -24,6 +24,8 @@ typedef struct
 	vec3 specular_color;  //diffuse material color come from texture; specular comes from here
 	zfloat32 specular_exponent; //shininess
 
+	int use_constant_alpha; // true to use below alpha value (if false, alpha value will
+	zfloat32 alpha;  //alpha value to use for blending
 
 	//put any other parameters here too!
 

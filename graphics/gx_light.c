@@ -166,3 +166,29 @@ void gx_debug_show_light(gx_light_t* light, zfloat32 size)
 
 
 }
+
+
+
+void gx_light_fog( vec3* color, float startz, float endz)
+{
+
+	float fc[4];
+
+	if (!color)
+		glDisable(GL_FOG);
+	else
+	{
+		fc[0]=color->array[0];
+		fc[1]=color->array[1];
+		fc[2]=color->array[2];
+		fc[3]=0.0;
+
+		glEnable(GL_FOG);
+		glFogi(GL_FOG_MODE, GL_LINEAR);
+		glFogf(GL_FOG_START, startz);
+		glFogf(GL_FOG_END, endz);
+		glFogfv(GL_FOG_COLOR, fc);
+
+	}
+
+}

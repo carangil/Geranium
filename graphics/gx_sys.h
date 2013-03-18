@@ -33,7 +33,10 @@ zbool gx_key_state(zbyte a);
 
 //read mouse
 void gx_mouse_pos(zuint32* x, zuint32* y, zbool* rel);
+void gx_mouse_posf(zfloat32* fx, zfloat32* fy, zbool* rel); //translated to last setup_2d coordinates
 void gx_mouse_capture(zbool cap);
+zbool gx_mouse_present();
+void gx_hide_mouse();
 
 zbool gx_mouse_state(zuint32 button);
 #define GX_MOUSE_LEFT	0

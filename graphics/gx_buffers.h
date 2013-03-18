@@ -10,16 +10,18 @@
 typedef struct {
 
 	//Vertex Information
-	zfloat32* vertex_data;   //position
+	zfloat32* combined_vertex_data; //allocated buffer containing all the data
+	
+	//pointers into combined vertex data
+	zfloat32* pos_data;   //position
 	zfloat32* color_data;    //optional color
-	zfloat32* normal_data;    //normal data
-	
-	
-	zfloat32* texcoord_data[GX_MAX_TEXTURES]; //texcoord data for each texture
+	zfloat32* normal_data;    //normal data	
+	zfloat32* texcoord_data[GX_MAX_TEXTURES];
 	zuint32   num_textures;  //how many textures are applied?
 
 	zuint32 vertex_capacity;  //number of vertices to fit
 	zuint32 vertex_count;     //number of vertices here
+	size_t	size_per_vertex;
 
 
 	//index information:
@@ -31,11 +33,12 @@ typedef struct {
 
 	//opengl information:
 	zbool   _sent_to_gl;
-	zuint32 _vertex_vbo;
+	//zuint32 _vertex_vbo;
+	zuint32 _vertex_combined_vbo;
 	zuint32 _index_vbo;
-	zuint32 _color_vbo;
-	zuint32 _normal_vbo;
-	zuint32 _texcoord_vbo[GX_MAX_TEXTURES];
+	//zuint32 _color_vbo;
+	//zuint32 _normal_vbo;
+	//zuint32 _texcoord_vbo[GX_MAX_TEXTURES];
 
 //	zuint32 index_vbo;
 
@@ -60,6 +63,7 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 							zuint32 texture_buffer_count);
 
 zbool gx_vbuffer_update(gx_vbuffer_t* v);
+zbool gx_vbuffer_update_indices(gx_vbuffer_t* v);
 
 void gx_vbuffer_add_tex(gx_vbuffer_t* v, zuint32 texture, zfloat32 s, zfloat32 t);
 void gx_vbuffer_add_color(gx_vbuffer_t* v, zfloat32 r, zfloat32 g, zfloat32 b, zfloat32 a);
@@ -116,8 +120,10 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 #define gx_vbuffer_y(vbbb, iii)  ((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS+1])
 #define gx_vbuffer_z(vbbb, iii)  ((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS+2])
 
-#define gx_vbuffer_v(vbbb, iii)   ((vec3*)(&((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS])))
+#define gx_vbuffer_v(vbbb, iii)   ((vec3*)(&((vbbb)->pos_data[(iii)* VERTEX_COMPONENTS])))
+#define gx_vbuffer_n(vbbb, iii)   ((vec3*)(&((vbbb)->normal_data[(iii)* VERTEX_COMPONENTS])))
 
+#define gx_vbuffer_c(vbbb, iii)   ((float*)(&((vbbb)->color_data[(iii)* COLOR_COMPONENTS])))
 
 #define gx_vbuffer_s(vbbb, iii, ttt)  ((vbbb)->texcoord_data[ttt][(iii)* TEXTURE_COMPONENTS])
 #define gx_vbuffer_t(vbbb, iii, ttt)  ((vbbb)->texcoord_data[ttt][(iii)* TEXTURE_COMPONENTS+1])

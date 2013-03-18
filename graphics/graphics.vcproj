@@ -107,6 +107,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalIncludeDirectories="&quot;..\..\3rdparty\freeglut-MSVC-2.6.0-3.mp\freeglut\include&quot;;&quot;..\..\3rdparty\glew-1.5.3-win32\glew-1.5.3\include&quot;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_LIB"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"

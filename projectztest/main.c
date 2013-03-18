@@ -24,16 +24,97 @@
 void graphics_main();
 void game_main();
 
+
+//try out some iterators
+
+typedef struct z_iterator_s
+{
+	void* data;
+	zbool hasMore;
+	void* (*next)( struct z_iterator_s* iter);
+} z_iterator_t;
+
+
+//test iterator:
+
+typedef struct test_iterator_s
+{
+	z_iterator_t base_iter;
+	zuint32 number;
+	zchar	tstring[10];
+} test_iterator_t;
+
+void* test_iterator_next(z_iterator_t* z_iter)
+{
+	
+	test_iterator_t* iter = z_iter;
+	
+	if (iter->number == 10)
+	{
+		iter->base_iter.hasMore = zfalse;
+	}
+
+	
+	sprintf(iter->tstring, "%d", iter->number++);
+	
+	return iter->tstring;
+}
+
+z_iterator_t* test_iterator_mk()
+{
+	test_iterator_t* z = ram_alloc(sizeof(test_iterator_t), NULL);
+	z->number = 0;
+	z->base_iter.hasMore = ztrue;
+	z->base_iter.next = test_iterator_next;
+	z->base_iter.data = NULL;
+	return z;
+}
+
+
+void struct_test()
+{
+	//test some structures
+
+	
+	vec_t* str_vector = vec_mk(NULL, 2);
+
+	vec_add(str_vector, ram_strdup("a"));
+	vec_add(str_vector, ram_strdup("b"));
+	vec_add(str_vector, ram_strdup("c"));
+	vec_add(str_vector, ram_strdup("d"));
+
+	ram_free(str_vector);
+
+
+	{
+		z_iterator_t* some_iter = test_iterator_mk();
+		
+		while(some_iter->hasMore)
+		{
+			char* x = some_iter->next(some_iter);
+			
+
+			printf("got %s \n ", x);
+		}
+
+		ram_free(some_iter);
+
+	}
+
+
+}
+
+
 void main(int argc, char** argv)
 {
 
 	
 
 	
-	graphtest_main();
-//	game_main();
+	//graphtest_main();
+	game_main();
 
-
+	//struct_test();
 
 	printf("allocations left: %d\n", ram_allocs());
 	return 0;
@@ -263,10 +344,10 @@ void game_main()
 		gx_frame_clear(ztrue, ztrue);
 
 		gx_text_color(1,1,1,1);
-		gx_text_size( .05,.1);
+		gx_text_size( .05,.1, 0);
 		gx_text_draw(font, -1, -1, 0,"Hello test");
 
-		gx_text_size( .03,.2);
+		gx_text_size( .03,.2, 0);
 		gx_text_draw(font, -1, -.8, 0,"Different Size");
 
 		

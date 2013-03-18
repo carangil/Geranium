@@ -96,11 +96,11 @@ static void _al_extra_inits()
 	/* We use a reverb affect in SX */
 	alEffecti(g_sx_al_data.al_fx, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
 
-	
 
 	/* Lets set the gain to zero, so someone has to turn it on to use it */
 	alEffectf(g_sx_al_data.al_fx, AL_REVERB_GAIN, 0.0);
 	alEffectf(g_sx_al_data.al_fx, AL_REVERB_GAINHF, 0.0);
+	
 
 	
 	/* Set the effect to the slot */
@@ -154,6 +154,10 @@ zerror sx_get_al_source(sx_source_t* source)
 		source->_al_source = g_sx_al_data.al_sources[g_sx_al_data.al_sources_remaining];
 		source->_al_source_valid = ztrue;
 		printf(" using preallocated source %x  %d remain\n", source->_al_source , g_sx_al_data.al_sources_remaining);
+
+
+	
+
 		return ZOK;
 	}
 	return ZERR;
@@ -359,13 +363,13 @@ SHOWALERROR
 	SHOWALERROR
 #endif
 
-#if 0
+#ifndef _SX_PREALLOCATE_SOURCES
 		//apply fx if we have it
 		if (g_sx_al_data.fx_created != NULL)
 		{
 			//printf(" applying fx\n");
 			SHOWALERROR
-		//	alSourcei(&(source->_al_source), AL_AUXILIARY_SEND_FILTER, g_sx_al_data.al_fx_slot, 0, AL_FILTER_NULL);
+			alSource3i(&(source->_al_source), AL_AUXILIARY_SEND_FILTER, g_sx_al_data.al_fx_slot, 0, AL_FILTER_NULL);
 			SHOWALERROR
 		}
 #endif
@@ -403,6 +407,16 @@ SHOWALERROR
 SHOWALERROR
 	alSourcei( source->_al_source, AL_LOOPING, AL_FALSE);
 SHOWALERROR
+
+	//experimental:set the slot
+	if (g_sx_al_data.fx_created != NULL)
+	{
+			//printf(" applying fx\n");
+			SHOWALERROR
+ 			alSource3i((source->_al_source), AL_AUXILIARY_SEND_FILTER, g_sx_al_data.al_fx_slot, 0, AL_FILTER_NULL);
+			SHOWALERROR
+	}
+
 
 
 	//play immediately
@@ -465,7 +479,7 @@ void sx_process()
 
 	tm_get_microstamp(&now);
 
-	printf("$");
+	//printf("$");
 
 //	printf(" sound table\n");
 
@@ -506,6 +520,9 @@ void sx_process()
 				
 				_sx_bind_and_play_source(source);
 				
+			}else
+			{
+				printf(" sound will start in %d\n", source->time_to_start-diff);
 			}
 		}
 	}
@@ -524,28 +541,35 @@ void sx_set_reverb(sx_reverb_t* reverb)
 /* Total reverb volume */
 
 alEffectf(g_sx_al_data.al_fx, AL_REVERB_GAIN, 1.0);
-//SHOWALERROR
+SHOWALERROR
 alEffectf(g_sx_al_data.al_fx, AL_REVERB_GAINHF, 1.0);
-//SHOWALERROR
+SHOWALERROR
 
 //initial reflections
 
 alEffectf(g_sx_al_data.al_fx, AL_REVERB_REFLECTIONS_DELAY, reverb->echo_delay);
+
+SHOWALERROR
+
 alEffectf(g_sx_al_data.al_fx, AL_REVERB_REFLECTIONS_GAIN,  reverb->echo_gain);
+SHOWALERROR
+
 
 //late reverb
 
 alEffectf(g_sx_al_data.al_fx, AL_REVERB_DECAY_TIME, reverb->late_reverb_decay);
+SHOWALERROR
+
 alEffectf(g_sx_al_data.al_fx, AL_REVERB_LATE_REVERB_GAIN, reverb->late_reverb_gain);
 
 //alEffectf(g_sx_al_data.al_fx, AL_REVERB_LATE_REVERB_DELAY, .1);
 
 
-//SHOWALERROR
+SHOWALERROR
 
 
 alAuxiliaryEffectSloti( g_sx_al_data.al_fx_slot, AL_EFFECTSLOT_EFFECT, g_sx_al_data.al_fx);
-//SHOWALERROR
+SHOWALERROR
 
 
 }

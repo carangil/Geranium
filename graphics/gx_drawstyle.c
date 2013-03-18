@@ -68,6 +68,13 @@ void gx_drawstyle_activate(gx_drawstyle_t* style)
 		float black[]={0,0,0,1};
 
 		float f[4];
+
+		if (style->use_constant_alpha) {
+			white[3] = style->alpha;
+		
+		}else 
+			white[3] = 1;
+
 		f[0]=style->specular_color.array[0];
 		f[1]=style->specular_color.array[1];
 		f[2]=style->specular_color.array[2];

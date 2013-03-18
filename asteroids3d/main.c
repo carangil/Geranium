@@ -64,136 +64,9 @@ void g_camera_init(g_camera_t* cam)
 	}
 }
 
-//SHEETS  ::todo: move to library if 'useful'
-typedef struct sheet_edge_s
-{
-	vec_t indirect_vertices; //pointer to vertices on the edge of this sheet
-} sheet_edge_t;
-
-typedef struct sheet_s
-{
-	gx_vbuffer_t* vb;  //holds points for this sheet
-	int numpoints;	  //how many points are in this sheet  (only for non-rectangulat sheets)
-	int maxpoints;
-	
-	int width;			//w/h only for rectangulat sheets
-	int height;
-	
-	int* points;	  //vertices within the vbuffer
-
-	int num_edges;	  //3 or 4 edges (sheets can be triangular or rectangular)
-	sheet_edge_t	edges[4]; 
-
-} sheet_t;
 
 
 
-#define SHEET_EDGE_TOP		0
-#define SHEET_EDGE_BOTTOM	1
-#define SHEET_EDGE_LEFT		2
-#define SHEET_EDGE_RIGHT	3
-
-//NOTE:  SHEET_POINT_AT is not safe!
-#define SHEET_POINT_AT(SSSS,XXXX,YYYY)    ((SSSS)->points[   (SSSS)->width*(YYYY) + XXXX ] )
-
-//create 2D sheet.  Does not have any points filled out yet
-sheet_t * sheet_quad_mk(gx_vbuffer_t* vb, int width, int height)
-{
-	sheet_t* sheet = ram_alloc(sizeof(sheet_t), NULL);
-	int a;
-
-	if (!sheet)
-		return NULL;
-
-	sheet->numpoints = 0;
-	sheet->width = width;
-	sheet->height = height;
-	sheet->maxpoints = width*height;
-	sheet->points = ram_alloc(sizeof(zint32) * sheet->maxpoints, NULL);
-	sheet->vb = vb;
-	sheet->num_edges = 4;
-	
-	
-	vec_mk( &sheet->edges[SHEET_EDGE_TOP].indirect_vertices, width);
-	vec_mk( &sheet->edges[SHEET_EDGE_BOTTOM].indirect_vertices, width);
-	for (a=0;a<width;a++)
-	{
-		vec_add(&(sheet->edges[SHEET_EDGE_TOP].indirect_vertices), & SHEET_POINT_AT(sheet, a, 0));
-		vec_add(&(sheet->edges[SHEET_EDGE_BOTTOM].indirect_vertices), & SHEET_POINT_AT(sheet, a, height-1));
-	}
-	
-	vec_mk( &sheet->edges[SHEET_EDGE_LEFT].indirect_vertices, height);
-	vec_mk( &sheet->edges[SHEET_EDGE_RIGHT].indirect_vertices, height);
-
-	for (a=0;a<height;a++)
-	{
-		vec_add(&sheet->edges[SHEET_EDGE_LEFT].indirect_vertices, & SHEET_POINT_AT(sheet, 0, a));
-		vec_add(&sheet->edges[SHEET_EDGE_RIGHT].indirect_vertices, & SHEET_POINT_AT(sheet, width-1, a));
-	}
-
-	return sheet;
-}
-
-int sheet_set_at( sheet_t* s, int x, int y,  int vertex)
-{
-	if (!s)
-		return GX_INDEX_INVALID;
-
-
-	SHEET_POINT_AT(s, x, y) = vertex;
-
-	return vertex;
-}
-
-void show_buffer(sheet_t* s)
-{
-	int a;
-	for (a=0;a< s->width * s->height;a++)
-	{
-		if (a%s->width ==0) printf("\n");
-		printf(" %02d", s->points[a]);
-	}
-
-}
-
-//this function sets one edge of S to use vertices from T
-
-#define		ASSIGN_INDICES 1
-#define		COPY_POSITION  2
-
-
-//#define		COPY_TEXCOORD  4
-
-
-void sew_sheets( sheet_t* s, int s_edge, sheet_t* t, int t_edge, int operation)
-{
-	int a;
-	
-	if (s->vb != t->vb)  //can't sew sheets that are in different vbuffers
-		return;
-	
-	if (s->edges[s_edge].indirect_vertices.count != t->edges[t_edge].indirect_vertices.count)
-		return;  //can't sew sheets that have different arity
-
-
-	for (a=0;a< s->edges[s_edge].indirect_vertices.count;a++)
-	{
-		if (operation & ASSIGN_INDICES)
-		{
-			*(int*)(s->edges[s_edge].indirect_vertices.elements[a]) =  *(int*)(t->edges[t_edge].indirect_vertices.elements[a]);
-		}
-
-		if (operation & COPY_POSITION)
-		{
-			vec3* spos = gx_vbuffer_v(s->vb, *(int*)(s->edges[s_edge].indirect_vertices.elements[a]));
-			vec3* tpos = gx_vbuffer_v(t->vb, *(int*)(t->edges[t_edge].indirect_vertices.elements[a]));;
-			
-			vec3mov (*spos, *tpos);
-		}
-
-	}
-
-}
 
 ///#define interpolate(faaa, fbbb, fttt)   (((fbbb-faaa)*fttt)+faaa)
 /*
@@ -233,13 +106,13 @@ gx_mesh_t* gen_asteroid_mesh(gx_vbuffer_t* v, int isize)
 
 	#define STEPS 10
 
-	sheet_t*	top = NULL;
-	sheet_t*	bottom = NULL;
-	sheet_t*	left = NULL;
-	sheet_t*	right = NULL;
-	sheet_t*	front = NULL;
-	sheet_t*	back = NULL;
-	sheet_t*	sheets[6];
+	gx_sheet_t*	top = NULL;
+	gx_sheet_t*	bottom = NULL;
+	gx_sheet_t*	left = NULL;
+	gx_sheet_t*	right = NULL;
+	gx_sheet_t*	front = NULL;
+	gx_sheet_t*	back = NULL;
+	gx_sheet_t*	sheets[6];
 
 	
 	vec3 zero;
@@ -254,14 +127,15 @@ gx_mesh_t* gen_asteroid_mesh(gx_vbuffer_t* v, int isize)
 
 	vec3set( *size, isize, isize,isize);
 
-	sheets[0] = top = sheet_quad_mk( v, STEPS, STEPS);
-	sheets[1] = bottom = sheet_quad_mk( v, STEPS, STEPS);
-	sheets[2] = left = sheet_quad_mk( v, STEPS, STEPS);
-	sheets[3] = right = sheet_quad_mk( v, STEPS, STEPS);
-	sheets[4] = front = sheet_quad_mk( v, STEPS, STEPS);
-	sheets[5] = back = sheet_quad_mk( v, STEPS, STEPS);
+	sheets[0] = top = gx_sheet_quad_mk( v, STEPS, STEPS);
+	sheets[1] = bottom = gx_sheet_quad_mk( v, STEPS, STEPS);
+	sheets[2] = left = gx_sheet_quad_mk( v, STEPS, STEPS);
+	sheets[3] = right = gx_sheet_quad_mk( v, STEPS, STEPS);
+	sheets[4] = front = gx_sheet_quad_mk( v, STEPS, STEPS);
+	sheets[5] = back = gx_sheet_quad_mk( v, STEPS, STEPS);
 
 #define RND .2
+//#define RND 0
 
 
 	//create the vertices
@@ -294,7 +168,7 @@ gx_mesh_t* gen_asteroid_mesh(gx_vbuffer_t* v, int isize)
 			p.vec3x *= size->vec3x; p.vec3y *= size->vec3y;p.vec3z *= size->vec3z;
 			vec3add(p, *position);
 			gx_vbuffer_add_tex(v, 0,  s, t);
-			sheet_set_at( bottom, i, j, gx_vbuffer_add_vertexv(v, p));
+			gx_sheet_set_at( bottom, i, j, gx_vbuffer_add_vertexv(v, p));
 #endif
 
 			//TOP 
@@ -310,7 +184,7 @@ gx_mesh_t* gen_asteroid_mesh(gx_vbuffer_t* v, int isize)
 			printf("\n");
 			gx_vbuffer_add_tex(v, 0,  s, t);
 			p.vec3x *= size->vec3x; p.vec3y *= size->vec3y;p.vec3z *= size->vec3z;
-			sheet_set_at(top, i, j, gx_vbuffer_add_vertexv(v, p));
+			gx_sheet_set_at(top, i, j, gx_vbuffer_add_vertexv(v, p));
 	s=0;
 			t=0;
 			
@@ -326,7 +200,7 @@ gx_mesh_t* gen_asteroid_mesh(gx_vbuffer_t* v, int isize)
 			vec3add(p, *position);
 			p.vec3x *= size->vec3x; p.vec3y *= size->vec3y;p.vec3z *= size->vec3z;
 			gx_vbuffer_add_tex(v, 0,  s, t);
-			sheet_set_at(left, i, j, gx_vbuffer_add_vertexv(v, p));
+			gx_sheet_set_at(left, i, j, gx_vbuffer_add_vertexv(v, p));
 s=0;t=0;
 			//RIGHT
 			interpolate_tex( &s, &t, ls, lt, 1,.5, .66,.5, .5,1, .5,.66 );
@@ -337,7 +211,7 @@ s=0;t=0;
 			vec3add(p, *position);
 			p.vec3x *= size->vec3x; p.vec3y *= size->vec3y;p.vec3z *= size->vec3z;
 			gx_vbuffer_add_tex(v, 0,  s, t);
-			sheet_set_at(right, i, j, gx_vbuffer_add_vertexv(v, p));
+			gx_sheet_set_at(right, i, j, gx_vbuffer_add_vertexv(v, p));
 
 			//FRONT
 			interpolate_tex( &s, &t, ls, lt,.5,0, 1,.5, .5,.33, .66,.5 );
@@ -348,7 +222,7 @@ s=0;t=0;
 			vec3add(p, *position);
 			p.vec3x *= size->vec3x; p.vec3y *= size->vec3y;p.vec3z *= size->vec3z;
 			gx_vbuffer_add_tex(v, 0,  s, t);
-			sheet_set_at(front, i, j, gx_vbuffer_add_vertexv(v, p));
+			gx_sheet_set_at(front, i, j, gx_vbuffer_add_vertexv(v, p));
 
 			//BACK
 			interpolate_tex( &s, &t, ls, lt,0,.5, .5,1, .33,.5, .5,.66);
@@ -359,39 +233,41 @@ s=0;t=0;
 			vec3add(p, *position);
 			p.vec3x *= size->vec3x; p.vec3y *= size->vec3y;p.vec3z *= size->vec3z;
 			gx_vbuffer_add_tex(v, 0,  s, t);
-			sheet_set_at(back , i, j,  gx_vbuffer_add_vertexv(v, p));
+			gx_sheet_set_at(back , i, j,  gx_vbuffer_add_vertexv(v, p));
 #endif
 		}
 	}
 
 	//todo: sew the sheets here
 	
+#define SOP  GX_COPY_POSITION
+//#define SOP   GX_ASSIGN_INDICES
 
 	//connections to bottom
-	sew_sheets( bottom, SHEET_EDGE_TOP, front, SHEET_EDGE_TOP, COPY_POSITION);
-	sew_sheets( bottom, SHEET_EDGE_BOTTOM, back, SHEET_EDGE_TOP, COPY_POSITION);
-	sew_sheets( bottom, SHEET_EDGE_LEFT, left, SHEET_EDGE_LEFT, COPY_POSITION);
-	sew_sheets( bottom, SHEET_EDGE_RIGHT, right, SHEET_EDGE_LEFT, COPY_POSITION);
+	gx_sew_sheets( bottom, GX_SHEET_EDGE_TOP, front, GX_SHEET_EDGE_TOP, SOP);
+	gx_sew_sheets( bottom, GX_SHEET_EDGE_BOTTOM, back, GX_SHEET_EDGE_TOP, SOP);
+	gx_sew_sheets( bottom, GX_SHEET_EDGE_LEFT, left, GX_SHEET_EDGE_LEFT, SOP);
+	gx_sew_sheets( bottom, GX_SHEET_EDGE_RIGHT, right, GX_SHEET_EDGE_LEFT, SOP);
 
 
 	//connections to top
-	sew_sheets( top   , SHEET_EDGE_TOP,		front, SHEET_EDGE_BOTTOM, COPY_POSITION);
-	sew_sheets( top   , SHEET_EDGE_BOTTOM,	back, SHEET_EDGE_BOTTOM, COPY_POSITION);
-	sew_sheets( top   , SHEET_EDGE_LEFT,	left, SHEET_EDGE_RIGHT, COPY_POSITION);
-	sew_sheets( top   , SHEET_EDGE_RIGHT,	right, SHEET_EDGE_RIGHT, COPY_POSITION);
+	gx_sew_sheets( top   , GX_SHEET_EDGE_TOP,		front, GX_SHEET_EDGE_BOTTOM, SOP);
+	gx_sew_sheets( top   , GX_SHEET_EDGE_BOTTOM,	back, GX_SHEET_EDGE_BOTTOM, SOP);
+	gx_sew_sheets( top   , GX_SHEET_EDGE_LEFT,	left, GX_SHEET_EDGE_RIGHT, SOP);
+	gx_sew_sheets( top   , GX_SHEET_EDGE_RIGHT,	right, GX_SHEET_EDGE_RIGHT, SOP);
 
 	//sides
 	
-	sew_sheets( back   , SHEET_EDGE_LEFT,		left, SHEET_EDGE_BOTTOM, COPY_POSITION);
-	sew_sheets( back   , SHEET_EDGE_RIGHT,		right, SHEET_EDGE_BOTTOM, COPY_POSITION);
+	gx_sew_sheets( back   , GX_SHEET_EDGE_LEFT,		left, GX_SHEET_EDGE_BOTTOM, SOP);
+	gx_sew_sheets( back   , GX_SHEET_EDGE_RIGHT,		right, GX_SHEET_EDGE_BOTTOM, SOP);
 
-	sew_sheets( front   , SHEET_EDGE_LEFT,		left, SHEET_EDGE_TOP, COPY_POSITION);
-	sew_sheets( front   , SHEET_EDGE_RIGHT,		right, SHEET_EDGE_TOP, COPY_POSITION);
+	gx_sew_sheets( front   , GX_SHEET_EDGE_LEFT,		left, GX_SHEET_EDGE_TOP, SOP);
+	gx_sew_sheets( front   , GX_SHEET_EDGE_RIGHT,		right, GX_SHEET_EDGE_TOP, SOP);
 
 
 
 	//create triangles:
-
+#if 0
 	for (i=1;i<STEPS;i++)
 	{
 		for (j=1;j<STEPS;j++)
@@ -408,6 +284,14 @@ s=0;t=0;
 
 		}
 	}
+#else
+
+	for (k=0;k<6;k++)
+	{
+		gx_sheet_index(sheets[k]);
+		
+	}
+#endif
 
 
 	gx_vbuffer_update(v);
@@ -449,12 +333,12 @@ typedef struct entity_3d_s
 
 //game constants
 #define STARCOUNT 2000
-#define INITACOUNT 200
-#define PLAYER_RADIUS 1.0
+#define INITACOUNT 10
+#define PLAYER_RADIUS 10.0
 
 //objects are restricted to +/- playzone coordinates
 #define PLAYZONE  2000
-#define SAFEZONE  50
+#define SAFEZONE  500
 
 
 //create 'count' asteroids at given size at position, each with random speed
@@ -601,12 +485,15 @@ int main(int argc, char** argv)
 	gx_drawstyle_t	spacerock_ds;   //drawstyle for the asteroid
 
 	gx_image_t		*bullet_image = NULL;  //holds bullet texture
+	gx_image_t		*bullet2_image = NULL;  //holds bullet texture
 
 	gx_image_t		*asteroid_imposter_img = NULL;
 		
 	gx_vbuffer_t*	asteroid_vb = NULL;  //vbuffer to hold the asteroid mesh
 	gx_mesh_t * asteroid_mesh = NULL;
 
+	gx_image_t*		crosshair_image = NULL;
+	gx_sprite_t*	crosshair_sprite = NULL;
 	
 	//need an enemy spaceship
 	gx_mesh_t * spaceship_mesh = NULL;
@@ -618,10 +505,12 @@ int main(int argc, char** argv)
 	vec3    old_bullet_position[100];
 	vec3	bullet_speed[100];
 	int		num_bullets=0;
+	int		bullet_source[100]; //0 is player 1 is enemy
 
 	float bullet_ang=0;
 	//zbool	bullet_valid = zfalse;
 	gx_sprite_t* bullet_sprite = NULL;
+	gx_sprite_t* bullet2_sprite = NULL;
 
 	//the sun
 	gx_image_t* sun_image = NULL;
@@ -635,19 +524,27 @@ int main(int argc, char** argv)
 	
 	//Load assets
 	spacerock  = gx_image_load_tga( "spacerock.tga");
+	//spacerock  = gx_image_load_tga( "earth.tga");
 	//spacerock  = gx_image_load_tga( "unwrapped_cube.tga");
+	ram_clear(&spacerock_ds, sizeof(spacerock_ds));
 	spacerock_ds.textures = &spacerock;
 	spacerock_ds.numtextures=1;
 	vec3set( spacerock_ds.specular_color , 0, 0, 0);
 	spacerock_ds.specular_exponent = 10;
-
+	
+	
 
 	bullet_image = gx_image_load_tga( "shot.tga");
+	bullet2_image = gx_image_load_tga( "shot2.tga");
 
 	asteroid_imposter_img  = gx_image_load_tga( "asteroid_imposter.tga");
 
 	bullet_sprite = gx_sprite_mk(bullet_image, 0.0,0.0, bullet_image->width ,bullet_image->height,50,50);
+	bullet2_sprite = gx_sprite_mk(bullet2_image, 0.0,0.0, bullet_image->width ,bullet_image->height,50,50);
 
+	crosshair_image = gx_image_load_tga("cross.tga");
+
+	crosshair_sprite = gx_sprite_mk( crosshair_image, 0,0,crosshair_image->width, crosshair_image->height, .1,.1);
 
 	sun_image  = gx_image_load_tga( "sun.tga");
 
@@ -670,6 +567,7 @@ int main(int argc, char** argv)
 	asteroid_vb = gx_vbuffer_mk(65535,  65535,zfalse, ztrue, 1);
 
 	//create an asteroid mesh
+	//one shared one
 	asteroid_mesh = gen_asteroid_mesh( asteroid_vb, 1);	
 	asteroid_mesh->style = &spacerock_ds;
 
@@ -685,8 +583,14 @@ int main(int argc, char** argv)
 
 		for (i=0;i<INITACOUNT;i++)
 		{
+			//each gets its own
+	//		asteroid_vb = gx_vbuffer_mk(65535,  65535,zfalse, ztrue, 1);
+	//		asteroid_mesh = gen_asteroid_mesh( asteroid_vb, 1);	
+	//		asteroid_mesh->style = &spacerock_ds;
+
+
 			vec3set(p,  randfs()*PLAYZONE, randfs()*PLAYZONE, randfs()*PLAYZONE);
-			asteroid = gen_asteroid( 50 ,1,  &p, asteroid_mesh, asteroid_imposter_img);
+			asteroid = gen_asteroid( 150 ,1,  &p, asteroid_mesh, asteroid_imposter_img);
 			
 			vec_add(&asteroids, asteroid)			;
 		}
@@ -722,7 +626,7 @@ int main(int argc, char** argv)
 	starfield = gx_vbuffer_mk(STARCOUNT,0,ztrue, zfalse, 0);		
 	{
 		int i;  
-		for (i=0;i<STARCOUNT;i++)
+		for (i=0;i<STARCOUNT/2;i++)
 		{
 			vec3 p;
 			float s;
@@ -737,6 +641,9 @@ int main(int argc, char** argv)
 			gx_vbuffer_add_color(starfield, .7+.3*randf(),.7+.3*randf(),.7+.3*randf(),1);
 			gx_vbuffer_add_vertex(starfield, p.vec3x, p.vec3y, p.vec3z);
 
+			gx_vbuffer_add_color(starfield, 0,0,0,1);
+			gx_vbuffer_add_vertex(starfield, p.vec3x+.01, p.vec3y+.01, p.vec3z+.01);
+
 		}
 	}
 	gx_vbuffer_update(starfield);
@@ -749,7 +656,24 @@ int main(int argc, char** argv)
 		gx_window_event();  //handles any window events (I/O)
 
 		//set up projection matrix for this frame
-		gx_setup_3d( 70.0f,  gx_frame_get_dimensions(NULL,NULL), .1f, 50000.0f);
+		{
+		
+
+		//	float f =70;
+		//	
+		//	float d = vec3abs_sq(camera_inertia );
+		///	
+///
+//			f +=  sqrt(d) *.5;
+//
+//			if (f > 160)
+//					f=160;
+///
+			//gx_setup_3d( f ,  gx_frame_get_dimensions(NULL,NULL), .1f, 50000.0f);
+	gx_setup_3d( 90.0 ,  gx_frame_get_dimensions(NULL,NULL), .1f, 50000.0f);
+
+		}
+		
 		
 		//Read mouse input
 		gx_mouse_pos(&mouse_x, &mouse_y, &mouse_relative);
@@ -761,34 +685,7 @@ int main(int argc, char** argv)
 		}
 	
 	
-		bullet_timer--;
-
-		if (gx_mouse_state(GX_MOUSE_LEFT) && bullet_timer < 0 )
-		{
-			int bullet_i = num_bullets;
-			if (num_bullets ==100)
-			{		
-				bullet_i = rand() % 100;
-			}
-
-
-			bullet_timer = 5; 
-			//printf("FIRE!\n");
-			vec3mov( bullet_position[bullet_i] , player_camera.camera_pos);
-
-			
-
-			//vec3mov( bullet_speed, camera_inertia);
-			//vec3set(bullet_speed, 0,0,0);
-			
-			vec3mov (bullet_speed[bullet_i],player_camera.camera_forward);
-
-			//vec3print(bullet_speed); printf( " bullet speed\n");
-			vec3madd(bullet_speed[bullet_i],  sqrt( vec3abs_sq(camera_inertia))  +3, player_camera.camera_forward);
-
-			if (num_bullets < 100)
-				num_bullets++;
-		}
+		
 
 
 		//read keyboard input
@@ -846,12 +743,12 @@ int main(int argc, char** argv)
 			vec3madd( camera_inertia, delta_pos.vec3y, player_camera.camera_up);
 			vec3madd( camera_inertia, delta_pos.vec3z, player_camera.camera_forward);
 
-			vec3madd( player_camera.camera_pos, .1 , camera_inertia);
+			vec3madd( player_camera.camera_pos, .4 , camera_inertia);
 			
-			printf("---\n");
-			vec3print( player_camera.camera_right); printf("\n");
-			vec3print( player_camera.camera_up); printf("\n");
-			vec3print( player_camera.camera_forward); printf("\n");
+			//printf("---\n");
+			//vec3print( player_camera.camera_right); printf("\n");
+			//vec3print( player_camera.camera_up); printf("\n");
+			//vec3print( player_camera.camera_forward); printf("\n");
 			
 
 
@@ -864,6 +761,45 @@ int main(int argc, char** argv)
 
 		}
 
+
+
+
+		bullet_timer--;
+
+		if (gx_mouse_state(GX_MOUSE_LEFT) && bullet_timer < 0 )
+		{
+			int bullet_i = num_bullets;
+			if (num_bullets ==100)
+			{		
+				bullet_i = rand() % 100;
+			}
+
+
+			bullet_timer = 5; 
+			//printf("FIRE!\n");
+			vec3mov( bullet_position[bullet_i] , player_camera.camera_pos);
+
+			
+
+			//vec3mov( bullet_speed, camera_inertia);
+			//vec3set(bullet_speed, 0,0,0);
+			
+			bullet_source[bullet_i] = 0; //player
+			vec3mov (bullet_speed[bullet_i],player_camera.camera_forward);
+
+			//vec3print(bullet_speed); printf( " bullet speed\n");
+			vec3madd(bullet_speed[bullet_i],  sqrt( vec3abs_sq(camera_inertia))  +3, player_camera.camera_forward);
+
+			if (num_bullets < 100)
+				num_bullets++;
+		}
+
+
+
+
+
+
+
 		//clear screen		
 		gx_frame_clear(ztrue,ztrue);
 		gx_set_active_lights(NULL, 0);  //no lighting activated
@@ -872,10 +808,47 @@ int main(int argc, char** argv)
 		gx_camera_home();
 		gx_camera_pos_rot(NULL,&player_camera.camera_right, &player_camera.camera_up, &player_camera.camera_forward); 
 		
+#if 1
+		{ int i;
+
+			for (i=0;i<STARCOUNT-1;i+=2)
+			{
+				float bright;
+
+				vec3 rr;
+				vec3 vv;
+				vec3set(vv, .005, .005, .005);
+				
+ 				vec3madd(vv,  delta_yaw*2 , player_camera.camera_right);
+				vec3madd(vv,  delta_pitch*2 , player_camera.camera_up);
+
+				
+
+				vec3cross(rr, player_camera.camera_forward, *gx_vbuffer_v(starfield, i));
+
+				vec3madd(vv,  delta_roll*2 , rr);
+
+				vec3mov( *gx_vbuffer_v(starfield, i+1) ,  *gx_vbuffer_v(starfield, i) );
+
+				vec3add( *gx_vbuffer_v(starfield, i+1) , vv);
+
+
+				bright = 1.0;
+				bright = bright / (1+ 100*( fabsf(delta_yaw) +fabsf(delta_pitch)+fabsf(delta_roll)));
+
+
+		
+				gx_vbuffer_c(starfield,i)->named.x = bright;
+				gx_vbuffer_c(starfield,i)->named.y = bright;
+				gx_vbuffer_c(starfield,i)->named.z = bright;
+			}
+		}
+#endif
+		gx_vbuffer_update(starfield);
 		gx_zbuffer(zfalse);
 		
 		gx_drawstyle_activate(NULL) ;
-		gx_vbuffer_draw(starfield, 0, starfield->vertex_count, gx_points, zfalse);
+		gx_vbuffer_draw(starfield, 0, starfield->vertex_count, gx_lines, zfalse);
 
 		//draw sun
 		{
@@ -917,14 +890,14 @@ int main(int argc, char** argv)
 			}
 		}
 		gx_set_active_lights(lights, num_lights);		
-
+	
 	
 
 		//control spaceship movement// try to keep a certain distance from player
 		
-		spaceship_camera.camera_pos.vec3z -= .05;
+		//what? spaceship_camera.camera_pos.vec3z -= .05;
 		if (1) {
-			
+			float spaceship_speed;
 
 			vec3 ship_to_player;
 
@@ -941,11 +914,14 @@ int main(int argc, char** argv)
 
 			if (d> 400)
 			{
+
 				vec3madd(spaceship_camera.camera_pos, d/200, ship_to_player);
+				spaceship_speed = d/200;
 			}
 			else 
 			{
 				vec3madd(spaceship_camera.camera_pos, -d/200, ship_to_player);
+				spaceship_speed = -d/200;
 			}
 
 			//spaceship should turn to face player
@@ -954,8 +930,8 @@ int main(int argc, char** argv)
 				float dot_x;
 				float dot_y;
 
-				dot_x = vec3dot( spaceship_camera.camera_right, ship_to_player);
-				dot_y = vec3dot( spaceship_camera.camera_up, ship_to_player);
+				dot_x = 5*vec3dot( spaceship_camera.camera_right, ship_to_player);
+				dot_y =5* vec3dot( spaceship_camera.camera_up, ship_to_player);
 				
 
 				
@@ -1012,13 +988,33 @@ int main(int argc, char** argv)
 			
 			vec3mov( bullet_position[bullet_i] , spaceship_camera.camera_pos);
 
-			
+			bullet_source[bullet_i] = 1; //enemy
 	
 			
-			vec3mov (bullet_speed[bullet_i],spaceship_camera.camera_forward);
-
+	//		vec3mov (bullet_speed[bullet_i],spaceship_camera.camera_forward);
 			
-			vec3madd(bullet_speed[bullet_i],  sqrt( vec3abs_sq(camera_inertia))  , spaceship_camera.camera_forward);
+	//		vec3madd (bullet_speed[bullet_i], spaceship_speed, ship_to_player);
+
+			//vec3scale( bullet_speed[bullet_i], 2+ spaceship_speed);
+
+					
+			//vec3madd(bullet_speed[bullet_i],  sqrt( vec3abs_sq(camera_inertia))  , spaceship_camera.camera_forward);
+
+#if 1
+
+			//aim exactly at us
+
+			vec3mov ( bullet_speed[bullet_i], player_camera.camera_pos);
+			vec3sub ( bullet_speed[bullet_i], spaceship_camera.camera_pos);
+			vec3norm( &bullet_speed[bullet_i]);
+			vec3scale(bullet_speed[bullet_i], 10);
+
+
+			//and add my spaceships speed
+			vec3madd(bullet_speed[bullet_i],  1  , camera_inertia);
+
+#endif
+
 
 			if (num_bullets < 100)
 				num_bullets++;
@@ -1109,17 +1105,18 @@ int main(int argc, char** argv)
 
 				//draw all 'copies' of asteroid
 				{
+					int CC=1;
 					int i;
 					int j;
 					int k;
 						vec3 p;
-					for (i=-2;i<=2;i++)
+					for (i=-CC;i<=CC;i++)
 					{
 
-						for (j=-2;j<=2;j++)
+						for (j=-CC;j<=CC;j++)
 						{
 
-							for (k=-2;k<=2;k++)
+							for (k=-CC;k<=CC;k++)
 							{
 
 								if (!i && !j && ! k)
@@ -1131,7 +1128,7 @@ int main(int argc, char** argv)
 								p.vec3z += k * PLAYZONE*2;
 
 
-							//	gx_sprite_draw_3d( aster->sprite, &p, &player_camera.camera_up, &player_camera.camera_right, ztrue, ztrue);
+								gx_sprite_draw_3d( aster->sprite, &p, &player_camera.camera_up, &player_camera.camera_right, ztrue, ztrue);
 							}
 						}
 					}
@@ -1222,8 +1219,10 @@ int main(int argc, char** argv)
 				vec3madd(cu, -sin(bullet_ang), player_camera.camera_right);
 
 
-
-				gx_sprite_draw_3d( bullet_sprite, &bullet_position[bullet_i], &cu, &cr, ztrue, ztrue);
+				if (bullet_source[bullet_i] == 0)
+					gx_sprite_draw_3d( bullet_sprite, &bullet_position[bullet_i], &cu, &cr, ztrue, ztrue);
+				else
+					gx_sprite_draw_3d( bullet2_sprite, &bullet_position[bullet_i], &cu, &cr, ztrue, ztrue);
 
 			}
 			//gx_zbuffer(ztrue);
@@ -1243,11 +1242,13 @@ int main(int argc, char** argv)
 				
 				entity_3d_t* e = vec_get_at(&asteroids, i);
 				
-				for (t = 0;t<1; t+=.1)
+				
+				//for (t = 0;t<1; t+=1)
 				{
-					vec3set(p, 0,0,0);
-					vec3madd( p, t, bullet_position[bullet_i]);
-					vec3madd( p, 1-t, bullet_position[bullet_i]);
+				//	vec3set(p, 0,0,0);
+				//	vec3madd( p, t, bullet_position[bullet_i]);
+				//	vec3madd( p, 1-t, bullet_position[bullet_i]);
+					vec3mov(p, bullet_position[bullet_i]);
 
 					vec3sub( p, e->position);
 
@@ -1261,14 +1262,16 @@ int main(int argc, char** argv)
 						float newspeed = 10-newsize;
 						newspeed = newspeed * .1;
 
-						if (newsize >= 2)
+						if (newsize >= 10)
 						{
 
 							int k;
-							for (k=0;k<2;k++)
-							{
+							//for (k=0;k<4;k++)
+						//	{
 								vec_add( &asteroids, gen_asteroid( newsize,newspeed, &e->position, asteroid_mesh, asteroid_imposter_img));
-							}
+
+								//vec_add( &asteroids, gen_asteroid( newsize,newspeed, &e->position, asteroid_mesh, asteroid_imposter_img));
+					//		}
 
 						}
 
@@ -1277,7 +1280,7 @@ int main(int argc, char** argv)
 						bullet_position[bullet_i] = bullet_position[num_bullets-1];
 						old_bullet_position[bullet_i] = old_bullet_position[num_bullets-1];
 						bullet_speed[bullet_i] = bullet_speed[num_bullets-1];
-						
+						bullet_source[bullet_i] = bullet_source[num_bullets-1];
 
 						num_bullets--;
 
@@ -1292,6 +1295,9 @@ int main(int argc, char** argv)
 			}
 		}
 
+		//now draw any 2d elements of the game
+		gx_setup_2d(- gx_frame_get_dimensions(NULL,NULL),-1,    gx_frame_get_dimensions(NULL,NULL), 1  );
+		gx_sprite_draw(crosshair_sprite, - crosshair_sprite->_sprite_width/2  ,    - crosshair_sprite->_sprite_height/2 , ztrue);
 		
 		gx_frame_show();  //show the frame
 	}

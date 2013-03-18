@@ -154,16 +154,18 @@ void gx_sprite_draw_rotozoom(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool 
 
 static zfloat32 _gx_fontsize_w = .1;
 static zfloat32 _gx_fontsize_h = .1;
+static zfloat32 _gx_font_spacing_w = 0;
 static zfloat32 _gx_fontr=1;
 static zfloat32 _gx_fontg=1;
 static zfloat32 _gx_fontb=1;
 static zfloat32 _gx_fonta=1;
 
 
-void gx_text_size(zfloat32 width, zfloat32 height)
+void gx_text_size(zfloat32 width, zfloat32 height, zfloat32 w_spacing)
 {
 	_gx_fontsize_w = width;
 	_gx_fontsize_h = height;
+	_gx_font_spacing_w = w_spacing;
 }
 
 void gx_text_color(zfloat32 r,zfloat32 g,zfloat32 b, zfloat32 a)
@@ -207,11 +209,22 @@ void gx_text_draw(gx_image_t* font,  zfloat32 x, zfloat32 y,  zfloat32 angle, zc
 
 	while(*string)
 	{
+		unsigned char chr = *string;
 	
-		sx = (*string % 16 )/16.0 + (1.0/512.0);
-		sy = (*string / 16 )/16.0 + (1.0/512.0);
-		sx2 = (*string % 16+1)/16.0 - (1.0/512.0);
-		sy2 = (*string / 16+1)/16.0 - (1.0/512.0);
+	/*	sx = (chr % 16 )/16.0 +(1/512.0);
+		sy = (chr / 16 )/16.0 +(1/512.0);
+		sx2 = (chr % 16+1)/16.0 + (1/512.0);
+		sy2 = (chr / 16+1)/16.0 +(1/512.0);
+		*/
+
+		int sxp = (*string%16) * 16;
+		int syp = (*string/16) * 16;
+
+		sx = (sxp+.5) / 256.0;
+		sy = (syp+1.5) / 256.0;
+
+		sx2 = (sxp+15.5) / 256.0;
+		sy2 = (syp+15.5) / 256.0;
 
 		glTexCoord2f( sx, 1-sy);
 		glVertex2f( x,y);
@@ -226,7 +239,7 @@ void gx_text_draw(gx_image_t* font,  zfloat32 x, zfloat32 y,  zfloat32 angle, zc
 		glTexCoord2f( sx, 1-sy2);
 		glVertex2f( x,y+_gx_fontsize_h);
 
-		x+= _gx_fontsize_w;
+		x+= _gx_fontsize_w + _gx_font_spacing_w;
 
 		string++;
 	}

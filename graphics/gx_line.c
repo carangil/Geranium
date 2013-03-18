@@ -214,3 +214,30 @@ void gx_arcgon(float x, float y, float w,float  h, float start_angle, float end_
 
 
 }
+
+
+#if 1
+
+
+void gx_line3d(float x, float y, float z, float x2, float y2, float z2)
+{
+	if (!_gx_in_gl_begin_lines)
+	{
+		gx_set_active_textures(NULL, 0);
+		gx_set_active_lights(NULL, 0);
+
+
+		glBegin(GL_LINES);
+		_gx_in_gl_begin_lines = ztrue;
+
+	}
+
+	glColor4f(_gx_line_next_color_r, _gx_line_next_color_g, _gx_line_next_color_b, _gx_line_next_color_a);
+
+	glVertex3f(x, y, z);
+	glVertex3f(x2, y2, z2);
+	
+}
+
+
+#endif

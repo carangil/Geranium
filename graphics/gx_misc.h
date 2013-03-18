@@ -69,3 +69,49 @@ gx_portal_t* gx_sector_add_portal(gx_sector_t* sector, vec3* position, zfloat32 
 
 
 #endif
+
+
+
+
+
+void gx_test_sphere(vec3* pos, float radius);
+
+
+//SHEETS  
+typedef struct gx_sheet_edge_s
+{
+	vec_t indirect_vertices; //pointer to vertices on the edge of this sheet
+} gx_sheet_edge_t;
+
+typedef struct gx_sheet_s
+{
+	gx_vbuffer_t* vb;  //holds points for this sheet
+	int numpoints;	  //how many points are in this sheet  (only for non-rectangulat sheets)
+	int maxpoints;
+	
+	int width;			//w/h only for rectangulat sheets
+	int height;
+	
+	int* points;	  //vertices within the vbuffer
+
+	int num_edges;	  //3 or 4 edges (sheets can be triangular or rectangular)
+	gx_sheet_edge_t	edges[4]; 
+
+} gx_sheet_t;
+
+
+
+#define GX_SHEET_EDGE_TOP		0
+#define GX_SHEET_EDGE_BOTTOM	1
+#define GX_SHEET_EDGE_LEFT		2
+#define GX_SHEET_EDGE_RIGHT		3
+
+gx_sheet_t * gx_sheet_quad_mk(gx_vbuffer_t* vb, int width, int height);
+int gx_sheet_set_at( gx_sheet_t* s, int x, int y,  int vertex);
+void gx_sheet_show_buffer(gx_sheet_t* s);
+void gx_sew_sheets( gx_sheet_t* s, int s_edge, gx_sheet_t* t, int t_edge, int operation);
+
+#define		GX_ASSIGN_INDICES 1
+#define		GX_COPY_POSITION  2
+void gx_sheet_index(gx_sheet_t* s);
+

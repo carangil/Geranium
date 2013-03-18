@@ -27,10 +27,17 @@ static void _destruct_vbuffer(void* x)
 		//todo: Free any buffers still in opengl	
 	}
 
-	ram_free(v->color_data);
+//	ram_free(v->color_data);
+
+//	ram_free(v->vertex_data);
+//	ram_free(v->normal_data);
+	
+
+	//free combined data
+	ram_free(v->combined_vertex_data);
+
+	//free index data
 	ram_free(v->index_data);
-	ram_free(v->vertex_data);
-	ram_free(v->normal_data);
 
 	for (i=0;i<v->num_textures;i++)
 	{
@@ -49,6 +56,8 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 {
 
 	gx_vbuffer_t* v = NULL;
+	size_t size_per_vertex = 0;
+	zfloat32* vp = 0;
 
 	zuint32 i = 0;
 
@@ -63,14 +72,7 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 	if (texture_buffer_count > GX_MAX_TEXTURES)
 		return NULL;  //cannot offer that many textures (sorry!)
 
-	v->vertex_capacity = num_vertices;
-
-	v->vertex_data = ram_alloc(sizeof(zfloat32) * VERTEX_COMPONENTS * num_vertices, NULL);
-	if (!v->vertex_data)
-	{
-		ram_free(v);
-		return NULL;
-	}
+	//allocated indices
 
 	if (num_indices)
 	{
@@ -87,35 +89,61 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 		v->index_notify = ram_alloc(sizeof(zuint32*) * num_indices, NULL);
 	}
 
+
+	//calculate how much space needed per vertex in the VBO
+	v->vertex_capacity = num_vertices;
+
+	size_per_vertex = VERTEX_COMPONENTS;
+	if (use_color)
+	{
+		size_per_vertex += COLOR_COMPONENTS;
+	}
+
+	if (use_normal)
+	{
+		size_per_vertex += NORMAL_COMPONENTS; 
+	}
+
+	size_per_vertex += (TEXTURE_COMPONENTS * texture_buffer_count);
+
+	//allocate one buffer for all the vertex data
+
+	v->size_per_vertex = size_per_vertex;
+
+	vp = ram_alloc(sizeof(zfloat32) * size_per_vertex * num_vertices, NULL);
+
+	if (!vp)
+	{
+		ram_free(v);
+		return NULL;
+	}
+
+	v->combined_vertex_data = vp; //we have 1 combined buffer
+
+	
+	//lets break out into pieces
+	
+	v->pos_data = vp; //position data
+	vp += (VERTEX_COMPONENTS * num_vertices);
+
+
 	if (use_color)  //if using color buffer, define it
 	{
-		v->color_data = ram_alloc(sizeof(zfloat32) * COLOR_COMPONENTS * num_vertices, NULL);
-		if (!v->color_data)
-		{
-			ram_free(v);
-			return NULL;
-		}
+		v->color_data = vp;
+		vp += (COLOR_COMPONENTS * num_vertices);
 	}
 
 	if (use_normal)  //if using normal buffer, define it
 	{
-		v->normal_data = ram_alloc(sizeof(zfloat32) * NORMAL_COMPONENTS * num_vertices, NULL);
-		if (!v->normal_data)
-		{
-			ram_free(v);
-			return NULL;
-		}
+		v->normal_data = vp;
+		vp += (NORMAL_COMPONENTS * num_vertices);
 	}
 
 	//allocate texture coordinate buffers
 	for (i=0;i<texture_buffer_count;i++)
 	{
-		v->texcoord_data[i] = ram_alloc(sizeof(zfloat32) * TEXTURE_COMPONENTS * num_vertices, NULL);
-		if (!v->texcoord_data[i])
-		{
-			ram_free(v);
-			return NULL;
-		}
+		v->texcoord_data[i] = vp;
+		vp += (TEXTURE_COMPONENTS * num_vertices);
 	}
 	v->num_textures = texture_buffer_count;
 
@@ -138,8 +166,8 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 
 	if (!v->_sent_to_gl)
 	{
-		glGenBuffers(1, &(v->_vertex_vbo));
-
+		glGenBuffers(1, &(v->_vertex_combined_vbo));
+/*
 		if (v->color_data)
 		{
 			glGenBuffers(1, &(v->_color_vbo));
@@ -150,24 +178,29 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 			glGenBuffers(1, &(v->_normal_vbo));
 		}
 
+		if (v->num_textures)
+		{
+			glGenBuffers(v->num_textures, v->_texcoord_vbo);  //Generate VBO for each texture coordinate
+		}
+*/
+
 		if (v->index_data)
 		{
 			glGenBuffers(1, &(v->_index_vbo));
 
-		}
-	
-		if (v->num_textures)
-		{
-			glGenBuffers(v->num_textures, v->_texcoord_vbo);  //Generate VBO for each texture coordinate
 		}
 
 		v->_sent_to_gl = 1;
 	}
 	
 
-	glBindBuffer(GL_ARRAY_BUFFER,  v->_vertex_vbo );
-	glBufferData(GL_ARRAY_BUFFER, v->vertex_count * VERTEX_COMPONENTS *sizeof(zfloat32) , v->vertex_data, GX_UPDATE_FREQ);
+	//glBindBuffer(GL_ARRAY_BUFFER,  v->_vertex_vbo );
+	//glBufferData(GL_ARRAY_BUFFER, v->vertex_count * VERTEX_COMPONENTS *sizeof(zfloat32) , v->pos_data, GX_UPDATE_FREQ);
 
+	glBindBuffer(GL_ARRAY_BUFFER,  v->_vertex_combined_vbo );
+	glBufferData(GL_ARRAY_BUFFER, v->size_per_vertex * sizeof(zfloat32) * v->vertex_capacity , v->combined_vertex_data, GX_UPDATE_FREQ);
+
+#if 0
 
 	if (v->color_data)
 	{
@@ -187,6 +220,7 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 		glBindBuffer(GL_ARRAY_BUFFER,  v->_texcoord_vbo[i] );
 		glBufferData(GL_ARRAY_BUFFER, v->vertex_count * TEXTURE_COMPONENTS *sizeof(zfloat32) , v->texcoord_data[i], GX_UPDATE_FREQ);
 	}
+#endif
 
 	 if (v->index_data)
 	 {
@@ -199,7 +233,7 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 
 
 //only resends the index buffer to opengl
-zbool gx_vbuffer_update_indices_only(gx_vbuffer_t* v)
+zbool gx_vbuffer_update_indices(gx_vbuffer_t* v)
 {
 	zuint32 i = 0;
 
@@ -305,9 +339,9 @@ zint32 gx_vbuffer_add_vertex(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z
 	if (v->vertex_count == v->vertex_capacity)
 		return -1; //we are full!
 
-	v->vertex_data[VERTEX_COMPONENTS * v->vertex_count] = x;
-	v->vertex_data[VERTEX_COMPONENTS * v->vertex_count + 1] = y;
-	v->vertex_data[VERTEX_COMPONENTS * v->vertex_count + 2] = z;
+	v->pos_data[VERTEX_COMPONENTS * v->vertex_count] = x;
+	v->pos_data[VERTEX_COMPONENTS * v->vertex_count + 1] = y;
+	v->pos_data[VERTEX_COMPONENTS * v->vertex_count + 2] = z;
 
 	v->vertex_count ++;
 
@@ -390,32 +424,26 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 {
 	zuint32 i;
 
+
 	if (!v)
 		return;
 	
-
 	if (stop <=start)
 		return;
 
-
-	if (v->_vertex_vbo)
+	
+	if (v->_vertex_combined_vbo)
 	{
-		glBindBuffer(GL_ARRAY_BUFFER,  v->_vertex_vbo );
-		glVertexPointer(VERTEX_COMPONENTS, GL_FLOAT, 0, 0);
+		glBindBuffer(GL_ARRAY_BUFFER,  v->_vertex_combined_vbo );
+		glVertexPointer(VERTEX_COMPONENTS, GL_FLOAT, 0,   (v->pos_data - v->combined_vertex_data) * sizeof (zfloat32) );
 		glEnableClientState(GL_VERTEX_ARRAY);	
 	}
-	else
-	{
-#ifdef DOPRINTF
-		printf(" Warning... no data to draw!\n");
-#endif
-	}
+	
 
-
-	if (v->_normal_vbo)
+	if (v->normal_data)
 	{
-		glBindBuffer(GL_ARRAY_BUFFER,  v->_normal_vbo);
-		glNormalPointer( GL_FLOAT, 0, 0);
+	//	glBindBuffer(GL_ARRAY_BUFFER,  v->_normal_vbo);
+		glNormalPointer( GL_FLOAT, 0,  (v->normal_data - v->combined_vertex_data) * sizeof (zfloat32) );
 		glEnableClientState(GL_NORMAL_ARRAY);
 	}
 	else
@@ -424,10 +452,10 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	}
 
 
-	if (v->_color_vbo)
+	if (v->color_data)
 	{
-		glBindBuffer(GL_ARRAY_BUFFER,  v->_color_vbo);
-		glColorPointer(COLOR_COMPONENTS, GL_FLOAT, 0, 0);
+		//glBindBuffer(GL_ARRAY_BUFFER,  v->_color_vbo);
+		glColorPointer(COLOR_COMPONENTS, GL_FLOAT, 0, (v->color_data - v->combined_vertex_data) * sizeof (zfloat32));
 		glEnableClientState(GL_COLOR_ARRAY);
 	}
 	else
@@ -445,8 +473,8 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	for (i=0;i<v->num_textures;i++)
 	{
 		glClientActiveTexture(GL_TEXTURE0+i);
-		glBindBuffer(GL_ARRAY_BUFFER,  v->_texcoord_vbo[i]);
-		glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0, 0);
+		//glBindBuffer(GL_ARRAY_BUFFER,  v->_texcoord_vbo[i]);
+		glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0,  (v->texcoord_data[i] - v->combined_vertex_data) * sizeof (zfloat32));
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	}
 
@@ -498,7 +526,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 //test function to dump a set of vertices onto the screen
 void gx_test_draw_vertices(gx_vbuffer_t* v)
 {
-
+#if 0
 	if (!v)
 		return;
 
@@ -521,6 +549,7 @@ void gx_test_draw_vertices(gx_vbuffer_t* v)
 	}
 
 	glDrawArrays(GL_POINTS,0, v->vertex_count);
+#endif
 }
 
 

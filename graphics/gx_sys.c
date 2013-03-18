@@ -16,6 +16,11 @@ static zint32 _gx_window_width=0;
 static zint32 _gx_window_height=0;
 static zint32 _gx_auto_viewport_adjust=ztrue; /*true to automatically adjust viewport*/
 
+static zfloat32 _gx_2d_top =0;
+static zfloat32 _gx_2d_bottom =0;
+static zfloat32 _gx_2d_left = 0;
+static zfloat32 _gx_2d_right = 0;
+
 //keyboard data
 
 static zchar _keybuffer = 0;;
@@ -27,6 +32,7 @@ static zuint32	_gx_mouse_capture_last_x = 0;
 static zuint32	_gx_mouse_capture_last_y = 0; 
 static zuint32	_gx_last_mouse_x = 0;
 static zuint32	_gx_last_mouse_y = 0; 
+static zbool	_gx_mouse_present_state = ztrue;
 
 // GLUT callbacks
 
@@ -91,7 +97,7 @@ static void _gx_callback_mouseclick(int button, int state, int x, int y)
 	}
 
 #ifdef DOPRINTF 
-	printf("mouseclick %d %d %d %d", button, state, x, y);
+	//printf("mouseclick %d %d %d %d", button, state, x, y);
 #endif
 
 }
@@ -116,6 +122,15 @@ static void _gx_callback_mousepassive(int x, int y)
 	_gx_callback_mouseactive(x,y);
 }
 
+static void _gx_callback_mouse_entry(int state)
+{
+	printf( "Mouse entry %d\n", state);
+	if (state == GLUT_LEFT)
+		_gx_mouse_present_state = zfalse;
+	else if (state == GLUT_ENTERED)
+		_gx_mouse_present_state = ztrue;
+
+}
 
 static void _gx_callback_reshape(int w, int h) //called when window is resized
 {
@@ -169,7 +184,9 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	glutMotionFunc(_gx_callback_mouseactive);
 	glutPassiveMotionFunc(_gx_callback_mousepassive);
 	glutDisplayFunc(_gx_callback_disp);
-	glPointSize(2.0);
+	glutEntryFunc(_gx_callback_mouse_entry);
+	//glPointSize(2.0);
+	glPointSize(1.0);
 	
 
 	_gx_callback_reshape( width, height);  //reshape will use defaults
@@ -191,20 +208,8 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	glDisable(GL_BLEND);
 
 
-	//cheap fog hack
-	{
-		float f;
-		vec3 p;
-		vec3set(p, 0,0,0);
-		glEnable(GL_FOG);
-		glFogi(GL_FOG_MODE, GL_LINEAR);
-		
-		glFogf(GL_FOG_START, 1.0);
-		glFogf(GL_FOG_END, 2000);
-		glFogf(GL_FOG_DENSITY, .5);
-		glFogfv(GL_FOG_COLOR, &p);
-
-	}
+	
+	//glutFullScreen();
 
 	return GX_OK;
 }
@@ -260,11 +265,15 @@ void gx_mouse_capture(zbool cap)
 
 		glutWarpPointer( _gx_mouse_capture_last_x, _gx_mouse_capture_last_y);	
 		glutSetCursor(GLUT_CURSOR_NONE); //hide mouse pointer
+
+		ShowCursor(0);//windows call
 	}
 	else
 	{
 		_gx_mouse_capture = zfalse;
 		glutSetCursor(GLUT_CURSOR_INHERIT); //bring back mouse pointer
+
+		ShowCursor(1); //windows call
 	}
 }
 
@@ -295,6 +304,39 @@ void gx_mouse_pos(zint32* x, zint32* y, zbool* rel)
 
 			}
 		}
+}
+
+//returns mouse pointer scaled in current 2d dimensions
+void gx_mouse_posf(zfloat32* fx, zfloat32* fy, zbool* rel)
+{
+	int x;
+	int y;
+	
+	//get integer coordinates
+	gx_mouse_pos(&x, &y, rel);
+
+	//translate to 
+
+	if (_gx_window_width > 0)
+	{
+		*fx =  (x * (_gx_2d_right - _gx_2d_left) ) / _gx_window_width;
+	}
+
+	if (_gx_window_height > 0)
+	{
+		*fy =  (y * (_gx_2d_bottom - _gx_2d_top) ) / _gx_window_height;
+	}
+	
+}
+
+void gx_hide_mouse()
+{
+		glutSetCursor(GLUT_CURSOR_NONE); 
+}
+
+zbool gx_mouse_present()
+{
+	return _gx_mouse_present_state;
 }
 
 /* Simple framebuffer control */
@@ -339,6 +381,8 @@ void gx_setup_2d(float left,  float top, float right, float bottom)
 	glOrtho(left, right, bottom, top, -1.0,1.0);
 	glMatrixMode(GL_MODELVIEW);
 
+	_gx_reset_matrix();// reset camera matrix
+
 	//makes most sense to disable depth:
 	glDepthMask(GL_FALSE);  //don't write to depth bufer
 
@@ -346,6 +390,12 @@ void gx_setup_2d(float left,  float top, float right, float bottom)
 
 
 	glDisable(GL_CULL_FACE);
+
+	_gx_2d_top = top;
+	_gx_2d_bottom = bottom;
+	_gx_2d_left = left; 
+	_gx_2d_right = right;
+
 
 }
 
@@ -366,10 +416,14 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 	glDepthMask(GL_TRUE); //write to depth bufer
 	glEnable(GL_DEPTH_TEST);  //enable depth testing
 
-	glDisable(GL_CULL_FACE); //we want face culling (for now)
+	//glDisable(GL_CULL_FACE); //we want face culling (for now)
 
-	//glEnable(GL_CULL_FACE); //we want face culling (for now)
-	//glCullFace(GL_BACK);
+	glEnable(GL_CULL_FACE); //we want face culling (for now)
+	glCullFace(GL_BACK);
+
+	//glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+//	glPolygonMode( GL_BACK, GL_LINE );
+
 }
 
 //depth buffer
