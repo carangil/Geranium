@@ -25,8 +25,37 @@
 #include "gx_buffers.h"
 #include "gx_misc.h"
 #include "gx_mesh.h"
+#include "gx_light.h"
 
 #include <stdio.h>
+
+
+
+
+zbool gx_point_in_box( vec3* min, vec3* point, vec3* max, float border)
+{
+	int j;
+
+	for (j=0;j<3;j++)
+	{
+
+		if (point->array[j]- border < min->array[j])
+			return zfalse;
+
+
+		if (point->array[j] + border > max->array[j])
+			return zfalse;
+
+	}
+
+	return ztrue;
+
+}
+
+
+
+
+
 
 /*void gx_camera_pos(float x, float y, float z)
 {
@@ -169,6 +198,8 @@ zbool sector_free(void* x)
 
 	vec_cleanup(& s->meshes);
 
+	ram_destructor_tail(s->portals);
+
 	return ztrue;
 
 }
@@ -183,6 +214,9 @@ gx_sector_t* gx_sector_mk(vec3* min, vec3* max )
 	
 	vec3mov( b->min, *min);
 	vec3mov( b->max, *max);
+	
+
+	
 	
 	vec_mk( &(b->meshes), 6);
 		
@@ -205,35 +239,41 @@ void gx_sector_draw(gx_sector_t* sect)
 
 
 }
-
-void gx_portal_draw_test(gx_portal_t* p)
+void gx_portal_inactive_draw_test(gx_portal_t* p)
 
 {
-	static GLUquadric* quadric = NULL;
+	//static GLUquadric* quadric = NULL;
 	vec3 nn;
 
 	if (!p)
 		return;
 	
 
-
+/*
 	if (!quadric)
 	{
 		quadric = gluNewQuadric();
 	}
+	*/
 	
 	gx_set_active_textures(NULL,0);
+	//gx_set_active_lights(NULL, 0);
 
+	gx_light_tmp_off();
 
-	glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
+	//glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
 
-	glPushMatrix();
+	
+	/*glPushMatrix();
 	glTranslatef( p->pos.vec3x, p->pos.vec3y, p->pos.vec3z);
-	gluSphere(quadric, p->radius, 10, 10);
+	glColor3f(1,1,0);
+	gluSphere(quadric, p->radius, 16, 16);
 	glPopMatrix();
 	
 	glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+	*/
 
+/*
 	glBegin(GL_TRIANGLES);
 	glColor3f(1,0,0);
 	glVertex3f(  p->pos.vec3x, p->pos.vec3y, p->pos.vec3z);
@@ -244,15 +284,161 @@ void gx_portal_draw_test(gx_portal_t* p)
 	glColor3f(1,0,1);
 	glVertex3f(  p->pos.vec3x+.1, p->pos.vec3y, p->pos.vec3z+.1);
 	glEnd();
+	*/
 
 	vec3mov(nn, p->pos);
-	vec3madd(nn, p->radius*3, p->normal);
+	vec3madd(nn, p->radius*.3, p->normal);
+	
 	glBegin(GL_LINES);
-	glVertex3fv(&p->pos);
-	glVertex3fv(&nn);
+		glColor3f(1,1,1);
+		glVertex3fv(&p->pos);
+		glVertex3fv(&nn);
+
+
+		//connect portal points
+		glColor3f(0,1,0);
+		glVertex3fv(& p->points[0]);
+		glVertex3fv(& p->pos);
+
+		glVertex3fv(& p->points[1]);
+		glVertex3fv(& p->pos);
+
+		glVertex3fv(& p->points[2]);
+		glVertex3fv(& p->pos);
+
+		glVertex3fv(& p->points[3]);
+		glVertex3fv(& p->pos);
+
+		//go in square
+		glColor3f(0,1,1);
+		glVertex3fv(& p->points[0]);
+		glVertex3fv(& p->points[1]);
+
+		glVertex3fv(& p->points[1]);
+		glVertex3fv(& p->points[2]);
+
+		glVertex3fv(& p->points[2]);
+		glVertex3fv(& p->points[3]);
+
+		glVertex3fv(& p->points[3]);
+		glVertex3fv(& p->points[0]);
+
+
+
 	glEnd();
+
+
+	gx_light_restore();
 }
 
+
+
+
+void gx_portal_draw_test(gx_portal_t* p)
+
+{
+	//static GLUquadric* quadric = NULL;
+	vec3 nn;
+
+	if (!p)
+		return;
+	
+gx_light_tmp_off();
+/*
+	if (!quadric)
+	{
+		quadric = gluNewQuadric();
+	}
+	*/
+	
+	gx_set_active_textures(NULL,0);
+//	gx_set_active_lights(NULL, 0);
+
+
+	//glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
+
+	
+	/*glPushMatrix();
+	glTranslatef( p->pos.vec3x, p->pos.vec3y, p->pos.vec3z);
+	glColor3f(1,1,0);
+	gluSphere(quadric, p->radius, 16, 16);
+	glPopMatrix();
+	
+	glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+	*/
+
+/*
+	glBegin(GL_TRIANGLES);
+	glColor3f(1,0,0);
+	glVertex3f(  p->pos.vec3x, p->pos.vec3y, p->pos.vec3z);
+	
+	glColor3f(1,1,0);
+	glVertex3f(  p->pos.vec3x, p->pos.vec3y+.1, p->pos.vec3z);
+	
+	glColor3f(1,0,1);
+	glVertex3f(  p->pos.vec3x+.1, p->pos.vec3y, p->pos.vec3z+.1);
+	glEnd();
+	*/
+
+	vec3mov(nn, p->pos);
+	vec3madd(nn, p->radius*.3, p->normal);
+	
+	glBegin(GL_LINES);
+		glColor3f(1,0,0);
+		glVertex3fv(&p->pos);
+		glVertex3fv(&nn);
+
+#if 0
+		//connect portal points
+		glColor3f(1,0,0);
+		glVertex3fv(& p->points[0]);
+		glVertex3fv(& p->pos);
+
+		glVertex3fv(& p->points[1]);
+		glVertex3fv(& p->pos);
+
+		glVertex3fv(& p->points[2]);
+		glVertex3fv(& p->pos);
+
+		glVertex3fv(& p->points[3]);
+		glVertex3fv(& p->pos);
+#endif
+
+		//go in square
+		glColor3f(0,0,1);
+		glVertex3fv(& p->points[0]);
+		glVertex3fv(& p->points[1]);
+
+		glVertex3fv(& p->points[1]);
+		glVertex3fv(& p->points[2]);
+
+		glVertex3fv(& p->points[2]);
+		glVertex3fv(& p->points[3]);
+
+		glVertex3fv(& p->points[3]);
+		glVertex3fv(& p->points[0]);
+
+
+
+	glEnd();
+
+	gx_light_restore();
+}
+
+
+
+
+
+
+zbool portal_delete(void* x)
+{
+	gx_portal_t* p = x;
+
+	ram_destructor_tail(p->next_portal);
+
+	return ztrue;
+}
+#if 0
 gx_portal_t* gx_sector_add_portal(gx_sector_t* sector, vec3* position, zfloat32 radius, gx_sector_t* target, vec3* normal)
 {
 	//add a point-portal to a sector
@@ -262,7 +448,7 @@ gx_portal_t* gx_sector_add_portal(gx_sector_t* sector, vec3* position, zfloat32 
 	if (!sector) 
 		return NULL;
 
-	p = ram_alloc(sizeof(gx_portal_t), NULL);
+	p = ram_alloc(sizeof(gx_portal_t), portal_delete);
 	
 	if (p)
 	{
@@ -276,21 +462,83 @@ gx_portal_t* gx_sector_add_portal(gx_sector_t* sector, vec3* position, zfloat32 
 	}
 	return p;
 }
+#endif
+
+gx_portal_t* gx_sector_add_portal_quad(gx_sector_t* sector, gx_sector_t* target, vec3* normal, vec3* points[4])
+{
+	//add a point-portal to a sector
+	
+	
+	int i;
+
+	gx_portal_t* p = NULL;
+	float d;
+	float max_d=0;
+
+	if (!sector) 
+		return NULL;
+
+	p = ram_alloc(sizeof(gx_portal_t), portal_delete);
+	
+	if (p)
+	{
+		//vec3mov (p->pos, *position);
+ 		vec3mov(p->normal, *normal);
+
+		//find center
+		vec3mov( p->pos,  *points[0]);
+		vec3add( p->pos,  *points[1]);
+		vec3add( p->pos,  *points[2]);
+		vec3add( p->pos,  *points[3]);
+		vec3scale(p->pos, .25);
+
+		//now find farthest portal
+		for (i=0;i<4;i++)
+		{
+			vec3 q;
+			vec3mov (q, *points[i]);  
+
+			vec3mov (p->points[i], q); //copy point into portal
+			vec3sub (q, p->pos);
+			d = vec3abs_sq(q);
+			if (d > max_d)
+				max_d = d;
+		}
+
+		p->radius = sqrt(d);
 
 
-void gx_sector_outline(gx_sector_t* sector)
+	//	p->radius = radius;
+		p->target = target;
+		p->next_portal = sector->portals; //add existing portal list to the tail of this portal
+
+		
+		
+		sector->portals = p;  //set as head of a sector's portal list
+	}
+	return p;
+}
+
+
+void gx_sector_outline(gx_sector_t* sector, zbool show_portals)
 {
 	
-	//BTW this is the lamest way to draw a sector ever
-
-	glDisable(GL_DEPTH_TEST);
-	glEnable(GL_BLEND);
-	
-	gx_set_active_textures(NULL,0);
 
 	if (!sector)
 		return;
 
+
+	//BTW this is the lamest way to draw a sector ever
+
+//	glDisable(GL_DEPTH_TEST);
+//	glEnable(GL_BLEND);
+	
+	gx_set_active_textures(NULL,0);
+	//gx_set_active_lights(NULL,0);
+
+	gx_light_tmp_off();
+
+	
 	
 /*
      p3	 		p7
@@ -339,8 +587,22 @@ glEnable(GL_POLYGON_OFFSET_FILL);
 		P2 P6 P6 P7 P7 P3 P3 P2
 	glEnd();
 #endif
-glEnable(GL_DEPTH_TEST);
 
+		if (show_portals) {
+
+			gx_portal_t* p = sector->portals;
+			
+			while(p)
+			{
+				gx_portal_draw_test(p);
+				p = p->next_portal;
+
+			}
+
+		}
+
+//glEnable(GL_DEPTH_TEST);
+	gx_light_restore();
 }
 
 
@@ -470,6 +732,7 @@ void gx_sheet_index(gx_sheet_t* s)
 
 void gx_test_sphere(vec3* pos, float radius)
 {
+
 	static GLUquadric* quadric = NULL;
 	
 
@@ -478,6 +741,7 @@ void gx_test_sphere(vec3* pos, float radius)
 	{
 		quadric = gluNewQuadric();
 	}
+
 	
 	gx_set_active_textures(NULL,0);
 

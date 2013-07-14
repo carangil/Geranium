@@ -105,6 +105,8 @@ zbool drawstyle_free(void* x)
 	gx_drawstyle_t* ds = x;
 
 	vec_cleanup(&ds->textures);
+
+	return ztrue;
 }
 
 gx_drawstyle_t* gx_drawstyle_mk(gx_image_t* img)

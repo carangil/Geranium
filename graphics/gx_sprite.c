@@ -240,8 +240,8 @@ void gx_text_draw(gx_image_t* font,  zfloat32 x, zfloat32 y,  zfloat32 angle, zc
 		*/
 
 		
-		int sxp = (*string%16) * tw;
-		int syp = (*string/16) * th;
+		int sxp = (chr%16) * tw;
+		int syp = (chr/16) * th;
 
 #if 0
 		sx = (sxp+.5) / 256.0;

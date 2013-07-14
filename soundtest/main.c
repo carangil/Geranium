@@ -19,7 +19,7 @@
 #define ERRORDISPLAY(zzyzzy) zzyzzy
 #endif
 
-#define BUFSIZE (44100*2*2*100)
+
 
 int main(int argc, char** args)
 {
@@ -35,12 +35,12 @@ int main(int argc, char** args)
 	zbyte* ldata = NULL;
 	zbyte* rdata = NULL;
 
-	data = ram_alloc(BUFSIZE, NULL);
-	ldata = ram_alloc(BUFSIZE/2, NULL);
-	rdata = ram_alloc(BUFSIZE/2, NULL);
+//	data = ram_alloc(BUFSIZE, NULL);
+//	ldata = ram_alloc(BUFSIZE/2, NULL);
+//	rdata = ram_alloc(BUFSIZE/2, NULL);
 
-	/*
-	file = fopen("music.raw", "rb");
+	
+/*	file = fopen("music.raw", "rb");
 	
 	if (file)
 	{
@@ -60,17 +60,69 @@ int main(int argc, char** args)
 	
 	//sx_set_echo(10.0);
 
-	if ( 0 == sx_read_raw16("music.raw", zfalse, &data, NULL))
+/*	if ( 0 == sx_read_raw16("music.raw", zfalse, &data, NULL))
 		printf(" not read file\n");
 
 	sx_deinterlace_audio( data, BUFSIZE, 2,  ldata, rdata);
+	*/
+	{
+		short rnd[44100];
+		
+
+		int i;
+		int size = 44100 * 100 ;
+		 short* ss = ram_alloc( size * sizeof(*ss) ,0);
+
+		 int acc=0;
+
+		for (i=0;i< 44100;i++)
+			rnd[i] = rand();
+
+
+
+		for (i=0;i<size;i++)
+		{
+			
+			//int sec = i/440.0;
+			//float f =  sin( 3.14159/32 * i) *(i/1000)*1000         ;
+			//1double f = i/10000.0*sin(i*i/100000000.0);
+			
+		//	ss[i] =  10000*sin( i * f* 2 * 3.14159 / 44100   );
+
+		//	int f = 1+sec*10;
+			//int j = 100000.0/(i*.1+.01);
+
+		//	int p =   512 + 512* sin((i/10000 )  );
+
+		//	ss[i] = rnd[( i +(100000*(i/100))  )  % (p+3)% 44100];
+
+
+			int t = i;
+			int x,y;
+
+			unsigned char c =   ((t*("36364689"[t>>13&7]&15))/12&128)
++(((((t>>12)^(t>>12)-2)%11*t)/4|t>>13)&127);
+
+
+			ss[i]= c*50;
+
+			//ss[i]=ss[i]/5;
+
+			//ss[i] =  10000* sin(i* ( f )*3.141*2/44100)   ;
+
+		}
+
+		
+
+		music = sx_sound_def(1, size * sizeof(*ss), ss, "music");
+	}
 
 
 	//music = sx_sound_def(2, BUFSIZE, data, "music");
 
-	music = sx_sound_def(1, BUFSIZE/2, rdata, "music");
+	
 
-	ram_free(data);
+	//ram_free(data);
 
 
 	{
@@ -99,9 +151,9 @@ int main(int argc, char** args)
 
 	printf(" Music is %p\n", music);
 
-//	sx_sound_play(music, 1.0);
+	sx_sound_play(music, 1,1,0);
 
-	
+	while(1);
 
 
 

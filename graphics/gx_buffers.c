@@ -13,6 +13,7 @@
 #include "glstuff.h"
 
 
+extern  int _gx_no_vbos;
 
 #define GX_UPDATE_FREQ  GL_STATIC_DRAW
 
@@ -22,7 +23,7 @@ static zbool _destruct_vbuffer(void* x)
 	gx_vbuffer_t* v = x;
 	zuint32 i;
 
-	if (v->_sent_to_gl)
+	if ( !_gx_no_vbos && v->_sent_to_gl)
 	{
 		//todo: Free any buffers still in opengl	
 		glDeleteBuffers(1,  &(v->_vertex_combined_vbo));
@@ -190,11 +191,16 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 	if (!v)
 		return zfalse;
 
+	if (_gx_no_vbos)
+	{
+		return ztrue; //if using vertex arrays, we don't need to send anything
+	}
+
 	if (!v->_sent_to_gl)
 	{
 		glGenBuffers(1, &(v->_vertex_combined_vbo));
 		_gx_gl_vbos_gen++;
-
+ 
 /*
 		if (v->color_data)
 		{
@@ -226,10 +232,11 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 	//glBindBuffer(GL_ARRAY_BUFFER,  v->_vertex_vbo );
 	//glBufferData(GL_ARRAY_BUFFER, v->vertex_count * VERTEX_COMPONENTS *sizeof(zfloat32) , v->pos_data, GX_UPDATE_FREQ);
 
+
 	glBindBuffer(GL_ARRAY_BUFFER,  v->_vertex_combined_vbo );
 	glBufferData(GL_ARRAY_BUFFER, v->size_per_vertex * sizeof(zfloat32) * v->vertex_capacity , v->combined_vertex_data, GX_UPDATE_FREQ);
-
-#if 0
+	
+	#if 0
 
 	if (v->color_data)
 	{
@@ -251,10 +258,11 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 	}
 #endif
 
+	
 	 if (v->index_data)
 	 {
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, v->_index_vbo);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, v->index_count * sizeof(v->index_data[0]  ) , v->index_data , GX_UPDATE_FREQ);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, v->index_count * sizeof(v->index_data[0]  ) , v->index_data , GX_UPDATE_FREQ);	
 	 }
 
 	return ztrue;
@@ -465,7 +473,14 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	if (v->_vertex_combined_vbo)
 	{
 		glBindBuffer(GL_ARRAY_BUFFER,  v->_vertex_combined_vbo );
-		glVertexPointer(VERTEX_COMPONENTS, GL_FLOAT, 0,   (v->pos_data - v->combined_vertex_data) * sizeof (zfloat32) );
+	}
+
+	if (v->pos_data)
+	{
+		if (_gx_no_vbos)
+			glVertexPointer(VERTEX_COMPONENTS, GL_FLOAT, 0,   v->pos_data );
+		else
+			glVertexPointer(VERTEX_COMPONENTS, GL_FLOAT, 0,   (v->pos_data - v->combined_vertex_data) * sizeof (zfloat32) );
 		glEnableClientState(GL_VERTEX_ARRAY);	
 	}
 	
@@ -473,7 +488,11 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	if (v->normal_data)
 	{
 	//	glBindBuffer(GL_ARRAY_BUFFER,  v->_normal_vbo);
-		glNormalPointer( GL_FLOAT, 0,  (v->normal_data - v->combined_vertex_data) * sizeof (zfloat32) );
+		
+		if (_gx_no_vbos)
+			glNormalPointer( GL_FLOAT, 0,  v->normal_data  );
+		else
+			glNormalPointer( GL_FLOAT, 0,  (v->normal_data - v->combined_vertex_data) * sizeof (zfloat32) );
 		glEnableClientState(GL_NORMAL_ARRAY);
 	}
 	else
@@ -485,7 +504,10 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	if (v->color_data)
 	{
 		//glBindBuffer(GL_ARRAY_BUFFER,  v->_color_vbo);
-		glColorPointer(COLOR_COMPONENTS, GL_FLOAT, 0, (v->color_data - v->combined_vertex_data) * sizeof (zfloat32));
+		if (_gx_no_vbos)
+			glColorPointer(COLOR_COMPONENTS, GL_FLOAT, 0, v->color_data );
+		else
+			glColorPointer(COLOR_COMPONENTS, GL_FLOAT, 0, (v->color_data - v->combined_vertex_data) * sizeof (zfloat32));
 		glEnableClientState(GL_COLOR_ARRAY);
 	}
 	else
@@ -499,12 +521,23 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,  v->_index_vbo);
 	}
 
+/*	if (v->index_data)
+	{
+		if (_gx_no_vbos)
+				glIndexPointer(GL_INT, 0, v->index_data);
+		else
+				glIndexPointer(GL_INT, 0, 16);
+	}*/
+
 	//enable pointers for the textures we care about
 	for (i=0;i<v->num_textures;i++)
 	{
 		glClientActiveTexture(GL_TEXTURE0+i);
 		//glBindBuffer(GL_ARRAY_BUFFER,  v->_texcoord_vbo[i]);
-		glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0,  (v->texcoord_data[i] - v->combined_vertex_data) * sizeof (zfloat32));
+		if (_gx_no_vbos)
+			glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0, v->texcoord_data[i] );
+		else
+			glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0,  (v->texcoord_data[i] - v->combined_vertex_data) * sizeof (zfloat32));
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	}
 
@@ -520,21 +553,27 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	switch(prim)
 	{
 	case gx_points:
-		if (indexed)
+		if (indexed && _gx_no_vbos)
+			printf(" TODO: indexed points vertex arrays\n");
+		else if (indexed)
 			glDrawElements(GL_POINTS, stop-start, GL_UNSIGNED_INT, sizeof(zuint32) * start  );
 		else 
 			glDrawArrays(GL_POINTS, start, stop-start);
 		break;
 
 	case gx_lines:
-		if (indexed)
+		if (indexed && _gx_no_vbos)
+			printf(" TODO: indexed lines vertex arrays\n");
+		else if (indexed)
 			glDrawElements(GL_LINES, stop-start, GL_UNSIGNED_INT,sizeof(zuint32) * start);
 		else 
 			glDrawArrays(GL_LINES, start, stop-start);
 		break;
 
 	case gx_triangles:
-		if (indexed)
+		if (indexed && _gx_no_vbos)
+			glDrawElements(GL_TRIANGLES, stop-start, GL_UNSIGNED_INT,  v->index_data+  start  );
+		else if (indexed)
 			glDrawElements(GL_TRIANGLES, stop-start, GL_UNSIGNED_INT,sizeof(zuint32) * start);
 		else 
 			glDrawArrays(GL_TRIANGLES, start, stop-start);
@@ -542,7 +581,9 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 
 
 	case gx_quads:
-		if (indexed)
+		if (indexed && _gx_no_vbos)
+			printf(" TODO: indexed quads vertex arrays\n");
+		else if (indexed)
 			glDrawElements(GL_QUADS, stop-start, GL_UNSIGNED_INT,sizeof(zuint32) * start);
 		else 
 			glDrawArrays(GL_QUADS, start, stop-start);

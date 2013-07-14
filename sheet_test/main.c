@@ -3,7 +3,7 @@
 // Commercial use prohibited.
 
 #define FADE_PATCHES
-#define ALPHA_SPEED .01
+#define ALPHA_SPEED .03
 
 
 #include <stdio.h>
@@ -158,6 +158,7 @@ typedef struct quadarray_s
 	vec3  offset; // for high precision crap
 	float scale;
 	
+	int boo;  //todo remove
 } quadarray_t ;
 #define qa_vindex(qaaa, qxxx, qyyy)  (((qaaa)->w * (qyyy)) + (qxxx))
 
@@ -323,6 +324,11 @@ void quadarray_draw(quadarray_t* qa)
 
 
 	int i;
+
+
+	if (qa->boo)
+		return;
+
 //	int f=0;
 
 	vec3set (off, 0, .01, .01);
@@ -1680,6 +1686,7 @@ void quadarray_norm(quadarray_t* qa)
 	}
 
 }
+quadarray_t* closest = NULL;
 
 int main(int argc, char** argv)
 {
@@ -2096,8 +2103,8 @@ int main(int argc, char** argv)
 		//make quadarray
 		//qa = quadarray_mk(257,257); 
 		//qa = quadarray_mk(129,129);
-		//qa = quadarray_mk(65,65);  //make mesh of 64 by 64 quads( 65by65 points)
-		qa = quadarray_mk(33,33);
+		qa = quadarray_mk(65,65);  //make mesh of 64 by 64 quads( 65by65 points)
+		//qa = quadarray_mk(33,33);
 		//qa = quadarray_mk(17,17);
 	//	qa = quadarray_mk(9,9);
 		//qa = quadarray_mk(3,3);
@@ -2109,7 +2116,8 @@ int main(int argc, char** argv)
 		qa->onlevel = 1;
 
 		qa->size=  5.0 ;
-		qa->dsize = .015  ;
+		//qa->dsize = .015  ;
+		qa->dsize = .004  ;
 
 		qa->origin = origin;
 
@@ -2316,10 +2324,12 @@ int main(int argc, char** argv)
 	//The game loop 
 	for(;;)  
 	{
+		
+
  		gx_window_event();  //handles any window events (I/O)
 
 		//set up projection matrix for this frame
- 		gx_setup_3d( 80.0f,  gx_frame_get_dimensions(NULL,NULL),0.0001f, 10.0f);
+ 		gx_setup_3d( 80.0f,  gx_frame_get_dimensions(NULL,NULL),0.000001f, 10.0f);
 		
 		//Read mouse input
 		gx_mouse_pos(&mouse_x, &mouse_y, &mouse_relative);
@@ -2674,7 +2684,7 @@ int main(int argc, char** argv)
 		//gx_set_active_lights(&light, 1);
 
 
-{
+if (0) {
 
 			//draw ocean
 			float d;
@@ -2812,13 +2822,105 @@ int main(int argc, char** argv)
 			int splitcount=0;
 			int splitlimit=1000;
 
+			
+			
+			float closest_d=0;//quick:find the closest one
+
+			if (closest)
+				closest->boo = 0;
+
+			closest = NULL;
+
+			for (i=0;i<vec_count(quadarrays);i++)
+			{
+				vec3 p;
+				float d;
+				quadarray_t* qa = vec_get_at(quadarrays, i);
+
+				vec3mov(p, qa->center);
+				//vec3norm(&p);
+				vec3sub(p, player_camera.camera_pos);
+				
+				if (!closest ||  (d=vec3abs_sq(p)) < closest_d)
+				{
+					closest_d = d;
+					closest = qa;
+
+				}
+
+			}
+			
+			if (closest)
+			{
+			
+				vec3 p;
+				float dplayer;
+				float d;
+				int i;
+				int j;
+
+				vec3 p_closest;
+				float closest_point_d=10000000;
+
+
+				//closest->boo=1;  //flag to draw differently
+
+				//ok now check all these points against the camera to make sure we don't go into the planet
+				//(slow)
+				dplayer = vec3abs_sq(player_camera.camera_pos);  // planet center is at 0,0, so ok
+				dplayer = sqrt(dplayer);
+
+				vec3set(p_closest, 0,0,0);
+
+				//find point on quadarray closest to player
+				for (i=0;i<qa->w;i++)
+				{
+					for (j=0;j<qa->h;j++)
+					{
+
+						vec3mov(p, *gx_vbuffer_v( qa->vb, qa_vindex( qa, i,j)));
+
+						vec3sub(p, player_camera.camera_pos);
+
+						d = vec3abs_sq(p);
+
+						if (d< closest_point_d)
+						{
+							closest_point_d = d;
+							vec3mov(p_closest, *gx_vbuffer_v( qa->vb, qa_vindex( qa, i,j)));
+						}
+
+					}
+				}
+
+				//now if the closest point to us on the surface is farther away from the planet center than us, then we are inside the planet, and thats bad
+				d = vec3abs_sq(p_closest);
+				d = sqrt(d)  ; // + 0.00002f;
+
+				if (dplayer < d)
+				{
+					vec3norm(& (player_camera.camera_pos));
+					vec3scale(player_camera.camera_pos, d);
+					vec3scale(camera_inertia, .5);
+					//vec3set(camera_inertia,0,0,0);
+				}
+						
+
+
+
+			}
+				
+
+
 			ocount = vec_count(quadarrays);
+			
 
 			for(i=0;(i<vec_count(quadarrays)) && (i<ocount) ;i++)
 			{
 				vec3 p;
 				float d;
 				quadarray_t* qa = vec_get_at(quadarrays, i);
+				
 
 				//find its distance from camera
 				vec3mov(p, player_camera.camera_pos);

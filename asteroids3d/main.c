@@ -12,8 +12,9 @@
 #include "../graphics/gx_sprite.h"
 #include "../graphics/gx_line.h"
 #include "../graphics/gx_buffers.h"
-#include "../graphics/gx_drawstyle.h"
 #include "../structures/vector.c"
+#include "../graphics/gx_drawstyle.h"
+
 #include "../graphics/gx_misc.h"
 #include "../graphics/gx_mesh.h"
 #include "../graphics/gx_light.h"
@@ -431,19 +432,33 @@ gx_mesh_t* load_spaceship_mesh()
 
 	tex = gx_image_load_tga("spaceship_texture.tga");
 	{
-		gx_drawstyle_t* ds = ram_alloc(sizeof(gx_drawstyle_t), NULL);
-		gx_drawstyle_t* dsbottom = ram_alloc(sizeof(gx_drawstyle_t), NULL);
+		//gx_drawstyle_t* ds //= ram_alloc(sizeof(gx_drawstyle_t), NULL);
+		gx_drawstyle_t* ds = gx_drawstyle_mk(NULL);
+
+		//gx_drawstyle_t* dsbottom = ram_alloc(sizeof(gx_drawstyle_t), NULL);
+
+		gx_drawstyle_t* ds_bottom = gx_drawstyle_mk(NULL);
 		
 		vec3set( ds->specular_color, 1, 1, 1);
 		ds->specular_exponent = 10;
 
-		memcpy(dsbottom, ds, sizeof(*ds));
+		
+		vec3set( ds_bottom->specular_color, 1, 1, 1);
+		ds_bottom->specular_exponent = 10;
 
-		ds->numtextures = 1;
-		ds->textures = ram_alloc(sizeof(gx_image_t**), NULL);				
-		ds->textures[0] = tex;
+		//memcpy(dsbottom, ds, sizeof(*ds));
+		
+
+//		ds->numtextures = 1;
+//		ds->textures = ram_alloc(sizeof(gx_image_t**), NULL);				
+//		ds->textures[0] = tex;
+
+		vec_add(&ds->textures, tex);
+
+
+
 		mesh0->style = ds;
-		mesh1->style = dsbottom;
+		mesh1->style = ds_bottom;
 		
 	}
 
@@ -482,7 +497,9 @@ int main(int argc, char** argv)
 	vec_t			asteroids; //hold entities
 
 	gx_image_t		*spacerock = NULL;  //holds rock texture for asteroids
-	gx_drawstyle_t	spacerock_ds;   //drawstyle for the asteroid
+	//gx_drawstyle_t	spacerock_ds;   //drawstyle for the asteroid
+	gx_drawstyle_t*	spacerock_ds;   //drawstyle for the asteroid
+	
 
 	gx_image_t		*bullet_image = NULL;  //holds bullet texture
 	gx_image_t		*bullet2_image = NULL;  //holds bullet texture
@@ -526,11 +543,15 @@ int main(int argc, char** argv)
 	spacerock  = gx_image_load_tga( "spacerock.tga");
 	//spacerock  = gx_image_load_tga( "earth.tga");
 	//spacerock  = gx_image_load_tga( "unwrapped_cube.tga");
-	ram_clear(&spacerock_ds, sizeof(spacerock_ds));
-	spacerock_ds.textures = &spacerock;
-	spacerock_ds.numtextures=1;
-	vec3set( spacerock_ds.specular_color , 0, 0, 0);
-	spacerock_ds.specular_exponent = 10;
+	//ram_clear(&spacerock_ds, sizeof(spacerock_ds));
+
+//	spacerock_ds.textures = &spacerock;
+//	spacerock_ds.numtextures=1;
+	spacerock_ds = gx_drawstyle_mk(spacerock);
+
+
+	vec3set( spacerock_ds->specular_color , 0, 0, 0);
+	spacerock_ds->specular_exponent = 10;
 	
 	
 
@@ -569,7 +590,7 @@ int main(int argc, char** argv)
 	//create an asteroid mesh
 	//one shared one
 	asteroid_mesh = gen_asteroid_mesh( asteroid_vb, 1);	
-	asteroid_mesh->style = &spacerock_ds;
+	asteroid_mesh->style = spacerock_ds;
 
 	vec_mk(&asteroids, INITACOUNT);
 	//create asteroids
@@ -838,9 +859,9 @@ int main(int argc, char** argv)
 
 
 		
-				gx_vbuffer_c(starfield,i)->named.x = bright;
-				gx_vbuffer_c(starfield,i)->named.y = bright;
-				gx_vbuffer_c(starfield,i)->named.z = bright;
+				gx_vbuffer_c(starfield,i) [0] = bright;
+				gx_vbuffer_c(starfield,i) [1] = bright;
+				gx_vbuffer_c(starfield,i) [2] = bright;
 			}
 		}
 #endif

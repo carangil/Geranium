@@ -47,6 +47,26 @@ gx_light_t* gx_light_mk(gx_light_e type, vec3* position, vec3* color, vec3* ambi
 //number of light currently enabled
 static zuint32 _number_active_lights = 0;
 
+static gx_light_tmp_off_cnt=0;
+
+void gx_light_tmp_off()
+{
+	if (!gx_light_tmp_off_cnt)
+		glDisable(GL_LIGHTING);
+
+	gx_light_tmp_off_cnt++;
+
+}
+
+void gx_light_restore()
+{
+	gx_light_tmp_off_cnt--;
+
+
+	if ( (gx_light_tmp_off_cnt==0) && _number_active_lights)
+		glEnable(GL_LIGHTING);
+}
+
 
 //simple lighting policy:
 //if _number_active_lights is zero, gl lighting is disabled
@@ -136,9 +156,21 @@ void gx_set_active_lights(gx_light_t** lights, zuint32 count)
 	
 		glLightfv(GL_LIGHT0+i, GL_POSITION, p);
 
-	//	glLightf(GL_LIGHT0+i, GL_CONSTANT_ATTENUATION, 0 );
-	//	glLightf(GL_LIGHT0+i, GL_QUADRATIC_ATTENUATION, 1 );
+		if (lights[i]->attenuated)
+		{
 
+			glLightf(GL_LIGHT0+i, GL_CONSTANT_ATTENUATION, 0 );
+			glLightf(GL_LIGHT0+i, GL_QUADRATIC_ATTENUATION, 1 / ( lights[i]->unityrange * lights[i]->unityrange ));
+
+
+		}
+		else
+		{
+			glLightf(GL_LIGHT0+i, GL_CONSTANT_ATTENUATION, 1 );
+			glLightf(GL_LIGHT0+i, GL_QUADRATIC_ATTENUATION, 0 );
+
+		}
+		
 	}
 
 	for (i= count; i < _number_active_lights;i++)

@@ -23,7 +23,7 @@ zfloat32 gx_frame_get_dimensions(zuint32* width, zuint32* height);
 void gx_setup_2d(float left,  float top, float right, float bottom);
 void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist);
 void gx_zbuffer(zbool en);  //turns depth buffer test on/off
-
+void gx_setup_2d_pixels(int* width, int *height);
 
 
 

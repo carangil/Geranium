@@ -81,17 +81,17 @@ vec_t* vec_mk(vec_t* v, zsize initial_size)
 zbool vec_add(vec_t* v, void* item)
 {
 	if (!v) 
-		return NULL;
+		return zfalse;
 
-	if (!item)
-		return NULL;
+//	if (!item)
+//		return zfalse;
 
 	v->count++;
 
 	if ( (v->count) > (v->_size))
 	{
 		//too big, time to grow
-		void ** el = ram_resize(v->elements, v->_size * sizeof(void*) *2);
+		void ** el=  ram_resize(v->elements, v->_size * sizeof(void*) *2);
 		
 		if (el)
 		{
@@ -100,6 +100,7 @@ zbool vec_add(vec_t* v, void* item)
 		}
 		else
 		{
+			//todo: don't increment count!
 			return zfalse;  //could not store item
 		}
 	}

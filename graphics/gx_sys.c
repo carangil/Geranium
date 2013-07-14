@@ -167,6 +167,7 @@ static void _gx_callback_disp()
 
 static int _gx_window = 0;
 
+int _gx_no_vbos = 0; //set to true when falling back to vertex arrays
 
 int gx_init(zint32 width, zint32 height, zchar* window_title )
 {
@@ -219,12 +220,25 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 		glDeleteBuffers = glDeleteBuffersARB;
 		glBindBuffer = glBindBufferARB;
 		glBufferData = glBufferDataARB;
+		printf("Warning:  Using ARB VBOs instead of core\n");
 	}
 
+//#define TESTOLDFALLBACK
+
+#ifdef TESTOLDFALLBACK
+		glGenBuffers = NULL;
+		glDeleteBuffers = NULL;
+		glBindBuffer = NULL;
+		glBufferData = NULL;
+
+#endif
+	
+	
 	if (!glGenBuffers)
 	{
-		printf("Cannot initialize VBO functions.\n");
-		return GX_ERROR;
+		_gx_no_vbos = ztrue;
+		printf("Cannot initialize VBO functions, using vertex arrays\n");
+		//return GX_ERROR;
 	}
 
 
@@ -419,7 +433,7 @@ void gx_setup_2d(float left,  float top, float right, float bottom)
 	_gx_reset_matrix();// reset camera matrix
 
 	//makes most sense to disable depth:
-	glDepthMask(GL_FALSE);  //don't write to depth bufer
+	//glDepthMask(GL_FALSE);  //don't write to depth bufer
 
 	glDisable(GL_DEPTH_TEST); //don't test depth buffer when drawing
 
@@ -456,13 +470,16 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 	glClearDepth(1.0); //when clearing depth buffer, set to infinity
 	glDepthRange(0,1);  //set range for full depth bufer
 	glDepthFunc(GL_LEQUAL);  //draw things equally far or closer
-	glDepthMask(GL_TRUE); //write to depth bufer
+//	glDepthMask(GL_TRUE); //write to depth bufer
 	glEnable(GL_DEPTH_TEST);  //enable depth testing
 
-//	glDisable(GL_CULL_FACE); //we want face culling (for now)
+	//glDisable(GL_CULL_FACE); //we want face culling (for now)
 
 	//glEnable(GL_CULL_FACE); //we want face culling (for now)
 	//glCullFace(GL_BACK);
+
+
+	glLightModelf(GL_LIGHT_MODEL_LOCAL_VIEWER, 1.0f);
 
 	//glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 //	glPolygonMode( GL_BACK, GL_LINE );

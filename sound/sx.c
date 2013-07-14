@@ -283,13 +283,14 @@ zerror  sx_deinterlace_audio(void* vdata, int bufsize, int nlace, void* vleft, v
 #endif
 
 
-void sx_sound_delete(sx_sound_t* sound)
+zbool sx_sound_delete(sx_sound_t* sound)
 {
 	ram_free(sound->name);
 
 	alDeleteBuffers(1, & (sound->_al_buffer));
 
-	ram_shallow_free(sound);
+	//ram_shallow_free(sound);
+	return ztrue;
 }
 
 
@@ -319,7 +320,7 @@ SHOWALERROR
 }
 
 
-void sx_delete_source(sx_source_t* source)
+zbool sx_delete_source(sx_source_t* source)
 {
 
 #ifdef _SX_PREALLOCATE_SOURCES
@@ -333,7 +334,8 @@ void sx_delete_source(sx_source_t* source)
 
 #endif
 
-	ram_shallow_free(source);
+	//ram_shallow_free(source);
+	return ztrue;
 }
 
 

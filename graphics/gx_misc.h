@@ -41,14 +41,19 @@ void test_lighting_off();
 typedef struct gx_sector_s
 {
 
-	vec3 min;  //max/min  points define an axis aligned box
+	vec3 min;  //max/min  points define an axis aligned box for motion within
 	vec3 max;
+
+	vec3 pmin;  // defines min/max for portal usage (no border)
+	vec3 pmax;
+
 
 	vec_t meshes;  //meshes to draw in this sector
 	struct portal_s* portals;
 			
 	int lastframe; //last frame number processed (to prevent cycles)
 	int rdepth; //number of hops from camera
+	zbool visiting;
 } gx_sector_t;
 
 
@@ -64,19 +69,38 @@ typedef struct gx_portal_s
 	vec3 normal;  //look direction of the portal (maybe have circular portals?)
 
 	struct gx_portal_s* next_portal;
+
+
+
+
+
+	int lastpeeked; //frame number last time that portal was peeked through
+
+	//experimental:  make the portal a true polygon
+	vec3 points[4];
+
+	//transient values used to determine visibility:
+	vec3 points_screen[4];
+	zbool points_screen_ok;
+	struct gx_portal_s* vis_chain_prev;
+
 } gx_portal_t;
 
 
 
 gx_sector_t* gx_sector_mk(vec3* min, vec3* max );
 
-void gx_sector_outline(gx_sector_t* box);
+void gx_sector_outline(gx_sector_t* box, zbool show_portals);
 
 void gx_sector_draw(gx_sector_t* sect);
 
 void gx_portal_draw_test(gx_portal_t* p);
 
-gx_portal_t* gx_sector_add_portal(gx_sector_t* sector, vec3* position, zfloat32 radius, gx_sector_t* target, vec3* normal);
+//gx_portal_t* gx_sector_add_portal(gx_sector_t* sector, vec3* position, zfloat32 radius, gx_sector_t* target, vec3* normal);
+
+gx_portal_t* gx_sector_add_portal_quad(gx_sector_t* sector, gx_sector_t* target, vec3* normal, vec3** points);
+
+zbool gx_point_in_box( vec3* min, vec3* point, vec3* max, float border);
 
 
 #endif

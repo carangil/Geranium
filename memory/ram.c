@@ -9,6 +9,10 @@
 #include <string.h>
 #include "ram.h"
 
+#ifdef RAM_DEBUG
+#include "../structures/linkedlist.h"
+#endif
+
 /*****************
  *RAM allocation
  *Note:  This is NOT yet thread safe.
@@ -21,10 +25,20 @@ static zuint32 _ram_allocs = 0; //count of current allocations (to check for lea
 
 typedef struct mem_header_s
 {
+#ifdef RAM_DEBUG
+	zlistnode_t zlistnode;
+#endif
 	ram_destructor destructor;
 	int refcount;
+#ifdef RAM_DEBUG
+	char* file;
+	int   line;
+#endif
 } mem_header_t;
 
+#ifdef RAM_DEBUG
+zlist_t _ram_debuglist = {NULL,NULL};
+#endif
 
 
 void* _ram_pending_free = NULL;
@@ -50,7 +64,11 @@ void ram_destructor_tail(void* block)
 
 
 /* Allocate memory.  Takes size and destructor */
+#ifdef RAM_DEBUG
+void* ram_alloc_debug(zsize size, ram_destructor destructor, char* file, int line)
+#else
 void* ram_alloc(zsize size, ram_destructor destructor)
+#endif
 {
 	mem_header_t* x;
 
@@ -66,6 +84,12 @@ void* ram_alloc(zsize size, ram_destructor destructor)
 
 		x->refcount = 1;
 
+#ifdef RAM_DEBUG
+		x->file = file;
+		x->line = line;
+		zlist_addhead(&_ram_debuglist, x);
+#endif
+
 		return x + 1;  //return just past the header
 	}
 
@@ -77,6 +101,9 @@ void ram_free(void* thing)
 {
 	mem_header_t* header = (mem_header_t*) thing;
 	zbool do_free = ztrue;
+
+	if (! thing)
+		return;
 
 	//if (header) 
 	while (1)  //might free more than 1 item
@@ -90,17 +117,19 @@ void ram_free(void* thing)
 			{
 				//call the destructor
 				//if the destructor returns true, free it
-				if(header->destructor(thing)) 
-				{
-					free(header);
-					_ram_allocs--;
-				}
+				do_free = header->destructor(thing); 
+				
 			}
-			else
+			
+			if (do_free)
 			{
-				free(header);
+#ifdef RAM_DEBUG
+				zlist_remove(&_ram_debuglist, header);
+#endif
 				_ram_allocs--;
+				free(header);
 			}
+
 		}
 
 		//if there are 'leftover' items to free, lets continue
@@ -126,26 +155,6 @@ void* ram_addref(void* thing)
 	return thing;
 }
 
-//frees a block without calling its destructor.
-//does not obey reference counts
-void ram_destructor_free(void* thing)
-{
-	printf(" Warning: ram_destructor_free is deprecated\n");
-#if 0
-	mem_header_t* header = (mem_header_t*) thing;
-
-	if (header) 
-	{
-		header--; //decrement pointer to header struct
-		
-		free(header);  //then free our block
-
-		_ram_allocs--;
-	}
-#endif
-}
-
-
 void* ram_resize(void* ram, zsize size)
 {
 
@@ -159,7 +168,16 @@ void* ram_resize(void* ram, zsize size)
 		if (header->refcount !=1 )
 			return NULL;
 
+#ifdef RAM_DEBUG
+				zlist_remove(&_ram_debuglist, header);
+#endif
+
 		header = realloc(header, sizeof(mem_header_t) + size);  //attempt resize to new size;
+
+#ifdef RAM_DEBUG
+		if (header)
+				zlist_addhead(&_ram_debuglist, header);
+#endif
 
 		if (header)
 			return header+1;
@@ -169,7 +187,7 @@ void* ram_resize(void* ram, zsize size)
 
 	return NULL;
 }
-
+/*
 void* ram_clear(void* v, zsize size)
 {
 	if (v)
@@ -177,7 +195,7 @@ void* ram_clear(void* v, zsize size)
 
 	return v;
 }
-
+*/
 char* ram_strdup(char* in)
 {
 	char* x = ram_alloc( strlen(in) + 1 , NULL); //allocate
@@ -190,10 +208,46 @@ char* ram_strdup(char* in)
 	return x;
 }
 
+char* ram_strdup_cat(char* in1, char* in2)
+{
+	int in1_len = strlen(in1);
+	int in2_len = strlen(in2);
+
+	char* x = ram_alloc( in1_len + in2_len + 1, NULL); //allocate
+	
+	if (x)
+	{
+		strcpy(x, in1);
+		strcpy(x+in1_len, in2);
+	}
+
+	return x;
+}
 
 //returns number of open allocations
 zuint32 ram_allocs()
 {
+
+#ifdef RAM_DEBUG
+	int count=0;
+
+	mem_header_t* node = zlist_head(&_ram_debuglist);
+
+	
+
+	while(node)
+	{
+		printf("%p alloced at %s:%d (%d refs)\n",
+			node+1, node->file, node->line, node->refcount	);
+		count++;
+		node = zlist_next(node);
+	}
+
+	if (_ram_allocs != count)
+		printf(" Internal inconsistency in ram.c, oops\n");
+
+#endif
+
 	return _ram_allocs;
 }
 
