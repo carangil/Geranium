@@ -31,6 +31,11 @@ typedef int zerror;
 
 
 //I actually got a compile error that NULL was undefined!
-#ifndef NULL
-#define NULL 0
+//#ifndef NULL
+//#define NULL 0
+//#endif
+
+#ifdef linux
+#define stricmp strcasecmp
 #endif
+

@@ -8,6 +8,7 @@
 #include <malloc.h>
 #include <string.h>
 #include "ram.h"
+#include <stdio.h>
 
 #ifdef RAM_DEBUG
 #include "../structures/linkedlist.h"
@@ -87,7 +88,7 @@ void* ram_alloc(zsize size, ram_destructor destructor)
 #ifdef RAM_DEBUG
 		x->file = file;
 		x->line = line;
-		zlist_addhead(&_ram_debuglist, x);
+		zlist_addhead(&_ram_debuglist, &x->zlistnode);
 #endif
 
 		return x + 1;  //return just past the header
@@ -124,7 +125,7 @@ void ram_free(void* thing)
 			if (do_free)
 			{
 #ifdef RAM_DEBUG
-				zlist_remove(&_ram_debuglist, header);
+				zlist_remove(&_ram_debuglist, &header->zlistnode);
 #endif
 				_ram_allocs--;
 				free(header);
@@ -169,18 +170,21 @@ void* ram_resize(void* ram, zsize size)
 			return NULL;
 
 #ifdef RAM_DEBUG
-				zlist_remove(&_ram_debuglist, header);
+				zlist_remove(&_ram_debuglist, &header->zlistnode);
 #endif
 
 		header = realloc(header, sizeof(mem_header_t) + size);  //attempt resize to new size;
 
 #ifdef RAM_DEBUG
 		if (header)
-				zlist_addhead(&_ram_debuglist, header);
+				zlist_addhead(&_ram_debuglist, &header->zlistnode);
 #endif
+	
 
-		if (header)
+
+		if (header) {
 			return header+1;
+		}
 		else
 			return NULL;  //could not resize, return NULL
 	}
@@ -196,13 +200,18 @@ void* ram_clear(void* v, zsize size)
 	return v;
 }
 */
-char* ram_strdup(char* in)
+char* ram_strdup_func(char* in, char* file, int line)
 {
-	char* x = ram_alloc( strlen(in) + 1 , NULL); //allocate
+	size_t len;
+#ifdef RAM_DEBUG
+	char* x = ram_alloc_debug(len = (strlen(in) + 1), NULL, file, line);
+#else
+	char* x = ram_alloc(  len = (strlen(in) + 1) , NULL); //allocate
+#endif
 
 	if (x)
 	{
-		strcpy(x, in);
+		strncpy(x, in, len);
 	}
 
 	return x;
@@ -210,10 +219,10 @@ char* ram_strdup(char* in)
 
 char* ram_strdup_cat(char* in1, char* in2)
 {
-	int in1_len = strlen(in1);
-	int in2_len = strlen(in2);
+	zsize in1_len = strlen(in1);
+	zsize in2_len = strlen(in2);
 
-	char* x = ram_alloc( in1_len + in2_len + 1, NULL); //allocate
+	zbyte* x = ram_alloc( in1_len + in2_len + 1, NULL); //allocate
 	
 	if (x)
 	{

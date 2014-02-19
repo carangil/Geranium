@@ -4,7 +4,7 @@
 
 #include "../ztypes.h"
 #include "../memory/ram.h"
-#include "../vmath.h"
+#include "../vmath/vmath.h"
 #include <stdio.h>
 #include "gx_image.h"
 #include "gx_buffers.h"
@@ -94,7 +94,7 @@ void gx_drawstyle_activate(gx_drawstyle_t* style)
 	}
 
 	//activate all set textures
-	gx_set_active_textures(vec_elements(&style->textures), vec_count(&style->textures));
+	gx_set_active_textures(vec_elements_as(gx_image_t*, &style->textures), vec_count(&style->textures));
 
 }
 

@@ -1,0 +1,86 @@
+$tile a floor brick.tga
+$tile b floor rock.tga
+$tile C wall brick2.tga
+$tile f floor brick2.tga
+$map
+CCCCCCCCaCCCCCCCCC
+CaaaaaaaaaaaCCCCCC
+CCaaaabbbbaaaaaaaC
+CCaCCCCCCCCaaCCCCC
+CCaaaaaaaabbbCCCCC
+CCafffffaabbbCCCCC
+CCaffffffabbbCCCCC
+CCafafbbbbbbbCCCCC
+CCaaaaaaaabbbCCCCC
+CCaCCCCCCCCaaCCCCC
+CCaaaaaaaabbbCCCCC
+CCaCCCCCCCCaaCCCCC
+CCbbbbaaaabbbCCCCC
+CCaaabbbbbaaCCCCCC
+CCaaaabbbbaaaaaaaC
+CCaCCCCCCCCaaCCCCC
+CCaaaaaaaabbbCCCCC
+CCaabfbfaabbbCCCCC
+CCaaaaaaaabbbCCCCC
+CCaaaaaaaabbbCCCCC
+CCaaaaaaaabbbCCCCC
+CCaCCCCCCCCaaCCCCC
+CCaaaaaaaabbbCCCCC
+CCaCCCCCCCCaaCCCCC
+CCaaaaaaaabbbCCCCC
+CCCCCCCCCCCCCCCCCC
+$floorheight
+        0         
+  0000000000      
+  000000003333333 
+  0        22     
+  01234543211     
+  01222222211     
+  01220022211     
+  02233333221     
+  02255799999     
+  0        00     
+  01122445577     
+  0        55     
+  00000001234     
+  0000000000      
+  000000003333333 
+  0        22     
+  01234543211     
+  01222222211     
+  01220022211     
+  02233333221     
+  02255799999     
+  0        00     
+  01122445577     
+  0        55     
+  00000001234     
+                  
+$ceilingheight
+        0         
+  1234500000      
+  000000000000000 
+  0        00     
+  00000000000     
+  00000000000     
+  00000000000     
+  00000000000     
+  00000000000     
+  0        00     
+  00000000000     
+  0        00     
+  00000000000     
+  0000000000      
+  000000000000000 
+  0        00     
+  00000000000     
+  00000000000     
+  00000000000     
+  00000000000     
+  00000000000     
+  0        00     
+  00000000000     
+  0        00     
+  00000001234     
+                  
+$endmap

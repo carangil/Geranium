@@ -52,6 +52,7 @@ typedef enum
 	gx_quads
 } gx_prim_e;
 
+typedef zint32 vindex;
 
 //gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices, zuint32 num_indices, zbool use_color, zuint32 texture_buffer_count);
 void gx_vbuffer_add_normal(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z);
@@ -85,8 +86,8 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 
 void gx_test_draw_vertices(gx_vbuffer_t* v);
 
-//returns the index of the index added
-zint32 gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i);
+
+void gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i);
 
 
 

@@ -6,7 +6,7 @@
 #include "../sound/sx.h"
 #include "../memory/ram.h"
 
-#include <windows.h>
+//#include <windows.h>
 
 
 #define SHOWERRORS
@@ -20,7 +20,16 @@
 #endif
 
 
+float randf()
+{
+	float f = rand() &255; //o to 255
+	f-=128;
+	return f/127;
 
+
+}
+
+#define BUFSIZE 44100*60*2*4
 int main(int argc, char** args)
 {
 
@@ -30,17 +39,17 @@ int main(int argc, char** args)
 	sx_sound_t* sound3 = NULL; 
 	
 
-//	FILE* file = NULL;
+	FILE* file = NULL;
 	zbyte* data = NULL;
 	zbyte* ldata = NULL;
 	zbyte* rdata = NULL;
 
-//	data = ram_alloc(BUFSIZE, NULL);
+	data = ram_alloc(BUFSIZE, NULL);
 //	ldata = ram_alloc(BUFSIZE/2, NULL);
 //	rdata = ram_alloc(BUFSIZE/2, NULL);
 
 	
-/*	file = fopen("music.raw", "rb");
+	file = fopen("fx/music.raw", "rb");
 	
 	if (file)
 	{
@@ -51,7 +60,7 @@ int main(int argc, char** args)
 	{
 		printf(" no file\n");
 	}
-*/
+
 
 	
 
@@ -65,6 +74,7 @@ int main(int argc, char** args)
 
 	sx_deinterlace_audio( data, BUFSIZE, 2,  ldata, rdata);
 	*/
+#if 0
 	{
 		short rnd[44100];
 		
@@ -100,9 +110,11 @@ int main(int argc, char** args)
 			int t = i;
 			int x,y;
 
-			unsigned char c =   ((t*("36364689"[t>>13&7]&15))/12&128)
-+(((((t>>12)^(t>>12)-2)%11*t)/4|t>>13)&127);
+		//	unsigned char c =   ((t*("36364689"[t>>13&7]&15))/12&128)
+//+(((((t>>12)^(t>>12)-2)%11*t)/4|t>>13)&127);
 
+	unsigned char c =   /*((t*("19283746"[t>>13&7]&15))/6&128)*/
++(((((t>>13)^(t>>12)-2)%11*t)/4|t>>12)&127);
 
 			ss[i]= c*50;
 
@@ -117,8 +129,8 @@ int main(int argc, char** args)
 		music = sx_sound_def(1, size * sizeof(*ss), ss, "music");
 	}
 
-
-	//music = sx_sound_def(2, BUFSIZE, data, "music");
+#endif
+	music = sx_sound_def(2, BUFSIZE, data, "music");
 
 	
 
@@ -151,46 +163,66 @@ int main(int argc, char** args)
 
 	printf(" Music is %p\n", music);
 
-	sx_sound_play(music, 1,1,0);
+	sx_sound_play(music, .5, 1,0);
+	sx_sound_play(music, .5, 1.001,0);
+	
 
-	while(1);
 
+	{
+		sx_reverb_t reverb;
+		reverb.echo_gain = .1;
+		reverb.echo_delay = .1;
+
+		reverb.late_reverb_gain = .5;
+		reverb.late_reverb_decay = 10;
+		sx_set_reverb(&reverb);
+
+	}
 
 
 	//sx_sound_play(music, 1.0);
 /*
-	Sleep(100);
+	tm_msleep(100);
 	sx_sound_play(music, 0.8);
-	Sleep(100);
+	tm_msleep(100);
 	sx_sound_play(music, 0.6);
-	Sleep(100);
+	tm_msleep(100);
 	sx_sound_play(music, 0.4);
-	Sleep(100);
+	tm_msleep(100);
 	sx_sound_play(music, 0.2);
 
+	*/
+/*
+	while(1)
+	{
+
+		float pos[3];
+
+		pos[0]=randf();
+		pos[1]=randf();
+		pos[2]=randf();
+
+		sx_sound_play_at(sound2, 0.5, .,  0, pos);
+		sx_process();
+		tm_msleep(100);
+		
+		
+
+	}
 	*/
 
 	printf(" entering loop\n");
 	{
 		int i=0;
 
-		sx_reverb_t reverb;
-
 	
-
-		reverb.echo_gain = .3;
-		reverb.echo_delay = .1;
-
-		reverb.late_reverb_gain = 1;
-		reverb.late_reverb_decay = 20;
-
 		
 		
 		sx_sound_play(sound2, 0.5, 2,  0);
 
-		Sleep(1000);
+		tm_msleep(1000);
 
-		sx_set_reverb(&reverb);
+		
 		sx_sound_play(sound2, 0.5, 2,  0);
 		
 		
@@ -203,26 +235,39 @@ int main(int argc, char** args)
 	//	sx_sound_play(sound, 1.0, 3500);
 
 	
-		Sleep(1000);
+		tm_msleep(1000);
 		i=-1;
 		while(1)
 		{
 
-			Sleep(5);
+			tm_msleep(5);
 			
 			if(((((i=i+1))%500))==0)
 			{
+				float pos[3];
+				float p;
+				float v;
+				int d;
+
 				printf("BOOOO-------------------------------------\n");
-				sx_sound_play(sound, (rand() & 255) / 255.0 , (rand() & 127) / 255.0+.01, rand()&511 );
-				sx_sound_play(sound2, (rand() & 255) / 255.0 , (rand() & 127) / 255.0+.01, rand()&511 );
-				sx_sound_play(sound2, (rand() & 255) / 255.0 , (rand() & 127) / 255.0+.01, rand()&511 );
+				pos[0]=randf();pos[1]=randf();pos[2]=randf();
+				p =  (rand() & 127) / 255.0+.01;
+				v = (rand() & 255) / 255.0;
+				d = rand()&511;
+				sx_sound_play_at(sound, v , p, d , pos );
+				sx_sound_play_at(sound, v , p*.999, d, pos );
+				sx_sound_play_at(sound, v , p*.998, d, pos );
+
+
+				pos[0]=randf();pos[1]=randf();pos[2]=randf();
+				sx_sound_play_at(sound2, (rand() & 255) / 255.0 , (rand() & 127) / 255.0+.01, rand()&511 , pos);
+				pos[0]=randf();pos[1]=randf();pos[2]=randf();
+			sx_sound_play_at(sound2, (rand() & 255) / 255.0 , (rand() & 127) / 255.0+.01, rand()&511,  pos);
 				
 				//if((i%300)==0)
 				//	sx_sound_play(sound3, (rand() & 255) / 255.0, (rand() & 511) / 255.0 + .01 , rand()&127);
 
-				//printf(" echo delay %f\n", reverb.echo_delay);
-				//reverb.echo_delay +=.01;
-				//sx_set_reverb(&reverb);
+
 
 			}
 

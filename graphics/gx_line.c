@@ -4,7 +4,7 @@
 
 #include "../ztypes.h"
 #include "../memory/ram.h"
-#include "../vmath.h"
+#include "../vmath/vmath.h"
 #include <stdio.h>
 #include "gx_image.h"
 #include "gx_buffers.h"
@@ -155,7 +155,7 @@ void _gx_line_disable()
 void gx_line_thickness(int pixels)
 {
 
-	glLineWidth(pixels);
+	glLineWidth((float)pixels);
 }
 
 
@@ -175,7 +175,7 @@ void gx_box(float xmin, float ymin, float xmax, float ymax)
 void gx_arcgon(float x, float y, float w,float  h, float start_angle, float end_angle, zuint32 sides, zbool pie)
 {
 	zfloat32 angle=0;
-	zfloat32 delta_theta= 2.0 * PI / sides;
+	zfloat32 delta_theta= 2.0f * PI / sides;
 		
 	zfloat32 x1 = 0;
 	zfloat32 y1 = 0;
@@ -190,8 +190,8 @@ void gx_arcgon(float x, float y, float w,float  h, float start_angle, float end_
 
 		x0=x1;
 		y0=y1;
-		x1 = w*cos(angle)+x;
-		y1 = h*sin(angle)+y;
+		x1 = w*cosf(angle)+x;
+		y1 = h*sinf(angle)+y;
 		
 
 		if (i>0 || pie )
@@ -202,8 +202,8 @@ void gx_arcgon(float x, float y, float w,float  h, float start_angle, float end_
 		i++;
 	}
 
-	x1 = w*cos(end_angle)+x;
-	y1 = h*sin(end_angle)+y;
+	x1 = w*cosf(end_angle)+x;
+	y1 = h*sinf(end_angle)+y;
 
 	gx_line( x0,y0, x1, y1);
 

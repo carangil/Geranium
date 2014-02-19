@@ -2,15 +2,11 @@
 // ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
-#define FADE_PATCHES
-#define ALPHA_SPEED .03
-
-
 #include <stdio.h>
 #include <math.h>
 #include "../ztypes.h"
 #include "../memory/ram.h"
-#include "../vmath.h"
+#include "../vmath/vmath.h"
 #include "../graphics/gx_sys.h"
 #include "../graphics/gx_image.h"
 #include "../graphics/gx_sprite.h"
@@ -19,1126 +15,33 @@
 #include "../graphics/gx_light.h"
 #include "../structures/vector.h"
 #include "../graphics/gx_drawstyle.h"
-
 #include "../graphics/gx_misc.h"
 #include "../graphics/gx_mesh.h"
-#include "meshtree.h"
-
-//math helper
-
-//random float 0.0 to 1.0
+#include "../graphics/gx_quadpatch.h"
 
 
-int srandf(float x)
-{
-	int seed = x * RAND_MAX;
-	int seed2 = x* 17*5;
-	seed += seed2;
-	seed = seed % RAND_MAX;
-	srand(seed);
-}
-
-float randf()
-{
-	
-	return  rand() /  (float)RAND_MAX;
-	
-}
-
-
-//random float -1.0 to 1.0
-float randfs()
-{
-	return -1.0 + 2*(rand()&511) / 511.0;
-}
-
-//normalize a vector
-void vec3norm( vec3* p)
-{
-	float d = sqrt( vec3abs_sq(*p)  );
-	vec3scale( *p, (1/d) );
-}
-
-//camera stuff -todo move into library
-
-typedef struct g_camera_s
-{
-	vec3 camera_pos;
-	vec3 camera_forward;
-	vec3 camera_right;
-	vec3 camera_up;
-} g_camera_t;
-
-void g_camera_init(g_camera_t* cam)
-{
-	if (cam)
-	{
-		vec3set( cam->camera_pos,		0.0f, 0.0f, 0.0f);
-		vec3set( cam->camera_right,		1.0f, 0.0f, 0.0f);
-		vec3set( cam->camera_up,		0.0f, 1.0f, 0.0f);
-		vec3set( cam->camera_forward,	0.0f, 0.0f, -1.0f);
-	}
-}
-
-
-
-
-
-//game structures
-
-
-
-//game constants
 #define STARCOUNT 2000
 
-#define PATCHSIZE (64+1)
 
 
+#define FADE_PATCHES
+#define ALPHA_SPEED  .01
 
-
-#if 1
-//maybe better sheet support
-
-#define EDGE_LEFT    0
-#define EDGE_RIGHT   1
-#define EDGE_TTT     2
-#define EDGE_BBB  3
-
-
-
-
-typedef struct quadarray_s
-{
-	gx_vbuffer_t* vb;
-	
-	zint32 count;  //# of vertices
-
-	zint32 w;  //2d array dimension
-	zint32 h;
-
-	struct quadarray_s* children[4];
-	struct quadarray_s* parent;
-	int self; //which one of my parent children am i?
-
-	zbool useskirt;
-
-	vindex startindex;  //1st vertex
-	vindex endindex; //
-	vindex endindex_noskirt;
-	//zbool dirtyindex; //must rebuild indexbuffer before drawing
-
-	vec3 origin; //center of planet
-
-	vec3 center;  //center of the quadarray
-	float size;   //area metric
-	float dsize;   //distance metric
-
-	vec3 avgnorm; //average normal
-
-	//neighbors
-//	struct quadarray_s* left;
-//	struct quadarray_s* right;
-//	struct quadarray_s* up;
-//	struct quadarray_s* down;
-	struct quadarray_s* adjacent[4];      //the 4 adjacent neighbors at the same detail level
-	int adjacent_edge[4]; //the neighbor's edge I am touching
-	int rev[4];  //joined to something in reverse order
-
-	int tag;
-	
-	int onlevel; //true if this is the level being drawn
-
-	int generation; // +1 each time split
-
-	float alpha; //for fadeout
-
-
-	//for 
-	int use_offset;
-	vec3  offset; // for high precision crap
-	float scale;
-	
-	int boo;  //todo remove
-} quadarray_t ;
-#define qa_vindex(qaaa, qxxx, qyyy)  (((qaaa)->w * (qyyy)) + (qxxx))
-
-
-// 0 1
-// 2 3
-
-//edge child arrays
-int edge_left_child[] = {0,2};
-int edge_right_child[] = {1,3};
-int EDGE_TTT_child[] = {0,1};
-int EDGE_BBB_child[] = {2,3};
-
-int* edge_child[] = { edge_left_child, edge_right_child, EDGE_TTT_child, EDGE_BBB_child};
-
-char* edge_names[] = {"LEFT", "RIGHT", "BOTTOM", "TOP"};
-
-int edge_opposite[] = { EDGE_RIGHT, EDGE_LEFT, EDGE_BBB, EDGE_TTT};
-
-
-quadarray_t* find_neighbor(quadarray_t* q, int edge, int* nedge, int* rev)
-{
-	int x;
-	int y;
-	int child_num;
-	int edge_child_n = 0;
-	*rev=0;
-	
-
-	if (!q->parent)
-		return NULL; //can't
-
-	if (q->adjacent[edge]) 
-	{
-		printf("already done\n");
-		return q->adjacent[edge];
-	}
-	
-	// decompose my 'child number' into x and y
-	x = q->self & 1;
-	y = q->self >> 1;
-
-	if (edge == EDGE_LEFT || edge == EDGE_RIGHT)
-			edge_child_n = y;
-	else
-			edge_child_n = x;
-
-	//find coords of neigbor
-
-	if (edge == EDGE_LEFT)
-		x--;
-
-	if (edge == EDGE_RIGHT)
-		x++;
-
-	if (edge == EDGE_TTT)
-		y--;
-
-	if (edge == EDGE_BBB)
-		y++;
-
-	if (((x==0 || x==1)) && ((y==0||y==1)))
-	{ 
-		//neighbor has same parent (within a group of 4)
-	
-
-		*nedge = edge_opposite[edge];
-		
-
-		child_num = (y << 1) | x ;
-		//return NULL;
-
-	//	printf( " child %d is also edge child %d of edge %s  == ", q->self, edge_child_n, edge_names[edge]);
-
-	//	printf(" %s of child %d is   %s %d\n", edge_names[edge], q->self, edge_names[*nedge], child_num);
-
-		return q->parent->children[child_num];
-	}
-	//return NULL;
-	//need to look at parent's neighbors
-	if (!q->parent->adjacent[edge]) 
-		return NULL;
-
-//	printf("  case: child number: %d, edge %s, connected edge %s\n",
-//		q->self,
-//		edge_names[edge],
-//		edge_names[q->parent->adjacent_edge[edge]]
-//		);
-	
-		{	
-			int edge_target =   q->parent->adjacent_edge[edge];
-			int edge_child_idx;
-			if (edge_child[edge][0] == q->self)
-				edge_child_idx =0;
-			else if (edge_child[edge][1] == q->self)
-				edge_child_idx = 1;
-			else
-			{
-				printf(" illegal case: child number: %d, edge %s, connected edge %s\n",
-					q->self,
-					edge_names[edge],
-					edge_names[q->parent->adjacent_edge[edge]]
-				);
-				return NULL;
-			}
-
-			if(q->parent->rev[edge])
-				edge_child_idx = 1- edge_child_idx;   //reverse it
-
-			*nedge =edge_target;
-			*rev = q->parent->rev[edge];
-			child_num = edge_child[edge_target][edge_child_idx];
-			return q->parent->adjacent[edge]->children[child_num];
-
-
-		}
-
-
-	
-
-	printf(" unhandled case: child number: %d, edge %s, connected edge %s\n",
-		q->self,
-		edge_names[edge],
-		edge_names[q->parent->adjacent_edge[edge]]
-		);
-
-	
-
-#if 0
-	//todo: fill out all the tables
-
-	if (x==2) {  //too far to the right
-		
-		x=0;
-		if (!q->parent->adjacent[EDGE_RIGHT])
-			return NULL;
-
-		*nedge = q->parent->adjacent_edge[EDGE_RIGHT];
-
-		
-		child_num = (y << 1) | x ;
-
-		return q->parent->adjacent[EDGE_RIGHT]->children[child_num];
-
-		
-	}
-
-#endif
-
-	return NULL;
-}
-
-//void quadarray_reindex(quadarray_t* qa);
-
-void quadarray_draw(quadarray_t* qa)
-{
-	//
-	//if (qa->use_offset)
-//	{
-	//	gx_move3d(&qa->offset);
-	//}
-	vec3 off;
-
-
-	int i;
-
-
-	if (qa->boo)
-		return;
-
-//	int f=0;
-
-	vec3set (off, 0, .01, .01);
-/*
-	for(i=0;i<4;i++)
-		if (! qa->adjacent[i] || 
-			(qa->adjacent[i] && 
-			!qa->adjacent[i]->onlevel &&
-			qa->adjacent[i]->parent &&
-			qa->adjacent[i]->parent->onlevel))
-				f=1;
-*/
-
-	//if (f)
-	//	gx_move3d(&off);
-
-	//	if (f && qa->parent)
-	//		gx_vbuffer_draw(qa->parent->vb, qa->parent->startindex, qa->parent->endindex,  gx_triangles, ztrue);
-		
-
-//	if (qa->dirtyindex)
-//		quadarray_reindex(qa);
-
-	if (qa->useskirt)
-
-		gx_vbuffer_draw(qa->vb, qa->startindex, qa->endindex,  gx_triangles, ztrue);
-	else 
-		gx_vbuffer_draw(qa->vb, qa->startindex, qa->endindex_noskirt,  gx_triangles, ztrue);
-	//if(f)
-	//	gx_home();
-
-	//if (qa->use_offset)
-//	{
-	//	gx_home();
-//	}
-
-}
-
-
-
-int add_pentagon(gx_vbuffer_t* vb, zuint32 v0,zuint32 v1,zuint32 v2,zuint32 v3,zuint32 v4)
-//int add_triangle5(gx_vbuffer_t* vb, zuint32 v0,zuint32 v1,zuint32 v2, zuint32 v3,zuint32 v4  )
-{
-	gx_vbuffer_add_index(vb, v0);
-	gx_vbuffer_add_index(vb, v1);
-	gx_vbuffer_add_index(vb, v2);
-
-	gx_vbuffer_add_index(vb, v0);
-	gx_vbuffer_add_index(vb, v2);
-	gx_vbuffer_add_index(vb, v4);
-
-	gx_vbuffer_add_index(vb, v2);
-	gx_vbuffer_add_index(vb, v3);
-	gx_vbuffer_add_index(vb, v4);
-
-	return 9;
-}
-
-int edge_lowdetail(quadarray_t* qa, int edge)
-{
-
-if (
-		/* if item has neighbor, neighbor is not active but neighbor's parent is */
-		(
-			qa->adjacent[edge] && 
-			!qa->adjacent[edge]->onlevel && 
-			qa->adjacent[edge]->parent &&
-			qa->adjacent[edge]->parent->onlevel)
-		
-
-		||
-
-		/*or don't have  neighbor, but parent's neighbor is on level */
-		(
-			! qa->adjacent[edge] && 
-			qa->parent && 
-			qa->parent->adjacent[edge] &&
-			qa->parent->adjacent[edge]->onlevel)
-	)
-
-		return 1;
-
-	return 0;
-
-}
-
-#if 0
-void quadarray_reindex(quadarray_t* qa)
-{
-	//all 4 sides low detail
-	int top_lowdetail=0;
-	int bottom_lowdetail=0;
-	int left_lowdetail=0;
-	int right_lowdetail=0;
-	
-	int a;
-	int b;
-	int h = qa->h;
-	int w = qa->w;
-
-
-
-
-	
-	if (edge_lowdetail(qa, EDGE_LEFT))
-		left_lowdetail = 1;
-
-	if (edge_lowdetail(qa, EDGE_RIGHT))
-		right_lowdetail = 1;
-
-	if (edge_lowdetail(qa, EDGE_BBB))
-		top_lowdetail = 1;
-
-	if (edge_lowdetail(qa, EDGE_TTT))
-		bottom_lowdetail = 1;
-
-
-
-	qa->endindex = qa->startindex; //restart
-	gx_vbuffer_clear(qa->vb, ztrue, zfalse);
-
-
-	//fill, with triangles
-	//normally a from 0 to w-1  , and b from, 0 to h-1
-	// if left_lowdetail, etc are set, move, start, end inside from edge
-	for (a=left_lowdetail;a<(qa->w-1-right_lowdetail);a++)
-	{
-		for (b=bottom_lowdetail;b<(qa->h-1-top_lowdetail);b++)
-		{
-	
-			//tri 1
-			gx_vbuffer_add_index( qa->vb, ((a+0) + (b+0)*qa->w) );				
-			gx_vbuffer_add_index( qa->vb, ((a+1) + (b+0)*qa->w) );
-			gx_vbuffer_add_index( qa->vb, ((a+1) + (b+1)*qa->w) );
-
-			//tri 2
-			gx_vbuffer_add_index( qa->vb, ((a+0) + (b+0)*qa->w) );		
-			gx_vbuffer_add_index( qa->vb, ((a+1) + (b+1)*qa->w) );
-			gx_vbuffer_add_index( qa->vb, ((a+0) + (b+1)*qa->w) );
-
-			qa->endindex+=6;
-		}
-	}
-
-
-	//low do all 4 edges
-
-	#if 1
-		//left edge 
-	if (left_lowdetail)
-	{
-		a = 0;
-		for (b=0;b<(h-2);b+=2)
-		{		 
-	
-			if (b==h-3 && top_lowdetail)
-					continue;
-
-			if (b==0 && bottom_lowdetail)
-					continue;
-
-			qa->endindex+= add_pentagon(qa->vb,
-										qa_vindex(qa, a+0, b+0), 
-										qa_vindex(qa, a+1 , b+0), 
-										qa_vindex(qa, a+1, b+1),
-										qa_vindex(qa, a+1, b+2),
-										qa_vindex(qa, a+0 , b+2));
-					
-		}
-	}
-#endif
-#if 1
-		//right edge
-		if (right_lowdetail)
-		{
-
-
-
-			a = w-2;
-			for (b=0;b<(h-2);b+=2)
-			{		 
-
-
-			if (b==h-3 && top_lowdetail)
-					continue;
-
-			if (b==0 && bottom_lowdetail)
-					continue;
-
-				qa->endindex+= add_pentagon(qa->vb,
-											qa_vindex(qa, a+0, b+0) , 
-											qa_vindex(qa, a+1, b+0), 
-											qa_vindex(qa, a+1, b+2) ,
-											qa_vindex(qa, a+0, b+2),
-											qa_vindex(qa, a+0, b+1));
-						
-			}
-		}
-#endif
-#if 1
-		//top edge 
-		if (top_lowdetail)
-		{
-			b = h-2;
-			for (a=0;a<(w-2);a+=2)
-			{		 
-		
-			if (a== 0  &&  left_lowdetail)
-					continue;
-
-			if (a== w-3  &&  right_lowdetail)
-					continue;
-
-				qa->endindex+= add_pentagon(qa->vb,
-											qa_vindex(qa, a+0 , b+1), 
-											qa_vindex(qa, a+0 , b+0), 
-											qa_vindex(qa, a+1 , b+0),
-											qa_vindex(qa, a+2 , b+0),
-											qa_vindex(qa, a+2 , b+1));
-						
-			}
-		}
-#endif
-#if 1
-		if (bottom_lowdetail)
-		{
-			//bottom edge 
-			b = 0;
-			for (a=0;a<(w-2);a+=2)
-			{		 
-
-					if (a== 0  &&  left_lowdetail)
-					continue;
-
-				if (a== w-3  &&  right_lowdetail)
-					continue;
-		
-
-				qa->endindex+= add_pentagon(qa->vb,
-											qa_vindex(qa, a+2 , b+0),
-											qa_vindex(qa, a+2 , b+1),
-											qa_vindex(qa, a+1 , b+1),
-											qa_vindex(qa, a+0 , b+1),
-											qa_vindex(qa, a+0 , b+0) 
-											
-											
-											
-											
-											);
-						
-			}
-		}
-#endif
-
-	gx_vbuffer_update_indices(qa->vb);
-//	qa->dirtyindex = 0;
-
-	return;
-}
-#endif
-
-#define QUADARRAY_SKIRTS
-
-//create the quadarray
-quadarray_t* quadarray_mk(int w, int h)
-{
-	quadarray_t *qa = NULL;
-	int a;
-	int b;
-
-	
-
-	qa = ram_alloc(sizeof(*qa), NULL);
-
-	if (qa)
-	{
-		qa->count = w*h;
-		qa->w=w;
-		qa->h=h;
-#ifdef QUADARRAY_SKIRTS
-		qa->vb = gx_vbuffer_mk(w*h  +2*w + 2*h, w*h*3*2 + w*3*2 +h*3*2, zfalse, ztrue, 1);
-#else
-		qa->vb = gx_vbuffer_mk(w*h, w*h*3*2, zfalse, ztrue, 0);
-#endif
-		qa->startindex = 0;
- 
-		qa->vb->vertex_count = w*h;  //say all vertices are filled out
-
-		qa->generation = 1;
-		qa->size = 1;
-
-		//reindex the quadarray
-	//	quadarray_reindex(qa);
-	//	qa->dirtyindex = 1;
-
-#if 1
-		//need to index to make triangles
-		for (a=0;a<(w-1);a++)
-		{
-			for (b=0;b<(h-1);b++)
-			{	
-
-				//tri 1
-				gx_vbuffer_add_index( qa->vb, qa_vindex(qa,a,b));
-				gx_vbuffer_add_index( qa->vb, qa_vindex(qa,a+1,b) );
-				gx_vbuffer_add_index( qa->vb, qa_vindex(qa,a+1,b+1) );
-
-				//tri 2
-				gx_vbuffer_add_index( qa->vb, qa_vindex(qa,a,b) );		
-				gx_vbuffer_add_index( qa->vb, qa_vindex(qa,a+1,b+1) );
-				gx_vbuffer_add_index( qa->vb, qa_vindex(qa,a,b+1) );
-
-				qa->endindex+=6;
-			}
-		}
-
-		//now add skirts
-
-#ifdef QUADARRAY_SKIRTS
-		
-
-#define qa_skirtindex(qa, s, i)    (((qa)->w * (qa)->h) + ((s)*(qa)->w) + (i))
-
-		qa->endindex_noskirt = qa->endindex;
-
-		for (b=0;b< (h-1); b++)
-		{
-			//left skirt
-			gx_vbuffer_add_index( qa->vb, qa_skirtindex(qa,0,b)    );
-			gx_vbuffer_add_index( qa->vb, qa_vindex(qa,0,b) );
-			gx_vbuffer_add_index( qa->vb, qa_vindex(qa,0,b+1) );
-
-			gx_vbuffer_add_index( qa->vb, qa_skirtindex(qa,0,b)    );
-			gx_vbuffer_add_index( qa->vb, qa_vindex(qa,0,b+1) );
-			gx_vbuffer_add_index( qa->vb, qa_skirtindex(qa,0,b+1)    );
-
-			qa->endindex+=6;
-
-
-			//right skirt
-		
-			gx_vbuffer_add_index( qa->vb, qa_skirtindex(qa,EDGE_RIGHT,b)    );
-			
-			gx_vbuffer_add_index( qa->vb, qa_vindex(qa,h-1,b+1) );
-			gx_vbuffer_add_index( qa->vb, qa_vindex(qa,h-1,b) );
-
-			gx_vbuffer_add_index( qa->vb, qa_skirtindex(qa,EDGE_RIGHT,b)    );
-			
-			gx_vbuffer_add_index( qa->vb, qa_skirtindex(qa,EDGE_RIGHT,b+1)    );
-			gx_vbuffer_add_index( qa->vb, qa_vindex(qa,h-1,b+1) );
-
-			qa->endindex+=6;
-
-
-			//top skirt
-			gx_vbuffer_add_index( qa->vb, qa_skirtindex(qa,EDGE_BBB,b)    );
-			
-			gx_vbuffer_add_index( qa->vb, qa_vindex(qa,b+1 ,0) );
-			gx_vbuffer_add_index( qa->vb, qa_vindex(qa,b , 0) );
-
-			gx_vbuffer_add_index( qa->vb, qa_skirtindex(qa,EDGE_BBB,b)    );
-			
-			gx_vbuffer_add_index( qa->vb, qa_skirtindex(qa,EDGE_BBB,b+1)    );
-			gx_vbuffer_add_index( qa->vb, qa_vindex(qa,b+1 , 0) );
-
-			qa->endindex+=6;
-
-
-			//bottom skirt
-			gx_vbuffer_add_index( qa->vb, qa_skirtindex(qa,EDGE_TTT,b)    );
-			gx_vbuffer_add_index( qa->vb, qa_vindex(qa,b , h-1) );
-			gx_vbuffer_add_index( qa->vb, qa_vindex(qa,b+1 ,h-1) );
-			
-
-
-			gx_vbuffer_add_index( qa->vb, qa_skirtindex(qa,EDGE_TTT,b+1)    );
-			gx_vbuffer_add_index( qa->vb, qa_skirtindex(qa,EDGE_TTT,b)    );
-			
-
-			gx_vbuffer_add_index( qa->vb, qa_vindex(qa,b+1 , h-1) );
-
-			qa->endindex+=6;
-
-
-		}
-
-#endif
-
-#endif
-
-		
-	}
-	return qa;
-}
-
-
-void quadarray_skirt( quadarray_t* qa)
-{
-	int i;
-	
-	vec3 p;
-	float skirtd = qa->dsize*2 ;
-
-	qa->useskirt = ztrue;
-	for (i=0;i<qa->h;i++)
-	{
-		//left
-		vec3mov( *gx_vbuffer_n(qa->vb, qa_skirtindex(qa, 0, i)), *gx_vbuffer_n(qa->vb, qa_vindex(qa, 0, i)));
-		vec3mov( *gx_vbuffer_v(qa->vb, qa_skirtindex(qa, 0, i)), *gx_vbuffer_v(qa->vb, qa_vindex(qa, 0, i)));
-		vec3sub(*gx_vbuffer_v(qa->vb, qa_skirtindex(qa, 0, i)), qa->origin);
-		vec3scale( *gx_vbuffer_v(qa->vb, qa_skirtindex(qa, 0, i)), 1-skirtd);
-		vec3add(*gx_vbuffer_v(qa->vb, qa_skirtindex(qa, 0, i)), qa->origin);
-
-
-		//right
-		vec3mov( *gx_vbuffer_n(qa->vb, qa_skirtindex(qa, EDGE_RIGHT, i)), *gx_vbuffer_n(qa->vb, qa_vindex(qa, qa->w-1, i)));
-		vec3mov( *gx_vbuffer_v(qa->vb, qa_skirtindex(qa, EDGE_RIGHT, i)), *gx_vbuffer_v(qa->vb, qa_vindex(qa, qa->w-1, i)));
-		vec3sub(*gx_vbuffer_v(qa->vb, qa_skirtindex(qa, EDGE_RIGHT, i)), qa->origin);
-		vec3scale( *gx_vbuffer_v(qa->vb, qa_skirtindex(qa, EDGE_RIGHT, i)), 1-skirtd);
-		vec3add(*gx_vbuffer_v(qa->vb, qa_skirtindex(qa, EDGE_RIGHT, i)), qa->origin);
-
-		//top
-		vec3mov( *gx_vbuffer_n(qa->vb, qa_skirtindex(qa, EDGE_BBB, i)), *gx_vbuffer_n(qa->vb, qa_vindex(qa,  i,0)));
-		vec3mov( *gx_vbuffer_v(qa->vb, qa_skirtindex(qa, EDGE_BBB, i)), *gx_vbuffer_v(qa->vb, qa_vindex(qa,  i,0)));
-		vec3sub(*gx_vbuffer_v(qa->vb, qa_skirtindex(qa, EDGE_BBB, i)), qa->origin);
-		vec3scale( *gx_vbuffer_v(qa->vb, qa_skirtindex(qa, EDGE_BBB, i)), 1-skirtd);
-		vec3add(*gx_vbuffer_v(qa->vb, qa_skirtindex(qa, EDGE_BBB, i)), qa->origin);
-
-		//bottom
-		vec3mov( *gx_vbuffer_n(qa->vb, qa_skirtindex(qa, EDGE_TTT, i)), *gx_vbuffer_n(qa->vb, qa_vindex(qa,  i,qa->h-1)));
-		vec3mov( *gx_vbuffer_v(qa->vb, qa_skirtindex(qa, EDGE_TTT, i)), *gx_vbuffer_v(qa->vb, qa_vindex(qa,  i,qa->h-1)));
-		vec3sub(*gx_vbuffer_v(qa->vb, qa_skirtindex(qa, EDGE_TTT, i)), qa->origin);
-		vec3scale( *gx_vbuffer_v(qa->vb, qa_skirtindex(qa, EDGE_TTT, i)), 1-skirtd);
-		vec3add(*gx_vbuffer_v(qa->vb, qa_skirtindex(qa, EDGE_TTT, i)), qa->origin);
-
-	}
-
-
-
-}
-
-
-void quadarray_norm(quadarray_t* qa);
-
-
-//order: 0,1
-//       2,3
 
 #define QUADARRAY_TAG_NONE        0
 #define QUADARRAY_TAG_REMOVE	    1
 #define QUADARRAY_TAG_DRAW_ONLY     2
+#define QUADARRAY_TAG_DELETE	    3
 
+gx_quadpatch_t* closest = NULL;
 
-void quadarray_sew(quadarray_t* source, int source_edge, quadarray_t* dest, int dest_edge, int rev)
+void do_detail( 	 gx_quadpatch_t* dest, gx_quadpatch_t* source, 
+						int a_start, int a_end, int b_start, int b_end)
 {
-	int i;
-	int is;
 
-	vec3* s;
-	vec3* sn;
-	
-	if (!source || !dest)
-		return;
-
-
-	if (dest->w != dest->h)
-		return;
-	if (dest->w != source->w)
-		return;
-
-	source->adjacent[source_edge] = dest;
-	source->adjacent_edge[source_edge] = dest_edge;
-	source->rev[source_edge] = rev;
-
-	dest->adjacent[dest_edge] = source;
-	dest->adjacent_edge[dest_edge] = source_edge;
-	dest->rev[dest_edge] = rev;
-		
-
-
-	for (i=0;i<source->w;i++)
-	{
-
-		s = NULL;
-
-		if (rev)
-			is = source->w -1-i;
-		else 
-			is = i;
-
-
-		//get
-		if (source_edge == EDGE_LEFT)
-		{
-			s = gx_vbuffer_v( source->vb, qa_vindex( source, 0,is));
-			sn= gx_vbuffer_n( source->vb, qa_vindex( source, 0,is));
-		}
-		else if (source_edge == EDGE_RIGHT)
-		{
-			s = gx_vbuffer_v( source->vb, qa_vindex( source, source->w-1,is));
-			sn= gx_vbuffer_n( source->vb, qa_vindex( source, source->w-1,is));
-		}
-		else if (source_edge == EDGE_TTT)
-		{
-			s = gx_vbuffer_v( source->vb, qa_vindex( source, is,0));
-			sn= gx_vbuffer_n( source->vb, qa_vindex( source, is,0));
-		}
-		else if (source_edge == EDGE_BBB)
-		{
-			s = gx_vbuffer_v( source->vb, qa_vindex( source, is,source->h-1));
-			sn= gx_vbuffer_n( source->vb, qa_vindex( source, is,source->h-1));
-		}
-
-
-		//put
-//		{
-//		vec3 u;
-//		vec3set(u, 0,.1,0);
-//		vec3add(*s, u);
-//		}
-		
-
-  		if (dest_edge == EDGE_LEFT)
-		{
-  			*gx_vbuffer_v( dest->vb, qa_vindex( dest, 0,i)) = *s; 
-			*gx_vbuffer_n( dest->vb, qa_vindex( dest, 0,i)) = *sn; 
-		}
-  		else if (dest_edge == EDGE_RIGHT)
-		{
-			*gx_vbuffer_v( dest->vb, qa_vindex( dest, dest->w-1,i)) = *s;
-			*gx_vbuffer_n( dest->vb, qa_vindex( dest, dest->w-1,i)) = *sn;
-		}
-  		else if (dest_edge == EDGE_TTT)
-		{
-  			*gx_vbuffer_v( dest->vb, qa_vindex( dest, i,0)) = *s;
-			*gx_vbuffer_n( dest->vb, qa_vindex( dest, i,0)) = *sn;
-		}
-  		else if (dest_edge == EDGE_BBB )
-		{
-  			*gx_vbuffer_v( dest->vb, qa_vindex( dest, i,dest->h-1)) = *s;
-			*gx_vbuffer_n( dest->vb, qa_vindex( dest, i,dest->h-1)) = *sn;
-		}
-			
-
-	}
-}
-
-// 0 1
-// 2 3
-
-
-
-
-
-
-
-#if 0
-void quadarray_patchup(quadarray_t* qa)
-{
-	quadarray_t* neighbor = NULL;
-
-	if (! qa->parent)
-		return;
-#if 1
-	//find neighbor to right of me.
-	neighbor = NULL;
-
-	if (qa->self == 0)
-		neighbor = qa->parent->children[1];
-
-	else if (qa->self == 2)
-		neighbor = qa->parent->children[3];
-
-	else if (qa->parent->adjacent[EDGE_RIGHT])
-	{
-		
-		if (qa->self == 3)
-			neighbor = qa->parent->adjacent[EDGE_RIGHT]->children[2];
-	
-		if (qa->self == 1)
-			neighbor = qa->parent->adjacent[EDGE_RIGHT]->children[0];
-	}
-	
-
-	if (neighbor)
-	{
-		qa->adjacent[EDGE_RIGHT] = neighbor;
-		neighbor->adjacent[EDGE_LEFT] = qa;
-		quadarray_sew(neighbor, EDGE_LEFT, qa, EDGE_RIGHT);
-	}
-#endif
-
-	//find neighbor to left of me
-	neighbor = NULL;
-
-	if (qa->self == 1)
-		neighbor = qa->parent->children[0];
-
-	else if (qa->self == 3)
-		neighbor = qa->parent->children[2];
-
-	else if (qa->parent->adjacent[EDGE_LEFT])
-	{
-
-		if (qa->self == 0)
-			neighbor = qa->parent->adjacent[EDGE_LEFT]->children[1];
-	
-		if (qa->self == 2)
-			neighbor = qa->parent->adjacent[EDGE_LEFT]->children[3];
-	}
-	
-
-	if (neighbor)
-	{
-		qa->adjacent[EDGE_LEFT] = neighbor;
-		neighbor->adjacent[EDGE_RIGHT] = qa;
-		quadarray_sew(neighbor, EDGE_RIGHT, qa, EDGE_LEFT);
-	}
-
-
-	//find neighbor below
-	neighbor = NULL;
-
-	if (qa->self == 0)
-		neighbor = qa->parent->children[2];
-
-	else if (qa->self == 1)
-		neighbor = qa->parent->children[3];
-
-	else if (qa->parent->adjacent[EDGE_BBB])
-	{
-
-		if (qa->self == 2)
-			neighbor = qa->parent->adjacent[EDGE_BBB]->children[0];
-	
-		if (qa->self == 3)
-			neighbor = qa->parent->adjacent[EDGE_BBB]->children[1];
-	}
-	
-
-	if (neighbor)
-	{
-		qa->adjacent[EDGE_BBB] = neighbor;
-		neighbor->adjacent[EDGE_TTT] = qa;
-		quadarray_sew(neighbor, EDGE_TTT, qa, EDGE_BBB);
-	}
-
-
-//find neighbor above
-	neighbor = NULL;
-
-	if (qa->self == 2)
-		neighbor = qa->parent->children[0];
-
-	else if (qa->self == 3)
-		neighbor = qa->parent->children[1];
-
-	else if (qa->parent->adjacent[EDGE_TTT])
-	{
-
-		if (qa->self == 0)
-			neighbor = qa->parent->adjacent[EDGE_TTT]->children[2];
-	
-		if (qa->self == 1)
-			neighbor = qa->parent->adjacent[EDGE_TTT]->children[3];
-	}
-	
-
-	if (neighbor)
-	{
-		qa->adjacent[EDGE_TTT] = neighbor;
-		neighbor->adjacent[EDGE_BBB] = qa;
-		quadarray_sew(neighbor, EDGE_BBB, qa, EDGE_TTT);
-	}
-
-
-}
-#endif
-
-
-
-#if 0
-void quadarray_patchup(quadarray_t* qa)
-{
-	quadarray_t* neighbor = NULL;
-
-	if (! qa->parent)
-		return;
-#if 1
-	//find neighbor to right of me.
-	neighbor = NULL;
-
-	if (qa->self == 0)
-		neighbor = qa->parent->children[1];
-
-	else if (qa->self == 2)
-		neighbor = qa->parent->children[3];
-
-	else if (qa->parent->adjacent[EDGE_RIGHT])
-	{
-		
-		if (qa->self == 3)
-			neighbor = qa->parent->adjacent[EDGE_RIGHT]->children[2];
-	
-		if (qa->self == 1)
-			neighbor = qa->parent->adjacent[EDGE_RIGHT]->children[0];
-	}
-	
-
-	if (neighbor)
-	{
-		qa->adjacent[EDGE_RIGHT] = neighbor;
-		neighbor->adjacent[EDGE_LEFT] = qa;
-		quadarray_sew(neighbor, EDGE_LEFT, qa, EDGE_RIGHT);
-	}
-#endif
-
-	//find neighbor to left of me
-	neighbor = NULL;
-
-	if (qa->self == 1)
-		neighbor = qa->parent->children[0];
-
-	else if (qa->self == 3)
-		neighbor = qa->parent->children[2];
-
-	else if (qa->parent->adjacent[EDGE_LEFT])
-	{
-
-		if (qa->self == 0)
-			neighbor = qa->parent->adjacent[EDGE_LEFT]->children[1];
-	
-		if (qa->self == 2)
-			neighbor = qa->parent->adjacent[EDGE_LEFT]->children[3];
-	}
-	
-
-	if (neighbor)
-	{
-		qa->adjacent[EDGE_LEFT] = neighbor;
-		neighbor->adjacent[EDGE_RIGHT] = qa;
-		quadarray_sew(neighbor, EDGE_RIGHT, qa, EDGE_LEFT);
-	}
-
-
-	//find neighbor below
-	neighbor = NULL;
-
-	if (qa->self == 0)
-		neighbor = qa->parent->children[2];
-
-	else if (qa->self == 1)
-		neighbor = qa->parent->children[3];
-
-	else if (qa->parent->adjacent[EDGE_BBB])
-	{
-
-		if (qa->self == 2)
-			neighbor = qa->parent->adjacent[EDGE_BBB]->children[0];
-	
-		if (qa->self == 3)
-			neighbor = qa->parent->adjacent[EDGE_BBB]->children[1];
-	}
-	
-
-	if (neighbor)
-	{
-		qa->adjacent[EDGE_BBB] = neighbor;
-		neighbor->adjacent[EDGE_TTT] = qa;
-		quadarray_sew(neighbor, EDGE_TTT, qa, EDGE_BBB);
-	}
-
-
-//find neighbor above
-	neighbor = NULL;
-
-	if (qa->self == 2)
-		neighbor = qa->parent->children[0];
-
-	else if (qa->self == 3)
-		neighbor = qa->parent->children[1];
-
-	else if (qa->parent->adjacent[EDGE_TTT])
-	{
-
-		if (qa->self == 0)
-			neighbor = qa->parent->adjacent[EDGE_TTT]->children[2];
-	
-		if (qa->self == 1)
-			neighbor = qa->parent->adjacent[EDGE_TTT]->children[3];
-	}
-	
-
-	if (neighbor)
-	{
-		qa->adjacent[EDGE_TTT] = neighbor;
-		neighbor->adjacent[EDGE_BBB] = qa;
-		quadarray_sew(neighbor, EDGE_BBB, qa, EDGE_TTT);
-	}
-}
-#endif
-
-
-#if 1
-
-quadarray_t* quadarray_detail_2x(int self, quadarray_t* source, int a_start, int a_end, int b_start, int b_end)
-{
 	int a;
 	int b;
-	quadarray_t* dest;
+
 	int w = (a_end-a_start-1) * 2+1 ;
 	int h = (b_end-b_start-1) * 2+1 ;
 	int x;
@@ -1146,12 +49,6 @@ quadarray_t* quadarray_detail_2x(int self, quadarray_t* source, int a_start, int
 	vec3 p;
 	int div;
 	float fdiv;
-
-	srandf(  source->center.named.x + source->center.named.y  + source->center.named.z);
-
-	dest= quadarray_mk(w,h);  //make new quadarray
-	dest->self = self;
-	dest->origin = source->origin;
 
 	for (y=0;y<h;y++)
 	{
@@ -1162,29 +59,29 @@ quadarray_t* quadarray_detail_2x(int self, quadarray_t* source, int a_start, int
 
 			
 		
-			vec3mov(p, *gx_vbuffer_v( source->vb, qa_vindex( source, a,b)));
+			vec3mov(p, *gx_vbuffer_v( source->vb, qp_vindex( source, a,b)));
 			div = 1;
-			fdiv = sqrt(vec3abs_sq(*gx_vbuffer_v( source->vb, qa_vindex( source, a,b))));
+			fdiv = sqrt(vec3abs_sq(*gx_vbuffer_v( source->vb, qp_vindex( source, a,b))));
 
 			if ((x & 1) && ( (a+1)< a_end) ) //if odd x
 			{
-				vec3add(p, *gx_vbuffer_v( source->vb, qa_vindex( source, a+1,b)))
+				vec3add(p, *gx_vbuffer_v( source->vb, qp_vindex( source, a+1,b)))
 				div++;
-				fdiv += sqrt(vec3abs_sq(*gx_vbuffer_v( source->vb, qa_vindex( source, a+1,b))));
+				fdiv += sqrt(vec3abs_sq(*gx_vbuffer_v( source->vb, qp_vindex( source, a+1,b))));
 			}
 
 			if ((y & 1) && ( (b+1)< b_end) ) //if odd y
 			{
-				vec3add(p, *gx_vbuffer_v( source->vb, qa_vindex( source, a,b+1)))
+				vec3add(p, *gx_vbuffer_v( source->vb, qp_vindex( source, a,b+1)))
 				div++;
-				fdiv += sqrt(vec3abs_sq(*gx_vbuffer_v( source->vb, qa_vindex( source, a,b+1))));
+				fdiv += sqrt(vec3abs_sq(*gx_vbuffer_v( source->vb, qp_vindex( source, a,b+1))));
 			}
 
 			if ((y & 1) && ( (b+1)< b_end)  && (x & 1) && ( (a+1)< a_end)) //if odd x and odd y
 			{
-				vec3add(p, *gx_vbuffer_v( source->vb, qa_vindex( source, a+1,b+1)))
+				vec3add(p, *gx_vbuffer_v( source->vb, qp_vindex( source, a+1,b+1)))
 				div++;
-				fdiv += sqrt(vec3abs_sq(*gx_vbuffer_v( source->vb, qa_vindex( source, a+1,b+1))));
+				fdiv += sqrt(vec3abs_sq(*gx_vbuffer_v( source->vb, qp_vindex( source, a+1,b+1))));
 			}
 
 
@@ -1207,23 +104,23 @@ quadarray_t* quadarray_detail_2x(int self, quadarray_t* source, int a_start, int
 
 
 
-			*gx_vbuffer_v( dest->vb, qa_vindex( dest, x, y)) = p;
+			*gx_vbuffer_v( dest->vb, qp_vindex( dest, x, y)) = p;
 
 
 			//texcoord: don't interpolate coordinates
-			gx_vbuffer_s(dest->vb, qa_vindex( dest, x, y),0) = ((float) x) / (w-1);
-			gx_vbuffer_t(dest->vb, qa_vindex( dest, x, y),0) = ((float) y) / (w-1);
+			//gx_vbuffer_s(dest->vb, qp_vindex( dest, x, y),0) = ((float) x) / (w-1);
+			//gx_vbuffer_t(dest->vb, qp_vindex( dest, x, y),0) = ((float) y) / (w-1);
 
 
-		//	*gx_vbuffer_v( dest->vb, qa_vindex( dest, x, y))
+		//	*gx_vbuffer_v( dest->vb, qp_vindex( dest, x, y))
 		//	=
-		//	*gx_vbuffer_v( source->vb, qa_vindex( source, a,b));
+		//	*gx_vbuffer_v( source->vb, qp_vindex( source, a,b));
 
 //				printf("copy %d %d  to %d %d\n", a,b,x,y);
 		}
 	}
 
-	quadarray_norm(dest);
+	gx_quadpatch_norm(dest);
 	//add noise
 	for (y=0;y<h;y++)
 	{
@@ -1242,8 +139,8 @@ quadarray_t* quadarray_detail_2x(int self, quadarray_t* source, int a_start, int
 		//	float r= randf();
 		//	vec3 u;
 		//	vec3set(u, randf(),randf(),randf());
-			p = gx_vbuffer_v( dest->vb, qa_vindex( dest, x, y));
-		//	n = gx_vbuffer_n( dest->vb, qa_vindex( dest, x, y));
+			p = gx_vbuffer_v( dest->vb, qp_vindex( dest, x, y));
+		//	n = gx_vbuffer_n( dest->vb, qp_vindex( dest, x, y));
 
 			vec3sub(*p, source->origin); 
 			{	float r = randf();
@@ -1254,10 +151,10 @@ quadarray_t* quadarray_detail_2x(int self, quadarray_t* source, int a_start, int
 
 			//d = sqrt(vec3abs_sq(
 
-			//vec3norm( p); //round out
+//			vec3normalize( p); //round out
 
 //			displace in direction of normal
-		//	vec3madd(*p, -randf()  *  source->dsize, *n );
+	//		vec3madd(*p,     source->dsize, *n );
 
 			//displace straight up and down
 		//	vec3scale(*p, .9);
@@ -1267,261 +164,7 @@ quadarray_t* quadarray_detail_2x(int self, quadarray_t* source, int a_start, int
 
 	}
 
-	
-	dest->size = source->size /4;  //decrease area by 4
-	dest->dsize = source->dsize/2;  //decrease lengths by 2
-	//dest->dsize = source->dsize/2.5; 
-	
-	dest->center = *gx_vbuffer_v( dest->vb, qa_vindex( dest, dest->w/2,dest->h/2));
-	dest->parent = source;
-	
 
-	quadarray_norm(dest);
-	
-	//quadarray_patchup(dest); //find siblings and patch-up connections
-	
-	if (1) {
-		int edge;
-		int nedge;
-		int rev;
-
-		for (edge=0;edge<4;edge++)
-		{
-			quadarray_t* n = find_neighbor( dest, edge, &nedge,&rev);
-			quadarray_sew(n, nedge, dest, edge,rev);
-		}
-
-
-	}
-
-	
-	//gx_vbuffer_update(dest->vb);
-
-#ifdef QUADARRAY_SKIRTS
-	quadarray_skirt(dest);
-#endif
-
-	return dest;
-}
-
-
-#endif
-
-#if 0
-quadarray_t* quadarray_detail_2x(int self, quadarray_t* source, int a_start, int a_end, int b_start, int b_end)
-{
-	int a;
-	int b;
-	quadarray_t* dest;
-	int w = (a_end-a_start-1) * 2+1 ;
-	int h = (b_end-b_start-1) * 2+1 ;
-	int x;
-	int y;
-	vec3 p;
-	int div;
-
-	vec3 offset;
-	float scale=1;
-	
-	vec3set(offset, 0,0,0);
-
-	dest= quadarray_mk(w,h);  //make new quadarray
-	dest->self = self;
-
-	//check for scaling crap
-	{
-		float d;
-		
-		vec3mov(p, *gx_vbuffer_v( source->vb, qa_vindex( source, 0,0)));
-		vec3sub(p, *gx_vbuffer_v( source->vb, qa_vindex( source, 1,1)));
-
-		d = vec3abs_sq(p);
-		d = sqrt(d);
-
-#if 0
-		if (source->use_offset)
-		{
-			vec3mov( dest->offset, source->offset);
-			dest->scale = source->scale;
-			source->use_offset = 1;
-		}
-		else
-		{
-			dest->scale = 1;
-			vec3set(dest->offset, 0,0,0);
-		}
-		
-
-		if (d < .005)
-		{
-			//scale = 10;  
-			//vec3mov(offset, *gx_vbuffer_v( source->vb, qa_vindex( source, 0,0)));
-			//scale = 1.001;
-			//offset.named.y += .001;
-
-			offset =  *gx_vbuffer_v( source->vb, qa_vindex( source, 0,0));
-			//vec3set(offset, 1, 1, 1);
-	
-		
-			dest->use_offset = 1;
-
-			vec3add(dest->offset, offset);
-
-			dest->scale *= scale;
-		}
-#endif
-		
-
-
-	}
-
-
-
-	for (y=0;y<h;y++)
-	{
-		for (x=0;x<w;x++)
-		{
-			a = x/2 + a_start;
-			b = y/2 + b_start;
-		
-			vec3mov(p, *gx_vbuffer_v( source->vb, qa_vindex( source, a,b)));
-			div = 1;
-
-			if ((x & 1) && ( (a+1)< a_end) ) //if odd x
-			{
-				vec3add(p, *gx_vbuffer_v( source->vb, qa_vindex( source, a+1,b)))
-					div++;
-			}
-
-			if ((y & 1) && ( (b+1)< b_end) ) //if odd y
-			{
-				vec3add(p, *gx_vbuffer_v( source->vb, qa_vindex( source, a,b+1)))
-					div++;
-			}
-
-			if ((y & 1) && ( (b+1)< b_end)  && (x & 1) && ( (a+1)< a_end)) //if odd x and odd y
-			{
-				vec3add(p, *gx_vbuffer_v( source->vb, qa_vindex( source, a+1,b+1)))
-					div++;
-			}
-
-
-			vec3scale(p, 1.0/div);
-
-
-			//add noise
-			{
-				vec3 u;
-				vec3set(u, 0,1,0);
-
-				vec3madd(p, (rand()&0xff)/255.0 * .1* - source->dsize, u );
-			}
-
-			vec3sub(p, offset);
-			vec3scale(p, scale);
-
-			*gx_vbuffer_v( dest->vb, qa_vindex( dest, x, y)) = p;
-
-
-		//	*gx_vbuffer_v( dest->vb, qa_vindex( dest, x, y))
-		//	=
-		//	*gx_vbuffer_v( source->vb, qa_vindex( source, a,b));
-
-//				printf("copy %d %d  to %d %d\n", a,b,x,y);
-		}
-	}
-
-	
-	dest->size = source->size /4;  //decrease area by 4
-	dest->dsize = source->dsize/2;  //decrease lengths by 2
-	
-	dest->center = *gx_vbuffer_v( dest->vb, qa_vindex( dest, dest->w/2,dest->h/2));
-
-//	vec3scale(dest->center, dest->scale);
-//	vec3add(dest->center, dest->offset);
-	//ve
-
-	dest->parent = source;
-	
-
-	quadarray_norm(dest);
-	
-//	quadarray_patchup(dest); //find siblings and patch-up connections
-
-	
-	gx_vbuffer_update(dest->vb);
-	return dest;
-}
-#endif
-
-/*
-void dirty_edges(quadarray_t* qa)
-{
-	int i;
-	if (!qa) 
-		return;
-
-	qa->dirtyindex=1;
-	for (i=0;i<4;i++)
-		if (qa->adjacent[i])
-			qa->adjacent[i]->dirtyindex=1;
-}
-*/
-
-//split into 4 quadarrays
-void quadarray_split(quadarray_t* source)
-{
-	if (source->children[0])
-		return;  //already split
-
-	//otherwise split it:
-
-/*	source->children[0] = quadarray_detail_2x(source, 0, source->w/2+1, 0, source->h/2+1);
-	source->children[1] = quadarray_detail_2x(source, source->w/2, source->w , 0, source->h/2+1);
-	source->children[2] = quadarray_detail_2x(source, 0, source->w/2+1,        source->h/2,source->h );
-	source->children[3] = quadarray_detail_2x(source, source->w/2, source->w , source->h/2, source->h);*/
-
-	
-
-	source->children[0] = quadarray_detail_2x(0, source, 0, source->w/2+1, 0, source->h/2+1);
-	source->children[1] = quadarray_detail_2x(1, source, source->w/2, source->w , 0, source->h/2+1);
-	source->children[2] = quadarray_detail_2x(2, source, 0, source->w/2+1,        source->h/2,source->h );
-	source->children[3] = quadarray_detail_2x(3, source, source->w/2, source->w , source->h/2, source->h);	
-
-	source->children[0]->generation = source->generation+1;
-	source->children[1]->generation = source->generation+1;
-	source->children[2]->generation = source->generation+1;
-	source->children[3]->generation = source->generation+1;
-
-
-
-	//connect siblings together
-	//0 1
-	//2 3
-
-//	quadarray_sew( source->children[0], EDGE_RIGHT, source->children[1], EDGE_LEFT);
-//	quadarray_sew( source->children[2], EDGE_RIGHT, source->children[3], EDGE_LEFT);
-
-//	quadarray_sew(source->children[1], EDGE_BBB, source->children[3], EDGE_TTT);
-//	quadarray_sew(source->children[0], EDGE_BBB, source->children[2], EDGE_TTT);
-
-	//have to solve neighbors
-	
-	
-
-
-	//update vbuffers
-	gx_vbuffer_update(source->children[0]->vb);
-	gx_vbuffer_update(source->children[1]->vb);
-	gx_vbuffer_update(source->children[2]->vb);
-	gx_vbuffer_update(source->children[3]->vb);
-
-
-
-
-	//printf(" Generation %d \n",  source->generation+1);
-	//child order: 0,1
-	//             2,3
 
 
 }
@@ -1531,162 +174,6 @@ void quadarray_split(quadarray_t* source)
 
 
 
-#endif
-#if 0
-void calcnorm(vec3* n, vec3* a, vec3* b, vec3* c)
-{
-	vec3 ac;
-	vec3 bc;
-	float d;
-	
-	vec3mov(ac, *c);
-	vec3sub(ac, *a);
-
-
-	vec3mov(bc, *b);
-	vec3sub(bc, *a);
-
-	vec3cross(*n, ac,bc);
-	 
-	d = vec3abs_sq(*n);
-	vec3scale(*n, 1/d);
-
-
-}
-#endif
-#if 1
-void calcnorm(vec3* n, vec3* a, vec3* b, vec3* c)
-{
-	vec3 ab;
-	vec3 ac;
-	float d;
-	
-	vec3mov(ab, *b);
-	vec3sub(ab, *a);
-
-
-	vec3mov(ac, *c);
-	vec3sub(ac, *a);
-
-	vec3cross(*n, ab,ac);
-	 
-	d = vec3abs_sq(*n);
-	vec3scale(*n, 1/d);
-
-
-}
-#endif
-
-
-void quadarray_norm(quadarray_t* qa)
-{
-	int a;
-	int b;
-	vec3 p;
-	vec3 acc;
-	int cnt=0;
-
-	vec3 avg;
-	int  avg_cnt=0;
-	vec3set(avg, 0,0,0);
-	
-
-	for (a=0;a< qa->w; a++)
-	{
-		for(b=0;b<qa->h;b++)
-		{
-			vec3set(acc,0,0,0);
-			cnt=0;
-#if 1
-			if ((a< (qa->w-1)) && (b< (qa->h-1)))
-			{
-				cnt++;
-				calcnorm(&p,
-					gx_vbuffer_v( qa->vb, qa_vindex( qa, a,b)),
-					gx_vbuffer_v( qa->vb, qa_vindex( qa, a+1,b)),
-					gx_vbuffer_v( qa->vb, qa_vindex( qa, a,b+1)));
-				vec3add(acc, p);
-			}
-
-#endif		
-
-#if 1
-			if ((a> 0) && (b< qa->w-1))
-			{
-				cnt++;
-				calcnorm(&p,
-					gx_vbuffer_v( qa->vb, qa_vindex( qa, a,b)),
-					gx_vbuffer_v( qa->vb, qa_vindex( qa, a,b+1)),
-					gx_vbuffer_v( qa->vb, qa_vindex( qa, a-1,b)));
-				vec3add(acc, p);
-			}
-#endif
-
-
-#if 1
-			if ((a> 0) && (b> 0))
-			{
-				cnt++;
-				calcnorm(&p,
-					gx_vbuffer_v( qa->vb, qa_vindex( qa, a,b)),
-					gx_vbuffer_v( qa->vb, qa_vindex( qa, a-1,b)),
-					gx_vbuffer_v( qa->vb, qa_vindex( qa, a,b-1)));
-					
-				vec3add(acc, p);
-			}
-#endif
-
-#if 1
-			if ((a< (qa->w-1)) && (b>0 ))
-			{
-				cnt++;
-				calcnorm(&p,
-					gx_vbuffer_v( qa->vb, qa_vindex( qa, a,b)),
-					gx_vbuffer_v( qa->vb, qa_vindex( qa, a,b-1)),
-					gx_vbuffer_v( qa->vb, qa_vindex( qa, a+1,b)));
-					
-				vec3add(acc, p);
-			}
-#endif
-
-			if (cnt > 0)
-			{
-				float d;
-				d = vec3abs_sq(acc);
-				d = sqrt(d);
-				vec3scale(acc,1/d);
-				
-				vec3add(avg, acc);
-				avg_cnt++;
-				
-			}
-
-			else
-			{
-				vec3set(acc,0,1,0);
-				printf(" ZERO\n");
-				exit(0);
-			}
-
-			*gx_vbuffer_n(qa->vb, qa_vindex( qa, a,b)) = acc;
-
-		}
-
-	}
-
-	{
-		float d;
-		d = vec3abs_sq(avg);
-		
-		
-		
-		d = sqrt(d);
-		vec3scale(avg,1.0/avg_cnt);
-		vec3mov(qa->avgnorm, avg);
-	}
-
-}
-quadarray_t* closest = NULL;
 
 int main(int argc, char** argv)
 {
@@ -1699,7 +186,7 @@ int main(int argc, char** argv)
 	int j;
 	int k;
 	//game/graphics variables
-	g_camera_t	player_camera;
+	gx_camera_t	player_camera;
 	vec3		camera_inertia;
 
 	int patchlevel=0;
@@ -1707,21 +194,19 @@ int main(int argc, char** argv)
 	//need a starfield (we ARE in space)
 	gx_vbuffer_t*	starfield = NULL;
 
-	quadarray_t* rootqa[6];
+	gx_quadpatch_t* rootqa[6];
 
 	gx_drawstyle_t ds_qa;
 	
-	vec_t*	 quadarrays;
-
-	
-
-	vec_t*	 quadarrays_fadeout;  //quadarrays fading out
-	vec_t*	 quadarrays_fadein;  //quadarrays fading out
-	
+	vec_t*	 quadpatches;
+	vec_t*	 quadpatches_fadeout;  //quadpatches fading out
+	vec_t*	 quadpatches_fadein;  //quadpatches fading out
+	vec_t*   toplevel_quadpatches;	
 
 
-	quadarray_t*	 atmosqa[6];
-	quadarray_t*	 oceanqa[6];
+	gx_quadpatch_t*	 atmosqa[6];
+	gx_quadpatch_t*	 oceanqa[6];
+
 	
 	gx_light_t* light = NULL;
 
@@ -1744,7 +229,7 @@ int main(int argc, char** argv)
 
 	gx_vbuffer_t* vb =  NULL;
 
-	quadarray_t* qa = NULL;
+	gx_quadpatch_t* qp = NULL;
 
 	vec3 skycolor;
 	vec3 fogcolor;
@@ -1753,6 +238,8 @@ int main(int argc, char** argv)
 	vec3set(fogcolor, .6,.6,.6);
 
 
+	memset (atmosqa, 0, sizeof(atmosqa));
+	memset (oceanqa, 0, sizeof(oceanqa));
 
 	//Initialize graphics
 	gx_init(800, 600 , "Tri Mesh Quad Tree");
@@ -1762,7 +249,7 @@ int main(int argc, char** argv)
 	//gx_mouse_capture(ztrue);  //mouse input will be relative 
 	
 	//Load assets
-	spacerock  = gx_image_load_tga( "rocktile.tga");
+	spacerock  = gx_image_load_tga( "rock.tga");
 //	spacerock_ds.textures = &spacerock;
 //	spacerock_ds.numtextures=1;
 	vec_mk(&spacerock_ds.textures,1);
@@ -1774,7 +261,7 @@ int main(int argc, char** argv)
 //	atmos_s = gx_sprite_mk(atmosphere, 0, 0, 256,256,3 ,3);
 
 	//initialize game data
-	g_camera_init(&player_camera);
+	gx_camera_init(&player_camera);
 	vec3set(camera_inertia, 0,0,0);
 
 	player_camera.camera_pos.named.z +=2;
@@ -1821,51 +308,7 @@ int main(int argc, char** argv)
 	gx_vbuffer_update(starfield);
 
 	//lets create some meshtree stuff
-#if 0	
-	{
-		meshtree_node_t* initial_node = ram_alloc(sizeof( meshtree_node_t), NULL);
-		edgetree_node_t* edges[3];
-		vindex vertices[3];
 
-		int i;
-
-		mtree = ram_alloc(sizeof (meshtree_t), NULL);
-		mtree->vbuffer = gx_vbuffer_mk( 65535,65535,zfalse, zfalse, 1);
-		vec_mk(&mtree->nodes, 4);
-
-		
-		gx_vbuffer_add_tex( mtree->vbuffer, 0, 0.0,0.0);
-		vertices[0] = gx_vbuffer_add_vertex( mtree->vbuffer, 0,-.5, -1);
-
-		gx_vbuffer_add_tex( mtree->vbuffer, 0, 1.0,0.0);
-		vertices[1] = gx_vbuffer_add_vertex( mtree->vbuffer, 1,-.5, -1);
-
-
-		gx_vbuffer_add_tex( mtree->vbuffer, 0, 1.0,1.0);
-		vertices[2] = gx_vbuffer_add_vertex( mtree->vbuffer, 1,-.5, -2);
-		
-		for(i=0;i<3;i++)
-		{
-			edges[i] = ram_alloc(sizeof (edgetree_node_t), NULL);	
-			edges[i]->vertex[0] = vertices[i];
-			edges[i]->vertex[1] = vertices[ (i+1)% 3];
-			edges[i]->triangles[0] = initial_node;
-			edges[i]->vbuffer = mtree->vbuffer;
-			
-			initial_node->edges[i] = edges[i];
-			initial_node->vertex[i] = vertices[i];
-
-		}
-
-		
-
-		vec_add(&mtree->nodes, initial_node);
-
-		
-
-		printf("set\n");
-	}
-#endif
 
 
 	//vb = gx_vbuffer_mk(10000000,10000000,zfalse, zfalse, 1);
@@ -1875,24 +318,33 @@ int main(int argc, char** argv)
 
 //	gx_vbuffer_update(vb);
 	
-	quadarrays = vec_mk(NULL, 32);
-	
-	
+	//top level of the patch tree
+	toplevel_quadpatches = vec_mk(NULL, 32);
+
+
+	//these other 'working lists' are set to disown.  they won't free their contents
+	//they are 'owned' by the top level list or their parent
+	quadpatches = vec_mk(NULL, 32);
+	vec_disown(quadpatches);  
+
+		
 	//low detail fading out
-	quadarrays_fadeout = vec_mk(NULL, 32);
+	quadpatches_fadeout = vec_mk(NULL, 32);
+	vec_disown(quadpatches_fadeout);
 	
 	//low detail fading in
-	quadarrays_fadein = vec_mk(NULL, 32);
+	quadpatches_fadein = vec_mk(NULL, 32);
+	vec_disown(quadpatches_fadein);
 
 
 	
 
 	//create a stupud perect sphere for atmosphere
-
+#if 0
 	for (i=0;i<6;i++)
 	{
 
-		qa = quadarray_mk(33,33);
+		qp = gx_quadpatch_mk(33,33);
 
 				
 #define CUBE_TOP 0
@@ -1906,22 +358,22 @@ int main(int argc, char** argv)
 			float d;
 
 			int a,b;
-			for (a=0;a < qa->w;a++)
+			for (a=0;a < qp->w;a++)
 			{
-				for (b=0;b<qa->h;b++)
+				for (b=0;b<qp->h;b++)
 				{
-					vec3* vv = gx_vbuffer_v( qa->vb, qa_vindex( qa, a,b));
+					vec3* vv = gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b));
 
 					float fa;
 					float fb;
 
-					fa = ((a-qa->w/2)/  (float) (qa->w-1)) *2 ;
-					fb  =  ((b-qa->h/2)/ (float) (qa->h-1)) *2 ;
+					fa = ((a-qp->w/2)/  (float) (qp->w-1)) *2 ;
+					fb  =  ((b-qp->h/2)/ (float) (qp->h-1)) *2 ;
 
 					
 					
-					gx_vbuffer_s(qa->vb, qa_vindex( qa, a,b),0) = fa /2+1.0;
-					gx_vbuffer_t(qa->vb, qa_vindex( qa, a,b),0) = fb /2+1.0;
+					gx_vbuffer_s(qp->vb, qp_vindex( qp, a,b),0) = fa /2+1.0;
+					gx_vbuffer_t(qp->vb, qp_vindex( qp, a,b),0) = fb /2+1.0;
 
 										
 					switch (i)
@@ -1969,29 +421,30 @@ int main(int argc, char** argv)
 
 			
 					//do normal
-					vv = gx_vbuffer_n( qa->vb, qa_vindex( qa, a,b));
+					vv = gx_vbuffer_n( qp->vb, qp_vindex( qp, a,b));
 					vec3set(*vv, 0,1,0);
 
 				}
 			}
 
-			qa->center = *gx_vbuffer_v( qa->vb, qa_vindex( qa, qa->w/2,qa->h/2));
+			qp->center = *gx_vbuffer_v( qp->vb, qp_vindex( qp, qp->w/2,qp->h/2));
 			
 					
-			quadarray_norm(qa);
+			gx_quadpatch_norm(qp);
 		
-			atmosqa[i] = qa;
-			gx_vbuffer_update(qa->vb);
+			atmosqa[i] = qp;
+			gx_vbuffer_update(qp->vb);
 			
 		}
 	}
+#endif
 
 //create a stupud perect sphere for ocean
-
+#if 0
 	for (i=0;i<6;i++)
 	{
 
-		qa = quadarray_mk(33,33);
+		qp = gx_quadpatch_mk(33,33);
 
 				
 #define CUBE_TOP 0
@@ -2005,22 +458,22 @@ int main(int argc, char** argv)
 			float d;
 
 			int a,b;
-			for (a=0;a < qa->w;a++)
+			for (a=0;a < qp->w;a++)
 			{
-				for (b=0;b<qa->h;b++)
+				for (b=0;b<qp->h;b++)
 				{
-					vec3* vv = gx_vbuffer_v( qa->vb, qa_vindex( qa, a,b));
+					vec3* vv = gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b));
 
 					float fa;
 					float fb;
 
-					fa = ((a-qa->w/2)/  (float) (qa->w-1)) *2 ;
-					fb  =  ((b-qa->h/2)/ (float) (qa->h-1)) *2 ;
+					fa = ((a-qp->w/2)/  (float) (qp->w-1)) *2 ;
+					fb  =  ((b-qp->h/2)/ (float) (qp->h-1)) *2 ;
 
 					
 					
-					gx_vbuffer_s(qa->vb, qa_vindex( qa, a,b),0) = fa /2+1.0;
-					gx_vbuffer_t(qa->vb, qa_vindex( qa, a,b),0) = fb /2+1.0;
+					gx_vbuffer_s(qp->vb, qp_vindex( qp, a,b),0) = fa /2+1.0;
+					gx_vbuffer_t(qp->vb, qp_vindex( qp, a,b),0) = fb /2+1.0;
 
 										
 					switch (i)
@@ -2068,22 +521,23 @@ int main(int argc, char** argv)
 
 			
 					//do normal
-					vv = gx_vbuffer_n( qa->vb, qa_vindex( qa, a,b));
+					vv = gx_vbuffer_n( qp->vb, qp_vindex( qp, a,b));
 					vec3set(*vv, 0,1,0);
 
 				}
 			}
 
-			qa->center = *gx_vbuffer_v( qa->vb, qa_vindex( qa, qa->w/2,qa->h/2));
+			qp->center = *gx_vbuffer_v( qp->vb, qp_vindex( qp, qp->w/2,qp->h/2));
 			
 					
-			quadarray_norm(qa);
+			gx_quadpatch_norm(qp);
 		
-			oceanqa[i] = qa;
-			gx_vbuffer_update(qa->vb);
+			oceanqa[i] = qp;
+			gx_vbuffer_update(qp->vb);
 			
 		}
 	}
+#endif
 
 
 	//generate planet terrain
@@ -2100,29 +554,31 @@ int main(int argc, char** argv)
 	for (i=0;i<6;i++)
 	{
 
-		//make quadarray
-		//qa = quadarray_mk(257,257); 
-		//qa = quadarray_mk(129,129);
-		qa = quadarray_mk(65,65);  //make mesh of 64 by 64 quads( 65by65 points)
-		//qa = quadarray_mk(33,33);
-		//qa = quadarray_mk(17,17);
-	//	qa = quadarray_mk(9,9);
-		//qa = quadarray_mk(3,3);
+		//make gx_quadpatch
+//		qp = gx_quadpatch_mk(257,257, do_detail); 
+		//qp = gx_quadpatch_mk(129,129);
+//		qp = gx_quadpatch_mk(65,65, do_detail);  //make mesh of 64 by 64 quads( 65by65 points)
+		qp = gx_quadpatch_mk(33,33, do_detail);
+//		qp = gx_quadpatch_mk(17,9, do_detail);
+//		qp = gx_quadpatch_mk(17,9, NULL);
+		//qp = gx_quadpatch_mk(9,9);
+		//qp = gx_quadpatch_mk(3,3);
 		
 		
-		//qa->size = .3; //start at root size
-		//qa->dsize = .1;
+		//qp->size = .3; //start at root size
+		//qp->dsize = .1;
 
-		qa->onlevel = 1;
+		qp->onlevel = 1;
 
-		qa->size=  5.0 ;
-		//qa->dsize = .015  ;
-		qa->dsize = .004  ;
+		qp->size=  8.0 ;
+		//qp->dsize = .015  ;
+	//	qp->dsize = .006  ;
+	qp->dsize=.0085;
 
-		qa->origin = origin;
+		qp->origin = origin;
 
-//		qa->size =  qa->size / ((qa->w-1) * (qa->h-1));
-//		qa->dsize =  qa->dsize / (qa->w );
+//		qp->size =  qp->size / ((qp->w-1) * (qp->h-1));
+//		qp->dsize =  qp->dsize / (qp->w );
 		
 #define CUBE_TOP 0
 #define CUBE_BOTTOM 1
@@ -2134,22 +590,22 @@ int main(int argc, char** argv)
 			float d;
 
 			int a,b;
-			for (a=0;a < qa->w;a++)
+			for (a=0;a < qp->w;a++)
 			{
-				for (b=0;b<qa->h;b++)
+				for (b=0;b<qp->h;b++)
 				{
-					vec3* vv = gx_vbuffer_v( qa->vb, qa_vindex( qa, a,b));
+					vec3* vv = gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b));
 
 					float fa;
 					float fb;
 
-					fa = ((a-qa->w/2)/  (float) (qa->w-1)) *2 ;
-					fb  =  ((b-qa->h/2)/ (float) (qa->h-1)) *2 ;
+					fa = ((a-qp->w/2)/  (float) (qp->w-1)) *2 ;
+					fb  =  ((b-qp->h/2)/ (float) (qp->h-1)) *2 ;
 
 			
 					
-					gx_vbuffer_s(qa->vb, qa_vindex( qa, a,b),0) = fa /2+1.0;
-					gx_vbuffer_t(qa->vb, qa_vindex( qa, a,b),0) = fb /2+1.0;
+					gx_vbuffer_s(qp->vb, qp_vindex( qp, a,b),0) = fa /2+1.0;
+					gx_vbuffer_t(qp->vb, qp_vindex( qp, a,b),0) = fb /2+1.0;
 
 					srandf(fa+fb+a+b);
 					
@@ -2199,7 +655,7 @@ int main(int argc, char** argv)
 
 					//make a little rough
 					if (k!=1)
-						vec3scale(*vv, 1 - randf() * qa->dsize);
+						vec3scale(*vv, 1 - randf() * qp->dsize);
 
 			//		vv->named.z -= 2;
 				//	vv->named.x += 60*k ;
@@ -2225,24 +681,25 @@ int main(int argc, char** argv)
 					//vec3scale(*vv, 5000 );
 
 						//do normal
-					vv = gx_vbuffer_n( qa->vb, qa_vindex( qa, a,b));
+					vv = gx_vbuffer_n( qp->vb, qp_vindex( qp, a,b));
 					vec3set(*vv, 0,1,0);
 
 				}
 			}
 
-			qa->center = *gx_vbuffer_v( qa->vb, qa_vindex( qa, qa->w/2,qa->h/2));
+			qp->center = *gx_vbuffer_v( qp->vb, qp_vindex( qp, qp->w/2,qp->h/2));
 			
 
-			//qa->mesh = gx_mesh_def( qa->vb, NULL, qa->startindex, qa->endindex, ztrue);
+			//qp->mesh = gx_mesh_def( qp->vb, NULL, qp->startindex, qp->endindex, ztrue);
 			
-			quadarray_norm(qa);
-			//gx_vbuffer_update(qa->vb);
+			gx_quadpatch_norm(qp);
+			//gx_vbuffer_update(qp->vb);
 			
 			
 		
-			vec_add(quadarrays, qa);
-			rootqa[i] = qa;
+			vec_add(quadpatches, qp);
+			vec_add(toplevel_quadpatches, qp);
+			rootqa[i] = qp;
 
 			
 			
@@ -2250,39 +707,37 @@ int main(int argc, char** argv)
 	}
 	
 	
-	//quadarray_sew(rootqa[3], EDGE_LEFT, rootqa[4], EDGE_RIGHT);
-
-//	quadarray_sew(rootqa[CUBE_BACK], EDGE_LEFT, rootqa[CUBE_LEFT], EDGE_RIGHT);
 
 	//loop	
-	quadarray_sew(rootqa[CUBE_FRONT], EDGE_LEFT, rootqa[CUBE_LEFT], EDGE_RIGHT,0);
-	quadarray_sew(rootqa[CUBE_FRONT], EDGE_RIGHT, rootqa[CUBE_RIGHT], EDGE_LEFT,0);
-	quadarray_sew(rootqa[CUBE_BACK], EDGE_LEFT, rootqa[CUBE_RIGHT], EDGE_RIGHT,0);
-	quadarray_sew(rootqa[CUBE_BACK], EDGE_RIGHT, rootqa[CUBE_LEFT], EDGE_LEFT,0);
+	gx_quadpatch_sew(rootqa[CUBE_FRONT], GX_EDGE_LEFT, rootqa[CUBE_LEFT], GX_EDGE_RIGHT,0);
+	gx_quadpatch_sew(rootqa[CUBE_FRONT], GX_EDGE_RIGHT, rootqa[CUBE_RIGHT], GX_EDGE_LEFT,0);
+	gx_quadpatch_sew(rootqa[CUBE_BACK], GX_EDGE_LEFT, rootqa[CUBE_RIGHT], GX_EDGE_RIGHT,0);
+	gx_quadpatch_sew(rootqa[CUBE_BACK], GX_EDGE_RIGHT, rootqa[CUBE_LEFT], GX_EDGE_LEFT,0);
 
 
 	//top
-	quadarray_sew(rootqa[CUBE_TOP], EDGE_TTT, rootqa[CUBE_FRONT], EDGE_BBB,0);
-	quadarray_sew(rootqa[CUBE_TOP], EDGE_LEFT, rootqa[CUBE_LEFT], EDGE_BBB,1);
-	quadarray_sew(rootqa[CUBE_TOP], EDGE_RIGHT, rootqa[CUBE_RIGHT], EDGE_BBB,0);
-	quadarray_sew(rootqa[CUBE_TOP], EDGE_BBB, rootqa[CUBE_BACK], EDGE_BBB,1);
+	gx_quadpatch_sew(rootqa[CUBE_TOP], GX_EDGE_BOTTOM, rootqa[CUBE_FRONT], GX_EDGE_TOP,0);
+	gx_quadpatch_sew(rootqa[CUBE_TOP], GX_EDGE_LEFT, rootqa[CUBE_LEFT], GX_EDGE_TOP,1);
+	gx_quadpatch_sew(rootqa[CUBE_TOP], GX_EDGE_RIGHT, rootqa[CUBE_RIGHT], GX_EDGE_TOP,0);
+	gx_quadpatch_sew(rootqa[CUBE_TOP], GX_EDGE_TOP, rootqa[CUBE_BACK], GX_EDGE_TOP,1);
 
 
 	//bottom
-	quadarray_sew(rootqa[CUBE_BOTTOM], EDGE_BBB, rootqa[CUBE_FRONT], EDGE_TTT,0);
-	quadarray_sew(rootqa[CUBE_BOTTOM], EDGE_LEFT, rootqa[CUBE_LEFT], EDGE_TTT,0);
-	quadarray_sew(rootqa[CUBE_BOTTOM], EDGE_RIGHT, rootqa[CUBE_RIGHT], EDGE_TTT,1);
-	quadarray_sew(rootqa[CUBE_BOTTOM], EDGE_TTT, rootqa[CUBE_BACK], EDGE_TTT,1);
+	gx_quadpatch_sew(rootqa[CUBE_BOTTOM], GX_EDGE_TOP, rootqa[CUBE_FRONT], GX_EDGE_BOTTOM,0);
+	gx_quadpatch_sew(rootqa[CUBE_BOTTOM], GX_EDGE_LEFT, rootqa[CUBE_LEFT], GX_EDGE_BOTTOM,0);
+	gx_quadpatch_sew(rootqa[CUBE_BOTTOM], GX_EDGE_RIGHT, rootqa[CUBE_RIGHT], GX_EDGE_BOTTOM,1);
+	gx_quadpatch_sew(rootqa[CUBE_BOTTOM], GX_EDGE_BOTTOM, rootqa[CUBE_BACK], GX_EDGE_BOTTOM,1);
 
 
 
-//	rootqa[3]->adjacent[EDGE_LEFT] = rootqa[4];
-//	rootqa[4]->adjacent[EDGE_RIGHT] = rootqa[3];
 
 	//update
 	for (i=0;i<6;i++)
 	{
-		quadarray_skirt(rootqa[i]);
+
+#ifdef QUADARRAY_SKIRTS
+		gx_quadpatch_skirt(rootqa[i]);
+#endif
 		gx_vbuffer_update(rootqa[i]->vb);
 
 	}
@@ -2329,7 +784,7 @@ int main(int argc, char** argv)
  		gx_window_event();  //handles any window events (I/O)
 
 		//set up projection matrix for this frame
- 		gx_setup_3d( 80.0f,  gx_frame_get_dimensions(NULL,NULL),0.000001f, 10.0f);
+ 		gx_setup_3d( 80.0f,  gx_frame_get_dimensions(NULL,NULL),0.001f, 10.0f);
 		
 		//Read mouse input
 		gx_mouse_pos(&mouse_x, &mouse_y, &mouse_relative);
@@ -2452,12 +907,12 @@ int main(int argc, char** argv)
 					d2 +=.1;
 					if (d2 > 1)
 							d2=1;
-					printf( "atmos dist %f\n", d2);
-					gx_clear_color(d2*skycolor.array[0], d2*skycolor.array[1], d2*skycolor.array[2], 0);
+//					printf( "atmos dist %f\n", d2);
+					//gx_clear_color(d2*skycolor.array[0], d2*skycolor.array[1], d2*skycolor.array[2], 0);
 				}
 				else
 				{
-					gx_clear_color(skycolor.array[0], skycolor.array[1], skycolor.array[2], 0);
+//					gx_clear_color(skycolor.array[0], skycolor.array[1], skycolor.array[2], 0);
 				}
 
 				
@@ -2466,10 +921,18 @@ int main(int argc, char** argv)
 				
 				//gx_clear_color(1,0,0,0);
 				{
-					float t = (dist -1) / (1.1-1);
-					if (t<0) t=0;
+					//float t = (dist -1) / (1.1-1);
+					//if (t<0) t=0;
 
-					gx_light_fog(&skycolor,0,  t * 1 + (1-t)*.5   );
+					//gx_light_fog(&skycolor,0,  t * 1 + (1-t)*.5   );
+
+					float t = 1-dist;
+					if (t>1)
+						t=1;
+					if (t<0)
+						t=0;
+
+//					gx_light_fog(&skycolor, 0, (dist/3) *t  + (10)*(1-t)  );
 				}
 			}
 
@@ -2552,22 +1015,22 @@ int main(int argc, char** argv)
 		gx_drawstyle_activate(&ds_qa);
 		
 				
-		//printf(" %d opaque patches \n", vec_count(quadarrays));
+		//printf(" %d opaque patches \n", vec_count(quadpatches));
 		//draw opaque patches
 		{
 			int cull=0;
 			int i;
 
-			for (i=0;i< vec_count(quadarrays);i++)
+			for (i=0;i< vec_count(quadpatches);i++)
 			{
 				int skipdraw=0;
-				qa = vec_get_at(quadarrays, i);
+				qp = vec_get_at(quadpatches, i);
 
 				{
 					vec3 d;
-					vec3mov (d, qa->center);
+					vec3mov (d, qp->center);
 					vec3sub (d, player_camera.camera_pos);
-					vec3norm(&d);
+					vec3normalize(&d);
 
 					if (vec3dot(d, player_camera.camera_forward) < 0)
 					{
@@ -2576,7 +1039,7 @@ int main(int argc, char** argv)
 						skipdraw=1;
 					}
 					else
-					if ( vec3dot(qa->avgnorm, player_camera.camera_forward) > .8)  //faces away from camera
+					if ( vec3dot(qp->avgnorm, player_camera.camera_forward) > .8)  //faces away from camera
 					{
 						cull++;
 						skipdraw =1;
@@ -2587,17 +1050,40 @@ int main(int argc, char** argv)
 				}
 				
 				//draw
-				if (qa->tag == QUADARRAY_TAG_NONE || qa->tag == QUADARRAY_TAG_DRAW_ONLY)
+				if (qp->tag == QUADARRAY_TAG_NONE || qp->tag == QUADARRAY_TAG_DRAW_ONLY)
 				{
 					if (!skipdraw)
-							quadarray_draw(qa);
+							gx_quadpatch_draw(qp);
 					
 				}
-				else if (qa->tag == QUADARRAY_TAG_REMOVE) //remove from opaque draw list
+				else if ((qp->tag == QUADARRAY_TAG_REMOVE) || (qp->tag == QUADARRAY_TAG_DELETE)) //remove from opaque draw list
 				{
-					qa->tag = QUADARRAY_TAG_NONE; //clear tag
-					vec_remove_unordered(quadarrays, i);
+
+					vec_remove_unordered(quadpatches, i);
 					i--; //repeat this position 
+
+					if (qp->tag == QUADARRAY_TAG_DELETE)
+					{
+						//printf("DELETE\n");
+						if (qp->deleted) {
+							printf(" DOUBLE DELETE!\n");
+							exit(0);
+
+						}
+						qp->deleted=1;
+						ram_free(qp);
+						qp = NULL;
+					}
+					else 
+					{
+						qp->tag = QUADARRAY_TAG_NONE;
+
+					}
+
+					
+
+
+
 				}
 			}
 		}
@@ -2609,33 +1095,33 @@ int main(int argc, char** argv)
 		{ 
 			int i;
 
-			for (i=0;i<vec_count(quadarrays_fadeout);i++)
+			for (i=0;i<vec_count(quadpatches_fadeout);i++)
 			{
-				qa = vec_get_at(quadarrays_fadeout, i);
-				if (qa->alpha > 0)
+				qp = vec_get_at(quadpatches_fadeout, i);
+				if (qp->alpha > 0)
 				{
 					ds_qa.blending = gx_blend_alpha;		
-					ds_qa.alpha = qa->alpha;
+					ds_qa.alpha = qp->alpha;
 					gx_drawstyle_activate(&ds_qa);
 
-					quadarray_draw(qa);
-					qa->alpha -= ALPHA_SPEED;
+					gx_quadpatch_draw(qp);
+					qp->alpha -= ALPHA_SPEED;
 				}
 				else
 				{
-					vec_remove_unordered(quadarrays_fadeout, i);
+					vec_remove_unordered(quadpatches_fadeout, i);
 					i--; //repeat this position
 					
 					//untag the children
-					qa->children[0]->tag=0;
-					qa->children[1]->tag=0;
-					qa->children[2]->tag=0;
-					qa->children[3]->tag=0;
+					qp->children[0]->tag=0;
+					qp->children[1]->tag=0;
+					qp->children[2]->tag=0;
+					qp->children[3]->tag=0;
 								
 				}
 
 			}
-			//printf("  %d patches fadeout\n", vec_count(quadarrays_fadeout));
+			//printf("  %d patches fadeout\n", vec_count(quadpatches_fadeout));
 		}
 
 
@@ -2643,40 +1129,57 @@ int main(int argc, char** argv)
 #if 1
 		{ 
 			int i;
-		//	printf(" %d patches ", vec_count(quadarrays));
+		//	printf(" %d patches ", vec_count(quadpatches));
 
-			for (i=0;i<vec_count(quadarrays_fadein);i++)
+			for (i=0;i<vec_count(quadpatches_fadein);i++)
 			{
 //				exit(1);
-				qa = vec_get_at(quadarrays_fadein, i);
+				qp = vec_get_at(quadpatches_fadein, i);
 				
 				{
 					ds_qa.blending = gx_blend_alpha;		
-					ds_qa.alpha = qa->alpha;
+					ds_qa.alpha = qp->alpha;
 					gx_drawstyle_activate(&ds_qa);
 
-					quadarray_draw(qa);
-		 			qa->alpha +=ALPHA_SPEED;
-			//		printf("%f\n", qa->alpha);
+					gx_quadpatch_draw(qp);
+		 			qp->alpha +=ALPHA_SPEED;
+			//		printf("%f\n", qp->alpha);
 				}
-				if (qa->alpha > 1)
+				if (qp->alpha > 1)
 				{
-					vec_remove_unordered(quadarrays_fadein, i);
+					vec_remove_unordered(quadpatches_fadein, i);
 					i--; //repeat this position 
 					//add to running patch
-					vec_add(quadarrays, qa);
-					qa->tag=0;
+					vec_add(quadpatches, qp);
+					qp->tag=0;
 					//tag children for removal
 
-					qa->children[0]->tag=1;
-					qa->children[1]->tag=1;
-					qa->children[2]->tag=1;
-					qa->children[3]->tag=1;
+/*
+					qp->children[0]->tag=QUADARRAY_TAG_REMOVE;
+					qp->children[1]->tag=QUADARRAY_TAG_REMOVE;
+					qp->children[2]->tag=QUADARRAY_TAG_REMOVE;
+					qp->children[3]->tag=QUADARRAY_TAG_REMOVE;
+*/
+
+					qp->children[0]->tag=QUADARRAY_TAG_DELETE;
+					qp->children[1]->tag=QUADARRAY_TAG_DELETE;
+					qp->children[2]->tag=QUADARRAY_TAG_DELETE;
+					qp->children[3]->tag=QUADARRAY_TAG_DELETE;
+
+
+
+
+
+
+					qp->children[0]=NULL;
+					qp->children[1]=NULL;
+					qp->children[2]=NULL;
+					qp->children[3]=NULL;
 
 				}
 
 			}
-			//printf("  %d patches fadein\n", vec_count(quadarrays_fadein));
+			//printf("  %d patches fadein\n", vec_count(quadpatches_fadein));
 		}
 #endif
 #endif
@@ -2728,7 +1231,7 @@ if (0) {
 			
 			for (i=0;i<6;i++)
 			{
-				quadarray_draw(oceanqa[i]);
+				gx_quadpatch_draw(oceanqa[i]);
 
 			}
 		}
@@ -2782,7 +1285,7 @@ if (0) {
 			
 			for (i=0;i<6;i++)
 			{
-				quadarray_draw(atmosqa[i]);
+				gx_quadpatch_draw(atmosqa[i]);
 
 			}
 		}
@@ -2794,19 +1297,20 @@ if (0) {
 		
 
 
-
+		printf(" %d skirted %d nonskirted   %d drawn  %d total\n", skirted, nonskirted, drawn, total);
+		skirted=nonskirted=drawn=0;
 		gx_frame_show();  //show the frame
 
 #ifdef FADE_PATCHES
 		//remove anything that was tagged for it
 	 	{
 			int i;
-			for (i=0;i<vec_count(quadarrays);i++)
+			for (i=0;i<vec_count(quadpatches);i++)
 			{
-				quadarray_t* qa = vec_get_at(quadarrays, i);
-				if (qa->tag==1)
+				gx_quadpatch_t* qp = vec_get_at(quadpatches, i);
+				if (qp->tag==1)
 				{
-					vec_remove_unordered(quadarrays, i);
+					vec_remove_unordered(quadpatches, i);
 					i--;
 				}
 
@@ -2815,7 +1319,7 @@ if (0) {
 		}
 #endif
 
-		//evaluate quadarrays
+		//evaluate quadpatches
 		{
 			int i;
 			int ocount = 0;
@@ -2826,31 +1330,29 @@ if (0) {
 			
 			float closest_d=0;//quick:find the closest one
 
-			if (closest)
-				closest->boo = 0;
 
 			closest = NULL;
 
-			for (i=0;i<vec_count(quadarrays);i++)
+			for (i=0;i<vec_count(quadpatches);i++)
 			{
 				vec3 p;
 				float d;
-				quadarray_t* qa = vec_get_at(quadarrays, i);
+				gx_quadpatch_t* qp = vec_get_at(quadpatches, i);
 
-				vec3mov(p, qa->center);
-				//vec3norm(&p);
+				vec3mov(p, qp->center);
+//				vec3normalize(&p);
 				vec3sub(p, player_camera.camera_pos);
 				
 				if (!closest ||  (d=vec3abs_sq(p)) < closest_d)
 				{
 					closest_d = d;
-					closest = qa;
+					closest = qp;
 
 				}
 
 			}
 			
-			if (closest)
+			if ( qp = closest)
 			{
 			
 				vec3 p;
@@ -2872,13 +1374,13 @@ if (0) {
 
 				vec3set(p_closest, 0,0,0);
 
-				//find point on quadarray closest to player
-				for (i=0;i<qa->w;i++)
+				//find point on gx_quadpatch closest to player
+				for (i=0;i<qp->w;i++)
 				{
-					for (j=0;j<qa->h;j++)
+					for (j=0;j<qp->h;j++)
 					{
 
-						vec3mov(p, *gx_vbuffer_v( qa->vb, qa_vindex( qa, i,j)));
+						vec3mov(p, *gx_vbuffer_v( qp->vb, qp_vindex( qp, i,j)));
 
 						vec3sub(p, player_camera.camera_pos);
 
@@ -2887,7 +1389,7 @@ if (0) {
 						if (d< closest_point_d)
 						{
 							closest_point_d = d;
-							vec3mov(p_closest, *gx_vbuffer_v( qa->vb, qa_vindex( qa, i,j)));
+							vec3mov(p_closest, *gx_vbuffer_v( qp->vb, qp_vindex( qp, i,j)));
 						}
 
 					}
@@ -2895,13 +1397,15 @@ if (0) {
 
 				//now if the closest point to us on the surface is farther away from the planet center than us, then we are inside the planet, and thats bad
 				d = vec3abs_sq(p_closest);
-				d = sqrt(d)  ; // + 0.00002f;
+				d = sqrt(d) + .004f; 
+
+				
 
 				if (dplayer < d)
 				{
-					vec3norm(& (player_camera.camera_pos));
-					vec3scale(player_camera.camera_pos, d);
-					vec3scale(camera_inertia, .5);
+					vec3normalize(& (player_camera.camera_pos));
+					vec3scale(player_camera.camera_pos, d)
+					//vec3scale(camera_inertia, .5);
 					//vec3set(camera_inertia,0,0,0);
 				}
 						
@@ -2912,75 +1416,75 @@ if (0) {
 				
 
 
-			ocount = vec_count(quadarrays);
+			ocount = vec_count(quadpatches);
 			
 
-			for(i=0;(i<vec_count(quadarrays)) && (i<ocount) ;i++)
+			for(i=0;(i<vec_count(quadpatches)) && (i<ocount) ;i++)
 			{
 				vec3 p;
 				float d;
-				quadarray_t* qa = vec_get_at(quadarrays, i);
+				gx_quadpatch_t* qp = vec_get_at(quadpatches, i);
 				
 
 				//find its distance from camera
 				vec3mov(p, player_camera.camera_pos);
-				vec3sub(p, qa->center);
+				vec3sub(p, qp->center);
 				d = vec3abs_sq(p);
 				d = sqrt(d);
 				
-//				printf(" distance: %f  size: %f\n", d, qa->size / d );
+//				printf(" distance: %f  size: %f\n", d, qp->size / d );
 
 		
-				if (qa->tag != QUADARRAY_TAG_NONE)
-					continue;  //don't process unless it's a fully active quadarray
+				if (qp->tag != QUADARRAY_TAG_NONE)
+					continue;  //don't process unless it's a fully active gx_quadpatch
 
 
-				if (   ((((qa->size)/(d*d)) > 1.0) &&(splitcount < splitlimit)))
+				if (   ((((qp->size)/(d*d)) > 1.0) &&(splitcount < splitlimit)))
 				{
-					quadarray_t* dest[4];
+					gx_quadpatch_t* dest[4];
 
 
 				
 			
 			
 
-					//remove the current qa
+					//remove the current qp
 					splitcount++;
 					
-					quadarray_split(qa);
-					if (qa->children[0])
+					
+					if (gx_quadpatch_split(qp))
 					{
-						qa->tag = QUADARRAY_TAG_REMOVE;  //remove parent
-						qa->onlevel = 0; //will no longer be active
+						qp->tag = QUADARRAY_TAG_REMOVE;  //remove parent
+						qp->onlevel = 0; //will no longer be active
 				
 
-						vec_add(quadarrays, qa->children[0]);
-						vec_add(quadarrays, qa->children[1]);
-						vec_add(quadarrays, qa->children[2]);
-						vec_add(quadarrays, qa->children[3]);
+						vec_add(quadpatches, qp->children[0]);
+						vec_add(quadpatches, qp->children[1]);
+						vec_add(quadpatches, qp->children[2]);
+						vec_add(quadpatches, qp->children[3]);
 
 #ifndef FADE_PATCHES
 						
 
 						//add in the children
-						qa->children[0]->tag = QUADARRAY_TAG_NONE;
-						qa->children[1]->tag = QUADARRAY_TAG_NONE;
-						qa->children[2]->tag = QUADARRAY_TAG_NONE;
-						qa->children[3]->tag = QUADARRAY_TAG_NONE;
+						qp->children[0]->tag = QUADARRAY_TAG_NONE;
+						qp->children[1]->tag = QUADARRAY_TAG_NONE;
+						qp->children[2]->tag = QUADARRAY_TAG_NONE;
+						qp->children[3]->tag = QUADARRAY_TAG_NONE;
 
-						qa->children[0]->onlevel = 1;
-						qa->children[1]->onlevel = 1;
-						qa->children[2]->onlevel = 1;
-						qa->children[3]->onlevel = 1;
+						qp->children[0]->onlevel = 1;
+						qp->children[1]->onlevel = 1;
+						qp->children[2]->onlevel = 1;
+						qp->children[3]->onlevel = 1;
 
 
 #endif
 
-					/*	dirty_edges(qa);
+					/*	dirty_edges(qp);
 						{int i;
 							for (i=0;i<4;i++)
 							{
-								dirty_edges(qa->children[i]);
+								dirty_edges(qp->children[i]);
 							}
 						}
 						*/
@@ -2989,21 +1493,21 @@ if (0) {
 
 #ifdef FADE_PATCHES
 						//tag children to draw, but not to process (until the fadeout is done)
-						qa->children[0]->tag = 2;
-						qa->children[1]->tag = 2;
-						qa->children[2]->tag = 2;
-						qa->children[3]->tag = 2;
+						qp->children[0]->tag = 2;
+						qp->children[1]->tag = 2;
+						qp->children[2]->tag = 2;
+						qp->children[3]->tag = 2;
 
-						qa->children[0]->onlevel = 1;
-						qa->children[1]->onlevel = 1;
-						qa->children[2]->onlevel = 1;
-						qa->children[3]->onlevel = 1;
+						qp->children[0]->onlevel = 1;
+						qp->children[1]->onlevel = 1;
+						qp->children[2]->onlevel = 1;
+						qp->children[3]->onlevel = 1;
 
 
 						//add to fadeout list
-						vec_add(quadarrays_fadeout, qa);
+						vec_add(quadpatches_fadeout, qp);
 				
-						qa->alpha = 1.0; 
+						qp->alpha = 1.0; 
 #endif
 
 						
@@ -3012,51 +1516,65 @@ if (0) {
 					}
 				}
 				//combine patches
-				else if ( qa->parent && ( qa->parent->tag == QUADARRAY_TAG_NONE)
-					&& qa->parent->children[0]->onlevel
-					&& qa->parent->children[1]->onlevel
-					&& qa->parent->children[2]->onlevel
-					&& qa->parent->children[3]->onlevel
+				else if ( qp->parent && ( qp->parent->tag == QUADARRAY_TAG_NONE)
+					&& qp->parent->children[0] && qp->parent->children[0]->onlevel
+					&& qp->parent->children[1] && qp->parent->children[1]->onlevel
+					&& qp->parent->children[2] && qp->parent->children[2]->onlevel
+					&& qp->parent->children[3] && qp->parent->children[3]->onlevel
 					)
 				{
 					vec3mov(p, player_camera.camera_pos);
-					vec3sub(p, qa->parent->center);
+					vec3sub(p, qp->parent->center);
 					d = vec3abs_sq(p);
 					d = sqrt(d);
 					
-					if (((qa->parent->size)/(d*d)) < 1.0)
+					if (((qp->parent->size)/(d*d)) < 1.0)
 					{  //combine threshhold
 					
-					//	vec_add(quadarrays, qa->parent); //put parent back in
+					//	vec_add(quadpatches, qp->parent); //put parent back in
 	
 
 						//remove these
-						//qa->parent->children[0]->tag = 1; //2 is draw but don't remove, dont process
-						//qa->parent->children[1]->tag = 1;
-						//qa->parent->children[2]->tag = 1;
-						//qa->parent->children[3]->tag = 1;
+						//qp->parent->children[0]->tag = 1; //2 is draw but don't remove, dont process
+						//qp->parent->children[1]->tag = 1;
+						//qp->parent->children[2]->tag = 1;
+						//qp->parent->children[3]->tag = 1;
 
 						//will no longer be on level
-						qa->parent->children[0]->onlevel = 0;
-						qa->parent->children[1]->onlevel = 0;
-						qa->parent->children[2]->onlevel = 0;
-						qa->parent->children[3]->onlevel = 0;
+						qp->parent->children[0]->onlevel = 0;
+						qp->parent->children[1]->onlevel = 0;
+						qp->parent->children[2]->onlevel = 0;
+						qp->parent->children[3]->onlevel = 0;
 
 #ifndef FADE_PATCHES
-						qa->parent->children[0]->tag = QUADARRAY_TAG_REMOVE; 
-						qa->parent->children[1]->tag = QUADARRAY_TAG_REMOVE;
-						qa->parent->children[2]->tag = QUADARRAY_TAG_REMOVE;
-						qa->parent->children[3]->tag = QUADARRAY_TAG_REMOVE;
+/*
+						qp->parent->children[0]->tag = QUADARRAY_TAG_REMOVE; 
+						qp->parent->children[1]->tag = QUADARRAY_TAG_REMOVE;
+						qp->parent->children[2]->tag = QUADARRAY_TAG_REMOVE;
+						qp->parent->children[3]->tag = QUADARRAY_TAG_REMOVE;
+*/
 
-						vec_add(quadarrays, qa->parent); //put parent back in
-						qa->parent->onlevel = 1;
-						qa->parent->tag = QUADARRAY_TAG_NONE;
 
-					/*	dirty_edges(qa);
+						qp->parent->children[0]->tag = QUADARRAY_TAG_DELETE; 
+						qp->parent->children[1]->tag = QUADARRAY_TAG_DELETE;
+						qp->parent->children[2]->tag = QUADARRAY_TAG_DELETE;
+						qp->parent->children[3]->tag = QUADARRAY_TAG_DELETE;
+//						qp->parent->children[0] = NULL;
+//						qp->parent->children[1] = NULL;
+//						qp->parent->children[2] = NULL;
+//						qp->parent->children[3] = NULL;
+
+
+
+						vec_add(quadpatches, qp->parent); //put parent back in
+						qp->parent->onlevel = 1;
+						qp->parent->tag = QUADARRAY_TAG_NONE;
+
+					/*	dirty_edges(qp);
 						{int i;
 							for (i=0;i<4;i++)
 							{
-								dirty_edges(qa->children[i]);
+								dirty_edges(qp->children[i]);
 							}
 						}
 						*/
@@ -3065,25 +1583,25 @@ if (0) {
 #endif
 
 #ifdef FADE_PATCHES
-						qa->parent->alpha = 0;
-						qa->parent->tag = QUADARRAY_TAG_DRAW_ONLY;
-						qa->parent->onlevel=1;
+						qp->parent->alpha = 0;
+						qp->parent->tag = QUADARRAY_TAG_DRAW_ONLY;
+						qp->parent->onlevel=1;
 
-						vec_add(quadarrays_fadein, qa->parent); //put parent back in
+						vec_add(quadpatches_fadein, qp->parent); //put parent back in
 
 						//tag all siblings
-						qa->parent->children[0]->tag = QUADARRAY_TAG_DRAW_ONLY; //2 is draw but don't remove, dont process
-						qa->parent->children[1]->tag = QUADARRAY_TAG_DRAW_ONLY;
-						qa->parent->children[2]->tag = QUADARRAY_TAG_DRAW_ONLY;
-						qa->parent->children[3]->tag = QUADARRAY_TAG_DRAW_ONLY;
+						qp->parent->children[0]->tag = QUADARRAY_TAG_DRAW_ONLY; //2 is draw but don't remove, dont process
+						qp->parent->children[1]->tag = QUADARRAY_TAG_DRAW_ONLY;
+						qp->parent->children[2]->tag = QUADARRAY_TAG_DRAW_ONLY;
+						qp->parent->children[3]->tag = QUADARRAY_TAG_DRAW_ONLY;
 
 						//also mark as dirty
 						/*
-						dirty_edges(qa->parent);
-						dirty_edges(qa->parent->children[0]);
-						dirty_edges(qa->parent->children[1]);
-						dirty_edges(qa->parent->children[2]);
-						dirty_edges(qa->parent->children[3]);
+						dirty_edges(qp->parent);
+						dirty_edges(qp->parent->children[0]);
+						dirty_edges(qp->parent->children[1]);
+						dirty_edges(qp->parent->children[2]);
+						dirty_edges(qp->parent->children[3]);
 						*/
 
 #endif
@@ -3096,6 +1614,15 @@ if (0) {
 		}
 
 	}
+
+	ram_free(toplevel_quadpatches);
+	ram_free(quadpatches);
+	ram_free(quadpatches_fadeout);
+	ram_free(quadpatches_fadein);
+	ram_free(starfield);
+	gx_disable();
+	ram_free(light);
+	vec_cleanup(&spacerock_ds.textures);
 
 	printf("allocations left: %d\n", ram_allocs());
 	return 0;

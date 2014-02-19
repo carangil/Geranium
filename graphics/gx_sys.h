@@ -25,14 +25,12 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 void gx_zbuffer(zbool en);  //turns depth buffer test on/off
 void gx_setup_2d_pixels(int* width, int *height);
 
-
-
 //read keyboard
 zchar gx_getkey();
 zbool gx_key_state(zbyte a);
 
 //read mouse
-void gx_mouse_pos(zuint32* x, zuint32* y, zbool* rel);
+void gx_mouse_pos(zint32* x, zint32* y, zbool* rel);
 void gx_mouse_posf(zfloat32* fx, zfloat32* fy, zbool* rel); //translated to last setup_2d coordinates
 void gx_mouse_capture(zbool cap);
 zbool gx_mouse_present();
@@ -42,7 +40,6 @@ zbool gx_mouse_state(zuint32 button);
 #define GX_MOUSE_LEFT	0
 #define GX_MOUSE_MIDDLE	1
 #define GX_MOUSE_RIGHT	2
-#define GX_MOUSE_MAX	2
 
 //camera control and simple transformations
 void gx_camera_pos_rot(vec3* position, vec3* xaxis, vec3* yaxis, vec3* zaxis); //set camera position, orientation

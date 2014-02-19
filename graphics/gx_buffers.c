@@ -3,7 +3,7 @@
 // Commercial use prohibited.
 
 #include "../ztypes.h"
-#include "../vmath.h"
+#include "../vmath/vmath.h"
 #include "../memory/ram.h"
 #include <stdio.h>
 #include "gx_image.h"
@@ -21,7 +21,7 @@ extern  int _gx_no_vbos;
 static zbool _destruct_vbuffer(void* x)
 {
 	gx_vbuffer_t* v = x;
-	zuint32 i;
+	
 
 	if ( !_gx_no_vbos && v->_sent_to_gl)
 	{
@@ -389,7 +389,7 @@ zint32 gx_vbuffer_add_vertex(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z
 
 zint32 gx_vbuffer_import_vertex(gx_vbuffer_t* dest, gx_vbuffer_t* src, zint32 vertex)
 {
-	int i;
+
 
 	if (dest == src)
 		return vertex;  //if want in same vbuffer, keep it
@@ -402,12 +402,12 @@ zint32 gx_vbuffer_import_vertex(gx_vbuffer_t* dest, gx_vbuffer_t* src, zint32 ve
 }
 
 
-zint32 gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i)
+void gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i)
 {
 	if (!v)
 		return;
 
-	if (  v == GX_INDEX_INVALID  )
+	if (  i == GX_INDEX_INVALID  )
 		return;
 
 	if (v->index_count == v->index_capacity)
@@ -418,7 +418,7 @@ zint32 gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i)
 
 	v->index_data[  (v->index_count) ++ ] = i;
 	
-	return v->index_count-1;
+//	return v->index_count-1;
 	
 }
 
@@ -480,7 +480,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		if (_gx_no_vbos)
 			glVertexPointer(VERTEX_COMPONENTS, GL_FLOAT, 0,   v->pos_data );
 		else
-			glVertexPointer(VERTEX_COMPONENTS, GL_FLOAT, 0,   (v->pos_data - v->combined_vertex_data) * sizeof (zfloat32) );
+			glVertexPointer(VERTEX_COMPONENTS, GL_FLOAT, 0, (void*) ( (v->pos_data - v->combined_vertex_data) * sizeof (zfloat32)) );
 		glEnableClientState(GL_VERTEX_ARRAY);	
 	}
 	
@@ -492,7 +492,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		if (_gx_no_vbos)
 			glNormalPointer( GL_FLOAT, 0,  v->normal_data  );
 		else
-			glNormalPointer( GL_FLOAT, 0,  (v->normal_data - v->combined_vertex_data) * sizeof (zfloat32) );
+			glNormalPointer( GL_FLOAT, 0,  (void*) ( (v->normal_data - v->combined_vertex_data) * sizeof (zfloat32)) );
 		glEnableClientState(GL_NORMAL_ARRAY);
 	}
 	else
@@ -507,7 +507,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		if (_gx_no_vbos)
 			glColorPointer(COLOR_COMPONENTS, GL_FLOAT, 0, v->color_data );
 		else
-			glColorPointer(COLOR_COMPONENTS, GL_FLOAT, 0, (v->color_data - v->combined_vertex_data) * sizeof (zfloat32));
+			glColorPointer(COLOR_COMPONENTS, GL_FLOAT, 0, (void*) ((v->color_data - v->combined_vertex_data) * sizeof (zfloat32)));
 		glEnableClientState(GL_COLOR_ARRAY);
 	}
 	else
@@ -537,7 +537,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		if (_gx_no_vbos)
 			glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0, v->texcoord_data[i] );
 		else
-			glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0,  (v->texcoord_data[i] - v->combined_vertex_data) * sizeof (zfloat32));
+			glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0, (void*)( (v->texcoord_data[i] - v->combined_vertex_data) * sizeof (zfloat32)));
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	}
 
@@ -556,7 +556,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		if (indexed && _gx_no_vbos)
 			printf(" TODO: indexed points vertex arrays\n");
 		else if (indexed)
-			glDrawElements(GL_POINTS, stop-start, GL_UNSIGNED_INT, sizeof(zuint32) * start  );
+			glDrawElements(GL_POINTS, stop-start, GL_UNSIGNED_INT, (void*) (sizeof(zuint32) * start)  );
 		else 
 			glDrawArrays(GL_POINTS, start, stop-start);
 		break;
@@ -565,7 +565,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		if (indexed && _gx_no_vbos)
 			printf(" TODO: indexed lines vertex arrays\n");
 		else if (indexed)
-			glDrawElements(GL_LINES, stop-start, GL_UNSIGNED_INT,sizeof(zuint32) * start);
+			glDrawElements(GL_LINES, stop-start, GL_UNSIGNED_INT, (void*) (sizeof(zuint32) * start));
 		else 
 			glDrawArrays(GL_LINES, start, stop-start);
 		break;
@@ -574,7 +574,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		if (indexed && _gx_no_vbos)
 			glDrawElements(GL_TRIANGLES, stop-start, GL_UNSIGNED_INT,  v->index_data+  start  );
 		else if (indexed)
-			glDrawElements(GL_TRIANGLES, stop-start, GL_UNSIGNED_INT,sizeof(zuint32) * start);
+			glDrawElements(GL_TRIANGLES, stop-start, GL_UNSIGNED_INT,  (void*) (sizeof(zuint32) * start) );
 		else 
 			glDrawArrays(GL_TRIANGLES, start, stop-start);
 		break;
@@ -584,7 +584,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		if (indexed && _gx_no_vbos)
 			printf(" TODO: indexed quads vertex arrays\n");
 		else if (indexed)
-			glDrawElements(GL_QUADS, stop-start, GL_UNSIGNED_INT,sizeof(zuint32) * start);
+			glDrawElements(GL_QUADS, stop-start, GL_UNSIGNED_INT,(void*) (sizeof(zuint32) * start));
 		else 
 			glDrawArrays(GL_QUADS, start, stop-start);
 		break;
@@ -660,7 +660,7 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 	zuint32 numpoints = image->width * image->height;
 	zuint32 numtriangles = (image->width-1) * (image->height -1)  *2 ;
 
-	if (!preferred_buffer || gx_remaining_indices(preferred_buffer)<(numtriangles*3) || gx_remaining_vertices < numpoints)
+	if (!preferred_buffer || gx_remaining_indices(preferred_buffer)<(numtriangles*3) || gx_remaining_vertices(preferred_buffer) < numpoints)
 	{
 		vbuf = gx_vbuffer_mk(numpoints,numtriangles*3, 
 			use_color, zfalse,
@@ -697,7 +697,7 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 			
 			zuint32 nv = -1;
 			
-			zfloat32 hf =  image->data[ (j*image->height +i) * bpp]/255.0;
+			zfloat32 hf =  image->data[ (j*image->height +i) * bpp]/255.0f;
 
 		
 
@@ -718,16 +718,16 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 
 
 			if (i>0)
-				hfl =  image->data[(j*image->height +i-1)*bpp]/255.0;
+				hfl =  image->data[(j*image->height +i-1)*bpp]/255.0f;
 
 			if (i<image->width-1)
-				hfr =  image->data[(j*image->height +i+1)*bpp]/255.0;
+				hfr =  image->data[(j*image->height +i+1)*bpp]/255.0f;
 
 			if (j>0)
-				hfu =  image->data[((j-1)*image->height +i)*bpp]/255.0;
+				hfu =  image->data[((j-1)*image->height +i)*bpp]/255.0f;
 
 			if (j<image->height-1)
-				hfd =  image->data[((j+1)*image->height +i)*bpp]/255.0;
+				hfd =  image->data[((j+1)*image->height +i)*bpp]/255.0f;
 
 		
 			vec3set(norm, 0,ysize,0); //normal pointing straight up

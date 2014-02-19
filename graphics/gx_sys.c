@@ -6,9 +6,10 @@
 
 
 #include "../ztypes.h"
-#include "../vmath.h"
+#include "../vmath/vmath.h"
 #include "glstuff.h"
 #include "gx_sys.h"
+#include "gx_line.h"
 #include <math.h>
 
 //gl allocation count
@@ -41,21 +42,22 @@ static zuint32	_gx_mouse_capture_last_y = 0;
 static zuint32	_gx_last_mouse_x = 0;
 static zuint32	_gx_last_mouse_y = 0; 
 static zbool	_gx_mouse_present_state = ztrue;
+static zbool	_gx_mouse_first_capture = zfalse;
 
 // GLUT callbacks
 
-void _gx_callback_keyboard(char key, int x, int y)
+void _gx_callback_keyboard(unsigned char key, int x, int y)
 {
 	_keybuffer = key;  //store last key pressed
 	
 
-	_gx_keystate[  (unsigned char) key] = ztrue;  //store updated key state
+	_gx_keystate[   key] = ztrue;  //store updated key state
 
 }
 
-void _gx_callback_keyboard_up(char key, int x, int y)
+void _gx_callback_keyboard_up(unsigned char key, int x, int y)
 {
-	_gx_keystate[  (unsigned char) key] = zfalse;  //indicate the key is not pressed
+	_gx_keystate[   key] = zfalse;  //indicate the key is not pressed
 }
 
 
@@ -66,7 +68,7 @@ zbool gx_mousebuttons[] = {zfalse, zfalse, zfalse};
 
 zbool gx_mouse_state(zuint32 button)
 {
-	if (button <= GX_MOUSE_MAX)
+	if (button <=    (sizeof(gx_mousebuttons) / sizeof(gx_mousebuttons[0]))   )
 	{
 		return gx_mousebuttons[button];
 
@@ -157,7 +159,7 @@ static void _gx_callback_reshape(int w, int h) //called when window is resized
 
 }
 
-static void _gx_callback_disp()
+static void _gx_callback_disp(void)
 {
 	/*Don't do anything here, its just required to keep GLUT happy*/
 }
@@ -201,7 +203,7 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	_gx_callback_reshape( width, height);  //reshape will use defaults
 
 	//gx_setup_2d(-1.0, -1.0, 1.0, 1.0) ;  //default coords are -1,-1 to 1,1
-	gx_setup_2d( 0, 0, width-1, height-1);
+	gx_setup_2d( 0.0f, 0.0f, width-1.0f, height-1.0f);
 
 	_gx_line_init();  //initialize line drawing functions
 
@@ -312,22 +314,31 @@ void gx_mouse_capture(zbool cap)
 
 		_gx_mouse_capture = ztrue;
 
+		_gx_mouse_first_capture = ztrue; //we want to ignore the 1st mouse mouse event
+
 		glutWarpPointer( _gx_mouse_capture_last_x, _gx_mouse_capture_last_y);	
 		glutSetCursor(GLUT_CURSOR_NONE); //hide mouse pointer
-
+#ifdef _WIN32
 		ShowCursor(0);//windows call
+#endif
+
 	}
 	else
 	{
 		_gx_mouse_capture = zfalse;
 		glutSetCursor(GLUT_CURSOR_INHERIT); //bring back mouse pointer
 
+#ifdef _WIN32
 		ShowCursor(1); //windows call
+#endif
 	}
 }
 
 void gx_mouse_pos(zint32* x, zint32* y, zbool* rel)
 {
+
+		int dx;
+		int dy;
 	
 		if (rel)
 			*rel = _gx_mouse_capture;
@@ -341,10 +352,10 @@ void gx_mouse_pos(zint32* x, zint32* y, zbool* rel)
 		else
 		{
 			
-			*x = _gx_last_mouse_x - _gx_mouse_capture_last_x;
-			*y = _gx_last_mouse_y - _gx_mouse_capture_last_y;
+			dx = _gx_last_mouse_x - _gx_mouse_capture_last_x;
+			dy = _gx_last_mouse_y - _gx_mouse_capture_last_y;
 
-			if ( *x || *y)  //if the mouse moved, re-center it
+			if ( dx || dy)  //if the mouse moved, re-center it
 			{
 
 				_gx_mouse_capture_last_x=_gx_window_width/2;
@@ -352,6 +363,15 @@ void gx_mouse_pos(zint32* x, zint32* y, zbool* rel)
 				glutWarpPointer( _gx_mouse_capture_last_x, _gx_mouse_capture_last_y);
 
 			}
+			if (_gx_mouse_first_capture)
+			{
+				dx=0;
+				dy=0;
+				_gx_mouse_first_capture = 0;
+				
+			}
+			*x = dx;
+			*y = dy;
 		}
 }
 
@@ -421,6 +441,7 @@ zfloat32 gx_frame_get_dimensions(zuint32* width, zuint32* height)
 }
 
 
+static void  _gx_reset_matrix();
 
 /* Two dimensional coord system */
 void gx_setup_2d(float left,  float top, float right, float bottom)
@@ -453,7 +474,7 @@ void gx_setup_2d_pixels(int* width, int *height)
 	//give dimensions to client application
 	gx_frame_get_dimensions(width, height);
 
-	gx_setup_2d(-.375, _gx_window_height-.375, _gx_window_width-.375, -.375);
+	gx_setup_2d(-.375f, _gx_window_height-.375f, _gx_window_width-.375f, -.375f);
 }
 
 
@@ -481,7 +502,7 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 
 	glLightModelf(GL_LIGHT_MODEL_LOCAL_VIEWER, 1.0f);
 
-	//glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+//	glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 //	glPolygonMode( GL_BACK, GL_LINE );
 
 }
@@ -518,7 +539,7 @@ static _gx_restore_camera_matrix()
 }
 
 
-static _gx_save_camera_matrix()
+static void _gx_save_camera_matrix()
 {
 	if (_gx_matrix_depth ==0)
 	{
@@ -531,7 +552,7 @@ static _gx_save_camera_matrix()
 	}
 }
 
-static _gx_reset_matrix()
+static void _gx_reset_matrix()
 {
 
 	if (_gx_matrix_depth ==1)

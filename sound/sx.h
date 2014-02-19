@@ -4,7 +4,7 @@
 
 #include "../time/tm.h"
 
-#include <al.h>
+#include <AL/al.h>
 
 
 // initialize
@@ -41,6 +41,9 @@ typedef struct sx_source_s
 	//sound properties
 	zfloat32		volume;  // 1.0 is full scale
 	zfloat32		pitch;
+
+	//zfloat32		xpos; //x panning -1 left to 1 right (0 center)
+	zfloat32		pos[3];
 	
 	//openal data 
 	ALuint		_al_source;
@@ -58,11 +61,13 @@ sx_sound_t* sx_sound_def(zint32 channels, zsize data_len_bytes, zbyte* data, zch
 
 
 
-void sx_sound_delete(sx_sound_t* sound); //destroys a buffer
+zbool sx_sound_delete(sx_sound_t* sound); //destroys a buffer
 
 //plays a buffer at 'milliseconds' time from now. 0 means play immediately
 void sx_sound_play(sx_sound_t* sound, zfloat32 volume, zfloat32 pitch, zuint32 milliseconds);  
 
+//pans left or right -1 (left) to 1 (right)
+void sx_sound_play_at(sx_sound_t* sound, zfloat32 volume, zfloat32 pitch, zuint32 milliseconds, float* pos);  
 
 
 // OpenAL does all the 'processing' in a seperate thread
@@ -89,4 +94,4 @@ void sx_set_reverb(sx_reverb_t* reverb);
 zerror  sx_deinterlace_audio(void* vdata, int bufsize, int nlace, void* vleft, void* vright);
 
 //read 16 bit raw files
-zerror sx_read_raw16(zchar* filename, zbool split_channels, zbyte** data0, zbyte** data1);
+zsize sx_read_raw16(zchar* filename, zbool split_channels, zbyte** data0, zbyte** data1);

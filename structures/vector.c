@@ -43,7 +43,7 @@ zbool _vec_destructor(void* x)
 }
 
 /* This creates a vector */ 
-vec_t* vec_mk(vec_t* v, zsize initial_size)
+vec_t* vec_mk(vec_t* v, zuint32 initial_size)
 {  
 	zbool allocated = zfalse;
 
@@ -121,7 +121,7 @@ void* vec_add_or_free(vec_t* v, void* item)
 
 //removes an element, but does not preserve order of the items (last item fills the place of the removed item)
 //returns the element being removed, does not free it
-void* vec_remove_unordered(vec_t* v, int index)
+void* vec_remove_unordered(vec_t* v, zuint32 index)
 {  
 	void* x = NULL;
 	
@@ -139,7 +139,7 @@ void* vec_remove_unordered(vec_t* v, int index)
 
 //removes item from vector, preserving the order
 // O(n)
-void* vec_remove_ordered(vec_t* v, int index)
+void* vec_remove_ordered(vec_t* v, zuint32 index)
 {
 	void* x = NULL;
 	
@@ -165,7 +165,7 @@ void* vec_remove_ordered(vec_t* v, int index)
 
 void vec_print( vec_t* v)
 {	
-	int a;
+	zuint32 a;
 	printf( "Vector %p has size %d and count %d and elements:\n", v, v->_size, v->count);
 	for (a=0;a<v->count;a++){
 		printf("%d:%s\n",a, (char*) v->elements[a]);
@@ -174,7 +174,7 @@ void vec_print( vec_t* v)
 
 int vec_find_idx(vec_t* v, void* item)
 {
-	int a;
+	zuint32 a;
 	for (a=0;a<v->count;a++)
 	{
 		if (item == v->elements[a])
@@ -182,4 +182,11 @@ int vec_find_idx(vec_t* v, void* item)
 	}
 
 	return -1;
+}
+
+/* Tells vector not to free elements when vector is destroyed */
+void vec_disown(vec_t* v) {
+	if (v) {
+		v->own_elements = 0;
+	}
 }

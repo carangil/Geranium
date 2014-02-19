@@ -18,6 +18,7 @@ typedef struct vec_s {
 #define vec_set_at(vec,pos,value)  ( ((unsigned int)(pos)) < (vec)->count ?  (vec)->elements[(pos)] = value : NULL )
 #define vec_get_x_at(vec, type, pos)  ((type)( ((unsigned int)(pos)) < (vec)->count ?  (vec)->elements[(pos)] : NULL ))
 #define vec_elements(vec)  ((vec)->elements)
+#define vec_elements_as(type, vec)   ((type*)((vec)->elements))
 
 //what index contains item pointer?  (caution: O(n))
 int vec_find_idx(vec_t* v, void* item);
@@ -27,7 +28,7 @@ int vec_find_idx(vec_t* v, void* item);
 void vec_cleanup(vec_t* x);
 
 //constructor
-vec_t* vec_mk(vec_t* v, zsize initial_size);
+vec_t* vec_mk(vec_t* v, zuint32 initial_size);
 
 /* There are two ways to deal with allocation:
 
@@ -58,12 +59,13 @@ zbool vec_add(vec_t* v, void* item);
 void* vec_add_or_free(vec_t* v, void* item);
 
 //remove item from vector in constant time, order of the items is not preserved
-void* vec_remove_unordered(vec_t* v, int index);
+void* vec_remove_unordered(vec_t* v, zuint32 index);
 
 //remove item from vector, O(n) time order of the items is preserved
-void* vec_remove_ordered(vec_t* v, int index);
+void* vec_remove_ordered(vec_t* v, zuint32 index);
 
 //simple diag function to print all the elements of the vector out as strings
 void vec_print( vec_t* v);
 
-
+//disowns vectors contents (User will have to free things that were put in the vector)
+void vec_disown(vec_t* v);

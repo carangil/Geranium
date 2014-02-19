@@ -3,7 +3,7 @@
 // Commercial use prohibited.
 
 #include <malloc.h>
-
+#include <string.h>
 
 #define RAM_DEBUG
 
@@ -25,7 +25,10 @@ void* ram_addref(void* thing);
 void  ram_free(void* thing);
 void  ram_destructor_tail(void* block);  //should only be called in a destructor: once per desructor right before returning
 
-char* ram_strdup(char* in);
+//char* ram_strdup(char* in);
+char* ram_strdup_func(char* in, char* file,  int line);
+#define ram_strdup(xx) ram_strdup_func(xx,__FILE__,  __LINE__)
+
 char* ram_strdup_cat(char* in1, char* in2); //cat two string together into a new buffer
 
 //void* ram_clear(void* v, zsize size);

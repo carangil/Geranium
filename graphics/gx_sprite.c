@@ -4,7 +4,7 @@
 
 #include "../ztypes.h"
 #include "../memory/ram.h"
-#include "../vmath.h"
+#include "../vmath/vmath.h"
 #include <stdio.h>
 
 #include "glstuff.h"
@@ -26,7 +26,7 @@ gx_sprite_t* gx_sprite_mk(gx_image_t* image, zint32 left, zint32 bottom, zint32 
 	if (!image)
 		return NULL; //need an image to make a sprite from!
 
-	sprite = ram_alloc(sizeof(gx_sprite_t), _gx_sprite_t_kill);  //no special destructor needed (sprites don't free their images)
+	sprite = ram_alloc(sizeof(gx_sprite_t), _gx_sprite_t_kill);  
 
 	if (!sprite)
 		return NULL;
@@ -359,20 +359,20 @@ void crap_gx_sprite_draw_3d(gx_sprite_t* sprite, vec3* position, vec3* up, vec3*
 		vec3mov(p, *position);
 		if (center)
 		{
-			vec3madd(p, -0.5*sprite->_sprite_width, t_right);
-			vec3madd(p, -0.5*sprite->_sprite_height, t_up);
+			vec3madd(p, -0.5f*sprite->_sprite_width, t_right);
+			vec3madd(p, -0.5f*sprite->_sprite_height, t_up);
 		}
-		glVertex3fv(&p);
+		glVertex3fv(p.array);
 
 		glTexCoord2f(sprite->_tx2, sprite->_ty );
 		vec3mov(p, *position);
 		vec3madd(p, sprite->_sprite_width, t_right);
 		if (center)
 		{
-			vec3madd(p, -0.5*sprite->_sprite_width, t_right);
-			vec3madd(p, -0.5*sprite->_sprite_height, t_up);
+			vec3madd(p, -0.5f*sprite->_sprite_width, t_right);
+			vec3madd(p, -0.5f*sprite->_sprite_height, t_up);
 		}
-		glVertex3fv(&p);
+		glVertex3fv(p.array);
 
 		glTexCoord2f(sprite->_tx2, sprite->_ty2 );
 		vec3mov(p, *position);
@@ -380,20 +380,20 @@ void crap_gx_sprite_draw_3d(gx_sprite_t* sprite, vec3* position, vec3* up, vec3*
 		vec3madd(p, sprite->_sprite_width, t_right);
 		if (center)
 		{
-			vec3madd(p, -0.5*sprite->_sprite_width, t_right);
-			vec3madd(p, -0.5*sprite->_sprite_height, t_up);
+			vec3madd(p, -0.5f*sprite->_sprite_width, t_right);
+			vec3madd(p, -0.5f*sprite->_sprite_height, t_up);
 		}
-		glVertex3fv(&p);
+		glVertex3fv(p.array);
 
 		glTexCoord2f(sprite->_tx, sprite->_ty2 );
 		vec3mov(p, *position);
 		vec3madd(p, sprite->_sprite_height, t_up);
 		if (center)
 		{
-			vec3madd(p, -0.5*sprite->_sprite_width, t_right);
-			vec3madd(p, -0.5*sprite->_sprite_height, t_up);
+			vec3madd(p, -0.5f*sprite->_sprite_width, t_right);
+			vec3madd(p, -0.5f*sprite->_sprite_height, t_up);
 		}
-		glVertex3fv(&p);
+		glVertex3fv(p.array);
 
 	glEnd();
 }
@@ -447,20 +447,20 @@ void gx_sprite_draw_3d(gx_sprite_t* sprite, vec3* position, vec3* up, vec3* righ
 		vec3mov(p, *position);
 		if (center)
 		{
-			vec3madd(p, -0.5*sprite->_sprite_width, *right);
-			vec3madd(p, -0.5*sprite->_sprite_height, *up);
+			vec3madd(p, -0.5f*sprite->_sprite_width, *right);
+			vec3madd(p, -0.5f*sprite->_sprite_height, *up);
 		}
-		glVertex3fv(&p);
+		glVertex3fv(p.array);
 
 		glTexCoord2f(sprite->_tx2, sprite->_ty );
 		vec3mov(p, *position);
 		vec3madd(p, sprite->_sprite_width, *right);
 		if (center)
 		{
-			vec3madd(p, -0.5*sprite->_sprite_width, *right);
-			vec3madd(p, -0.5*sprite->_sprite_height, *up);
+			vec3madd(p, -0.5f*sprite->_sprite_width, *right);
+			vec3madd(p, -0.5f*sprite->_sprite_height, *up);
 		}
-		glVertex3fv(&p);
+		glVertex3fv(p.array);
 
 		glTexCoord2f(sprite->_tx2, sprite->_ty2 );
 		vec3mov(p, *position);
@@ -468,20 +468,20 @@ void gx_sprite_draw_3d(gx_sprite_t* sprite, vec3* position, vec3* up, vec3* righ
 		vec3madd(p, sprite->_sprite_width, *right);
 		if (center)
 		{
-			vec3madd(p, -0.5*sprite->_sprite_width, *right);
-			vec3madd(p, -0.5*sprite->_sprite_height, *up);
+			vec3madd(p, -0.5f*sprite->_sprite_width, *right);
+			vec3madd(p, -0.5f*sprite->_sprite_height, *up);
 		}
-		glVertex3fv(&p);
+		glVertex3fv(p.array);
 
 		glTexCoord2f(sprite->_tx, sprite->_ty2 );
 		vec3mov(p, *position);
 		vec3madd(p, sprite->_sprite_height, *up);
 		if (center)
 		{
-			vec3madd(p, -0.5*sprite->_sprite_width, *right);
-			vec3madd(p, -0.5*sprite->_sprite_height, *up);
+			vec3madd(p, -0.5f*sprite->_sprite_width, *right);
+			vec3madd(p, -0.5f*sprite->_sprite_height, *up);
 		}
-		glVertex3fv(&p);
+		glVertex3fv(p.array);
 
 	glEnd();
 }

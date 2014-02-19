@@ -9,7 +9,7 @@
 #include "../structures/vector.c"
 
 
-#include "../vmath.h"
+#include "../vmath/vmath.h"
 #include "../graphics/gx_sys.h"
 #include "../graphics/gx_image.h"
 #include "../graphics/gx_sprite.h"
@@ -22,7 +22,7 @@
 
 
 
-float fmin(float a, float b)
+float zfmin(float a, float b)
 {
 	if (a<b)
 		return a;
@@ -30,7 +30,7 @@ float fmin(float a, float b)
 
 }
 
-float fmax(float a, float b)
+float zfmax(float a, float b)
 {
 	if (a<b)
 		return b;
@@ -643,6 +643,7 @@ int read_line(FILE* f, zchar** line_out)
 	line.str[pos]=0;
 	
 	*line_out = zgrowstr_detach(&line);
+//	ram_free(zgrowstr);
 	return ret;
 }
 
@@ -981,6 +982,7 @@ vec_t*  load_level(stringmap_t* textures, zchar* filename)
 	char* word_end;
 	char chy=0;
 	int i;
+	float sliceheight=1.0;
 	
 	int mapwidth=0;
 
@@ -1045,12 +1047,20 @@ vec_t*  load_level(stringmap_t* textures, zchar* filename)
 				vec3set( tilestyles[tilename]->specular_color , 0,1,0);
 				tilestyles[tilename]->specular_exponent = 100.0;
 			
+			} 
+			else if (!wordcmp(word_start, len, "$sliceheight"))
+			{
+				next_word(&word_start, &word_end, 1);
+				sliceheight = atoi(word_start);
 			}
+
+
 			else if (!wordcmp(word_start, len, "$map"))
 			{
 				//parse out a map
 				vec_t maplines;
 				vec_t floorheights;
+				vec_t ceilingheights;
 				
 
 				vec_t* mlplane = NULL;
@@ -1060,9 +1070,11 @@ vec_t*  load_level(stringmap_t* textures, zchar* filename)
 				int j;
 				
 				float floor_y=0;
+				float ceiling_y=0;
 				
 				vec_mk(&maplines, 2);
 				vec_mk(&floorheights, 2);
+				vec_mk(&ceilingheights, 2);
 
 				mlplane = &maplines;  //start reading in maplines
 
@@ -1074,6 +1086,9 @@ vec_t*  load_level(stringmap_t* textures, zchar* filename)
 						word_start = mapline;
 						word_end = NULL;
 						len = next_word(&word_start, &word_end, 0);
+						
+
+
 						if (!wordcmp(word_start, len, "$endmap"))
 						{
 							ram_free(mapline);
@@ -1084,6 +1099,14 @@ vec_t*  load_level(stringmap_t* textures, zchar* filename)
 							ram_free(mapline);
 
 							mlplane = &floorheights;
+
+							continue;
+						}
+						if (!wordcmp(word_start, len, "$ceilingheight"))
+						{
+							ram_free(mapline);
+
+							mlplane = &ceilingheights;
 
 							continue;
 						}
@@ -1144,7 +1167,14 @@ vec_t*  load_level(stringmap_t* textures, zchar* filename)
 							chy = get_line_char(&floorheights, i, j);
 							if (chy)
 								floor_y = (chy-'0')/10.0;
+							else floor_y = 0;
 							
+
+							chy = get_line_char(&ceilingheights, i, j);
+							if (chy)
+								ceiling_y = sliceheight  *  (1-((chy-'0')/10.0));
+							else
+								ceiling_y = sliceheight;
 
 							
 							//set sides x- and x+
@@ -1257,7 +1287,7 @@ vec_t*  load_level(stringmap_t* textures, zchar* filename)
 
 							
 							vec3set(min, j, floor_y, i);
-							vec3set(max, j+1, 1, i+1);
+							vec3set(max, j+1, ceiling_y, i+1);
 
 
 							#define SECTBORDER 0.2
@@ -1302,7 +1332,7 @@ vec_t*  load_level(stringmap_t* textures, zchar* filename)
 
 		}
 
-		ram_free(line);
+ 		ram_free(line);
 	}
 
 	fclose(f);
@@ -1365,8 +1395,8 @@ vec_t*  load_level(stringmap_t* textures, zchar* filename)
 
 				
 //float y;
-		////		y = ( fmax( sector->min.named.y, other->min.named.y)
-				//	 +fmin( sector->max.named.y, other->max.named.y) ) /2 ;
+		////		y = ( zfmax( sector->min.named.y, other->min.named.y)
+				//	 +zfmin( sector->max.named.y, other->max.named.y) ) /2 ;
 				
 
 			
@@ -1407,8 +1437,8 @@ vec_t*  load_level(stringmap_t* textures, zchar* filename)
 			{
 			//	float y;
 
-			//	y = ( fmax( sector->min.named.y, other->min.named.y)
-			//		 +fmin( sector->max.named.y, other->max.named.y) ) /2 ;
+			//	y = ( zfmax( sector->min.named.y, other->min.named.y)
+			//		 +zfmin( sector->max.named.y, other->max.named.y) ) /2 ;
 				
 				vec3 a;
 				vec3 b;
@@ -2215,10 +2245,10 @@ if (player_walking)
 				
 
 					
-					cam.camera_pos.array[j] = fmin( cam.camera_pos.array[j],  camera_sector->max.array[j]);
+					cam.camera_pos.array[j] = zfmin( cam.camera_pos.array[j],  camera_sector->max.array[j]);
 
 					//if (j==1) continue;
-					cam.camera_pos.array[j] = fmax( cam.camera_pos.array[j] ,  camera_sector->min.array[j]);
+					cam.camera_pos.array[j] = zfmax( cam.camera_pos.array[j] ,  camera_sector->min.array[j]);
 				}
 			}
 			
@@ -2284,7 +2314,7 @@ if (player_walking)
 //		gx_sector_draw(camera_sector);
 		secdraw =  recurse_draw_sectors_ppoly(camera_sector, &cam,   .5 * aspect*  fovy   /180*3.14159, NULL ,0  );
 	//	secdraw =  recurse_draw_sectors_old(camera_sector, &cam.camera_pos, &cam.camera_forward,  .5 * aspect*  fovy   /180*3.14159);
-		printf(" %d sectors drawm\n" , secdraw );
+		printf(" %d sectors draw\n" , secdraw );
 
 		//printf(" %d sectors drawm\n" , recurse_draw_sectors_old(camera_sector, &cam.camera_pos, &cam.camera_forward));
 //		gx_sector_outline(camera_sector,ztrue);	

@@ -1,8 +1,8 @@
 #include <stdio.h>
-#include <al.h>
-#include <alc.h>
-#include <efx.h>
-#include <efx-creative.h>
+#include <AL/al.h>
+#include <AL/alc.h>
+#include <AL/efx.h>
+#include <AL/efx-creative.h>
 
 
 #include "../ztypes.h"
@@ -38,7 +38,7 @@ void showalerror(char* file ,  int line)
 
 typedef struct sx_al_data_s
 {
-	ALCchar* default_device_name;
+	const ALCchar* default_device_name;
 	ALCdevice* device;
 	ALCcontext* context;
 
@@ -197,7 +197,8 @@ zerror sx_init()
 	ALfloat listener_vel[] = {0,0,0};
 	ALfloat listener_ori[] = {0,0,-1, 0,1,0};
 
-	memset( &g_sx_al_data, 0, sizeof(g_sx_al_data));
+	//memset( &g_sx_al_data, 0, sizeof(g_sx_al_data));
+	ram_clear( &g_sx_al_data,  sizeof(g_sx_al_data));
 
 	g_sx_al_data.default_device_name = alcGetString(NULL, ALC_DEFAULT_DEVICE_SPECIFIER);
 
@@ -215,8 +216,11 @@ zerror sx_init()
 
 			/* Now set some basic 3d positioning (default) */
 			alListenerfv(AL_POSITION, listener_pos);
+			SHOWALERROR
 			alListenerfv(AL_VELOCITY, listener_vel);
+			SHOWALERROR
 			alListenerfv(AL_ORIENTATION, listener_ori);
+			SHOWALERROR
 
 
 			if (alGetError()== AL_NO_ERROR)
@@ -283,7 +287,7 @@ zerror  sx_deinterlace_audio(void* vdata, int bufsize, int nlace, void* vleft, v
 #endif
 
 
-zbool sx_sound_delete(sx_sound_t* sound)
+zbool sx_sound_delete(sx_sound_t * sound )
 {
 	ram_free(sound->name);
 
@@ -291,6 +295,12 @@ zbool sx_sound_delete(sx_sound_t* sound)
 
 	//ram_shallow_free(sound);
 	return ztrue;
+}
+
+zbool sx_sound_destroy(void* s)
+{
+	sx_sound_t * sound = s;
+	return sx_sound_delete(sound);
 }
 
 
@@ -301,7 +311,7 @@ sx_sound_t* sx_sound_def(zint32 channels, zsize data_len_bytes, zbyte* data, zch
 	if (channels < 1 || channels > 2)
 		return NULL;
 
-	sound = ram_alloc(sizeof(*sound), sx_sound_delete);
+	sound = ram_alloc(sizeof(*sound), sx_sound_destroy);
 	
 	if (name)
 	{
@@ -367,7 +377,7 @@ SHOWALERROR
 
 #ifndef _SX_PREALLOCATE_SOURCES
 		//apply fx if we have it
-		if (g_sx_al_data.fx_created != NULL)
+		if (g_sx_al_data.fx_created)
 		{
 			//printf(" applying fx\n");
 			SHOWALERROR
@@ -389,12 +399,14 @@ SHOWALERROR
 //assigns an openal source to a sound (if any are available) and plays it  
 void _sx_bind_and_play_source(sx_source_t* source)
 {
-	ALfloat zeros [] = {0,0,0};
+	//ALfloat pos [] = {0,.1,.1};
 
 	//get an al source if we don't have one already
 #ifdef _SX_PREALLOCATE_SOURCES
 	sx_get_al_source(source);
 #endif
+
+//	pos[0] = source->xpos ;
 	
 SHOWALERROR
 	alSourcei( source->_al_source, AL_BUFFER, source->sound->_al_buffer);
@@ -403,15 +415,14 @@ SHOWALERROR
 SHOWALERROR
 	alSourcef( source->_al_source, AL_GAIN, source->volume);
 SHOWALERROR
-	alSourcefv( source->_al_source, AL_POSITION, zeros);
-SHOWALERROR
-	alSourcefv( source->_al_source, AL_POSITION, zeros);
+	alSourcefv( source->_al_source, AL_POSITION, source->pos);
+
 SHOWALERROR
 	alSourcei( source->_al_source, AL_LOOPING, AL_FALSE);
 SHOWALERROR
 
 	//experimental:set the slot
-	if (g_sx_al_data.fx_created != NULL)
+	if (g_sx_al_data.fx_created)
 	{
 			//printf(" applying fx\n");
 			SHOWALERROR
@@ -432,7 +443,7 @@ SHOWALERROR
 //generates a source and plays a sound
 //the source is automatically destroyed when the sound has completed
 
-void sx_sound_play(sx_sound_t* sound, zfloat32 volume, zfloat32 pitch,  zuint32 milliseconds)
+void sx_sound_play_at(sx_sound_t* sound, zfloat32 volume, zfloat32 pitch,  zuint32 milliseconds, float* pos)
 {
 	sx_source_t* source = NULL;
 
@@ -446,6 +457,19 @@ void sx_sound_play(sx_sound_t* sound, zfloat32 volume, zfloat32 pitch,  zuint32 
 	if (sound)
 	{
 		source = sx_source_mk(sound);
+
+		if (pos)
+		{
+			source->pos[0]=pos[0];
+			source->pos[1]=pos[1];
+			source->pos[2]=pos[2];
+		}
+		else
+		{
+			source->pos[0]=0;
+			source->pos[1]=0;
+			source->pos[2]=0;
+		}
 
 		if (source)
 		{
@@ -467,6 +491,12 @@ void sx_sound_play(sx_sound_t* sound, zfloat32 volume, zfloat32 pitch,  zuint32 
 			vec_add( &sx_source_t_auto_source_list, source);
 		}	
 	}
+}
+
+void sx_sound_play(sx_sound_t* sound, zfloat32 volume, zfloat32 pitch,  zuint32 milliseconds)
+{
+	sx_sound_play_at(sound, volume, pitch, milliseconds, NULL);
+
 }
 
 

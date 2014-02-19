@@ -8,7 +8,7 @@
 
 
 #include "../ztypes.h"
-#include "../vmath.h"
+#include "../vmath/vmath.h"
 
 #include "glstuff.h"
 

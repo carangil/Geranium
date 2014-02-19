@@ -1,6 +1,9 @@
-#include "gl/glew.h"
-#include "gl/wglew.h"
-#include "gl/freeglut.h"
+#include "GL/glew.h"
+#ifdef _WIN32
+#include "GL/wglew.h"
+#endif
+
+#include "GL/freeglut.h"
 
 
 //track how many items are generated or deleted in gl

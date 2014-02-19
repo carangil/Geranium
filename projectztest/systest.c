@@ -1,7 +1,7 @@
-#include "..\ztypes.h"
-#include "..\memory\ram.h"
-#include "..\structures\vector.h"
-#include "..\vmath.h"
+#include "../ztypes.h"
+#include "../memory/ram.h"
+#include "../structures/vector.h"
+#include "../vmath/vmath.h"
 #include <stdio.h>
 
 typedef struct test_s

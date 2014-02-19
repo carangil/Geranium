@@ -3,7 +3,7 @@
 // Commercial use prohibited.
 
 #include "../ztypes.h"
-#include "../vmath.h"
+#include "../vmath/vmath.h"
 
 #include "glstuff.h"
 
@@ -128,7 +128,7 @@ static zint32 read_to_delim(FILE* f, zchar* buffer, zuint32 buffer_len, zchar* d
 	int br=0;
 
 	if (!f)
-		return;
+		return -1;
 
 
 	while (i<buffer_len)

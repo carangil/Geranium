@@ -6,7 +6,7 @@
 #include "../memory/ram.h"
 #include <stdio.h>
 #include "glstuff.h"
-#include "../vmath.h"
+#include "../vmath/vmath.h"
 #include "gx_light.h"
 
 gx_light_t* gx_light_mk(gx_light_e type, vec3* position, vec3* color, vec3* ambient)

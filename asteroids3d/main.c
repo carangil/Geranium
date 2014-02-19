@@ -6,7 +6,7 @@
 #include <math.h>
 #include "../ztypes.h"
 #include "../memory/ram.h"
-#include "../vmath.h"
+#include "../vmath/vmath.h"
 #include "../graphics/gx_sys.h"
 #include "../graphics/gx_image.h"
 #include "../graphics/gx_sprite.h"
