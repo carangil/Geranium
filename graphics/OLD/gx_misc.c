@@ -10,7 +10,7 @@
 #include "../ztypes.h"
 #include "../vmath/vmath.h"
 
-#include "glstuff.h"
+#include "glheaders.h"
 
 #include "../memory/ram.h"
 #include "../structures/vector.h"
@@ -198,7 +198,8 @@ zbool sector_free(void* x)
 
 	vec_cleanup(& s->meshes);
 
-	ram_destructor_tail(s->portals);
+	//ram_destructor_tail(s->portals);
+	ram_free(s->portals);
 
 	return ztrue;
 
@@ -298,16 +299,16 @@ void gx_portal_inactive_draw_test(gx_portal_t* p)
 		//connect portal points
 		glColor3f(0,1,0);
 		glVertex3fv(& p->points[0]);
-		glVertex3fv(& p->pos);
+		glVertex3fv(& p->pos.array);
 
 		glVertex3fv(& p->points[1]);
-		glVertex3fv(& p->pos);
+		glVertex3fv(& p->pos.array);
 
 		glVertex3fv(& p->points[2]);
-		glVertex3fv(& p->pos);
+		glVertex3fv(& p->pos.array);
 
 		glVertex3fv(& p->points[3]);
-		glVertex3fv(& p->pos);
+		glVertex3fv(& p->pos.array);
 
 		//go in square
 		glColor3f(0,1,1);
@@ -434,7 +435,8 @@ zbool portal_delete(void* x)
 {
 	gx_portal_t* p = x;
 
-	ram_destructor_tail(p->next_portal);
+	//ram_destructor_tail(p->next_portal);
+	ram_free(p->next_portal);
 
 	return ztrue;
 }

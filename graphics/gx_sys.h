@@ -7,6 +7,7 @@
 #define GX_OK 0
 #define GX_ERROR 1
 
+#include "glheaders.h"
 
 
 void gx_window_event();
@@ -43,6 +44,8 @@ zbool gx_mouse_state(zuint32 button);
 
 //camera control and simple transformations
 void gx_camera_pos_rot(vec3* position, vec3* xaxis, vec3* yaxis, vec3* zaxis); //set camera position, orientation
+
+/*
 void gx_home();  //resets any move / rotate/ scale transformations, but keeps camera orientation
 void gx_camera_home();  //resets move and camera
 void gx_move3d(vec3* amount); //applies translation
@@ -54,5 +57,9 @@ void gx_scale(float scale); //uniform scales
 
 
 
+*/
 
+
+void gx_error(char* file, int line);
+#define GX_TRACE gx_error( __FILE__ , __LINE__);
 

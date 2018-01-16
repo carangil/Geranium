@@ -4,16 +4,16 @@
 
 
 #include "../ztypes.h"
-#include "../memory/ram.h"
+#include "../memory/zmem.h"
 #include <stdio.h>
-#include "vector.h"
+#include "zvector.h"
 #include <string.h>
 
 // A simple, generic vector 'class' in C.  
 // A vector just stores void*
 
-// Frees the internal contents of a vec_t structure 
-void vec_cleanup(vec_t* vec)
+// Frees the internal contents of a zvec_t structure 
+void zvec_cleanup(zvec_t* vec)
 {
 	zuint32 i;
 
@@ -26,8 +26,6 @@ void vec_cleanup(vec_t* vec)
 		{
 			for (i=0;i<vec->count;i++)
 			{
-				if (i==0x3af)
- 					printf("boo");
 				ram_free(vec->elements[i]);  //free each element
 			}
 		}
@@ -36,32 +34,32 @@ void vec_cleanup(vec_t* vec)
 }
 
 // This is the destructor function called by ram_free, passed as arg to ram_alloc
-zbool _vec_destructor(void* x)
+zbool _zvec_destructor(void* x)
 {
-	vec_cleanup((vec_t*) x); //free the contents of this structure
-	return ztrue;
+	zvec_cleanup((zvec_t*) x); //free the contents of this structure
+	return ZTRUE;
 }
 
 /* This creates a vector */ 
-vec_t* vec_mk(vec_t* v, zuint32 initial_size)
+zvec_t* zvec_mk(zvec_t* v, zuint32 initial_size)
 {  
-	zbool allocated = zfalse;
+	zbool allocated = ZFALSE;
 
 	if (!v)
 	{
 		//no input pointer specified, so just allocate one, with proper destructor
-		v =  (vec_t*) ram_alloc( sizeof(vec_t), _vec_destructor);
+		v =  (zvec_t*) ram_alloc( sizeof(zvec_t), _zvec_destructor);
 
 		if (!v) 
 			return NULL; //failed to allocate
 
-		allocated = ztrue;  //flag that we created the allocation
+		allocated = ZTRUE;  //flag that we created the allocation
 	}
 
 	v->_size = initial_size;
 	v->count = 0;  //vector is empty
 	v->elements = ram_alloc(v->_size * sizeof(void*), NULL );
-	v->own_elements = ztrue;  //default that the vector owns all the elements stored within
+	v->own_elements = ZTRUE;  //default that the vector owns all the elements stored within
 
 	
 	
@@ -78,13 +76,13 @@ vec_t* vec_mk(vec_t* v, zuint32 initial_size)
 }
 
 //add item to vector, if successful return true
-zbool vec_add(vec_t* v, void* item)
+zbool zvec_add(zvec_t* v, void* item)
 {
 	if (!v) 
-		return zfalse;
+		return ZFALSE;
 
 //	if (!item)
-//		return zfalse;
+//		return ZFALSE;
 
 	v->count++;
 
@@ -101,18 +99,18 @@ zbool vec_add(vec_t* v, void* item)
 		else
 		{
 			//todo: don't increment count!
-			return zfalse;  //could not store item
+			return ZFALSE;  //could not store item
 		}
 	}
 
 	v->elements [ v->count-1] = item;
-	return ztrue;
+	return ZTRUE;
 }
 
 //tries to add item to vector. if succesful returns item. if unsuccessfull returns null and FREEs the item
-void* vec_add_or_free(vec_t* v, void* item)
+void* zvec_add_or_free(zvec_t* v, void* item)
 {
-	if ( vec_add(v, item))
+	if ( zvec_add(v, item))
 		return item;
 
 	ram_free(item);
@@ -121,7 +119,7 @@ void* vec_add_or_free(vec_t* v, void* item)
 
 //removes an element, but does not preserve order of the items (last item fills the place of the removed item)
 //returns the element being removed, does not free it
-void* vec_remove_unordered(vec_t* v, zuint32 index)
+void* zvec_remove_unordered(zvec_t* v, zuint32 index)
 {  
 	void* x = NULL;
 	
@@ -139,7 +137,7 @@ void* vec_remove_unordered(vec_t* v, zuint32 index)
 
 //removes item from vector, preserving the order
 // O(n)
-void* vec_remove_ordered(vec_t* v, zuint32 index)
+void* zvec_remove_ordered(zvec_t* v, zuint32 index)
 {
 	void* x = NULL;
 	
@@ -152,8 +150,10 @@ void* vec_remove_ordered(vec_t* v, zuint32 index)
 	x = v->elements[index];  //grab item to remove
 
 	//is this right?
-		
+	
+	#ifdef RAMDEBUG
 	printf(" memmove to  %d from %d    %d  items \n", index, index+1, ((v->count - index)-1));
+	#endif
 
 	memmove(v->elements+index, v->elements+index+1, sizeof(void*)* ((v->count - index)-1)   );
 
@@ -163,7 +163,7 @@ void* vec_remove_ordered(vec_t* v, zuint32 index)
 }
 
 
-void vec_print( vec_t* v)
+void zvec_print( zvec_t* v)
 {	
 	zuint32 a;
 	printf( "Vector %p has size %d and count %d and elements:\n", v, v->_size, v->count);
@@ -172,7 +172,7 @@ void vec_print( vec_t* v)
 	}
 }
 
-int vec_find_idx(vec_t* v, void* item)
+int zvec_find_idx(zvec_t* v, void* item)
 {
 	zuint32 a;
 	for (a=0;a<v->count;a++)
@@ -185,7 +185,7 @@ int vec_find_idx(vec_t* v, void* item)
 }
 
 /* Tells vector not to free elements when vector is destroyed */
-void vec_disown(vec_t* v) {
+void zvec_disown(zvec_t* v) {
 	if (v) {
 		v->own_elements = 0;
 	}

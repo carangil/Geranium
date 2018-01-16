@@ -1,7 +1,6 @@
-
 #include "../ztypes.h"
-#include "../memory/ram.h"
-#include "linkedlist.h"
+#include "../memory/zmem.h"
+#include "zlist.h"
 
 void zlist_addhead(zlist_t* list, zlistnode_t* node)
 {

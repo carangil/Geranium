@@ -3,14 +3,17 @@
 // Commercial use prohibited.
 
 #include "../ztypes.h"
-#include "../vmath/vmath.h"
-#include "../memory/ram.h"
+#include "../vmath/zmath.h"
+#include "../memory/zmem.h"
+#include "../structures/zvector.h"
 #include <stdio.h>
 #include "gx_image.h"
 #include "gx_buffers.h"
+#include "gx_drawstyle.h"
+#include "gx_trans.h"
+#include "gx_sys.h"
 
-
-#include "glstuff.h"
+#include "glheaders.h"
 
 
 extern  int _gx_no_vbos;
@@ -36,11 +39,6 @@ static zbool _destruct_vbuffer(void* x)
 		}
 	}
 
-//	ram_free(v->color_data);
-
-//	ram_free(v->vertex_data);
-//	ram_free(v->normal_data);
-	
 
 	//free combined data
 	ram_free(v->combined_vertex_data);
@@ -48,24 +46,24 @@ static zbool _destruct_vbuffer(void* x)
 	//free index data
 	ram_free(v->index_data);
 
-	
-
-	return ztrue;
+	return ZTRUE;
 }
 
 
 gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices, 
-							zuint32 num_indices, 
-							zbool use_color, 
-							zbool use_normal,
-							zuint32 texture_buffer_count)
+                            zuint32 num_indices, 
+                            zuint32 options)
 {
 
 	gx_vbuffer_t* v = NULL;
 	size_t size_per_vertex = 0;
 	zfloat32* vp = 0;
 
+       
+    
 	zuint32 i = 0;
+
+	printf(" VERTEX_USE_COMPONENTS: %d, VERTEX_COMPONENTS: %d\n", VERTEX_USE_COMPONENTS, VERTEX_COMPONENTS);
 
 	if (num_vertices ==0)
 		return NULL;
@@ -75,8 +73,8 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 	if (!v) 
 		return NULL;
 
-	if (texture_buffer_count > GX_MAX_TEXTURES)
-		return NULL;  //cannot offer that many textures (sorry!)
+//	if (texture_buffer_count > GX_MAX_TEXTURES)
+//		return NULL;  //cannot offer that many textures (sorry!)
 
 	//allocated indices
 
@@ -89,10 +87,6 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 			return NULL;
 		}
 		v->index_capacity = num_indices;
-
-
-		//experimental
-	//	v->index_notify = ram_alloc(sizeof(zuint32*) * num_indices, NULL);
 	}
 
 
@@ -100,19 +94,20 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 	v->vertex_capacity = num_vertices;
 
 	size_per_vertex = VERTEX_COMPONENTS;
-	if (use_color)
-	{
+    
+	if (options & GX_VBUFFER_COLOR)
 		size_per_vertex += COLOR_COMPONENTS;
-	}
+	
 
-	if (use_normal)
-	{
-		size_per_vertex += NORMAL_COMPONENTS; 
-	}
+	if (options & GX_VBUFFER_NORMAL)
+		size_per_vertex += VERTEX_COMPONENTS; 
+	
 
-	size_per_vertex += (TEXTURE_COMPONENTS * texture_buffer_count);
+	if (options & GX_VBUFFER_TEXCOORD)
+	        size_per_vertex += TEXTURE_COMPONENTS;
 
-	//allocate one buffer for all the vertex data
+    
+	//allocate one big buffer for all the vertex data
 
 	v->size_per_vertex = size_per_vertex;
 
@@ -126,32 +121,29 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 
 	v->combined_vertex_data = vp; //we have 1 combined buffer
 
-	
 	//lets break out into pieces
 	
 	v->pos_data = vp; //position data
 	vp += (VERTEX_COMPONENTS * num_vertices);
 
 
-	if (use_color)  //if using color buffer, define it
+	if (options & GX_VBUFFER_COLOR)  //if using color buffer, define it
 	{
 		v->color_data = vp;
 		vp += (COLOR_COMPONENTS * num_vertices);
 	}
 
-	if (use_normal)  //if using normal buffer, define it
+	if (options & GX_VBUFFER_NORMAL)  //if using normal buffer, define it
 	{
 		v->normal_data = vp;
-		vp += (NORMAL_COMPONENTS * num_vertices);
+		vp += (VERTEX_COMPONENTS * num_vertices);
 	}
 
-	//allocate texture coordinate buffers
-	for (i=0;i<texture_buffer_count;i++)
-	{
-		v->texcoord_data[i] = vp;
-		vp += (TEXTURE_COMPONENTS * num_vertices);
-	}
-	v->num_textures = texture_buffer_count;
+	if (options & GX_VBUFFER_TEXCOORD) {
+        v->texcoord_data[0] = vp;    
+        v->num_texcoord = 1;
+        vp += (TEXTURE_COMPONENTS * num_vertices);
+    }
 
 	return v;
 }
@@ -189,11 +181,11 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 	//TODO: specify flags for what type of data to update!
 
 	if (!v)
-		return zfalse;
+		return ZFALSE;
 
 	if (_gx_no_vbos)
 	{
-		return ztrue; //if using vertex arrays, we don't need to send anything
+		return ZTRUE; //if using vertex arrays, we don't need to send anything
 	}
 
 	if (!v->_sent_to_gl)
@@ -201,22 +193,6 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 		glGenBuffers(1, &(v->_vertex_combined_vbo));
 		_gx_gl_vbos_gen++;
  
-/*
-		if (v->color_data)
-		{
-			glGenBuffers(1, &(v->_color_vbo));
-		}
-
-		if (v->normal_data)
-		{
-			glGenBuffers(1, &(v->_normal_vbo));
-		}
-
-		if (v->num_textures)
-		{
-			glGenBuffers(v->num_textures, v->_texcoord_vbo);  //Generate VBO for each texture coordinate
-		}
-*/
 
 		if (v->index_data)
 		{
@@ -227,37 +203,11 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 
 		v->_sent_to_gl = 1;
 	}
-	
-
-	//glBindBuffer(GL_ARRAY_BUFFER,  v->_vertex_vbo );
-	//glBufferData(GL_ARRAY_BUFFER, v->vertex_count * VERTEX_COMPONENTS *sizeof(zfloat32) , v->pos_data, GX_UPDATE_FREQ);
 
 
 	glBindBuffer(GL_ARRAY_BUFFER,  v->_vertex_combined_vbo );
 	glBufferData(GL_ARRAY_BUFFER, v->size_per_vertex * sizeof(zfloat32) * v->vertex_capacity , v->combined_vertex_data, GX_UPDATE_FREQ);
 	
-	#if 0
-
-	if (v->color_data)
-	{
-		glBindBuffer(GL_ARRAY_BUFFER,  v->_color_vbo );
-		glBufferData(GL_ARRAY_BUFFER, v->vertex_count * COLOR_COMPONENTS *sizeof(zfloat32) , v->color_data, GX_UPDATE_FREQ);
-	}
-
-	if (v->normal_data)
-	{
-		glBindBuffer(GL_ARRAY_BUFFER,  v->_normal_vbo );
-		glBufferData(GL_ARRAY_BUFFER, v->vertex_count * NORMAL_COMPONENTS *sizeof(zfloat32) , v->normal_data, GX_UPDATE_FREQ);
-	}
-
-	//copy data for all the texture buffers
-	for (i=0;i<v->num_textures;i++)
-	{
-		glBindBuffer(GL_ARRAY_BUFFER,  v->_texcoord_vbo[i] );
-		glBufferData(GL_ARRAY_BUFFER, v->vertex_count * TEXTURE_COMPONENTS *sizeof(zfloat32) , v->texcoord_data[i], GX_UPDATE_FREQ);
-	}
-#endif
-
 	
 	 if (v->index_data)
 	 {
@@ -265,7 +215,7 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, v->index_count * sizeof(v->index_data[0]  ) , v->index_data , GX_UPDATE_FREQ);	
 	 }
 
-	return ztrue;
+	return ZTRUE;
 }
 
 
@@ -277,11 +227,11 @@ zbool gx_vbuffer_update_indices(gx_vbuffer_t* v)
 	//TODO: specify flags for what type of data to update!
 
 	if (!v)
-		return zfalse;
+		return ZFALSE;
 
 	if (!v->_sent_to_gl)
 	{
-		return zfalse;
+		return ZFALSE;
 	}
 	
 	 if (v->index_data)
@@ -290,7 +240,7 @@ zbool gx_vbuffer_update_indices(gx_vbuffer_t* v)
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, v->index_count * sizeof(v->index_data[0]  ) , v->index_data , GX_UPDATE_FREQ);
 	 }
 
-	return ztrue;
+	return ZTRUE;
 }
 
 
@@ -299,7 +249,7 @@ zbool gx_vbuffer_update_indices(gx_vbuffer_t* v)
 
 
 //adds normal to a new vertex
-void gx_vbuffer_add_normal(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z)
+void gx_vbuffer_normal3(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z)
 {
 
 	if (!v)
@@ -311,14 +261,18 @@ void gx_vbuffer_add_normal(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z)
 	if (v->vertex_count == v->vertex_capacity)
 		return; //we are full!
 
-	v->normal_data[NORMAL_COMPONENTS * v->vertex_count] = x;
-	v->normal_data[NORMAL_COMPONENTS * v->vertex_count + 1] = y;
-	v->normal_data[NORMAL_COMPONENTS * v->vertex_count + 2] = z;
+	v->normal_data[VERTEX_COMPONENTS * v->vertex_count] = x;
+	v->normal_data[VERTEX_COMPONENTS * v->vertex_count + 1] = y;
+	v->normal_data[VERTEX_COMPONENTS * v->vertex_count + 2] = z;
+
+	if (VERTEX_USE_COMPONENTS==4)
+			v->normal_data[VERTEX_COMPONENTS * v->vertex_count + 3] = 0;
+
 
 }
 
 //adds color to a new vertex
-void gx_vbuffer_add_color(gx_vbuffer_t* v, zfloat32 r, zfloat32 g, zfloat32 b, zfloat32 a)
+void gx_vbuffer_color4(gx_vbuffer_t* v, zfloat32 r, zfloat32 g, zfloat32 b, zfloat32 a)
 {
 
 	if (!v)
@@ -340,13 +294,14 @@ void gx_vbuffer_add_color(gx_vbuffer_t* v, zfloat32 r, zfloat32 g, zfloat32 b, z
 
 
 //adds texture coordinate to a new vertex
-void gx_vbuffer_add_tex(gx_vbuffer_t* v, zuint32 texture, zfloat32 s, zfloat32 t)
+void gx_vbuffer_tex2(gx_vbuffer_t* v, zuint32 texture, zfloat32 s, zfloat32 t)
 {
+
 
 	if (!v)
 		return;
 	
-	if (texture >= v->num_textures)
+	if (texture >= v->num_texcoord)
 		return;
 
 	if (!v->texcoord_data[texture])
@@ -357,9 +312,9 @@ void gx_vbuffer_add_tex(gx_vbuffer_t* v, zuint32 texture, zfloat32 s, zfloat32 t
 		return; //we are full!
 
 
-	if (texture >= v->num_textures)
+	if (texture >= v->num_texcoord)
 		return; //too many textures
-
+	
 	v->texcoord_data[texture][TEXTURE_COMPONENTS * v->vertex_count] = s;
 	v->texcoord_data[texture][TEXTURE_COMPONENTS * v->vertex_count + 1] = t;
 
@@ -368,7 +323,7 @@ void gx_vbuffer_add_tex(gx_vbuffer_t* v, zuint32 texture, zfloat32 s, zfloat32 t
 
 
 //finalizes the current vertex, and returns a vertex index for it
-zint32 gx_vbuffer_add_vertex(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z)
+zint32 gx_vbuffer_vertex3(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z)
 {
 	if (!v)
 		return -1;
@@ -379,6 +334,10 @@ zint32 gx_vbuffer_add_vertex(gx_vbuffer_t* v, zfloat32 x, zfloat32 y, zfloat32 z
 	v->pos_data[VERTEX_COMPONENTS * v->vertex_count] = x;
 	v->pos_data[VERTEX_COMPONENTS * v->vertex_count + 1] = y;
 	v->pos_data[VERTEX_COMPONENTS * v->vertex_count + 2] = z;
+
+	if (VERTEX_USE_COMPONENTS==4)
+			v->pos_data[VERTEX_COMPONENTS * v->vertex_count + 3] = 1;
+
 
 	v->vertex_count ++;
 
@@ -395,14 +354,17 @@ zint32 gx_vbuffer_import_vertex(gx_vbuffer_t* dest, gx_vbuffer_t* src, zint32 ve
 		return vertex;  //if want in same vbuffer, keep it
 
 	//otherwise clone to other vbuffer
+
+
+	// TODO: also need to copy normals, colors, and other texcoords
 	
-	gx_vbuffer_add_tex(dest, 0, gx_vbuffer_s(src, vertex, 0), gx_vbuffer_t(src, vertex, 0));
-	return gx_vbuffer_add_vertexv( dest,*gx_vbuffer_v(src, vertex));
+	gx_vbuffer_tex2(dest, 0, _gx_vbuffer_s(src, vertex, 0), _gx_vbuffer_t(src, vertex, 0));
+	return gx_vbuffer_vertex( dest,*_gx_vbuffer_v(src, vertex));
 
 }
 
 
-void gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i)
+void gx_vbuffer_index(gx_vbuffer_t* v, zuint32 i)
 {
 	if (!v)
 		return;
@@ -417,9 +379,6 @@ void gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i)
 		return;
 
 	v->index_data[  (v->index_count) ++ ] = i;
-	
-//	return v->index_count-1;
-	
 }
 
 
@@ -455,99 +414,198 @@ void gx_vbuffer_clear(gx_vbuffer_t* v, zbool clear_index, zbool clear_vertex)
 }
 
 
+
+static zbool legacy_arrays_enabled = ZFALSE;  	//Set to true whenever vertex arrays/VBOs are used without shaders (FF pipeline. ) (So we know to disable when enable shaders
+												//We don't want to always disable when enabling shaders, because in the future, the FF calls will be unavailable
+
+
+
+
 static zuint32 _gx_texture_pointer_enabled_count = 0;  //specified how many texture units have been turned on
 
 //drawing a vbuffer
 void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e prim  , zbool indexed)
 {
-	zuint32 i;
+	zuint32 i=0;
+	zuint32 newtcount=0;
 
-
+	gx_shaderset_t* shader = gxi_active_shaderset(); //get the active shader, if there is one
+	
 	if (!v)
 		return;
 	
 	if (stop <=start)
 		return;
 
+	printf(" refresh matrix... %p %d\n", shader, shader? shader->matrix_version : 666);
+	gxi_refresh_matrix(shader);
 	
 	if (v->_vertex_combined_vbo)
 	{
 		glBindBuffer(GL_ARRAY_BUFFER,  v->_vertex_combined_vbo );
 	}
 
-	if (v->pos_data)
-	{
-		if (_gx_no_vbos)
-			glVertexPointer(VERTEX_COMPONENTS, GL_FLOAT, 0,   v->pos_data );
-		else
-			glVertexPointer(VERTEX_COMPONENTS, GL_FLOAT, 0, (void*) ( (v->pos_data - v->combined_vertex_data) * sizeof (zfloat32)) );
-		glEnableClientState(GL_VERTEX_ARRAY);	
+	
+	if (shader && legacy_arrays_enabled ) {
+		//if we are drawing with a shader, but legacy were previously used, disable all of them
+		printf("Disable legacy attribute arrays\n");
+		glDisableClientState(GL_VERTEX_ARRAY);
+		glDisableClientState(GL_NORMAL_ARRAY);
+		glDisableClientState(GL_COLOR_ARRAY);
+		for (i=0 ; i< _gx_texture_pointer_enabled_count; i++)
+		{
+			glClientActiveTexture(GL_TEXTURE0+i);
+			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+		}
+		
+		legacy_arrays_enabled = ZFALSE;
+		_gx_texture_pointer_enabled_count=0;
 	}
 	
+	//TODO: switch pos_data, normal_data and texcoord0 data to use generic attributes
+	// Then we also need to track which attribute indices are enabled, so that later when we run thru here
+	// we disable the attributes that are not used
 
-	if (v->normal_data)
-	{
-	//	glBindBuffer(GL_ARRAY_BUFFER,  v->_normal_vbo);
+	if (shader) {
+		/* Set generic attributes for shader */
 		
-		if (_gx_no_vbos)
-			glNormalPointer( GL_FLOAT, 0,  v->normal_data  );
-		else
-			glNormalPointer( GL_FLOAT, 0,  (void*) ( (v->normal_data - v->combined_vertex_data) * sizeof (zfloat32)) );
-		glEnableClientState(GL_NORMAL_ARRAY);
+		 if (shader->vertex_loc != -1 ) {
+			printf(" set vertex attrib\n");
+			glVertexAttribPointer(shader->vertex_loc, VERTEX_COMPONENTS, GL_FLOAT, 0, 0, (void*) ( (v->pos_data - v->combined_vertex_data) * sizeof (zfloat32)) );
+			glEnableVertexAttribArray(shader->vertex_loc);
+		 }
+		
+		 if (shader->color_loc != -1 ) {
+			printf(" set color attrib\n");
+			glVertexAttribPointer(shader->color_loc, COLOR_COMPONENTS, GL_FLOAT, 0, 0, (void*) ( (v->color_data - v->combined_vertex_data) * sizeof (zfloat32)) );
+			glEnableVertexAttribArray(shader->color_loc);
+		 }
+		 
+		if (shader->normal_loc != -1 ) {
+			printf(" set norm attrib\n");
+			glVertexAttribPointer(shader->normal_loc, VERTEX_COMPONENTS, GL_FLOAT, 0, 0, (void*) ( (v->normal_data - v->combined_vertex_data) * sizeof (zfloat32)) );
+			glEnableVertexAttribArray(shader->normal_loc);
+		 }
+		
+		
+		for (i=0;i<GX_MAX_TEXCOORD;i++) {
+			if (shader->texcoord_loc[i] != -1 ) {
+				printf(" set tex %d attrib\n", i);
+				glVertexAttribPointer(shader->texcoord_loc[i], 2, GL_FLOAT, 0, 0, (void*) ( (v->texcoord_data[i] - v->combined_vertex_data) * sizeof (zfloat32)) );
+				glEnableVertexAttribArray(shader->texcoord_loc[i]);
+			}
+		}
+		
 	}
-	else
-	{
-		glDisableClientState(GL_NORMAL_ARRAY);
-	}
-
-
-	if (v->color_data)
-	{
-		//glBindBuffer(GL_ARRAY_BUFFER,  v->_color_vbo);
-		if (_gx_no_vbos)
-			glColorPointer(COLOR_COMPONENTS, GL_FLOAT, 0, v->color_data );
-		else
-			glColorPointer(COLOR_COMPONENTS, GL_FLOAT, 0, (void*) ((v->color_data - v->combined_vertex_data) * sizeof (zfloat32)));
-		glEnableClientState(GL_COLOR_ARRAY);
-	}
-	else
-	{
-		glDisableClientState(GL_COLOR_ARRAY);
-		glColor4f(1,1,1,1);  //use white
-	}
-
+	
+	//things sent in both cases:
 	if (v->_index_vbo)
 	{
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,  v->_index_vbo);
 	}
+	
 
-/*	if (v->index_data)
-	{
-		if (_gx_no_vbos)
-				glIndexPointer(GL_INT, 0, v->index_data);
+	
+
+	if (!shader) {
+		
+		
+		if (v->pos_data)
+		{
+			if (_gx_no_vbos)
+				glVertexPointer(VERTEX_USE_COMPONENTS, GL_FLOAT, VERTEX_COMPONENTS*sizeof(float),   v->pos_data );
+			else
+				glVertexPointer(VERTEX_USE_COMPONENTS, GL_FLOAT, VERTEX_COMPONENTS*sizeof(float), (void*) ( (v->pos_data - v->combined_vertex_data) * sizeof (zfloat32)) );
+			glEnableClientState(GL_VERTEX_ARRAY);	
+			legacy_arrays_enabled = ZTRUE; //yes, we are using the legacy arrays
+		}
+		
+		
+		if (v->color_data) {
+			
+		
+			
+			if (_gx_no_vbos)
+					glColorPointer(COLOR_COMPONENTS, GL_FLOAT, COLOR_COMPONENTS*sizeof(float),   v->color_data );
+			else  {
+				glEnableClientState(GL_COLOR_ARRAY);
+				glColorPointer(COLOR_COMPONENTS, GL_FLOAT, COLOR_COMPONENTS*sizeof(float), (void*) ( (v->color_data - v->combined_vertex_data) * sizeof (zfloat32)) );
+			}
+		} else 
+				glDisableClientState(GL_COLOR_ARRAY);
+		
+		if (v->normal_data)
+		{
+			
+			if (_gx_no_vbos)
+				glNormalPointer( GL_FLOAT, VERTEX_COMPONENTS*sizeof(float),  v->normal_data  );
+			else
+				glNormalPointer( GL_FLOAT, VERTEX_COMPONENTS*sizeof(float),  (void*) ( (v->normal_data - v->combined_vertex_data) * sizeof (zfloat32)) );
+			glEnableClientState(GL_NORMAL_ARRAY);
+		}
 		else
-				glIndexPointer(GL_INT, 0, 16);
-	}*/
+		{
+			glDisableClientState(GL_NORMAL_ARRAY);
+		}
+		
+		/* single texcoord mode */
+		if (v->num_texcoord == 1) {
+			
+			int num_active_texture_units = gxi_num_texture_units();
+				//single texture coordinate mode
+				//this texture coordinate is used for all enabled texture stages
+			
+			for (i=0;i<num_active_texture_units;i++) {
+				//printf(" Alias texcoord %d for unit %d\n", 0, i);
+				glClientActiveTexture(GL_TEXTURE0+i);
+			
+				if (_gx_no_vbos)
+					glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0, v->texcoord_data[0] );
+				else
+					glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0, (void*)( (v->texcoord_data[0] - v->combined_vertex_data) * sizeof (zfloat32)));
+				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+			}
+			newtcount = num_active_texture_units;
+		} 
+		else {
+				printf("Multiple texcoord inputs not currently supported (sorry)\n");
+		}
+				
+		//disable texture pointers for any leftover units
+		for (newtcount ; i< _gx_texture_pointer_enabled_count; i++)
+		{
+			glClientActiveTexture(GL_TEXTURE0+i);
+			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+		}
+		_gx_texture_pointer_enabled_count = newtcount;
+				
+	}  //end of legacy arrays
+	
+	
 
-	//enable pointers for the textures we care about
-	for (i=0;i<v->num_textures;i++)
-	{
-		glClientActiveTexture(GL_TEXTURE0+i);
-		//glBindBuffer(GL_ARRAY_BUFFER,  v->_texcoord_vbo[i]);
-		if (_gx_no_vbos)
-			glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0, v->texcoord_data[i] );
-		else
-			glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0, (void*)( (v->texcoord_data[i] - v->combined_vertex_data) * sizeof (zfloat32)));
-		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-	}
+	
+	
+	
+	
+#if 0
+	else {
+		//TODO: THIS PATH NOT USED MUCH, MAKE SURE IT ACTS NORMALISH
+		for (i=0;i<v->num_textures;i++)
+		{
+			glClientActiveTexture(GL_TEXTURE0+i);
 
-	//disable texture pointers for any leftover units
-	for (i=v->num_textures; i< _gx_texture_pointer_enabled_count; i++)
-	{
-		glClientActiveTexture(GL_TEXTURE0+i);
-		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+			if (_gx_no_vbos)
+				glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0, v->texcoord_data[i] );
+			else
+				glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0, (void*)( (v->texcoord_data[i] - v->combined_vertex_data) * sizeof (zfloat32)));
+			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+			newtcount = v->num_textures; //keep track of how many we have enabled currently
+		}
 	}
-	_gx_texture_pointer_enabled_count = v->num_textures; //keep track of how many we have enabled currently
+#endif
+	
+
+
 
 
 	switch(prim)
@@ -590,38 +648,12 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		break;
 	}
 	
+	
+	
 }
 
 
 
-//test function to dump a set of vertices onto the screen
-void gx_test_draw_vertices(gx_vbuffer_t* v)
-{
-#if 0
-	if (!v)
-		return;
-
-	if (v->_vertex_vbo)
-	{
-		glBindBuffer(GL_ARRAY_BUFFER,  v->_vertex_vbo );
-		glVertexPointer(VERTEX_COMPONENTS, GL_FLOAT, 0, 0);
-		glEnableClientState(GL_VERTEX_ARRAY);	
-	}
-
-	if (v->_color_vbo)
-	{
-		glBindBuffer(GL_ARRAY_BUFFER,  v->_color_vbo);
-		glColorPointer(COLOR_COMPONENTS, GL_FLOAT, 0, 0);
-		glEnableClientState(GL_COLOR_ARRAY);
-	}
-	else
-	{
-		glColor4f(1,1,1,1);  //use white
-	}
-
-	glDrawArrays(GL_POINTS,0, v->vertex_count);
-#endif
-}
 
 
 
@@ -631,7 +663,7 @@ void gx_test_draw_vertices(gx_vbuffer_t* v)
 //lame way to create geometry: axis-aligned image
 //this type of geometry-related crap should be shoved into a separate file
 //if the user sets the preferred buffer argument, if the data will fit, it will be put in the existing buffer
-#if 1
+#if 0
 gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 									gx_image_t* image, 
 									zfloat32 xoff,
@@ -663,7 +695,7 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 	if (!preferred_buffer || gx_remaining_indices(preferred_buffer)<(numtriangles*3) || gx_remaining_vertices(preferred_buffer) < numpoints)
 	{
 		vbuf = gx_vbuffer_mk(numpoints,numtriangles*3, 
-			use_color, zfalse,
+			use_color, ZFALSE,
 			num_texture );
 	}
 	else

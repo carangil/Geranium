@@ -1,11 +1,15 @@
-OBJSstructures=structures/linkedlist.o structures/vector.o  structures/zarray.o
+OBJSstructures=structures/zlist.o structures/zvector.o  #structures/zarray.o  structures/zstring.o
 
-Hstructures=structures/linkedlist.h structures/zarray.h structures/vector.h
+Hstructures=structures/zlist.h   structures/zvector.h  #structures/zarray.h
 
 OBJS_TOCLEAN += $(OBJSstructures)
 
 objs/libstructures.a: $(OBJSstructures)
 	ar rvcs $@ $(OBJSstructures)
+
+
+structures/%.o: %.c   $(Hstructures) $(Hmemory)
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean-structures:
 	-rm structures/*.o

@@ -6,23 +6,25 @@
 /* Basic datatypes for my projects**/
 
 #include <stdlib.h>
+#ifndef ZTYPES
+#define ZTYPES
 
-typedef int					zint32;
+typedef int			zint32;
 typedef unsigned int		zuint32;
-typedef float				zfloat32;
-typedef double				zfloat64;
-typedef unsigned char		zbyte;
-typedef size_t				zsize;
+typedef float			zfloat32;
+typedef double			zfloat64;
+typedef unsigned char           zbyte;
+typedef size_t			zsize;
 typedef unsigned long long	zuint64;
 typedef unsigned char		zbool;
-typedef char				zchar;
+typedef char			zchar;
 
 /* should be 16-bit*/
 typedef unsigned short		zuint16;
 
 /* Handy constants to make code look a little cleaner*/
-#define ztrue 1
-#define zfalse 0
+#define ZTRUE 1
+#define ZFALSE 0
 
 typedef int zerror;
 #define ZOK 0
@@ -30,12 +32,9 @@ typedef int zerror;
 /* ZERR is a generic error value.  Use any nonzero value for custom error codes*/
 
 
-//I actually got a compile error that NULL was undefined!
-//#ifndef NULL
-//#define NULL 0
-//#endif
-
 #ifdef linux
 #define stricmp strcasecmp
 #endif
 
+
+#endif

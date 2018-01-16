@@ -6,10 +6,10 @@
 
 
 #include "../ztypes.h"
-#include "../memory/ram.h"
+#include "../memory/zmem.h"
 #include <stdio.h>
 #include "gx_image.h"
-#include "glstuff.h"
+#include "glheaders.h"
 
 
 
@@ -31,7 +31,7 @@ zbool _gx_destruct_image(void* x)
 
 	}
 
-	return ztrue;
+	return ZTRUE;
 }
 
 
@@ -62,11 +62,13 @@ gx_image_t* gx_image_mk(zuint32 w, zuint32 h, zuint32 bpp)
 
 
 //Taken from 2005
+//rle compression added 2015
 gx_image_t* gx_image_load_tga( zchar* f)
 {
 	gx_image_t* image = NULL;
 	zbyte buf[6];
 	zuint32 i=0;	
+	zbool rle_compressed=ZFALSE;
 
 	FILE* fi =fopen(f,"r+b");
 
@@ -77,6 +79,11 @@ gx_image_t* gx_image_load_tga( zchar* f)
 
 	if (!image)
 		return NULL;
+
+
+	fread( buf  ,4, 1 , fi);
+	if (buf[2] == 10)
+		rle_compressed=1;
 
 	fseek(fi, 12, SEEK_SET);
 
@@ -109,8 +116,50 @@ gx_image_t* gx_image_load_tga( zchar* f)
 
 	if (image->data)
 	{
-		/*read in all data*/
-		fread( image->data, 1,image->height*image->width*image->bpp, fi);
+	
+		if (rle_compressed) {
+			int dcount=0;
+			int i;
+			unsigned char* dptr=image->data;
+			unsigned char header;
+			while (dcount < image->width*image->height) {
+				header = fgetc(fi);
+				if (header & 128) {
+					header = header -128;  //header is number of repeats minus one
+
+			//		printf(" rle for %d  %p %p\n",header, image->data, dptr);
+
+					fread(dptr, image->bpp, 1, fi); //read 1 pixel
+
+					for (i=0;i<header*image->bpp;i++) {  //repeat it i times
+						dptr[i+image->bpp] = dptr[i];
+						
+					}
+					dptr += image->bpp * header;
+
+					dptr+= image->bpp;
+
+					dcount += header+1;
+
+//					rle section;
+				} else {
+					header++;
+					// raw section
+//					printf(" raw for %d  %p %p\n",header, image->data, dptr);
+						fread(dptr, image->bpp, header, fi);  //read pixel
+					dptr += image->bpp*header;
+					dcount += header;
+					
+				}
+
+			}
+
+//			printf("rle compression not yet supported\n");
+		}
+		else {
+			/*read in all data*/
+			fread( image->data, 1,image->height*image->width*image->bpp, fi);
+		}
 
 	
 		if ((image->bpp == GX_IMAGE_COLOR) || (image->bpp == GX_IMAGE_COLOR_ALPHA))
@@ -153,7 +202,7 @@ void gx_image_set_scaler(gx_image_t* image, int scaler)
 zbool _gx_image_enable(gx_image_t* image)
 {
 	if (!image)
-		return zfalse;
+		return ZFALSE;
 
 	if (! image->_sent_to_gl)
 	{
@@ -186,14 +235,14 @@ zbool _gx_image_enable(gx_image_t* image)
 			printf(" unsupported texture format\n");
 #endif
 
-		image->_sent_to_gl = ztrue;
+		image->_sent_to_gl = ZTRUE;
 	}
 
 	//mess with scaler
 	if (!image->_sent_scaler)
 	{
 
-		image->_sent_scaler = ztrue;
+		image->_sent_scaler = ZTRUE;
 
 		if (image->_scaler == GX_IMAGE_SCALER_BLOCKY)
 		{
@@ -210,24 +259,8 @@ zbool _gx_image_enable(gx_image_t* image)
 	}
 
 
-	return ztrue;
+	return ZTRUE;
 }
-
-
-zbool gx_image_disable(gx_image_t* i)
-{
-	//TODO: need this function?  Why disable an image in gl and keep the data in ram?
-
-	if (i->_sent_to_gl)
-	{
-		glDeleteTextures(1, & (i->_gl_texture_number) );
-		_gx_gl_textures_del++;
-	}
-
-	i->_sent_to_gl=zfalse;
-	i->_gl_texture_number=0;
-}
-
 
 //garbage test function: puts an image on the screen
 void gx_image_test(gx_image_t* image)
@@ -263,6 +296,7 @@ void gx_image_test(gx_image_t* image)
 //manage opengl texture unit state
 //This turns a set of textures on/off
 
+
 static zuint32 _gx_texture_enabled_count = 0;  //specified how many texture units have been turned on
 void gx_set_active_textures(gx_image_t** texes, zuint32 numtex)
 {
@@ -295,3 +329,10 @@ void gx_set_active_textures(gx_image_t** texes, zuint32 numtex)
 
 	_gx_texture_enabled_count = numtex;
 }
+
+
+int gxi_num_texture_units(){
+		return _gx_texture_enabled_count;
+}
+
+

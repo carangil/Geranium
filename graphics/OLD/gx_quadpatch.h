@@ -1,10 +1,28 @@
 #define QUADARRAY_SKIRTS
 
+#define QUADARRAY_MIPMAP
 
 
-typedef 	void (*gx_quadpatch_detailer_f)( 	struct gx_quadpatch_s* dest, struct gx_quadpatch_s* source, int a_start, int a_end, int b_start, int b_end);
+struct gx_quadpatch_s;
 
-typedef struct gx_quadpatch_s
+#ifdef QUADARRAY_MIPMAP
+typedef struct gx_quadpatch_mip_s
+{
+	int w;
+	int h;
+	vindex startindex;
+	vindex endindex;
+	struct gx_quadpatch_mip_s * lower;
+} gx_quadpatch_mip_t;
+
+void gx_quadarray_enable_mipmap( struct gx_quadpatch_s* qp);
+
+#endif
+
+
+typedef 	void (*gx_quadpatch_detailer_f)(struct  gx_quadpatch_s* dest, struct gx_quadpatch_s* source, int a_start, int a_end, int b_start, int b_end);
+
+struct gx_quadpatch_s
 {
 	gx_vbuffer_t* vb;
 
@@ -13,6 +31,9 @@ typedef struct gx_quadpatch_s
 	vindex endindex; //last vertex
 	vindex endindex_noskirt;
 
+	#ifdef QUADARRAY_MIPMAP
+	gx_quadpatch_mip_t* mips;  //
+	#endif
 
 	zint32 w;  //2d array dimension
 	zint32 h;
@@ -45,7 +66,16 @@ typedef struct gx_quadpatch_s
 	float alpha; //for fadeout
 
 	int deleted;
-} gx_quadpatch_t ;
+
+
+	int isproxy; //if true, this is just a pointer to an existing patch, but with a transformation
+	vec3 proxy_offset;
+	int proxy_scale;
+};
+
+typedef struct gx_quadpatch_s gx_quadpatch_t ;
+
+
 
 //given a quadpatch, and x, y, a point index is returned
 #define qp_vindex(qaaa, qxxx, qyyy)  (((qaaa)->w * (qyyy)) + (qxxx))
@@ -112,5 +142,25 @@ extern int nonskirted;
 extern int drawn;
 extern int total;
 
+
+ 
+
+typedef struct gx_quadpatch_sys_s
+{
+	vec_t root_patches;  //these are the least detailed patches
+
+	vec_t active_patches; //the patches currently drawn
+
+	zfloat32 splitsize;
+
+} gx_quadpatch_sys_t;
+
+
+void gx_quadpatch_sys_eval(gx_quadpatch_sys_t* qps, gx_camera_t* camera);
+void gx_quadpatch_sys_draw(gx_quadpatch_sys_t* qps, gx_camera_t* camera);
+
+zbool gx_quadpatch_sys_init(gx_quadpatch_sys_t* qps);
+zbool gx_quadpatch_sys_add(gx_quadpatch_sys_t* qps, gx_quadpatch_t* qp);
+zbool gx_quadpatch_sys_cleanup(gx_quadpatch_sys_t* qps);
 
 

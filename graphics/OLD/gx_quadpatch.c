@@ -32,7 +32,7 @@ zbool gx_gp_delete(void* v)
 	gx_quadpatch_t* qp = (gx_quadpatch_t*) v;
 
 
-	printf("rc %d\n ", rcurse_count);
+	//printf("rc %d\n ", rcurse_count);
 
 	//scribbe out adjacent references
 	for (i=0;i<4;i++)
@@ -446,46 +446,46 @@ void gx_quadpatch_sew(gx_quadpatch_t* source, int source_edge, gx_quadpatch_t* d
 		//get
 		if (source_edge == GX_EDGE_LEFT)
 		{
-			s = gx_vbuffer_v( source->vb, qp_vindex( source, 0,is));
-			sn= gx_vbuffer_n( source->vb, qp_vindex( source, 0,is));
+			s = _gx_vbuffer_v( source->vb, qp_vindex( source, 0,is));
+			sn= _gx_vbuffer_n( source->vb, qp_vindex( source, 0,is));
 		}
 		else if (source_edge == GX_EDGE_RIGHT)
 		{
-			s = gx_vbuffer_v( source->vb, qp_vindex( source, source->w-1,is));
-			sn= gx_vbuffer_n( source->vb, qp_vindex( source, source->w-1,is));
+			s = _gx_vbuffer_v( source->vb, qp_vindex( source, source->w-1,is));
+			sn= _gx_vbuffer_n( source->vb, qp_vindex( source, source->w-1,is));
 		}
 		else if (source_edge == GX_EDGE_BOTTOM)
 		{
-			s = gx_vbuffer_v( source->vb, qp_vindex( source, is,0));
-			sn= gx_vbuffer_n( source->vb, qp_vindex( source, is,0));
+			s = _gx_vbuffer_v( source->vb, qp_vindex( source, is,0));
+			sn= _gx_vbuffer_n( source->vb, qp_vindex( source, is,0));
 		}
 		else if (source_edge == GX_EDGE_TOP)
 		{
-			s = gx_vbuffer_v( source->vb, qp_vindex( source, is,source->h-1));
-			sn= gx_vbuffer_n( source->vb, qp_vindex( source, is,source->h-1));
+			s = _gx_vbuffer_v( source->vb, qp_vindex( source, is,source->h-1));
+			sn= _gx_vbuffer_n( source->vb, qp_vindex( source, is,source->h-1));
 		}
 
 
 		//put
   		if (dest_edge == GX_EDGE_LEFT)
 		{
-  			*gx_vbuffer_v( dest->vb, qp_vindex( dest, 0,i)) = *s; 
-			*gx_vbuffer_n( dest->vb, qp_vindex( dest, 0,i)) = *sn; 
+  			*_gx_vbuffer_v( dest->vb, qp_vindex( dest, 0,i)) = *s; 
+			*_gx_vbuffer_n( dest->vb, qp_vindex( dest, 0,i)) = *sn; 
 		}
   		else if (dest_edge == GX_EDGE_RIGHT)
 		{
-			*gx_vbuffer_v( dest->vb, qp_vindex( dest, dest->w-1,i)) = *s;
-			*gx_vbuffer_n( dest->vb, qp_vindex( dest, dest->w-1,i)) = *sn;
+			*_gx_vbuffer_v( dest->vb, qp_vindex( dest, dest->w-1,i)) = *s;
+			*_gx_vbuffer_n( dest->vb, qp_vindex( dest, dest->w-1,i)) = *sn;
 		}
   		else if (dest_edge == GX_EDGE_BOTTOM)
 		{
-  			*gx_vbuffer_v( dest->vb, qp_vindex( dest, i,0)) = *s;
-			*gx_vbuffer_n( dest->vb, qp_vindex( dest, i,0)) = *sn;
+  			*_gx_vbuffer_v( dest->vb, qp_vindex( dest, i,0)) = *s;
+			*_gx_vbuffer_n( dest->vb, qp_vindex( dest, i,0)) = *sn;
 		}
   		else if (dest_edge == GX_EDGE_TOP )
 		{
-  			*gx_vbuffer_v( dest->vb, qp_vindex( dest, i,dest->h-1)) = *s;
-			*gx_vbuffer_n( dest->vb, qp_vindex( dest, i,dest->h-1)) = *sn;
+  			*_gx_vbuffer_v( dest->vb, qp_vindex( dest, i,dest->h-1)) = *s;
+			*_gx_vbuffer_n( dest->vb, qp_vindex( dest, i,dest->h-1)) = *sn;
 		}
 
 	}
@@ -496,43 +496,43 @@ void gx_quadpatch_sew(gx_quadpatch_t* source, int source_edge, gx_quadpatch_t* d
 void gx_quadpatch_skirt( gx_quadpatch_t* qp)
 {
 	int i;
-	
-	float skirtd = qp->dsize*2 ;
+	//pos for outside , neg for inside	
+	float skirtd =- qp->dsize*2 ;
 
 	qp->useskirt = ztrue;
 	for (i=0;i<qp->h;i++)
 	{
 		//left
-		vec3mov( *gx_vbuffer_n(qp->vb, qp_skirtindex(qp, 0, i)), *gx_vbuffer_n(qp->vb, qp_vindex(qp, 0, i)));
-		vec3mov( *gx_vbuffer_v(qp->vb, qp_skirtindex(qp, 0, i)), *gx_vbuffer_v(qp->vb, qp_vindex(qp, 0, i)));
-		vec3sub(*gx_vbuffer_v(qp->vb, qp_skirtindex(qp, 0, i)), qp->origin);
-		vec3scale( *gx_vbuffer_v(qp->vb, qp_skirtindex(qp, 0, i)), 1-skirtd);
-		vec3add(*gx_vbuffer_v(qp->vb, qp_skirtindex(qp, 0, i)), qp->origin);
+		vec3mov( *_gx_vbuffer_n(qp->vb, qp_skirtindex(qp, 0, i)), *_gx_vbuffer_n(qp->vb, qp_vindex(qp, 0, i)));
+		vec3mov( *_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, 0, i)), *_gx_vbuffer_v(qp->vb, qp_vindex(qp, 0, i)));
+		vec3sub(*_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, 0, i)), qp->origin);
+		vec3scale( *_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, 0, i)), 1-skirtd);
+		vec3add(*_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, 0, i)), qp->origin);
 
 
 		//right
-		vec3mov( *gx_vbuffer_n(qp->vb, qp_skirtindex(qp, GX_EDGE_RIGHT, i)), *gx_vbuffer_n(qp->vb, qp_vindex(qp, qp->w-1, i)));
-		vec3mov( *gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_RIGHT, i)), *gx_vbuffer_v(qp->vb, qp_vindex(qp, qp->w-1, i)));
-		vec3sub(*gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_RIGHT, i)), qp->origin);
-		vec3scale( *gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_RIGHT, i)), 1-skirtd);
-		vec3add(*gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_RIGHT, i)), qp->origin);
+		vec3mov( *_gx_vbuffer_n(qp->vb, qp_skirtindex(qp, GX_EDGE_RIGHT, i)), *_gx_vbuffer_n(qp->vb, qp_vindex(qp, qp->w-1, i)));
+		vec3mov( *_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_RIGHT, i)), *_gx_vbuffer_v(qp->vb, qp_vindex(qp, qp->w-1, i)));
+		vec3sub(*_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_RIGHT, i)), qp->origin);
+		vec3scale( *_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_RIGHT, i)), 1-skirtd);
+		vec3add(*_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_RIGHT, i)), qp->origin);
 	}
 
 	for(i=0;i<qp->w;i++)
 	{
 		//top
-		vec3mov( *gx_vbuffer_n(qp->vb, qp_skirtindex(qp, GX_EDGE_TOP, i)), *gx_vbuffer_n(qp->vb, qp_vindex(qp,  i,0)));
-		vec3mov( *gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_TOP, i)), *gx_vbuffer_v(qp->vb, qp_vindex(qp,  i,0)));
-		vec3sub(*gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_TOP, i)), qp->origin);
-		vec3scale( *gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_TOP, i)), 1-skirtd);
-		vec3add(*gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_TOP, i)), qp->origin);
+		vec3mov( *_gx_vbuffer_n(qp->vb, qp_skirtindex(qp, GX_EDGE_TOP, i)), *_gx_vbuffer_n(qp->vb, qp_vindex(qp,  i,0)));
+		vec3mov( *_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_TOP, i)), *_gx_vbuffer_v(qp->vb, qp_vindex(qp,  i,0)));
+		vec3sub(*_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_TOP, i)), qp->origin);
+		vec3scale( *_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_TOP, i)), 1-skirtd);
+		vec3add(*_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_TOP, i)), qp->origin);
 
 		//bottom
-		vec3mov( *gx_vbuffer_n(qp->vb, qp_skirtindex(qp, GX_EDGE_BOTTOM, i)), *gx_vbuffer_n(qp->vb, qp_vindex(qp,  i,qp->h-1)));
-		vec3mov( *gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_BOTTOM, i)), *gx_vbuffer_v(qp->vb, qp_vindex(qp,  i,qp->h-1)));
-		vec3sub(*gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_BOTTOM, i)), qp->origin);
-		vec3scale( *gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_BOTTOM, i)), 1-skirtd);
-		vec3add(*gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_BOTTOM, i)), qp->origin);
+		vec3mov( *_gx_vbuffer_n(qp->vb, qp_skirtindex(qp, GX_EDGE_BOTTOM, i)), *_gx_vbuffer_n(qp->vb, qp_vindex(qp,  i,qp->h-1)));
+		vec3mov( *_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_BOTTOM, i)), *_gx_vbuffer_v(qp->vb, qp_vindex(qp,  i,qp->h-1)));
+		vec3sub(*_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_BOTTOM, i)), qp->origin);
+		vec3scale( *_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_BOTTOM, i)), 1-skirtd);
+		vec3add(*_gx_vbuffer_v(qp->vb, qp_skirtindex(qp, GX_EDGE_BOTTOM, i)), qp->origin);
 
 	}
 
@@ -545,7 +545,7 @@ void gx_quadpatch_skirt( gx_quadpatch_t* qp)
 
 
 //scale up a 1/4 of a patch 2x each direction into a full-size patch
-gx_quadpatch_t* gx_quadpatch_detail_2x(int self, gx_quadpatch_t* source, int a_start, int a_end, int b_start, int b_end)
+gx_quadpatch_t* gx_quadpatch_detail_2x(int self, struct gx_quadpatch_s* source, int a_start, int a_end, int b_start, int b_end)
 {
 	int a;
 	int b;
@@ -581,29 +581,29 @@ gx_quadpatch_t* gx_quadpatch_detail_2x(int self, gx_quadpatch_t* source, int a_s
 
 			
 		
-			vec3mov(p, *gx_vbuffer_v( source->vb, qp_vindex( source, a,b)));
+			vec3mov(p, *_gx_vbuffer_v( source->vb, qp_vindex( source, a,b)));
 			div = 1;
-			fdiv = sqrt(vec3abs_sq(*gx_vbuffer_v( source->vb, qp_vindex( source, a,b))));
+			fdiv = sqrt(vec3abs_sq(*_gx_vbuffer_v( source->vb, qp_vindex( source, a,b))));
 
 			if ((x & 1) && ( (a+1)< a_end) ) //if odd x
 			{
-				vec3add(p, *gx_vbuffer_v( source->vb, qp_vindex( source, a+1,b)))
+				vec3add(p, *_gx_vbuffer_v( source->vb, qp_vindex( source, a+1,b)))
 				div++;
-				fdiv += sqrt(vec3abs_sq(*gx_vbuffer_v( source->vb, qp_vindex( source, a+1,b))));
+				fdiv += sqrt(vec3abs_sq(*_gx_vbuffer_v( source->vb, qp_vindex( source, a+1,b))));
 			}
 
 			if ((y & 1) && ( (b+1)< b_end) ) //if odd y
 			{
-				vec3add(p, *gx_vbuffer_v( source->vb, qp_vindex( source, a,b+1)))
+				vec3add(p, *_gx_vbuffer_v( source->vb, qp_vindex( source, a,b+1)))
 				div++;
-				fdiv += sqrt(vec3abs_sq(*gx_vbuffer_v( source->vb, qp_vindex( source, a,b+1))));
+				fdiv += sqrt(vec3abs_sq(*_gx_vbuffer_v( source->vb, qp_vindex( source, a,b+1))));
 			}
 
 			if ((y & 1) && ( (b+1)< b_end)  && (x & 1) && ( (a+1)< a_end)) //if odd x and odd y
 			{
-				vec3add(p, *gx_vbuffer_v( source->vb, qp_vindex( source, a+1,b+1)))
+				vec3add(p, *_gx_vbuffer_v( source->vb, qp_vindex( source, a+1,b+1)))
 				div++;
-				fdiv += sqrt(vec3abs_sq(*gx_vbuffer_v( source->vb, qp_vindex( source, a+1,b+1))));
+				fdiv += sqrt(vec3abs_sq(*_gx_vbuffer_v( source->vb, qp_vindex( source, a+1,b+1))));
 			}
 
 
@@ -626,17 +626,17 @@ gx_quadpatch_t* gx_quadpatch_detail_2x(int self, gx_quadpatch_t* source, int a_s
 
 
 
-			*gx_vbuffer_v( dest->vb, qp_vindex( dest, x, y)) = p;
+			*_gx_vbuffer_v( dest->vb, qp_vindex( dest, x, y)) = p;
 
 
 			//texcoord: don't interpolate coordinates
-			//gx_vbuffer_s(dest->vb, qp_vindex( dest, x, y),0) = ((float) x) / (w-1);
-			//gx_vbuffer_t(dest->vb, qp_vindex( dest, x, y),0) = ((float) y) / (w-1);
+			//_gx_vbuffer_s(dest->vb, qp_vindex( dest, x, y),0) = ((float) x) / (w-1);
+			//_gx_vbuffer_t(dest->vb, qp_vindex( dest, x, y),0) = ((float) y) / (w-1);
 
 
-		//	*gx_vbuffer_v( dest->vb, qp_vindex( dest, x, y))
+		//	*_gx_vbuffer_v( dest->vb, qp_vindex( dest, x, y))
 		//	=
-		//	*gx_vbuffer_v( source->vb, qp_vindex( source, a,b));
+		//	*_gx_vbuffer_v( source->vb, qp_vindex( source, a,b));
 
 //				printf("copy %d %d  to %d %d\n", a,b,x,y);
 		}
@@ -661,8 +661,8 @@ gx_quadpatch_t* gx_quadpatch_detail_2x(int self, gx_quadpatch_t* source, int a_s
 		//	float r= randf();
 		//	vec3 u;
 		//	vec3set(u, randf(),randf(),randf());
-			p = gx_vbuffer_v( dest->vb, qp_vindex( dest, x, y));
-		//	n = gx_vbuffer_n( dest->vb, qp_vindex( dest, x, y));
+			p = _gx_vbuffer_v( dest->vb, qp_vindex( dest, x, y));
+		//	n = _gx_vbuffer_n( dest->vb, qp_vindex( dest, x, y));
 
 			vec3sub(*p, source->origin); 
 			{	float r = randf();
@@ -691,7 +691,7 @@ gx_quadpatch_t* gx_quadpatch_detail_2x(int self, gx_quadpatch_t* source, int a_s
 	dest->size = source->size /4;  //decrease area by 4
 	dest->dsize = source->dsize/2;  //decrease lengths by 2
 	
-	dest->center = *gx_vbuffer_v( dest->vb, qp_vindex( dest, dest->w/2,dest->h/2));
+	dest->center = *_gx_vbuffer_v( dest->vb, qp_vindex( dest, dest->w/2,dest->h/2));
 	dest->parent = source;
 	
 
@@ -765,9 +765,9 @@ void gx_quadpatch_norm(gx_quadpatch_t* qp)
 			{
 				cnt++;
 				calcnorm(&p,
-					gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b)),
-					gx_vbuffer_v( qp->vb, qp_vindex( qp, a+1,b)),
-					gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b+1)));
+					_gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b)),
+					_gx_vbuffer_v( qp->vb, qp_vindex( qp, a+1,b)),
+					_gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b+1)));
 				vec3add(acc, p);
 			}
 
@@ -778,9 +778,9 @@ void gx_quadpatch_norm(gx_quadpatch_t* qp)
 			{
 				cnt++;
 				calcnorm(&p,
-					gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b)),
-					gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b+1)),
-					gx_vbuffer_v( qp->vb, qp_vindex( qp, a-1,b)));
+					_gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b)),
+					_gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b+1)),
+					_gx_vbuffer_v( qp->vb, qp_vindex( qp, a-1,b)));
 				vec3add(acc, p);
 			}
 #endif
@@ -791,9 +791,9 @@ void gx_quadpatch_norm(gx_quadpatch_t* qp)
 			{
 				cnt++;
 				calcnorm(&p,
-					gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b)),
-					gx_vbuffer_v( qp->vb, qp_vindex( qp, a-1,b)),
-					gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b-1)));
+					_gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b)),
+					_gx_vbuffer_v( qp->vb, qp_vindex( qp, a-1,b)),
+					_gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b-1)));
 					
 				vec3add(acc, p);
 			}
@@ -804,9 +804,9 @@ void gx_quadpatch_norm(gx_quadpatch_t* qp)
 			{
 				cnt++;
 				calcnorm(&p,
-					gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b)),
-					gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b-1)),
-					gx_vbuffer_v( qp->vb, qp_vindex( qp, a+1,b)));
+					_gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b)),
+					_gx_vbuffer_v( qp->vb, qp_vindex( qp, a,b-1)),
+					_gx_vbuffer_v( qp->vb, qp_vindex( qp, a+1,b)));
 					
 				vec3add(acc, p);
 			}
@@ -831,7 +831,7 @@ void gx_quadpatch_norm(gx_quadpatch_t* qp)
 				exit(0);
 			}
 
-			*gx_vbuffer_n(qp->vb, qp_vindex( qp, a,b)) = acc;
+			*_gx_vbuffer_n(qp->vb, qp_vindex( qp, a,b)) = acc;
 
 		}
 
@@ -925,3 +925,243 @@ zbool gx_quadpatch_split(gx_quadpatch_t* source)
 }
 
 
+
+//quadpatch system: a way to manage/draw a tree of quadpatches
+
+#define QUADARRAY_TAG_NONE        0
+
+#define QUADARRAY_TAG_REMOVE	    1
+//#define QUADARRAY_TAG_DRAW_ONLY     2
+#define QUADARRAY_TAG_DELETE	    3
+
+#define ENABLE_DELETE
+
+
+zbool gx_quadpatch_sys_init(gx_quadpatch_sys_t* qps)
+{
+	memset(qps, 0, sizeof(qps));
+	if (!vec_mk(&qps->root_patches, 4))
+		return zfalse;
+
+	if (!vec_mk(&qps->active_patches, 4))
+		return zfalse;
+
+	vec_disown(&qps->active_patches); //don't own pointers to things
+
+	qps->splitsize=1.0;
+
+	return ztrue;
+}
+
+
+zbool gx_quadpatch_sys_cleanup(gx_quadpatch_sys_t* qps)
+{
+
+	vec_cleanup(&qps->root_patches);
+	vec_cleanup(&qps->active_patches);
+
+
+	return ztrue;
+}
+
+
+
+
+
+zbool gx_quadpatch_sys_add(gx_quadpatch_sys_t* qps, gx_quadpatch_t* qp)
+{
+
+	if (!qps || !qp )
+		return zfalse;
+
+	//add to root and active
+
+	vec_add(&qps->root_patches, qp);
+	vec_add(&qps->active_patches, qp);
+
+	return ztrue;
+}
+
+void gx_quadpatch_sys_eval(gx_quadpatch_sys_t* qps,  gx_camera_t* camera)
+{
+
+
+		int i;
+		vec_t* quadpatches = &qps->active_patches;
+		gx_quadpatch_t* qp;
+		vec3 p;
+		float d;
+
+
+		for (i=0;i< vec_count(quadpatches);i++)
+		{
+			qp = vec_get_at(quadpatches, i);
+
+			//if was flagged to remove, remove it
+			if (qp->tag == QUADARRAY_TAG_REMOVE || qp->tag == QUADARRAY_TAG_DELETE ) 	
+			{
+
+				vec_remove_unordered(quadpatches, i);
+				i--; //repeat this position 
+
+				if (qp->tag == QUADARRAY_TAG_DELETE)
+					ram_free(qp);
+			
+				else
+					qp->tag = QUADARRAY_TAG_NONE;
+
+				continue;
+			}
+		
+			//check for potential split/recombine
+
+			if (qp->tag != QUADARRAY_TAG_NONE)
+					continue;  //don't process if it has any flags set
+
+			vec3mov(p, camera->camera_pos);
+			vec3sub(p, qp->center);
+			d = vec3abs_sq(p);
+			d = sqrt(d);
+
+
+			//split a tag
+			if (   ((qp->size)/(d*d)) > qps->splitsize )
+				{
+					gx_quadpatch_t* dest[4];
+
+					//try to split.  if successful, do the swap 	
+					if (gx_quadpatch_split(qp))
+					{
+						qp->tag = QUADARRAY_TAG_REMOVE;  //remove this one (the parent)
+						qp->onlevel = 0; //will no longer be active
+				
+						//add the children to the active list
+						vec_add(quadpatches, qp->children[0]);
+						vec_add(quadpatches, qp->children[1]);
+						vec_add(quadpatches, qp->children[2]);
+						vec_add(quadpatches, qp->children[3]);
+
+						
+						/*
+						//clear any tags on the children
+						qp->children[0]->tag = QUADARRAY_TAG_NONE;
+						qp->children[1]->tag = QUADARRAY_TAG_NONE;
+						qp->children[2]->tag = QUADARRAY_TAG_NONE;
+						qp->children[3]->tag = QUADARRAY_TAG_NONE;
+						*/
+
+						qp->children[0]->onlevel = 1;
+						qp->children[1]->onlevel = 1;
+						qp->children[2]->onlevel = 1;
+						qp->children[3]->onlevel = 1;
+
+					}
+				}
+
+				//combine patches
+				//only if parent exists, parent has to tags.
+				//and all siblings exist
+				//and all siblings are currently drawn
+				else if ( qp->parent && ( qp->parent->tag == QUADARRAY_TAG_NONE)
+					&& qp->parent->children[0] && qp->parent->children[0]->onlevel
+					&& qp->parent->children[1] && qp->parent->children[1]->onlevel
+					&& qp->parent->children[2] && qp->parent->children[2]->onlevel
+					&& qp->parent->children[3] && qp->parent->children[3]->onlevel
+					)
+				{
+					vec3mov(p, camera->camera_pos);
+					vec3sub(p, qp->parent->center);
+					d = vec3abs_sq(p);
+					d = sqrt(d);
+					
+					if (((qp->parent->size)/(d*d)) < qps->splitsize)
+					{  //combine threshold (if parent woulnd't be split now, then it should be combined)
+					
+						//will no longer be on level
+						qp->parent->children[0]->onlevel = 0;
+						qp->parent->children[1]->onlevel = 0;
+						qp->parent->children[2]->onlevel = 0;
+						qp->parent->children[3]->onlevel = 0;
+
+
+						qp->parent->children[0]->tag = QUADARRAY_TAG_REMOVE; 
+						qp->parent->children[1]->tag = QUADARRAY_TAG_REMOVE;
+						qp->parent->children[2]->tag = QUADARRAY_TAG_REMOVE;
+						qp->parent->children[3]->tag = QUADARRAY_TAG_REMOVE;
+
+
+
+#ifdef ENABLE_DELETE
+						qp->parent->children[0]->tag = QUADARRAY_TAG_DELETE; 
+						qp->parent->children[1]->tag = QUADARRAY_TAG_DELETE;
+						qp->parent->children[2]->tag = QUADARRAY_TAG_DELETE;
+						qp->parent->children[3]->tag = QUADARRAY_TAG_DELETE;
+					
+	
+						//throw away children :(
+						qp->parent->children[0] = NULL;
+						qp->parent->children[1] = NULL;
+						qp->parent->children[2] = NULL;
+						qp->parent->children[3] = NULL;
+#endif
+
+
+						vec_add(quadpatches, qp->parent); //put parent back in
+						qp->parent->onlevel = 1; //parent is on level
+						qp->parent->tag = QUADARRAY_TAG_NONE;
+
+					}
+				}
+
+			//zzz
+
+		}
+}
+
+void gx_quadpatch_sys_draw(gx_quadpatch_sys_t* qps, gx_camera_t* camera)
+{
+		int cull=0;
+		int i;
+		vec_t* quadpatches = &qps->active_patches;
+		gx_quadpatch_t* qp;
+
+		//printf("%d active patches in %p\n", vec_count(quadpatches), qps);
+
+		for (i=0;i< vec_count(quadpatches);i++)
+		{
+			int skipdraw=0;
+			qp = vec_get_at(quadpatches, i);
+
+			{
+				vec3 d;
+				vec3mov (d, qp->center);
+				vec3sub (d, camera->camera_pos);
+				vec3normalize(&d);
+
+				if (vec3dot(d, camera->camera_forward) < 0)
+				{
+					//outside of view cone
+					cull++;
+					skipdraw=1;
+				}
+				else
+				if ( vec3dot(qp->avgnorm, camera->camera_forward) > .8)  //faces away from camera
+				{
+					cull++;
+					skipdraw =1;
+				}
+
+
+
+			}
+			
+			//draw
+			if (qp->tag == QUADARRAY_TAG_NONE)
+			{
+				if (!skipdraw)
+						gx_quadpatch_draw(qp);
+				
+			}
+			
+		}
+}

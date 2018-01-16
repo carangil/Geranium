@@ -5,14 +5,14 @@
 #include "../ztypes.h"
 #include "../vmath/vmath.h"
 
-#include "glstuff.h"
+#include "glheaders.h"
 
 #include "../memory/ram.h"
 #include "../structures/vector.h"
 
 
 #include "gx_sys.h"
-#include <math.h>"
+#include <math.h>
 #include <float.h>
 
 #include "gx_image.h"

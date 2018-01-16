@@ -35,3 +35,4 @@ void gx_image_set_scaler(gx_image_t* image, int scaler);
 #define GX_IMAGE_COLOR_ALPHA 4
 
 void gx_set_active_textures(gx_image_t** texes, zuint32 numtex);
+int gxi_num_texture_units();

@@ -1,12 +1,12 @@
 #include "../ztypes.h"
-#include "tm.h"
+#include "ztime.h"
 
 
-zbool g_tm_init = zfalse;
 
 
 #ifdef _WIN32
 
+zbool g_tm_init = zfalse;
 LARGE_INTEGER g_tm_perf_frequency;
 
 zuint32 tm_diff_microstamp_us(tm_microstamp_t* before, tm_microstamp_t* after)

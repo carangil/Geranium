@@ -7,7 +7,7 @@
 #include "../vmath/vmath.h"
 #include <stdio.h>
 
-#include "glstuff.h"
+#include "glheaders.h"
 
 #include "gx_image.h"
 #include "gx_sprite.h"
@@ -399,8 +399,12 @@ void crap_gx_sprite_draw_3d(gx_sprite_t* sprite, vec3* position, vec3* up, vec3*
 }
 
 
-
 void gx_sprite_draw_3d(gx_sprite_t* sprite, vec3* position, vec3* up, vec3* right , zbool alpha_blend, zbool center)
+{
+	gx_sprite_draw_3d_ex(sprite, position, up,right, alpha_blend,center, 1.0);
+}
+
+void gx_sprite_draw_3d_ex(gx_sprite_t* sprite, vec3* position, vec3* up, vec3* right , zbool alpha_blend, zbool center, float alpha)
 {
 
 	vec3 p;
@@ -419,7 +423,7 @@ void gx_sprite_draw_3d(gx_sprite_t* sprite, vec3* position, vec3* up, vec3* righ
 	}
 #endif
 	
-	glColor4f(1,1,1,1);
+	glColor4f(1,1,1,alpha);
 
 	//sprite renderer must go through the 'texture mananger'
 	//_gx_image_enable( sprite->image);

@@ -7,22 +7,29 @@
 #include "../ztypes.h"
 #include <malloc.h>
 #include <string.h>
-#include "ram.h"
+#include "zmem.h"
 #include <stdio.h>
+#include "../thread/zthread.h"
 
 #ifdef RAM_DEBUG
-#include "../structures/linkedlist.h"
+#include "../structures/zlist.h"
 #endif
 
 /*****************
  *RAM allocation
- *Note:  This is NOT yet thread safe.
  *****************/
 
 /* stats */
-static zuint32 _ram_allocs = 0; //count of current allocations (to check for leaks)
+static zuint32 ram_allocs_cnt = 0; //count of current allocations (to check for leaks)
+
+
+#ifdef RAM_DEBUG
+static zbool    ram_debug_lock_valid=0;
+static zlock_t  ram_debug_lock;
+#endif
 
 /* Memory block header */
+
 
 typedef struct mem_header_s
 {
@@ -31,6 +38,7 @@ typedef struct mem_header_s
 #endif
 	ram_destructor destructor;
 	int refcount;
+        int flags; //nothing yet
 #ifdef RAM_DEBUG
 	char* file;
 	int   line;
@@ -41,28 +49,19 @@ typedef struct mem_header_s
 zlist_t _ram_debuglist = {NULL,NULL};
 #endif
 
+void ram_init() {
 
-void* _ram_pending_free = NULL;
+#ifdef RAM_DEBUG
+  if (!ram_debug_lock_valid){
+                fprintf(stderr,"Creating ram debug lock\n");
+		
+                /* This creates the lock that memory shares when */
+                zlock_init(&ram_debug_lock); 
+                ram_debug_lock_valid=ZTRUE;
+       }      
+#endif  
 
-
-//free later
-void ram_destructor_tail(void* block)
-{
-	if (!block)
-		return;
-
-	if (_ram_pending_free)
-	{
-		printf(" Warning: ram_destructor_tail called twice in one destructor\n");
-		ram_free(block);
-	}
-	else
-	{
-		_ram_pending_free = block;
-	}
 }
-
-
 
 /* Allocate memory.  Takes size and destructor */
 #ifdef RAM_DEBUG
@@ -73,22 +72,35 @@ void* ram_alloc(zsize size, ram_destructor destructor)
 {
 	mem_header_t* x;
 
+#ifdef RAM_DEBUG 
+	if (!ram_debug_lock_valid) {
+		fprintf(stderr, "(warning)Auto-initing ram module.\n");
+		ram_init();
+	}
+#endif
 		
 	x = malloc( sizeof(mem_header_t)  + size); //allocate header + some size
 
 	if (x)
 	{
 		memset(x, 0,  sizeof(mem_header_t)  + size);
-		_ram_allocs++;  //count allocations
 
 		x->destructor = destructor;
 
 		x->refcount = 1;
+                
+                zlock_inc(&ram_allocs_cnt);
 
 #ifdef RAM_DEBUG
+                zlock(&ram_debug_lock);
+                
+		
+		
 		x->file = file;
 		x->line = line;
 		zlist_addhead(&_ram_debuglist, &x->zlistnode);
+                
+                zunlock(&ram_debug_lock);
 #endif
 
 		return x + 1;  //return just past the header
@@ -98,20 +110,26 @@ void* ram_alloc(zsize size, ram_destructor destructor)
 }
 
 //executes a block's destructor
+
 void ram_free(void* thing)
 {
 	mem_header_t* header = (mem_header_t*) thing;
-	zbool do_free = ztrue;
+	zbool do_free = ZTRUE;
 
 	if (! thing)
 		return;
 
-	//if (header) 
-	while (1)  //might free more than 1 item
+	if (header) 
 	{
 		header--; //decrement pointer to header struct
 	
 		header->refcount --;
+
+		if (header->refcount<0)
+		{
+			fprintf(stderr,"negative refcount!\n");
+		}
+
 		if (header->refcount ==0)
 		{
 			if (header->destructor)  //if a destructor was declared
@@ -119,29 +137,23 @@ void ram_free(void* thing)
 				//call the destructor
 				//if the destructor returns true, free it
 				do_free = header->destructor(thing); 
-				
 			}
 			
 			if (do_free)
 			{
+                                zlock_dec(&ram_allocs_cnt);
 #ifdef RAM_DEBUG
-				zlist_remove(&_ram_debuglist, &header->zlistnode);
+                                zlock(&ram_debug_lock);
+                                
+                                zlist_remove(&_ram_debuglist, &header->zlistnode);
+
+                                zunlock(&ram_debug_lock);
 #endif
-				_ram_allocs--;
+                                
 				free(header);
 			}
 
 		}
-
-		//if there are 'leftover' items to free, lets continue
-		if (_ram_pending_free)
-		{
-			header = thing = _ram_pending_free;
-			_ram_pending_free = NULL;
-			continue;
-		}
-
-		break;
 	}
 }
 
@@ -158,8 +170,11 @@ void* ram_addref(void* thing)
 
 void* ram_resize(void* ram, zsize size)
 {
-
+	
 	mem_header_t* header = (mem_header_t*) ram; //take pointer given to application
+#ifdef RAM_DEBUG
+        mem_header_t* oldheader;
+#endif
 
 	if (header)
 	{
@@ -167,20 +182,26 @@ void* ram_resize(void* ram, zsize size)
 
 		//cannot resize if more than one reference
 		if (header->refcount !=1 )
+		{
+			fprintf(stderr, " can't resize if refcount !=1\n");
 			return NULL;
-
+		}
 #ifdef RAM_DEBUG
-				zlist_remove(&_ram_debuglist, &header->zlistnode);
+                zlock(&ram_debug_lock);
+		zlist_remove(&_ram_debuglist, &header->zlistnode);
+                oldheader = header;
 #endif
-
+                
 		header = realloc(header, sizeof(mem_header_t) + size);  //attempt resize to new size;
 
 #ifdef RAM_DEBUG
-		if (header)
+		if (header)           /*Put new one on */
 				zlist_addhead(&_ram_debuglist, &header->zlistnode);
+                else                    /*Put old one back on list */
+                        	zlist_addhead(&_ram_debuglist, &oldheader->zlistnode);
+                
+                zunlock(&ram_debug_lock);
 #endif
-	
-
 
 		if (header) {
 			return header+1;
@@ -191,15 +212,8 @@ void* ram_resize(void* ram, zsize size)
 
 	return NULL;
 }
-/*
-void* ram_clear(void* v, zsize size)
-{
-	if (v)
-		memset(v, 0, size);	
 
-	return v;
-}
-*/
+
 char* ram_strdup_func(char* in, char* file, int line)
 {
 	size_t len;
@@ -241,22 +255,48 @@ zuint32 ram_allocs()
 	int count=0;
 
 	mem_header_t* node = zlist_head(&_ram_debuglist);
-
 	
 
 	while(node)
 	{
-		printf("%p alloced at %s:%d (%d refs)\n",
+		fprintf(stderr, "%p alloced at %s:%d (%d refs)\n",
 			node+1, node->file, node->line, node->refcount	);
 		count++;
 		node = zlist_next(node);
 	}
 
-	if (_ram_allocs != count)
-		printf(" Internal inconsistency in ram.c, oops\n");
+	if (ram_allocs_cnt != count)
+		fprintf(stderr, " Internal inconsistency in ram.c, oops\n");
 
 #endif
 
-	return _ram_allocs;
+	return ram_allocs_cnt;
 }
 
+
+char* ram_loadstr(char* filename) {
+	char* str = NULL;
+	FILE* f;
+	int len;
+
+	f = fopen(filename, "rb");
+	if (f){
+		fseek (f, 0, SEEK_END);
+		len = ftell(f);
+		fseek(f, 0, SEEK_SET);
+#ifdef RAM_DEBUG
+		fprintf(stderr, "ram.c load file %s : %d bytes\n", filename, len);	
+#endif
+		str = ram_alloc(len+1, NULL);
+
+		if (str) {
+
+			fread(str, len, 1, f);
+			str[len]= '\0';
+		}
+		fclose(f);
+	}
+
+	return str;
+
+}

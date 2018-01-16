@@ -3,10 +3,14 @@
 // Commercial use prohibited.
 
 #include "../ztypes.h"
-#include "../memory/ram.h"
+#include "../memory/zmem.h"
 #include <stdio.h>
-#include "glstuff.h"
-#include "../vmath/vmath.h"
+#include "glheaders.h"
+#include "../vmath/zmath.h"
+#include "../structures/zvector.h"
+#include "gx_image.h"
+#include "gx_buffers.h"
+#include "gx_drawstyle.h"
 #include "gx_light.h"
 
 gx_light_t* gx_light_mk(gx_light_e type, vec3* position, vec3* color, vec3* ambient)
@@ -47,7 +51,7 @@ gx_light_t* gx_light_mk(gx_light_e type, vec3* position, vec3* color, vec3* ambi
 //number of light currently enabled
 static zuint32 _number_active_lights = 0;
 
-static gx_light_tmp_off_cnt=0;
+static int gx_light_tmp_off_cnt=0;
 
 void gx_light_tmp_off()
 {
@@ -70,13 +74,19 @@ void gx_light_restore()
 
 //simple lighting policy:
 //if _number_active_lights is zero, gl lighting is disabled
-//otherwise it is enabled
 
-void gx_set_active_lights(gx_light_t** lights, zuint32 count)
+
+//sets active lights, but using opengl fixed function
+static void ff_set_active_lights(gx_light_t** lights, zuint32 count)
 {
-
+	vec4 zero;
+	vec4 ambientsum;
 	zuint32 i = 0;
+	printf(" setting ff lights\n");
+	vec4set(zero,0,0,0,1);
+	vec4set(ambientsum,0,0,0,1);
 
+	//printf(" GO\n");
 	// user specified zero lights no lights are null
 	if (count == 0 || !lights)
 	{
@@ -122,13 +132,14 @@ void gx_set_active_lights(gx_light_t** lights, zuint32 count)
 		if (!lights[i]) 
 			continue;
 
-		//set ambient light
-		p[0]=lights[i]->ambient.array[0];
-		p[1]=lights[i]->ambient.array[1];
-		p[2]=lights[i]->ambient.array[2];
-		p[3]=1;
+		//add up ambient light
+		vec3add(ambientsum,lights[i]->ambient); 
 
-		glLightfv(GL_LIGHT0+i, GL_AMBIENT,  p );
+		//set the light object's ambient to zero, so we don't
+		// attenuate by distance	
+		//instead we will set the global ambient
+		//printf(" set ambient ZERO\n");
+		glLightfv(GL_LIGHT0+i, GL_AMBIENT,  zero.array );
 		
 
 		//set diffuse and specular color
@@ -179,6 +190,9 @@ void gx_set_active_lights(gx_light_t** lights, zuint32 count)
 	}
 
 	_number_active_lights= count;
+	
+
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientsum.array);
 
 }
 
@@ -196,31 +210,74 @@ void gx_debug_show_light(gx_light_t* light, zfloat32 size)
 
 	glEnd();
 
+}
 
+
+static gx_environment_t* current_env = NULL;
+
+void gx_set_environment(gx_environment_t* env) {
+	current_env = env;
+}
+
+zbool _gx_environment_cleanup(void* ve) {
+		gx_environment_t* env = ve;
+		
+		
+	zvec_cleanup( & env->lights);
+		
+	return ZTRUE;
+}
+
+gx_environment_t*  gx_environment_mk(){
+		gx_environment_t* env = ram_alloc( sizeof(*env), _gx_environment_cleanup);
+		
+		zvec_mk( & env->lights, 4);
+		
+		return env;
+	
+}
+
+
+//set fog, lighting and other atrributes shaders might need
+//if not using shaders, use the built in light/fog
+
+void gxi_set_shader_env_params(gx_shaderset_t* set){
+	gx_environment_t* env = current_env;
+	
+		if (set == NULL) {
+			if (!env) {
+				glDisable(GL_LIGHTING);
+				glDisable(GL_FOG);
+				return;
+			}
+			
+			//set FF lighting parameters
+			ff_set_active_lights( zvec_elements_as(gx_light_t*,&env->lights), zvec_count(&env->lights));
+			
+			//set ff fog parameters
+			if (env->usefog) {
+				float fc[4];
+				glEnable(GL_FOG);
+				glFogi(GL_FOG_MODE, GL_LINEAR);
+				glFogf(GL_FOG_START, env->fogstartz);
+				glFogf(GL_FOG_END, env->fogendz);
+				fc[0]= env->fogcolor.array[0];
+				fc[1]= env->fogcolor.array[1];		
+				fc[2]= env->fogcolor.array[2];
+				fc[3]=0;
+	
+				glFogfv(GL_FOG_COLOR,fc);
+
+			} else
+				glDisable(GL_FOG);
+			
+		} else {
+			printf(" TODO: shader env\n");
+			
+		}
+	
 }
 
 
 
-void gx_light_fog( vec3* color, float startz, float endz)
-{
 
-	float fc[4];
-
-	if (!color)
-		glDisable(GL_FOG);
-	else
-	{
-		fc[0]=color->array[0];
-		fc[1]=color->array[1];
-		fc[2]=color->array[2];
-		fc[3]=0.0;
-
-		glEnable(GL_FOG);
-		glFogi(GL_FOG_MODE, GL_LINEAR);
-		glFogf(GL_FOG_START, startz);
-		glFogf(GL_FOG_END, endz);
-		glFogfv(GL_FOG_COLOR, fc);
-
-	}
-
-}

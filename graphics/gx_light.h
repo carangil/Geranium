@@ -7,8 +7,6 @@ typedef enum
 } gx_light_e;
 
 
-
-
 typedef struct gx_light_s
 {
 	gx_light_e light_type;
@@ -21,12 +19,31 @@ typedef struct gx_light_s
 } gx_light_t;
 
 
-void gx_set_active_lights(gx_light_t** lights, zuint32 count);
+typedef struct gx_environment_s{
+	
+	zbool usefog;
+	vec3 fogcolor;
+	float fogstartz;
+	float fogendz;
+	zvec_t lights;  //gx_light_t*
+	
+	//TODO: perhaps other textures can go here 'global' textures
+	
+} gx_environment_t;
+
+
+
 gx_light_t* gx_light_mk(gx_light_e type, vec3* position, vec3* color, vec3* ambient);
 
-void gx_debug_show_light(gx_light_t* light, zfloat32 size);
 
-void gx_light_fog( vec3* color, float startz, float endz);
+void gxi_set_shader_env_params(gx_shaderset_t* set);
+
+void gx_set_environment(gx_environment_t* env);
+
+gx_environment_t* gx_environment_mk();
+
+
+void gx_debug_show_light(gx_light_t* light, zfloat32 size);
 
 
 

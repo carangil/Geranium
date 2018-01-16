@@ -26,7 +26,7 @@ void gx_sprite_draw(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool alpha_ble
 void gx_sprite_draw_rotozoom(gx_sprite_t* sprite, zfloat32 x, zfloat32 y, zbool alpha_blend,  zfloat32 xo, zfloat32 yo, zfloat32 zoom, zfloat32 ang);
 
 void gx_sprite_draw_3d(gx_sprite_t* sprite, vec3* position, vec3* up, vec3* right , zbool alpha_blend, zbool center);
-
+void gx_sprite_draw_3d_ex(gx_sprite_t* sprite, vec3* position, vec3* up, vec3* right , zbool alpha_blend, zbool center, float alpha);
 /* Text Functions */
 
 void gx_text_draw(gx_image_t* font,  zfloat32 x, zfloat32 y,  zfloat32 angle, zchar* string);

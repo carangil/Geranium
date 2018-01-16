@@ -1,4 +1,4 @@
-Hmemory=memory/ram.h  structures/linkedlist.h
+Hmemory=memory/zmem.h  structures/zlist.h
 
 o_mem=objs/memory.o
 

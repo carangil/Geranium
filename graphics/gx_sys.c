@@ -4,12 +4,13 @@
 
 #include <stdio.h>
 
-
+#include <string.h>
 #include "../ztypes.h"
-#include "../vmath/vmath.h"
-#include "glstuff.h"
+#include "../vmath/zmath.h"
+#include "glheaders.h"
 #include "gx_sys.h"
-#include "gx_line.h"
+//#include "gx_line.h"
+//#include "gx_trans.h"
 #include <math.h>
 
 //gl allocation count
@@ -19,11 +20,10 @@ int _gx_gl_textures_del = 0;
 int _gx_gl_vbos_del = 0;
 
 
-
 //internal data
 static zint32 _gx_window_width=0;
 static zint32 _gx_window_height=0;
-static zint32 _gx_auto_viewport_adjust=ztrue; /*true to automatically adjust viewport*/
+static zint32 _gx_auto_viewport_adjust=ZTRUE; /*true to automatically adjust viewport*/
 
 static zfloat32 _gx_2d_top =0;
 static zfloat32 _gx_2d_bottom =0;
@@ -36,13 +36,13 @@ static zchar _keybuffer = 0;;
 zbool _gx_keystate[256];  //up/down state of all possible chars
 
 //mouse data
-static zbool	_gx_mouse_capture = zfalse;
+static zbool	_gx_mouse_capture = ZFALSE;
 static zuint32	_gx_mouse_capture_last_x = 0;
 static zuint32	_gx_mouse_capture_last_y = 0; 
 static zuint32	_gx_last_mouse_x = 0;
 static zuint32	_gx_last_mouse_y = 0; 
-static zbool	_gx_mouse_present_state = ztrue;
-static zbool	_gx_mouse_first_capture = zfalse;
+static zbool	_gx_mouse_present_state = ZTRUE;
+static zbool	_gx_mouse_first_capture = ZFALSE;
 
 // GLUT callbacks
 
@@ -51,20 +51,39 @@ void _gx_callback_keyboard(unsigned char key, int x, int y)
 	_keybuffer = key;  //store last key pressed
 	
 
-	_gx_keystate[   key] = ztrue;  //store updated key state
+	_gx_keystate[   key] = ZTRUE;  //store updated key state
 
 }
 
 void _gx_callback_keyboard_up(unsigned char key, int x, int y)
 {
-	_gx_keystate[   key] = zfalse;  //indicate the key is not pressed
+	_gx_keystate[   key] = ZFALSE;  //indicate the key is not pressed
 }
 
 
+int last_line=0;
+char* last_file = 0;
 
 
+void gx_error(char* file, int line){
+	int err;
+	int ec=0;
+	for (err = glGetError(); err!= GL_NO_ERROR; err = glGetError()) {
+		ec++;
+		
+	}
+	
+	if (ec) {
+		printf(" %d OPENGL ERRORS FROM %s:%d to %s:%d\n", ec,last_file, last_line, file, line  );
+	}
+	
+	last_file = file;
+	last_line = line;
+	
+}
 
-zbool gx_mousebuttons[] = {zfalse, zfalse, zfalse};
+
+zbool gx_mousebuttons[] = {ZFALSE, ZFALSE, ZFALSE};
 
 zbool gx_mouse_state(zuint32 button)
 {
@@ -74,7 +93,7 @@ zbool gx_mouse_state(zuint32 button)
 
 	}
 
-	return zfalse;
+	return ZFALSE;
 }
 
 static void _gx_callback_mouseclick(int button, int state, int x, int y)
@@ -84,9 +103,9 @@ static void _gx_callback_mouseclick(int button, int state, int x, int y)
 	zbool val;
 
 	if (state==GLUT_DOWN)
-		val = ztrue;
+		val = ZTRUE;
 	else 
-		val = zfalse;
+		val = ZFALSE;
 	
 	switch (button)
 	{
@@ -134,11 +153,11 @@ static void _gx_callback_mousepassive(int x, int y)
 
 static void _gx_callback_mouse_entry(int state)
 {
-	printf( "Mouse entry %d\n", state);
+//	printf( "Mouse entry %d\n", state);
 	if (state == GLUT_LEFT)
-		_gx_mouse_present_state = zfalse;
+		_gx_mouse_present_state = ZFALSE;
 	else if (state == GLUT_ENTERED)
-		_gx_mouse_present_state = ztrue;
+		_gx_mouse_present_state = ZTRUE;
 
 }
 
@@ -177,15 +196,23 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	int fakeargc=0;
 	char *fakeargv0;
 	char ** fakeargv= &fakeargv0;
+	int ver[2];
 	
 	memset(_gx_keystate, 0, sizeof(_gx_keystate));		
 
 	glutInit(&fakeargc, fakeargv);
 	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
-	
+
+//	glutInitContextVersion(3,1);	
 	glutInitWindowSize(width, height);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_ALPHA | GLUT_DEPTH | GLUT_STENCIL );
 	_gx_window = glutCreateWindow(window_title);
+
+
+	
+	glGetIntegerv(GL_MAJOR_VERSION, &ver[0]);
+	glGetIntegerv(GL_MINOR_VERSION, &ver[1]);
+	printf(" OPENGL VERSION:%d/%d\n", ver[0], ver[1]);
 
 	//set callbacks
 	glutReshapeFunc(_gx_callback_reshape);
@@ -196,16 +223,15 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	glutPassiveMotionFunc(_gx_callback_mousepassive);
 	glutDisplayFunc(_gx_callback_disp);
 	glutEntryFunc(_gx_callback_mouse_entry);
-	//glPointSize(2.0);
 	glPointSize(1.0);
 	
 
 	_gx_callback_reshape( width, height);  //reshape will use defaults
 
-	//gx_setup_2d(-1.0, -1.0, 1.0, 1.0) ;  //default coords are -1,-1 to 1,1
-	gx_setup_2d( 0.0f, 0.0f, width-1.0f, height-1.0f);
+	gx_setup_2d(-1.0, -1.0, 1.0, 1.0) ;  //default coords are -1,-1 to 1,1
+	//gx_setup_2d( 0.0f, 0.0f, width-1.0f, height-1.0f);
 
-	_gx_line_init();  //initialize line drawing functions
+//	_gx_line_init();  //initialize line drawing functions
 
 	if (glewInit()!=GLEW_OK)
 	{
@@ -238,7 +264,7 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	
 	if (!glGenBuffers)
 	{
-		_gx_no_vbos = ztrue;
+		_gx_no_vbos = ZTRUE;
 		printf("Cannot initialize VBO functions, using vertex arrays\n");
 		//return GX_ERROR;
 	}
@@ -260,7 +286,7 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 void gx_disable()
 {
 	
-	_gx_line_disable();
+//	_gx_line_disable();
 
 	if (_gx_window)
 		glutDestroyWindow(_gx_window);
@@ -312,9 +338,9 @@ void gx_mouse_capture(zbool cap)
 		_gx_last_mouse_x = 0;
 		_gx_last_mouse_y = 0;
 
-		_gx_mouse_capture = ztrue;
+		_gx_mouse_capture = ZTRUE;
 
-		_gx_mouse_first_capture = ztrue; //we want to ignore the 1st mouse mouse event
+		_gx_mouse_first_capture = ZTRUE; //we want to ignore the 1st mouse mouse event
 
 		glutWarpPointer( _gx_mouse_capture_last_x, _gx_mouse_capture_last_y);	
 		glutSetCursor(GLUT_CURSOR_NONE); //hide mouse pointer
@@ -325,7 +351,7 @@ void gx_mouse_capture(zbool cap)
 	}
 	else
 	{
-		_gx_mouse_capture = zfalse;
+		_gx_mouse_capture = ZFALSE;
 		glutSetCursor(GLUT_CURSOR_INHERIT); //bring back mouse pointer
 
 #ifdef _WIN32
@@ -427,6 +453,7 @@ void gx_frame_clear(zbool color, zbool depth)
 void gx_frame_show()
 {
 	glutSwapBuffers();
+	gx_error("gx_frame_show",0);
 }
 
 zfloat32 gx_frame_get_dimensions(zuint32* width, zuint32* height)
@@ -441,7 +468,6 @@ zfloat32 gx_frame_get_dimensions(zuint32* width, zuint32* height)
 }
 
 
-static void  _gx_reset_matrix();
 
 /* Two dimensional coord system */
 void gx_setup_2d(float left,  float top, float right, float bottom)
@@ -451,7 +477,7 @@ void gx_setup_2d(float left,  float top, float right, float bottom)
 	glOrtho(left, right, bottom, top, -1.0,1.0);
 	glMatrixMode(GL_MODELVIEW);
 
-	_gx_reset_matrix();// reset camera matrix
+//	_gx_reset_matrix();// reset camera matrix
 
 	//makes most sense to disable depth:
 	//glDepthMask(GL_FALSE);  //don't write to depth bufer
@@ -496,8 +522,8 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 
 	//glDisable(GL_CULL_FACE); //we want face culling (for now)
 
-	//glEnable(GL_CULL_FACE); //we want face culling (for now)
-	//glCullFace(GL_BACK);
+	glEnable(GL_CULL_FACE); //we want face culling (for now)
+	glCullFace(GL_BACK);
 
 
 	glLightModelf(GL_LIGHT_MODEL_LOCAL_VIEWER, 1.0f);
@@ -518,105 +544,17 @@ void gx_zbuffer(zbool en)
 }
 
 
-//simple matrix based commands
 
 
 
 
-static zint32 _gx_matrix_depth = 0;  //nothing pushes
-
-static _gx_restore_camera_matrix()
-{
-	if (_gx_matrix_depth ==1)
-	{
-		glPopMatrix();
-		_gx_matrix_depth = 0;
-	}
-	else
-	{
-		printf(" Invalid matrix depth state! %d\n", _gx_matrix_depth);
-	}
-}
-
-
-static void _gx_save_camera_matrix()
-{
-	if (_gx_matrix_depth ==0)
-	{
-		glPushMatrix();
-		_gx_matrix_depth = 1;
-	}
-	else
-	{
-		printf(" Invalid matrix depth state! %d\n", _gx_matrix_depth);
-	}
-}
-
-static void _gx_reset_matrix()
-{
-
-	if (_gx_matrix_depth ==1)
-	{
-		glPopMatrix();
-		_gx_matrix_depth = 0;
-	}
-
-	if (_gx_matrix_depth != 0)
-	{
-		printf(" Invalid matrix depth state! %d\n", _gx_matrix_depth);
-	}
-
-	glLoadIdentity();
-}
-
-
-void gx_camera_pos_rot(vec3* position, vec3* xaxis, vec3* yaxis, vec3* zaxis)
-{
-
- 	_gx_reset_matrix();
-
-
-	if (xaxis && yaxis && zaxis)
-	{
-		zfloat32 matr[]={	
-			xaxis->vec3x, yaxis->vec3x, -zaxis->vec3x,0,
-			xaxis->vec3y, yaxis->vec3y, -zaxis->vec3y,0,
-			xaxis->vec3z, yaxis->vec3z, -zaxis->vec3z,0,
-			0,0,0,1};
-
-			glLoadMatrixf((float*)&matr);			
-	}
-
-	if (position)
-		glTranslatef( -position->vec3x, -position->vec3y, -position->vec3z);
-
-
-
-	//now that we have a fresh camera matrix, lets save it
-	_gx_save_camera_matrix();
-	
-}
-
-void gx_home()
-{  
-	_gx_restore_camera_matrix();
-	_gx_save_camera_matrix();
-}
-
-void gx_camera_home()
-{	//reset transform AND camera
-	_gx_reset_matrix();
-	
-}
 
 
 
 
-void gx_move3d(vec3* amount)
-{
-	if (amount)
-		glTranslatef(amount->named.x, amount->named.y, amount->named.z);
-}
+
+#if 0
+
 
 //specify 3x3 matrix
 void gx_rotate_3x3(vec3* xaxis, vec3* yaxis, vec3* zaxis )
@@ -661,4 +599,4 @@ void gx_scale(float scale)
 {
 	glScalef( scale, scale, scale);
 }
-
+#endif

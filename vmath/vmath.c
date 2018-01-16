@@ -1,17 +1,39 @@
 #include "../ztypes.h"
-#include "vmath.h"
+#include "math.h"
+#include "zmath.h"
 #include <stdlib.h>
-#include <math.h>
 
-void srandf(float x)
+//normalize a vector
+void vec3normalize( vec3* p)
 {
-	int seed = x * RAND_MAX;
-	int seed2 = x* 17*5;
-	seed += seed2;
-	seed = seed % RAND_MAX;
-	srand(seed);
+	float d = sqrtf( vec3abs_sq(*p)  );
+	vec3scale( *p, (1/d) );
+}
+
+
+zbool vec3_point_in_box( vec3* min, vec3* point, vec3* max, float border)
+{
+	int j;
+
+	for (j=0;j<3;j++)
+	{
+
+		if (point->array[j]- border < min->array[j])
+			return ZFALSE;
+
+
+		if (point->array[j] + border > max->array[j])
+			return ZFALSE;
+
+	}
+
+	return ZTRUE;
 
 }
+
+//garbage random numbers
+//
+
 
 float randf()
 {
@@ -26,13 +48,5 @@ float randfs()
 {
 	return -1.0 + 2*(rand()&511) / 511.0;
 }
-
-//normalize a vector
-void vec3normalize( vec3* p)
-{
-	float d = sqrtf( vec3abs_sq(*p)  );
-	vec3scale( *p, (1/d) );
-}
-
 
 
