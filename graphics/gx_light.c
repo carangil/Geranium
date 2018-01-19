@@ -12,6 +12,7 @@
 #include "gx_buffers.h"
 #include "gx_drawstyle.h"
 #include "gx_light.h"
+#include "gx_trans.h"
 
 gx_light_t* gx_light_mk(gx_light_e type, vec3* position, vec3* color, vec3* ambient)
 {
@@ -116,6 +117,9 @@ static void ff_set_active_lights(gx_light_t** lights, zuint32 count)
 		//if lighting was off, turn it on
 		glEnable(GL_LIGHTING);
 		glEnable(GL_NORMALIZE);
+		//glLightModeli (GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
+		glLightModeli (GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR);
+		glLightModeli (GL_LIGHT_MODEL_LOCAL_VIEWER,  0);
 	}
 
 	for (i=0;i<count;i++)
@@ -166,6 +170,25 @@ static void ff_set_active_lights(gx_light_t** lights, zuint32 count)
 		}
 	
 		glLightfv(GL_LIGHT0+i, GL_POSITION, p);
+		
+#if 0
+		if (i==0){
+		
+			//This abuses the opengl transform function to check
+			//my version of the gx_trans_vec3 function.
+			
+			float v[4];
+		
+			printf("Originalp: %f %f %f\n", p[0], p[1], p[2]);
+			glLightfv(GL_LIGHT0+i, GL_POSITION, p);
+			glGetLightfv(GL_LIGHT0+i, GL_POSITION,v);
+			printf("GL Light0: %f %f %f %f\n", v[0] ,v[1], v[2]);
+			gx_trans_vec3(&p);
+			printf("Trans   p: %f %f %f\n", p[0], p[1], p[2]);
+			
+			
+		}
+#endif 
 
 		if (lights[i]->attenuated)
 		{
@@ -241,41 +264,90 @@ gx_environment_t*  gx_environment_mk(){
 //set fog, lighting and other atrributes shaders might need
 //if not using shaders, use the built in light/fog
 
+static int ff_enabled_env= ZFALSE;  
+
+
 void gxi_set_shader_env_params(gx_shaderset_t* set){
+	int i;
 	gx_environment_t* env = current_env;
 	
-		if (set == NULL) {
-			if (!env) {
-				glDisable(GL_LIGHTING);
-				glDisable(GL_FOG);
-				return;
-			}
-			
-			//set FF lighting parameters
-			ff_set_active_lights( zvec_elements_as(gx_light_t*,&env->lights), zvec_count(&env->lights));
-			
-			//set ff fog parameters
-			if (env->usefog) {
-				float fc[4];
-				glEnable(GL_FOG);
-				glFogi(GL_FOG_MODE, GL_LINEAR);
-				glFogf(GL_FOG_START, env->fogstartz);
-				glFogf(GL_FOG_END, env->fogendz);
-				fc[0]= env->fogcolor.array[0];
-				fc[1]= env->fogcolor.array[1];		
-				fc[2]= env->fogcolor.array[2];
-				fc[3]=0;
+	gxi_refresh_matrix(set);
 	
-				glFogfv(GL_FOG_COLOR,fc);
-
-			} else
-				glDisable(GL_FOG);
-			
-		} else {
-			printf(" TODO: shader env\n");
-			
+	if (set && ff_enabled_env) {
+			ff_enabled_env = ZFALSE;
+			ff_set_active_lights(NULL, 0);
+			glDisable(GL_FOG);
+			printf(" Clear out FF environment settin*gs\n");
+	}
+	
+	
+	if (set == NULL) {
+		
+		if (!env) {
+			//if no env set, don't enable anything.
+			glDisable(GL_LIGHTING);
+			glDisable(GL_FOG);
+			return;
 		}
-	
+		ff_enabled_env = ZTRUE;  //if we switch to shaders, we should disable this'
+		
+		//set FF lighting parameters
+		ff_set_active_lights( zvec_elements_as(gx_light_t*,&env->lights), zvec_count(&env->lights));
+		
+		//set ff fog parameters
+		if (env->usefog) {
+			float fc[4];
+			glEnable(GL_FOG);
+			glFogi(GL_FOG_MODE, GL_LINEAR);
+			glFogf(GL_FOG_START, env->fogstartz);
+			glFogf(GL_FOG_END, env->fogendz);
+			fc[0]= env->fogcolor.array[0];
+			fc[1]= env->fogcolor.array[1];		
+			fc[2]= env->fogcolor.array[2];
+			fc[3]=0;
+
+			glFogfv(GL_FOG_COLOR,fc);
+
+		} else
+			glDisable(GL_FOG);
+		
+	} else {
+		//printf(" TODO: shader env\n");
+		//send light and fog parameters via uniforms
+		
+		
+		gx_light_t** lights = zvec_elements_as(gx_light_t*,&env->lights);
+		vec3 ambientsum;
+		vec3 p;
+		
+		vec3set (ambientsum, 0,0,0);
+		
+		printf ("%d lights\n", zvec_count(&env->lights));
+		
+		for (i=0;i<zvec_count(&env->lights);i++) {
+			vec3add(ambientsum,  lights[i]->ambient);
+		}
+		
+		//just 1 light
+		if (set->light0_color_uloc!=-1) {
+			glUniform3fv(set->light0_color_uloc, 1, lights[0]->color.array);
+		}
+		if (set->light0_pos_camspace_uloc!=-1) {
+			
+			vec3mov(p, lights[0]->position);
+			gx_trans_vec3(&p);
+			glUniform3fv(set->light0_pos_camspace_uloc, 1, p.array);
+		}
+		
+
+		printf("Ambient sum: %f %f %f\n", ambientsum.VX, ambientsum.VY, ambientsum.VZ);
+		
+		if (set->ambient_light_uloc!=-1)
+			glUniform3fv(set->ambient_light_uloc, 1, ambientsum.array);
+		
+		
+	}
+
 }
 
 

@@ -50,6 +50,35 @@ static zbool _destruct_vbuffer(void* x)
 }
 
 
+#define ATTR_TODISABLE	2
+#define ATTR_ENABLED		1
+#define ATTR_OFF 0
+
+
+
+
+static int *gxi_attr_buffer = NULL;
+static int gxi_num_attr = 0;
+
+void init_attrib_buffer(){
+	gxi_num_attr  = 0;
+	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &gxi_num_attr);
+	
+	if (gxi_num_attr <=0 || gxi_num_attr > 65536) {
+			printf("Something weird is happening %s:%d\n", __FILE__,__LINE__);
+			exit(1);
+	}
+	
+	gxi_attr_buffer = ram_alloc(sizeof(int) * gxi_num_attr, NULL);
+	
+	if (!gxi_attr_buffer ) {
+			printf(" Can't allocate space for %d attributes!\n", gxi_num_attr);
+			exit(0);
+	}
+	
+	
+}
+
 gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices, 
                             zuint32 num_indices, 
                             zuint32 options)
@@ -62,6 +91,11 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
        
     
 	zuint32 i = 0;
+	
+	if (gxi_attr_buffer== NULL) {
+			init_attrib_buffer();
+	}
+	
 
 	printf(" VERTEX_USE_COMPONENTS: %d, VERTEX_COMPONENTS: %d\n", VERTEX_USE_COMPONENTS, VERTEX_COMPONENTS);
 
@@ -440,6 +474,15 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	printf(" refresh matrix... %p %d\n", shader, shader? shader->matrix_version : 666);
 	gxi_refresh_matrix(shader);
 	
+	
+	for (i=0;i<gxi_num_attr;i++){
+			if (gxi_attr_buffer[i] == ATTR_ENABLED) {
+				printf(" flagging attr %d for posible disable\n",i);
+				gxi_attr_buffer[i] = ATTR_TODISABLE;
+			}
+	}
+	
+	
 	if (v->_vertex_combined_vbo)
 	{
 		glBindBuffer(GL_ARRAY_BUFFER,  v->_vertex_combined_vbo );
@@ -473,18 +516,21 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 			printf(" set vertex attrib\n");
 			glVertexAttribPointer(shader->vertex_loc, VERTEX_COMPONENTS, GL_FLOAT, 0, 0, (void*) ( (v->pos_data - v->combined_vertex_data) * sizeof (zfloat32)) );
 			glEnableVertexAttribArray(shader->vertex_loc);
+			gxi_attr_buffer[shader->vertex_loc] = ATTR_ENABLED;
 		 }
 		
 		 if (shader->color_loc != -1 ) {
 			printf(" set color attrib\n");
 			glVertexAttribPointer(shader->color_loc, COLOR_COMPONENTS, GL_FLOAT, 0, 0, (void*) ( (v->color_data - v->combined_vertex_data) * sizeof (zfloat32)) );
 			glEnableVertexAttribArray(shader->color_loc);
+			gxi_attr_buffer[shader->color_loc] = ATTR_ENABLED;
 		 }
 		 
 		if (shader->normal_loc != -1 ) {
 			printf(" set norm attrib\n");
 			glVertexAttribPointer(shader->normal_loc, VERTEX_COMPONENTS, GL_FLOAT, 0, 0, (void*) ( (v->normal_data - v->combined_vertex_data) * sizeof (zfloat32)) );
 			glEnableVertexAttribArray(shader->normal_loc);
+			gxi_attr_buffer[shader->normal_loc] = ATTR_ENABLED;
 		 }
 		
 		
@@ -493,10 +539,21 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 				printf(" set tex %d attrib\n", i);
 				glVertexAttribPointer(shader->texcoord_loc[i], 2, GL_FLOAT, 0, 0, (void*) ( (v->texcoord_data[i] - v->combined_vertex_data) * sizeof (zfloat32)) );
 				glEnableVertexAttribArray(shader->texcoord_loc[i]);
+				gxi_attr_buffer[shader->texcoord_loc[i]] = ATTR_ENABLED;
 			}
 		}
 		
 	}
+	
+	
+	//disable all non-enabled attributes
+	for (i=0;i<gxi_num_attr;i++){
+		if (gxi_attr_buffer[i] == ATTR_TODISABLE) {
+			printf(" disabling previously used but now unused attr %d \n",i);
+			gxi_attr_buffer[i] = ATTR_OFF;
+		}
+}
+	
 	
 	//things sent in both cases:
 	if (v->_index_vbo)

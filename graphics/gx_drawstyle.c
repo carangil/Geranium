@@ -100,34 +100,33 @@ void gx_drawstyle_activate(gx_drawstyle_t* style)
 			set->enabled_texture_uniforms = txcount;
 		}
 		
+		//send other material properties
+		if (set->specular_exponent_uloc!=-1)
+			glUniform1f(set->specular_exponent_uloc, style->specular_exponent);
+		
+		if (set->specular_color_uloc!=-1)
+			glUniform3fv(set->specular_color_uloc, 1, style->specular_color.array);
+				
+		
 		
 	} else {
-			active_shader = NULL;
-	}
-	
-	
-	//set specular color (FF)
-	{
 		float white[]={1,1,1,1};
 		float black[]={0,0,0,1};
 		float red[]={1,0,0,1};
 
 		float f[4];
-/*
-		if (style->use_constant_alpha) {
-			white[3] = style->alpha;
-		
-		}else 
-			white[3] = 1;
-*/
-
-
+		//no shader
+		active_shader = NULL;
+		glUseProgram(0);
+	
+	
+		//set FF specular color, and material parameters
 		f[0]=style->specular_color.array[0];
 		f[1]=style->specular_color.array[1];
 		f[2]=style->specular_color.array[2];
 		f[3]=1;
 
-		glLightModelfv(GL_LIGHT_MODEL_AMBIENT, black);
+	//	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, black);
 		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, style->specular_exponent);
 		glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, f);
 		glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, black);
@@ -138,7 +137,8 @@ void gx_drawstyle_activate(gx_drawstyle_t* style)
 	
 	//set all other shader env parameters
 	// env parameters are fog, light, etc
-	gxi_set_shader_env_params(NULL);
+	
+	gxi_set_shader_env_params(active_shader);
 
 }
 
@@ -186,6 +186,8 @@ int get_shader_attribute_loc(gx_shaderset_t* shaderset, char* name) {
 		printf(" ATTR %s -> %d\n", name,loc);
 		return loc;
 }
+
+
 
 
 gx_shaderset_t* gx_shaderset_mk(char* vsource, char* psource) {
@@ -294,10 +296,22 @@ gx_shaderset_t* gx_shaderset_mk(char* vsource, char* psource) {
 			}		
 		}
 		
+		//transform
 		shaderset->modelview_uloc = get_shader_uniform_loc(shaderset, "gx_modelview");
 		shaderset->camera_pos_uloc = get_shader_uniform_loc(shaderset, "gx_camera_pos");
 		
-		printf(" --- %d %d\n", shaderset->modelview_uloc, shaderset->camera_pos_uloc);
+		//material properties
+		shaderset->specular_color_uloc = get_shader_uniform_loc(shaderset, "gx_specular_color");
+		shaderset->specular_exponent_uloc = get_shader_uniform_loc(shaderset, "gx_specular_exponent");
+		
+		//light properties
+		shaderset->ambient_light_uloc =  get_shader_uniform_loc(shaderset, "gx_ambient_light");
+		shaderset->light0_color_uloc = get_shader_uniform_loc(shaderset, "gx_light0_color");
+		shaderset->light0_pos_camspace_uloc =  get_shader_uniform_loc(shaderset, "gx_light0_pos_camspace");
+		
+		
+		
+		
 
 	if (tmp)
 		ram_free(tmp);

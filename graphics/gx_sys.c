@@ -225,6 +225,8 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	glutEntryFunc(_gx_callback_mouse_entry);
 	glPointSize(1.0);
 	
+	
+	
 
 	_gx_callback_reshape( width, height);  //reshape will use defaults
 
@@ -526,7 +528,7 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 	glCullFace(GL_BACK);
 
 
-	glLightModelf(GL_LIGHT_MODEL_LOCAL_VIEWER, 1.0f);
+	//glLightModelf(GL_LIGHT_MODEL_LOCAL_VIEWER, 1.0f);
 
 //	glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 //	glPolygonMode( GL_BACK, GL_LINE );
