@@ -44,8 +44,40 @@ gx_light_t* gx_light_mk(gx_light_e type, vec3* position, vec3* color, vec3* ambi
 	{
 		vec3set(li->ambient, 0,0,0);
 	}
+		
 
 	return li;
+}
+
+void gx_light_set_attenuation( gx_light_t* li, zbool attenuated, float maximum, float unityrange, float falloff){
+		float l,c,s;
+	
+		if (!li)
+			return;
+	
+		li->attenuated = attenuated;
+		if (attenuated) {
+			
+			/*
+			 *  If d = distance, lighting equation is:
+			 * 
+			 *  1 / ( C + l*d + s*d*d);
+			 * 
+			 */
+			
+			
+			li->constant = c = 1/maximum;
+			li->squared = s =  falloff * ((1-c) / (unityrange * unityrange));
+			li->linear = l = (1-c - (1-c)*falloff) / unityrange;
+			
+			printf("Light parameters: C=%f L=%f S=%f\n",c,l,s  );
+	
+			
+		} else {
+			li->constant=1;
+			li->linear = li->squared = 0;
+		}
+	
 }
 
 
@@ -83,7 +115,7 @@ static void ff_set_active_lights(gx_light_t** lights, zuint32 count)
 	vec4 zero;
 	vec4 ambientsum;
 	zuint32 i = 0;
-	printf(" setting ff lights\n");
+	
 	vec4set(zero,0,0,0,1);
 	vec4set(ambientsum,0,0,0,1);
 
@@ -102,6 +134,7 @@ static void ff_set_active_lights(gx_light_t** lights, zuint32 count)
 		{
 			glDisable(GL_LIGHTING);
 			glDisable(GL_NORMALIZE);
+			glDisable(GL_COLOR_MATERIAL);
 		}
 
 		//note for above:  instead of just disabling lighting, it was necessary to disable all the enabled lights,
@@ -117,11 +150,14 @@ static void ff_set_active_lights(gx_light_t** lights, zuint32 count)
 		//if lighting was off, turn it on
 		glEnable(GL_LIGHTING);
 		glEnable(GL_NORMALIZE);
+		glEnable(GL_COLOR_MATERIAL);
+		glColorMaterial(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE);
 		//glLightModeli (GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
 		glLightModeli (GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR);
 		glLightModeli (GL_LIGHT_MODEL_LOCAL_VIEWER,  0);
 	}
 
+	printf(" setting %d ff lights\n", count);
 	for (i=0;i<count;i++)
 	{
 		float p[4];
@@ -190,21 +226,18 @@ static void ff_set_active_lights(gx_light_t** lights, zuint32 count)
 		}
 #endif 
 
-		if (lights[i]->attenuated)
-		{
-
-			glLightf(GL_LIGHT0+i, GL_CONSTANT_ATTENUATION, 0 );
-			glLightf(GL_LIGHT0+i, GL_QUADRATIC_ATTENUATION, 1 / ( lights[i]->unityrange * lights[i]->unityrange ));
-
-
-		}
-		else
-		{
-			glLightf(GL_LIGHT0+i, GL_CONSTANT_ATTENUATION, 1 );
-			glLightf(GL_LIGHT0+i, GL_QUADRATIC_ATTENUATION, 0 );
-
-		}
+		if (lights[i]->attenuated) {
 		
+			glLightf(GL_LIGHT0+i, GL_CONSTANT_ATTENUATION, lights[i]->constant );
+			glLightf(GL_LIGHT0+i, GL_QUADRATIC_ATTENUATION,  lights[i]->squared  );
+			glLightf(GL_LIGHT0+i, GL_LINEAR_ATTENUATION, lights[i]->linear  ); 
+		} else {
+			glLightf(GL_LIGHT0+i, GL_CONSTANT_ATTENUATION, 1.0);
+			glLightf(GL_LIGHT0+i, GL_QUADRATIC_ATTENUATION, 0.0);
+			glLightf(GL_LIGHT0+i, GL_LINEAR_ATTENUATION, 0.0);
+		}
+
+				
 	}
 
 	for (i= count; i < _number_active_lights;i++)
@@ -316,29 +349,64 @@ void gxi_set_shader_env_params(gx_shaderset_t* set){
 		//send light and fog parameters via uniforms
 		
 		
-		gx_light_t** lights = zvec_elements_as(gx_light_t*,&env->lights);
+		gx_light_t** lights = NULL;
 		vec3 ambientsum;
 		vec3 p;
+		float l, c, s;
 		
 		vec3set (ambientsum, 0,0,0);
-		
-		printf ("%d lights\n", zvec_count(&env->lights));
-		
-		for (i=0;i<zvec_count(&env->lights);i++) {
-			vec3add(ambientsum,  lights[i]->ambient);
-		}
-		
-		//just 1 light
-		if (set->light0_color_uloc!=-1) {
-			glUniform3fv(set->light0_color_uloc, 1, lights[0]->color.array);
-		}
-		if (set->light0_pos_camspace_uloc!=-1) {
+		if (env)
+		{
+			lights = zvec_elements_as(gx_light_t*, &env->lights);
+
+			printf("%d lights\n", zvec_count(&env->lights));
+
+			for (i = 0;i < zvec_count(&env->lights);i++) {
+				vec3add(ambientsum, lights[i]->ambient);
+			}
+
+			//just 1 light
+			if (set->light0_color_uloc != -1) {
+				glUniform3fv(set->light0_color_uloc, 1, lights[0]->color.array);
+			}
+			if (set->light0_pos_camspace_uloc != -1) {
+				
+				vec3mov(p, lights[0]->position);
+				
+				if (lights[0]->light_type == gx_light_directional) {
+					gx_trans_dir_vec3(&p);
+				} else
+				{
+					gx_trans_vec3(&p);
+				}
+
+				glUniform3fv(set->light0_pos_camspace_uloc, 1, p.array);
+								
+			}
 			
-			vec3mov(p, lights[0]->position);
-			gx_trans_vec3(&p);
-			glUniform3fv(set->light0_pos_camspace_uloc, 1, p.array);
+			if (lights[0]->attenuated) {
+			
+				if (set->light0_atten_const_uloc != -1)
+					glUniform1f(set->light0_atten_const_uloc,  lights[0]->constant);
+				
+				if (set->light0_atten_linear_uloc != -1)
+					glUniform1f(set->light0_atten_linear_uloc,  lights[0]->linear);
+				
+				if (set->light0_atten_squared_uloc != -1)
+					glUniform1f(set->light0_atten_squared_uloc,  lights[0]->squared);
+				
+			} else {
+				if (set->light0_atten_const_uloc != -1)
+					glUniform1f(set->light0_atten_const_uloc,  1.0 );
+				
+				if (set->light0_atten_linear_uloc != -1)
+					glUniform1f(set->light0_atten_linear_uloc,  0.0 );
+				
+				if (set->light0_atten_squared_uloc != -1)
+					glUniform1f(set->light0_atten_squared_uloc,  0.0);
+			}
+			
 		}
-		
 
 		printf("Ambient sum: %f %f %f\n", ambientsum.VX, ambientsum.VY, ambientsum.VZ);
 		

@@ -1,7 +1,7 @@
 #version 120
 
-#define GX_MAX_LIGHT
 
+uniform mat4 gx_projection;
 uniform mat4 gx_modelview;
 uniform vec3 gx_camera_pos;
 
@@ -13,6 +13,9 @@ uniform vec3 gx_ambient_light;
 //per light
 uniform vec3 gx_light0_color;
 uniform vec3 gx_light0_pos_camspace;
+uniform float gx_light0_atten_const;
+uniform float gx_light0_atten_linear;
+uniform float gx_light0_atten_squared;
 
 
 //per vertex
@@ -33,7 +36,7 @@ void main()
 	F_Texcoord = gx_texcoord;  //bydefault, we use a single texture coordinate pair, for all textures. 
 	
 	//start with ambient diffuse
-	F_DiffuseColor = vec4(gx_ambient_light, 1.0);
+	F_DiffuseColor = vec4(gx_ambient_light, 1.0) ;
 	
 	//and no specular
 	F_SpecularColor = vec4(0,0,0,0);
@@ -49,9 +52,20 @@ void main()
 	
 	
 	//per light specular :
+	vec3 point_to_light;
+	float attenuation;
 	
-	vec3 point_to_light = normalize( gx_light0_pos_camspace - vertex_camspace );
+	#ifdef LIGHT0POS
+	point_to_light= gx_light0_pos_camspace - vertex_camspace;
+	float d = length(point_to_light);
+	point_to_light = point_to_light / d;  //normally you'd use built-in 'normalize' but we need 'd' anyway.
+	attenuation = 1/ ( gx_light0_atten_const + d * gx_light0_atten_linear + d*d*gx_light0_atten_squared); 
+	#endif
 	
+	//directional light
+	point_to_light = normalize(gx_light0_pos_camspace);
+	attenuation= 1.0;
+
 	//reflection based: (phong)
 	//vec3 reflection = reflect( point_to_light , normal_camspace );
 	//float specularIntens = pow(dot(normalize(vertex_camspace), reflection),  gx_specular_exponent);
@@ -59,21 +73,21 @@ void main()
 	//half-angle (blinn phong)
 	vec3 halfa = normalize( point_to_light - vec3(0,0,-1) ); 
 	float specularIntens = pow(  clamp(dot(halfa, normal_camspace),0,1),  gx_specular_exponent);
-	F_SpecularColor += clamp(specularIntens, 0, 1)  * vec4(gx_light0_color,1);
+	F_SpecularColor += clamp(specularIntens, 0, 1)  * vec4(gx_light0_color,1) * attenuation;
+		
+	//add each light's diffuse component
+	F_DiffuseColor += clamp( dot(normal_camspace, point_to_light), 0.0, 1.0) * vec4(gx_light0_color,1.0) * attenuation ;
+		
 	
 	
 	//scale specular color by the material specular color
 	F_SpecularColor*= vec4(gx_specular_color,1);
 	
 	
+	//scale diffuse color by the passed in diffuse color (if we have one)
+	F_DiffuseColor = clamp(F_DiffuseColor , 0, 1);
+	F_DiffuseColor *= gx_color;
 	
-	//add each light's component
-	F_DiffuseColor += clamp( dot(normal_camspace, point_to_light), 0.0, 1.0) * vec4(gx_light0_color,1.0) ;
-		
-	//multiply by gx_color, if we want
-	//F_DiffuseColor *= gx_color;
+	gl_Position = gx_projection * vec4(vertex_camspace, 1.0) ;
 	
-	gl_Position = gl_ProjectionMatrix * vec4(vertex_camspace, 1.0) ;
-	
-
 }

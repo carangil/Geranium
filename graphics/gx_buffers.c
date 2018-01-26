@@ -472,8 +472,9 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		return;
 
 	printf(" refresh matrix... %p %d\n", shader, shader? shader->matrix_version : 666);
+	GX_TRACE
 	gxi_refresh_matrix(shader);
-	
+	GX_TRACE
 	
 	for (i=0;i<gxi_num_attr;i++){
 			if (gxi_attr_buffer[i] == ATTR_ENABLED) {
@@ -485,6 +486,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	
 	if (v->_vertex_combined_vbo)
 	{
+		printf(" Bind vbo %d\n", v->_vertex_combined_vbo);
 		glBindBuffer(GL_ARRAY_BUFFER,  v->_vertex_combined_vbo );
 	}
 
@@ -513,21 +515,21 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		/* Set generic attributes for shader */
 		
 		 if (shader->vertex_loc != -1 ) {
-			printf(" set vertex attrib\n");
+			//printf(" set vertex attrib\n");
 			glVertexAttribPointer(shader->vertex_loc, VERTEX_COMPONENTS, GL_FLOAT, 0, 0, (void*) ( (v->pos_data - v->combined_vertex_data) * sizeof (zfloat32)) );
 			glEnableVertexAttribArray(shader->vertex_loc);
 			gxi_attr_buffer[shader->vertex_loc] = ATTR_ENABLED;
 		 }
 		
 		 if (shader->color_loc != -1 ) {
-			printf(" set color attrib\n");
+			//printf(" set color attrib\n");
 			glVertexAttribPointer(shader->color_loc, COLOR_COMPONENTS, GL_FLOAT, 0, 0, (void*) ( (v->color_data - v->combined_vertex_data) * sizeof (zfloat32)) );
 			glEnableVertexAttribArray(shader->color_loc);
 			gxi_attr_buffer[shader->color_loc] = ATTR_ENABLED;
 		 }
 		 
 		if (shader->normal_loc != -1 ) {
-			printf(" set norm attrib\n");
+			//printf(" set norm attrib\n");
 			glVertexAttribPointer(shader->normal_loc, VERTEX_COMPONENTS, GL_FLOAT, 0, 0, (void*) ( (v->normal_data - v->combined_vertex_data) * sizeof (zfloat32)) );
 			glEnableVertexAttribArray(shader->normal_loc);
 			gxi_attr_buffer[shader->normal_loc] = ATTR_ENABLED;
@@ -536,7 +538,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		
 		for (i=0;i<GX_MAX_TEXCOORD;i++) {
 			if (shader->texcoord_loc[i] != -1 ) {
-				printf(" set tex %d attrib\n", i);
+				//printf(" set tex %d attrib\n", i);
 				glVertexAttribPointer(shader->texcoord_loc[i], 2, GL_FLOAT, 0, 0, (void*) ( (v->texcoord_data[i] - v->combined_vertex_data) * sizeof (zfloat32)) );
 				glEnableVertexAttribArray(shader->texcoord_loc[i]);
 				gxi_attr_buffer[shader->texcoord_loc[i]] = ATTR_ENABLED;
@@ -549,11 +551,12 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	//disable all non-enabled attributes
 	for (i=0;i<gxi_num_attr;i++){
 		if (gxi_attr_buffer[i] == ATTR_TODISABLE) {
-			printf(" disabling previously used but now unused attr %d \n",i);
+			//printf(" disabling previously used but now unused attr %d \n",i);
+			glDisableVertexAttribArray(i);
 			gxi_attr_buffer[i] = ATTR_OFF;
 		}
 }
-	
+	GX_TRACE
 	
 	//things sent in both cases:
 	if (v->_index_vbo)
@@ -561,7 +564,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,  v->_index_vbo);
 	}
 	
-
+GX_TRACE
 	
 
 	if (!shader) {
@@ -584,10 +587,12 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 			
 			if (_gx_no_vbos)
 					glColorPointer(COLOR_COMPONENTS, GL_FLOAT, COLOR_COMPONENTS*sizeof(float),   v->color_data );
-			else  {
+			else  
+				glColorPointer(COLOR_COMPONENTS, GL_FLOAT, COLOR_COMPONENTS*sizeof(float), (void*)((v->color_data - v->combined_vertex_data) * sizeof(zfloat32)));
+
 				glEnableClientState(GL_COLOR_ARRAY);
-				glColorPointer(COLOR_COMPONENTS, GL_FLOAT, COLOR_COMPONENTS*sizeof(float), (void*) ( (v->color_data - v->combined_vertex_data) * sizeof (zfloat32)) );
-			}
+				
+			
 		} else 
 				glDisableClientState(GL_COLOR_ARRAY);
 		
@@ -640,7 +645,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	
 	
 
-	
+	GX_TRACE
 	
 	
 	
@@ -702,6 +707,8 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 			glDrawElements(GL_QUADS, stop-start, GL_UNSIGNED_INT,(void*) (sizeof(zuint32) * start));
 		else 
 			glDrawArrays(GL_QUADS, start, stop-start);
+		
+		//TODO : NEED A SOLUATION FOR GL_QUADS IN CORE PROFILE 3.3
 		break;
 	}
 	

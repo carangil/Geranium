@@ -15,12 +15,17 @@ typedef struct gx_shader_s {
 	
 	//uniform locations
 	zuint32 modelview_uloc;
+	zuint32 projection_uloc;
 	zuint32 camera_pos_uloc;
 	zuint32 specular_color_uloc;
 	zuint32 specular_exponent_uloc;
 	zuint32 ambient_light_uloc;
+
 	zuint32 light0_color_uloc;
 	zuint32 light0_pos_camspace_uloc;
+	zuint32 light0_atten_const_uloc;
+	zuint32 light0_atten_linear_uloc;
+	zuint32 light0_atten_squared_uloc;
 	
 	zuint32 matrix_version;  //to prevent unnecessary gluniform loads
 

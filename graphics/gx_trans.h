@@ -58,7 +58,10 @@ void gx_rotate_z(float rad);
 void gx_scale3(float x,float y, float z);
 
 void gxi_refresh_matrix(gx_shaderset_t* shader);
-void gx_trans_vec3(vec3* po);
+
+void gx_trans_vec3(vec3* po); //transform a point by the current modelview matrix (3x3 + translation)
+
+void gx_trans_dir_vec3(vec3* pd); //transform a direction by the current modeview matrix (3x3 only)
 
 #define GX_TRANSFORM_INTERNAL_TO_GL	0  /* We calculate the modeview matrix, but send it to gl for fixed functionality */
 #define GX_TRANSFORM_GL			1  /* use opengl's modelview matrix calculations */

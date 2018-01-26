@@ -75,6 +75,8 @@ void gx_error(char* file, int line){
 	
 	if (ec) {
 		printf(" %d OPENGL ERRORS FROM %s:%d to %s:%d\n", ec,last_file, last_line, file, line  );
+		while (1);
+		
 	}
 	
 	last_file = file;
@@ -183,6 +185,11 @@ static void _gx_callback_disp(void)
 	/*Don't do anything here, its just required to keep GLUT happy*/
 }
 
+static void _gx_callback_special(void)
+{
+		
+	
+}
 
 //Initialization 
 
@@ -202,8 +209,12 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 
 	glutInit(&fakeargc, fakeargv);
 	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
+	//glutInitContextFlags (GLUT_CORE_PROFILE);
+	//glutInitContextVersion(3,3);	
+	
 
-//	glutInitContextVersion(3,1);	
+	
+	
 	glutInitWindowSize(width, height);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_ALPHA | GLUT_DEPTH | GLUT_STENCIL );
 	_gx_window = glutCreateWindow(window_title);
@@ -212,12 +223,17 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 	
 	glGetIntegerv(GL_MAJOR_VERSION, &ver[0]);
 	glGetIntegerv(GL_MINOR_VERSION, &ver[1]);
-	printf(" OPENGL VERSION:%d/%d\n", ver[0], ver[1]);
+	printf(" OPENGL VERSION:%d/%d\n", ver[0], ver[1]);	
+	
+	
 
+	//exit(0);
+	
 	//set callbacks
 	glutReshapeFunc(_gx_callback_reshape);
 	glutKeyboardFunc(_gx_callback_keyboard);
 	glutKeyboardUpFunc(_gx_callback_keyboard_up);
+	//glutSpecialInput(_gx_callback_special);
 	glutMouseFunc(_gx_callback_mouseclick);
 	glutMotionFunc(_gx_callback_mouseactive);
 	glutPassiveMotionFunc(_gx_callback_mousepassive);
@@ -252,6 +268,14 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 		glBufferData = glBufferDataARB;
 		printf("Warning:  Using ARB VBOs instead of core\n");
 	}
+	
+#if 0
+			{
+		int vao=0;
+		glGenVertexArrays(1,&vao);
+		glBindVertexArray(vao);
+	}
+#endif
 
 //#define TESTOLDFALLBACK
 
@@ -507,13 +531,13 @@ void gx_setup_2d_pixels(int* width, int *height)
 
 
 /* Three dim coord system */
+void gxi_trans_set_perspective_matrix (zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist);
+
 
 void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist)
 {
-	glMatrixMode (GL_PROJECTION);
-	glLoadIdentity();
-	gluPerspective (fovy,aspect,neardist,fardist);
-	glMatrixMode (GL_MODELVIEW);
+	
+	gxi_trans_set_perspective_matrix( fovy, aspect, neardist, fardist);
 
 	//probably want depth buffer:
 	glClearDepth(1.0); //when clearing depth buffer, set to infinity

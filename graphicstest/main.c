@@ -34,7 +34,7 @@ gx_vbuffer_t* gensphere(int quality){
 	
 	//gx_translate3(-2, 0, -4);
 	
-	gx_vbuffer_t* sbuf = gx_vbuffer_mk((1+quality)*(1+quality)*4, 0, GX_VBUFFER_NORMAL | GX_VBUFFER_COLOR  | GX_VBUFFER_TEXCOORD  );
+	gx_vbuffer_t* sbuf = gx_vbuffer_mk((1+quality)*(1+quality)*4, 0, GX_VBUFFER_NORMAL |GX_VBUFFER_COLOR  | GX_VBUFFER_TEXCOORD  );
 		
 	
 	for (s= -PI/2 ; (s+.5*ds)< PI/2; s+=ds) {
@@ -95,10 +95,10 @@ int main(int argc, char** argv)
 	gx_camera_t	player_camera;
 	gx_camera_init(&player_camera);
 
-	gx_vbuffer_t* vb;
+	gx_vbuffer_t* vb = NULL;
 	gx_init(800, 600 , "Test");
 	
-	gx_vbuffer_t* sph = gensphere(20);
+	gx_vbuffer_t* sph = NULL;
 
     tex = gx_image_load_tga("../shared/rock.tga");
 	tex2 = gx_image_load_tga("../shared/font32.tga");
@@ -130,18 +130,19 @@ int main(int argc, char** argv)
 		
 		
 		
-		li = gx_light_mk(gx_light_point, &p, &c, &ca  );
-		
-		li->attenuated = ZFALSE;
-		li->unityrange=2.0;
-		
-		zvec_add(&testenv->lights, li);
-		
-	//	vec3set(c, 1,0,0);
-	//	vec3set(p, -5, -1, 1);
 	//	li = gx_light_mk(gx_light_point, &p, &c, &ca  );
+
+	//	gx_light_set_attenuation( li, ZTRUE, 10, 10, 1);
 		
-	//	zvec_add(&testenv->lights, li);
+	//	zvec_add_or_free(&testenv->lights, li);
+		
+		vec3set(c, 1,1,0);
+		vec3set(p, 0, -2, 1);
+		li = gx_light_mk(gx_light_directional, &p, &c, &ca  );
+		
+		zvec_add_or_free(&testenv->lights, li);
+		
+		
 		
 	}
 	
@@ -152,7 +153,9 @@ int main(int argc, char** argv)
 	gx_setup_3d( 90.0, 4.0/3.0, .1, 100);
 
 	//create vbuffer
-	vb = gx_vbuffer_mk(10000, 0, GX_VBUFFER_COLOR  | GX_VBUFFER_TEXCOORD |GX_VBUFFER_NORMAL  );
+
+	
+	vb = gx_vbuffer_mk(3*3*3*3, 0, GX_VBUFFER_COLOR  | GX_VBUFFER_TEXCOORD |GX_VBUFFER_NORMAL  );
 
 	for (i=0;i<3;i++){
 		for(j=0;j<3;j++){
@@ -175,7 +178,9 @@ int main(int argc, char** argv)
 			}
 		}
 	}
-	gx_vbuffer_update(vb);
+	gx_vbuffer_update(vb); 
+
+	sph = gensphere(16);
 
 
 	gx_mouse_capture(ZTRUE);
@@ -220,16 +225,16 @@ int main(int argc, char** argv)
 			if (x==('T')) transmode ^=1;
 			
 			if (x==('P')) shademode ^=1;
-			
+			if (x=='~') exit(0);
 
 			if (gx_key_state('q')) delta_roll=-.02;
 			if (gx_key_state('e')) delta_roll=.02;
 
-			if (gx_key_state('4')) delta_yaw=-.02;
-			if (gx_key_state('6')) delta_yaw=.02;
+			if (gx_key_state('z')) delta_yaw=-.02;
+			if (gx_key_state('x')) delta_yaw=.02;
 
-			if (gx_key_state('8')) delta_pitch=-.02;
-			if (gx_key_state('2')) delta_pitch=.02;
+			if (gx_key_state('g')) delta_pitch=-.02;
+			if (gx_key_state('b')) delta_pitch=.02;
 
 			//move camera using camera's basis
 			vec3madd(player_camera.pos, delta_pos.vec3x, player_camera.rot.x_axis);
@@ -258,14 +263,14 @@ int main(int argc, char** argv)
 
 
 
-
+GX_TRACE
 		
 
-		gx_camera_pos_rot( &player_camera.pos,&player_camera.rot.x_axis, &player_camera.rot.y_axis, &player_camera.rot.z_axis);
+ 		gx_camera_pos_rot( &player_camera.pos,&player_camera.rot.x_axis, &player_camera.rot.y_axis, &player_camera.rot.z_axis);
 
 	
 //
-
+GX_TRACE
 	
 		//clear screen		
 		gx_frame_clear(ZTRUE, ZTRUE);
@@ -278,17 +283,20 @@ int main(int argc, char** argv)
 		else
 			teststyle->shaderset = NULL;
 		
+		GX_TRACE
 		gx_set_environment(testenv);
+		GX_TRACE
 		gx_drawstyle_activate(teststyle);
-		
+		GX_TRACE
 	
 		
-		gx_vbuffer_draw(vb, 0, 3*3*3*3, gx_triangles, ZFALSE);
-	//	gx_vbuffer_draw(sph, 0, sph->vertex_count  , gx_quads, ZFALSE);
-		
+	
+	
+		gx_vbuffer_draw(vb, 0, 3*3*3*3 , gx_triangles, ZFALSE);
+		GX_TRACE
 		gx_set_active_textures(NULL, 0);
 			
-		
+		GX_TRACE
 
 		
 		
@@ -327,19 +335,24 @@ int main(int argc, char** argv)
 		ang+=2;
 
 	
-	
+	GX_TRACE
 		gx_drawstyle_activate(teststyle);
 			{
 			vec3 p;
 			vec3set(p, -2, -1, -2);
 			gx_translate(&p);
 		}
+		GX_TRACE
 		gx_rotate_y(ang * DEGREE);
+		GX_TRACE
 		gx_rotate_x(.1*ang * DEGREE);
+		GX_TRACE
 		gx_vbuffer_draw(sph, 0, sph->vertex_count  , gx_quads, ZFALSE);
 		
+		GX_TRACE
+		
 		gx_frame_show();  //show the frame
-
+GX_TRACE
 
 	}
 	gx_disable();

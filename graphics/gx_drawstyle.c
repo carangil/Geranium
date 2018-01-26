@@ -298,6 +298,7 @@ gx_shaderset_t* gx_shaderset_mk(char* vsource, char* psource) {
 		
 		//transform
 		shaderset->modelview_uloc = get_shader_uniform_loc(shaderset, "gx_modelview");
+		shaderset->projection_uloc = get_shader_uniform_loc(shaderset, "gx_projection");
 		shaderset->camera_pos_uloc = get_shader_uniform_loc(shaderset, "gx_camera_pos");
 		
 		//material properties
@@ -308,7 +309,10 @@ gx_shaderset_t* gx_shaderset_mk(char* vsource, char* psource) {
 		shaderset->ambient_light_uloc =  get_shader_uniform_loc(shaderset, "gx_ambient_light");
 		shaderset->light0_color_uloc = get_shader_uniform_loc(shaderset, "gx_light0_color");
 		shaderset->light0_pos_camspace_uloc =  get_shader_uniform_loc(shaderset, "gx_light0_pos_camspace");
-		
+
+		shaderset->light0_atten_const_uloc = get_shader_uniform_loc(shaderset, "gx_light0_atten_const");
+		shaderset->light0_atten_linear_uloc = get_shader_uniform_loc(shaderset, "gx_light0_atten_linear");
+		shaderset->light0_atten_squared_uloc = get_shader_uniform_loc(shaderset, "gx_light0_atten_squared");
 		
 		
 		

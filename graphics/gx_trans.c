@@ -32,6 +32,7 @@
 
 int transmode= GX_TRANSFORM_INTERNAL_TO_GL;
 
+void printMatrix44(char* name, float* m);
 
 //spin crap
 //FLIP switches the order
@@ -144,12 +145,35 @@ typedef struct gx_transform_s {
 } gx_transform_t;
 
 
-gx_transform_t	modelview;
-vec3			modelview_camera_pos;
+static gx_transform_t	modelview;
+static vec3			modelview_camera_pos;
 
 static zint32 matrix_version=0;  //incremeneted whenever changed
-static zint32 ff_matrix_version=0;
+static zint32 ff_matrix_version=-1;
 //each shader also tracks their own matrix version
+
+
+//projection matrix:
+static float proj_matrix[16];
+
+void gxi_trans_set_perspective_matrix (zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist) {
+
+	float f = 1/tan( fovy/180.0*3.141 / 2);
+	
+	float matr[] = 
+			{
+				f/aspect, 0 , 0, 0,
+				0, f, 0, 0,
+				0, 0, (fardist+neardist)/(neardist-fardist), -1,
+				0, 0, (2 * fardist * neardist) / (neardist - fardist), 0
+				
+			};
+
+	memcpy(proj_matrix, matr, sizeof(matr));
+	
+	
+	matrix_version++;	
+}
 
 
 
@@ -179,6 +203,8 @@ void gxi_refresh_matrix(gx_shaderset_t* shader) {
 	     modelview.pos.VX,	      modelview.pos.VY,	modelview.pos.VZ,    1 
 	};
 	
+	
+	
 	if (!shader) {
 		if (ff_matrix_version == matrix_version) {
 				printf("skip same ff matrix\n");
@@ -186,6 +212,14 @@ void gxi_refresh_matrix(gx_shaderset_t* shader) {
 				
 		}
 		printf(" upload FF matrix\n");
+		
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		glLoadMatrixf(proj_matrix);
+
+		glMatrixMode(GL_MODELVIEW);
+	
+		glLoadIdentity();
 		glLoadMatrixf(matr);
 		printMatrix44("ff", matr);
 		
@@ -193,8 +227,14 @@ void gxi_refresh_matrix(gx_shaderset_t* shader) {
 	}
 	
 	if (shader && shader->modelview_uloc != -1) {
+		//ff_matrix_version = -1; //if we turn shaders off, we will have to resend the fixed function matrix
+
 		printf(" upload shader matrix to ver %d\n", matrix_version);
+		
 		glUniformMatrix4fv(shader->modelview_uloc, 1, 0, matr);	
+		
+		glUniformMatrix4fv(shader->projection_uloc, 1, 0, proj_matrix);	
+		
 		shader->matrix_version = matrix_version;
 		
 		if (shader->camera_pos_uloc != -1) {
@@ -284,6 +324,20 @@ void gx_trans_vec3(vec3* po) {
 	vec3set(p, vec3dot(t.x_axis, *po), vec3dot(t.y_axis, *po), vec3dot(t.z_axis, *po));
 	
 	vec3add(p, modelview.pos);
+	
+	*po = p;
+}
+
+//transforms a direction by the modelview matrix
+void gx_trans_dir_vec3(vec3* po) {
+	gx_mat_3x3 t;
+	vec3 p;
+	
+	transpose (&t, &modelview.rot);  //transpose the view matrix
+		
+	vec3set(p, vec3dot(t.x_axis, *po), vec3dot(t.y_axis, *po), vec3dot(t.z_axis, *po));
+	
+	
 	
 	*po = p;
 }

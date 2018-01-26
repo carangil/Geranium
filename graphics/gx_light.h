@@ -15,7 +15,10 @@ typedef struct gx_light_s
 	vec3 position;
 
 	zbool attenuated;
-	float unityrange;
+	float constant;
+	float linear;
+	float squared;
+	
 } gx_light_t;
 
 
@@ -34,6 +37,9 @@ typedef struct gx_environment_s{
 
 
 gx_light_t* gx_light_mk(gx_light_e type, vec3* position, vec3* color, vec3* ambient);
+
+void gx_light_set_attenuation( gx_light_t* l, zbool attenuated, float maximum, float unityrange, float falloff);
+
 
 
 void gxi_set_shader_env_params(gx_shaderset_t* set);
