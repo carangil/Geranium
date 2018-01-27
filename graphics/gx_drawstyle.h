@@ -30,7 +30,7 @@ typedef struct gx_shader_s {
 	zuint32 matrix_version;  //to prevent unnecessary gluniform loads
 
 	
-} gx_shaderset_t;
+} gx_shader_t;
 
 typedef enum
 {
@@ -57,7 +57,7 @@ typedef struct
 	zvec_t textures;
 
 	//put any other parameters here too!
-	gx_shaderset_t* shaderset;
+	gx_shader_t* shader;
 	
 } gx_drawstyle_t;
 
@@ -67,8 +67,8 @@ gx_drawstyle_t* gx_drawstyle_mk(gx_image_t* img);
 
 void gx_drawstyle_activate(gx_drawstyle_t* style);
 
-gx_shaderset_t* gxi_active_shaderset();
+gx_shader_t* gxi_active_shader();
 
 
-gx_shaderset_t* gx_shaderset_mk(char* vsource, char* psource) ;
+gx_shader_t* gx_shader_mk(char* vsource, char* psource) ;
 

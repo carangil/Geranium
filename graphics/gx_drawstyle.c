@@ -14,9 +14,9 @@
 #include "glheaders.h"
 #include "gx_light.h"
 
-static gx_shaderset_t* active_shader = NULL;
+static gx_shader_t* active_shader = NULL;
 
- gx_shaderset_t* gxi_active_shaderset(){
+ gx_shader_t* gxi_active_shader(){
 		return active_shader;
 }
 
@@ -75,11 +75,11 @@ void gx_drawstyle_activate(gx_drawstyle_t* style)
 
 	//if we are using shaders, activate them
 	
-	if (style->shaderset) {
+	if (style->shader) {
 		int txcount = zvec_count(&style->textures);
 		char texname[20];
 		int loc;
-		gx_shaderset_t* set = style->shaderset;
+		gx_shader_t* set = style->shader;
 		active_shader = set;
 		
 		glUseProgram(set->program);
@@ -175,14 +175,14 @@ gx_drawstyle_t* gx_drawstyle_mk(gx_image_t* img)
 
 #if 1
 
-int get_shader_uniform_loc(gx_shaderset_t* shaderset, char* name) {
-		int loc = glGetUniformLocation(shaderset->program, name);
+int get_shader_uniform_loc(gx_shader_t* shader, char* name) {
+		int loc = glGetUniformLocation(shader->program, name);
 		printf(" UNFM %s -> %d\n", name, loc);
 		return loc;
 }
 
-int get_shader_attribute_loc(gx_shaderset_t* shaderset, char* name) {
-		int loc = glGetAttribLocation(shaderset->program, name);
+int get_shader_attribute_loc(gx_shader_t* shader, char* name) {
+		int loc = glGetAttribLocation(shader->program, name);
 		printf(" ATTR %s -> %d\n", name,loc);
 		return loc;
 }
@@ -190,9 +190,9 @@ int get_shader_attribute_loc(gx_shaderset_t* shaderset, char* name) {
 
 
 
-gx_shaderset_t* gx_shaderset_mk(char* vsource, char* psource) {
+gx_shader_t* gx_shader_mk(char* vsource, char* psource) {
 
-	gx_shaderset_t* shaderset;
+	gx_shader_t* shader;
 	char* tmp = NULL;
 	char* tmp2 = NULL;
 	char log[1024] = "uninit";
@@ -212,24 +212,24 @@ gx_shaderset_t* gx_shaderset_mk(char* vsource, char* psource) {
 		psource = tmp2;
 	}
 
-	shaderset = ram_alloc(sizeof(gx_shaderset_t), NULL);
+	shader = ram_alloc(sizeof(gx_shader_t), NULL);
 
-	if (!shaderset)
+	if (!shader)
 		return NULL;
 
 	//create v shader
 
-	shaderset->v_shader = glCreateShader(GL_VERTEX_SHADER);
+	shader->v_shader = glCreateShader(GL_VERTEX_SHADER);
 
-	//printf(" Created vshader %u\n", shaderset->v_shader);
+	//printf(" Created vshader %u\n", shader->v_shader);
 	
-	glShaderSource(shaderset->v_shader, 1, &vsource, NULL );
+	glShaderSource(shader->v_shader, 1, &vsource, NULL );
 
-	glCompileShader(shaderset->v_shader);
+	glCompileShader(shader->v_shader);
 	
 	status = 0;
-	glGetShaderiv(shaderset->v_shader, GL_COMPILE_STATUS, &status);
-	glGetShaderInfoLog(shaderset->v_shader, 1024, &len, log);
+	glGetShaderiv(shader->v_shader, GL_COMPILE_STATUS, &status);
+	glGetShaderInfoLog(shader->v_shader, 1024, &len, log);
 	printf("%s:\n%s\n", vsource, log);
 	if (!status) {
 		//todo:cleanup
@@ -238,17 +238,17 @@ gx_shaderset_t* gx_shaderset_mk(char* vsource, char* psource) {
 	
 
 	//create f shader
-	shaderset->f_shader = glCreateShader(GL_FRAGMENT_SHADER);
+	shader->f_shader = glCreateShader(GL_FRAGMENT_SHADER);
 
-	//printf(" Created fshader %u\n", shaderset->f_shader);
+	//printf(" Created fshader %u\n", shader->f_shader);
 	
-	glShaderSource(shaderset->f_shader, 1, &psource, NULL );
+	glShaderSource(shader->f_shader, 1, &psource, NULL );
 
-	glCompileShader(shaderset->f_shader);
+	glCompileShader(shader->f_shader);
 	
 	status = 0;
-	glGetShaderiv(shaderset->f_shader, GL_COMPILE_STATUS, &status);
-	glGetShaderInfoLog(shaderset->f_shader, 1024, &len, log);
+	glGetShaderiv(shader->f_shader, GL_COMPILE_STATUS, &status);
+	glGetShaderInfoLog(shader->f_shader, 1024, &len, log);
 	printf("%s:\n%s\n", psource, log);
 	if (!status) {
 		//todo:cleanup
@@ -256,18 +256,18 @@ gx_shaderset_t* gx_shaderset_mk(char* vsource, char* psource) {
 	}
 	//make program
 
-	shaderset->program = glCreateProgram();
+	shader->program = glCreateProgram();
 
 
-		glAttachShader(shaderset->program, shaderset->v_shader);
-		glAttachShader(shaderset->program, shaderset->f_shader);
-		glLinkProgram(shaderset->program);
+		glAttachShader(shader->program, shader->v_shader);
+		glAttachShader(shader->program, shader->f_shader);
+		glLinkProgram(shader->program);
 
 		
 		status =0;
-		glGetProgramiv(shaderset->program, GL_LINK_STATUS, &status);
+		glGetProgramiv(shader->program, GL_LINK_STATUS, &status);
 		if (!status) {
-				glGetProgramInfoLog(shaderset->program, 1024, &len, log);
+				glGetProgramInfoLog(shader->program, 1024, &len, log);
 				printf(" Link error:%s\n",log);
 				//todo: cleanup
 				return NULL;
@@ -276,9 +276,9 @@ gx_shaderset_t* gx_shaderset_mk(char* vsource, char* psource) {
 		
 		//see if we have a uniform and attribute locations
 		
-		shaderset->vertex_loc = get_shader_attribute_loc(shaderset, "gx_vertex");
-		shaderset->color_loc = get_shader_attribute_loc(shaderset, "gx_color");
-		shaderset->normal_loc = get_shader_attribute_loc(shaderset, "gx_normal");
+		shader->vertex_loc = get_shader_attribute_loc(shader, "gx_vertex");
+		shader->color_loc = get_shader_attribute_loc(shader, "gx_color");
+		shader->normal_loc = get_shader_attribute_loc(shader, "gx_normal");
 		
 		{
 			int j;
@@ -288,7 +288,7 @@ gx_shaderset_t* gx_shaderset_mk(char* vsource, char* psource) {
 				if (j>0)
 					sprintf(name, "gx_texcoord%d", j);
 				
-				shaderset->texcoord_loc[j] = get_shader_attribute_loc(shaderset, name);
+				shader->texcoord_loc[j] = get_shader_attribute_loc(shader, name);
 				
 				
 			
@@ -297,22 +297,22 @@ gx_shaderset_t* gx_shaderset_mk(char* vsource, char* psource) {
 		}
 		
 		//transform
-		shaderset->modelview_uloc = get_shader_uniform_loc(shaderset, "gx_modelview");
-		shaderset->projection_uloc = get_shader_uniform_loc(shaderset, "gx_projection");
-		shaderset->camera_pos_uloc = get_shader_uniform_loc(shaderset, "gx_camera_pos");
+		shader->modelview_uloc = get_shader_uniform_loc(shader, "gx_modelview");
+		shader->projection_uloc = get_shader_uniform_loc(shader, "gx_projection");
+		shader->camera_pos_uloc = get_shader_uniform_loc(shader, "gx_camera_pos");
 		
 		//material properties
-		shaderset->specular_color_uloc = get_shader_uniform_loc(shaderset, "gx_specular_color");
-		shaderset->specular_exponent_uloc = get_shader_uniform_loc(shaderset, "gx_specular_exponent");
+		shader->specular_color_uloc = get_shader_uniform_loc(shader, "gx_specular_color");
+		shader->specular_exponent_uloc = get_shader_uniform_loc(shader, "gx_specular_exponent");
 		
 		//light properties
-		shaderset->ambient_light_uloc =  get_shader_uniform_loc(shaderset, "gx_ambient_light");
-		shaderset->light0_color_uloc = get_shader_uniform_loc(shaderset, "gx_light0_color");
-		shaderset->light0_pos_camspace_uloc =  get_shader_uniform_loc(shaderset, "gx_light0_pos_camspace");
+		shader->ambient_light_uloc =  get_shader_uniform_loc(shader, "gx_ambient_light");
+		shader->light0_color_uloc = get_shader_uniform_loc(shader, "gx_light0_color");
+		shader->light0_pos_camspace_uloc =  get_shader_uniform_loc(shader, "gx_light0_pos_camspace");
 
-		shaderset->light0_atten_const_uloc = get_shader_uniform_loc(shaderset, "gx_light0_atten_const");
-		shaderset->light0_atten_linear_uloc = get_shader_uniform_loc(shaderset, "gx_light0_atten_linear");
-		shaderset->light0_atten_squared_uloc = get_shader_uniform_loc(shaderset, "gx_light0_atten_squared");
+		shader->light0_atten_const_uloc = get_shader_uniform_loc(shader, "gx_light0_atten_const");
+		shader->light0_atten_linear_uloc = get_shader_uniform_loc(shader, "gx_light0_atten_linear");
+		shader->light0_atten_squared_uloc = get_shader_uniform_loc(shader, "gx_light0_atten_squared");
 		
 		
 		
@@ -323,6 +323,6 @@ gx_shaderset_t* gx_shaderset_mk(char* vsource, char* psource) {
 	if (tmp2)
 		ram_free(tmp2);
 
-	return shaderset;
+	return shader;
 }
 #endif

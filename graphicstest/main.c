@@ -108,13 +108,13 @@ int main(int argc, char** argv)
 			
 	gx_environment_t* testenv = gx_environment_mk();
 	
-	gx_shaderset_t* shader = gx_shaderset_mk("@shader.v", "@shader.f");
+	gx_shader_t* shader = gx_shader_mk("@shader.v", "@shader.f");
 	
 	if (!shader) 
 		exit(1);
 	
-	//teststyle->shaderset = NULL;
-	teststyle->shaderset = shader;
+	//teststyle->shader = NULL;
+	teststyle->shader = shader;
 	
 	//vec3set(testenv->fogcolor, .3,.5,.5);
 	//testenv->usefog = ZTRUE;
@@ -279,9 +279,9 @@ GX_TRACE
 		vec3set(teststyle->specular_color, 1, 1, 1);
 		
 		if(shademode)
-			teststyle->shaderset = shader;
+			teststyle->shader = shader;
 		else
-			teststyle->shaderset = NULL;
+			teststyle->shader = NULL;
 		
 		GX_TRACE
 		gx_set_environment(testenv);

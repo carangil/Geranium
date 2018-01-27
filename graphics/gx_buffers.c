@@ -463,7 +463,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	zuint32 i=0;
 	zuint32 newtcount=0;
 
-	gx_shaderset_t* shader = gxi_active_shaderset(); //get the active shader, if there is one
+	gx_shader_t* shader = gxi_active_shader(); //get the active shader, if there is one
 	
 	if (!v)
 		return;

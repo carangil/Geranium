@@ -300,7 +300,7 @@ gx_environment_t*  gx_environment_mk(){
 static int ff_enabled_env= ZFALSE;  
 
 
-void gxi_set_shader_env_params(gx_shaderset_t* set){
+void gxi_set_shader_env_params(gx_shader_t* set){
 	int i;
 	gx_environment_t* env = current_env;
 	

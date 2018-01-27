@@ -42,7 +42,7 @@ void gx_light_set_attenuation( gx_light_t* l, zbool attenuated, float maximum, f
 
 
 
-void gxi_set_shader_env_params(gx_shaderset_t* set);
+void gxi_set_shader_env_params(gx_shader_t* set);
 
 void gx_set_environment(gx_environment_t* env);
 

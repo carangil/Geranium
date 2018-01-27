@@ -57,7 +57,7 @@ void gx_rotate_y(float rad);
 void gx_rotate_z(float rad);
 void gx_scale3(float x,float y, float z);
 
-void gxi_refresh_matrix(gx_shaderset_t* shader);
+void gxi_refresh_matrix(gx_shader_t* shader);
 
 void gx_trans_vec3(vec3* po); //transform a point by the current modelview matrix (3x3 + translation)
 

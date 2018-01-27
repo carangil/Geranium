@@ -182,7 +182,7 @@ void gxi_trans_set_perspective_matrix (zfloat32 fovy, zfloat32 aspect, zfloat32 
  * OR as a uniform when we are doing shaders in the future 
  */
 
-void gxi_refresh_matrix(gx_shaderset_t* shader) {
+void gxi_refresh_matrix(gx_shader_t* shader) {
 
 	
 	/* load our 3x3 matrix and translation vector as a 4x4 matrix to opengl */
