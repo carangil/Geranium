@@ -8,6 +8,8 @@
 #include "../memory/zmem.h"
 #include "../vmath/zmath.h"
 #include "../structures/zvector.h"
+#include "../structures/zlist.h"
+#include "../structures/zstring.h"
 #include "../graphics/gx_sys.h"
 #include "../graphics/gx_buffers.h"
 
@@ -103,18 +105,54 @@ int main(int argc, char** argv)
     tex = gx_image_load_tga("../shared/rock.tga");
 	tex2 = gx_image_load_tga("../shared/font32.tga");
 	
-	gx_drawstyle_t* teststyle = gx_drawstyle_mk( NULL /*tex*/);
-	//zvec_add(&teststyle->textures, tex2); //add second texture
+	gx_drawstyle_t* teststyle = gx_drawstyle_mk( tex);
+	gx_drawstyle_t* teststylenotex = gx_drawstyle_mk( NULL);
+	
+	
+//	zvec_add(&teststyle->textures, tex2); //add second texture
+	ram_free(tex);  //reference counts by owning objects keep these alive
+	ram_free(tex2);
 			
 	gx_environment_t* testenv = gx_environment_mk();
 	
-	gx_shader_t* shader = gx_shader_mk("@shader.v", "@shader.f");
+	gx_shadergroup_t* sg = gx_shader_source("@shader.v", "@shader.f");
 	
-	if (!shader) 
-		exit(1);
+	gx_shader_t* shadertex = gx_shader_variant(sg, "GX_NORMAL|GX_COLOR|GX_LIGHT0|GX_LIGHT0DIR|GX_TEXCOORD0|GX_TEXTURE0|GX_LIGHT1|GX_LIGHT1DIR");
 	
-	//teststyle->shader = NULL;
-	teststyle->shader = shader;
+	if (!shadertex)
+		exit(0);
+	getc(stdin);
+	
+	gx_shader_t* shaderuntex = gx_shader_variant(sg, "GX_NORMAL|GX_COLOR|GX_LIGHT0|GX_LIGHT0DIR|GX_LIGHT1|GX_LIGHT1DIR");
+	
+	if (!shaderuntex)
+		exit(0);
+	
+	
+	
+	
+/*	
+	ram_free(shader);
+	ram_free(sg);
+	ram_free(tex);
+	ram_free(tex2);
+	ram_free(testenv);
+	ram_free(teststyle);
+	*/
+	
+	
+	//ram_allocs();
+	//exit(0);
+		
+	//if (!shadertex) 
+	//	exit(1);
+	
+//	if (!shaderuntex) 
+//		exit(1);
+		
+	teststyle->shader = shadertex;
+	
+	teststylenotex->shader = shaderuntex;
 	
 	//vec3set(testenv->fogcolor, .3,.5,.5);
 	//testenv->usefog = ZTRUE;
@@ -125,16 +163,16 @@ int main(int argc, char** argv)
 		vec3 p,c,ca;
 		gx_light_t* li;
 		vec3set(p, 1, 2, 1);
-		vec3set(c, 1,.5,.5);
+		vec3set(c, .1,1,.5);
 		vec3set(ca, .1, .1, .3);
 		
 		
 		
-	//	li = gx_light_mk(gx_light_point, &p, &c, &ca  );
+		li = gx_light_mk(gx_light_directional, &p, &c, &ca  );
 
-	//	gx_light_set_attenuation( li, ZTRUE, 10, 10, 1);
+		gx_light_set_attenuation( li, ZTRUE, 10, 10, 1);
 		
-	//	zvec_add_or_free(&testenv->lights, li);
+		zvec_add_or_free(&testenv->lights, li);
 		
 		vec3set(c, 1,1,0);
 		vec3set(p, 0, -2, 1);
@@ -278,10 +316,16 @@ GX_TRACE
 		teststyle->specular_exponent=40.0;
 		vec3set(teststyle->specular_color, 1, 1, 1);
 		
-		if(shademode)
-			teststyle->shader = shader;
-		else
-			teststyle->shader = NULL;
+		
+		if(shademode) {
+			teststyle->shader = shadertex;
+			teststylenotex->shader = shaderuntex;
+		}
+		else {
+			teststyle->shader = NULL;	
+			teststylenotex->shader = NULL;
+		}
+		
 		
 		GX_TRACE
 		gx_set_environment(testenv);
@@ -294,7 +338,7 @@ GX_TRACE
 	
 		gx_vbuffer_draw(vb, 0, 3*3*3*3 , gx_triangles, ZFALSE);
 		GX_TRACE
-		gx_set_active_textures(NULL, 0);
+		
 			
 		GX_TRACE
 
@@ -336,7 +380,7 @@ GX_TRACE
 
 	
 	GX_TRACE
-		gx_drawstyle_activate(teststyle);
+		gx_drawstyle_activate(teststylenotex);
 			{
 			vec3 p;
 			vec3set(p, -2, -1, -2);
@@ -347,6 +391,8 @@ GX_TRACE
 		GX_TRACE
 		gx_rotate_x(.1*ang * DEGREE);
 		GX_TRACE
+		
+		//gx_set_active_textures(NULL, 0);
 		gx_vbuffer_draw(sph, 0, sph->vertex_count  , gx_quads, ZFALSE);
 		
 		GX_TRACE

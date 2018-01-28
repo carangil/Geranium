@@ -51,3 +51,13 @@ void zlist_remove(zlist_t* list, zlistnode_t* node)
 	node->next = NULL;
 	node->prev = NULL;
 }
+
+zbool zlist_cleanup(zlist_t* list) {
+	zlistnode_t* node;
+	
+	for (node = list->head ; node; node = list->head) {
+			zlist_remove(list, node);
+			ram_free(node);
+	}
+	return ZTRUE;
+}

@@ -10,9 +10,13 @@
 #include "gx_buffers.h"
 
 #include "../structures/zvector.h"
+#include "../structures/zlist.h"
+#include "../structures/zstring.h"
+
 #include "gx_drawstyle.h"
-#include "glheaders.h"
 #include "gx_light.h"
+#include "glheaders.h"
+
 
 static gx_shader_t* active_shader = NULL;
 
@@ -21,11 +25,9 @@ static gx_shader_t* active_shader = NULL;
 }
 
 
+
+
 //activate a drawstyle
-//NOTE: there is not yet a constructor for styles, only functions that use them.  The user must create them
-//		I may add a constructor later, but is not necessary at this point.
-//
-//  When shaders are implemented, they will appear here
 
 
 void gx_drawstyle_activate(gx_drawstyle_t* style)
@@ -187,31 +189,114 @@ int get_shader_attribute_loc(gx_shader_t* shader, char* name) {
 		return loc;
 }
 
+zbool gxi_delete_shadergroup(void* v){
+	
+	gx_shadergroup_t* sg = (gx_shadergroup_t*) v;
+	
+	ram_free(sg->fsource);
+	ram_free(sg->vsource);
+	zlist_cleanup(&sg->variants);
+		
+	return ZTRUE;
+}
 
 
 
-gx_shader_t* gx_shader_mk(char* vsource, char* psource) {
+gx_shadergroup_t* gx_shader_source(char* vsource, char* fsource) {
 
-	gx_shader_t* shader;
-	char* tmp = NULL;
-	char* tmp2 = NULL;
+	
+	gx_shadergroup_t* sg = ram_alloc(sizeof(gx_shadergroup_t), gxi_delete_shadergroup); 
+	
+	if (!sg) 
+		return NULL;
+	
+	if (vsource[0] == '@')
+		sg->vsource = ram_loadstr(vsource+1);
+	else
+		sg->vsource = ram_strdup(vsource);
+	
+	
+	if (fsource[0] == '@')
+		sg->fsource = ram_loadstr(fsource+1);
+	else
+		sg->fsource = ram_strdup(fsource);
+	
+	
+	return sg;
+	
+}
+
+zbool gxi_delete_shader_variant(void* v){
+	gxi_shader_variant_t * var = (gxi_shader_variant_t *) v;
+	
+	ram_free(var->spec);
+	ram_free(var->shader);  //decremenet refcount on the shader
+	
+	return ZTRUE;
+}
+
+gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  ) {
+
+	
+	gxi_shader_variant_t* var = NULL;
+	
+	
+	gx_shader_t* shader = NULL;;
+	char * news;
+	zvec_t strings;
+	int i;
+	int j;
+	char name[30] ;
 	char log[1024] = "uninit";
 	int len;
 	int status;
-
-	if (!vsource)
+	
+	if (!sg)
 		return NULL;
 
-	if (vsource[0] == '@') {
-		tmp = ram_loadstr(vsource+1);
-		vsource = tmp;
+	//check if variant already exists
+	var = (gxi_shader_variant_t*) zlist_head(&sg->variants);
+	
+	for ( ; var  ; var = zlist_next(var) ){
+		
+		if ( !strcmp(var->spec , spec)) {
+			printf("FOUND VARIANT %s\n", var->spec);getc(stdin);
+			return ram_addref(var->shader); //return the same shader again
+		}
+		
 	}
+	
+	if (!sg->fsource)
+		return NULL;
 
-	if (psource[0] == '@') {
-		tmp2 = ram_loadstr(psource+1);
-		psource = tmp2;
+	if (!sg->vsource) 
+		return NULL;
+		
+	zvec_mk(&strings, 4) ;
+	
+	zvec_add_or_free(&strings,ram_strdup("#version 120\n"));  //todo: multiple versions of glsl
+	
+	if(spec && strlen(spec)) {
+		zsplit (&strings, spec, '|');
+		
+		for(i=1;i<zvec_count(&strings);i++) {
+			//prepend define to this shader line, free the original
+			news = zstrcat("#define ", zvec_get_x_at(&strings, char *, i), ZFALSE, ZTRUE);
+			news = zstrcat(news, "\n", ZTRUE, ZFALSE);
+			
+			zvec_set_at( &strings, i, news);
+			
+		}
 	}
-
+	
+	zvec_add(&strings, sg->vsource);
+		
+	for(i=0;i<zvec_count(&strings);i++) {
+		printf("%s\n", zvec_get_x_at(&strings, char *, i));
+	}
+	
+			
+	
 	shader = ram_alloc(sizeof(gx_shader_t), NULL);
 
 	if (!shader)
@@ -223,33 +308,36 @@ gx_shader_t* gx_shader_mk(char* vsource, char* psource) {
 
 	//printf(" Created vshader %u\n", shader->v_shader);
 	
-	glShaderSource(shader->v_shader, 1, &vsource, NULL );
+	glShaderSource(shader->v_shader, zvec_count(&strings), zvec_elements(&strings), NULL );
 
 	glCompileShader(shader->v_shader);
 	
 	status = 0;
 	glGetShaderiv(shader->v_shader, GL_COMPILE_STATUS, &status);
 	glGetShaderInfoLog(shader->v_shader, 1024, &len, log);
-	printf("%s:\n%s\n", vsource, log);
+	printf("vertex:\n%s\n", log);
 	if (!status) {
 		//todo:cleanup
 		return NULL;
 	}
 	
-
 	//create f shader
+	//replace the shader source with the fragment shader source
+	zvec_set_at( &strings, zvec_count(&strings) -1, sg->fsource);
+	
 	shader->f_shader = glCreateShader(GL_FRAGMENT_SHADER);
 
 	//printf(" Created fshader %u\n", shader->f_shader);
 	
-	glShaderSource(shader->f_shader, 1, &psource, NULL );
+	glShaderSource(shader->f_shader, zvec_count(&strings), zvec_elements(&strings), NULL );
 
 	glCompileShader(shader->f_shader);
 	
 	status = 0;
 	glGetShaderiv(shader->f_shader, GL_COMPILE_STATUS, &status);
 	glGetShaderInfoLog(shader->f_shader, 1024, &len, log);
-	printf("%s:\n%s\n", psource, log);
+	
+	printf("fragment:\n%s\n", log);
 	if (!status) {
 		//todo:cleanup
 		return NULL;
@@ -259,70 +347,93 @@ gx_shader_t* gx_shader_mk(char* vsource, char* psource) {
 	shader->program = glCreateProgram();
 
 
-		glAttachShader(shader->program, shader->v_shader);
-		glAttachShader(shader->program, shader->f_shader);
-		glLinkProgram(shader->program);
+	glAttachShader(shader->program, shader->v_shader);
+	glAttachShader(shader->program, shader->f_shader);
+	glLinkProgram(shader->program);
 
-		
-		status =0;
-		glGetProgramiv(shader->program, GL_LINK_STATUS, &status);
-		if (!status) {
-				glGetProgramInfoLog(shader->program, 1024, &len, log);
-				printf(" Link error:%s\n",log);
-				//todo: cleanup
-				return NULL;
-		}
+	
+	status =0;
+	glGetProgramiv(shader->program, GL_LINK_STATUS, &status);
+	if (!status) {
+			glGetProgramInfoLog(shader->program, 1024, &len, log);
+			printf(" Link error:%s\n",log);
+			//todo: cleanup
+			return NULL;
+	}
 
+	
+	//see if we have a uniform and attribute locations
+	
+	shader->vertex_loc = get_shader_attribute_loc(shader, "gx_vertex");
+	shader->color_loc = get_shader_attribute_loc(shader, "gx_color");
+	shader->normal_loc = get_shader_attribute_loc(shader, "gx_normal");
+	
+	{
 		
-		//see if we have a uniform and attribute locations
 		
-		shader->vertex_loc = get_shader_attribute_loc(shader, "gx_vertex");
-		shader->color_loc = get_shader_attribute_loc(shader, "gx_color");
-		shader->normal_loc = get_shader_attribute_loc(shader, "gx_normal");
 		
-		{
-			int j;
-			char name[20] = "gx_texcoord";
+		for (j=0;j<GX_MAX_TEXCOORD;j++) {
+			sprintf(name, "gx_texcoord%d", j);
 			
-			for (j=0;j<GX_MAX_TEXCOORD;j++) {
-				if (j>0)
-					sprintf(name, "gx_texcoord%d", j);
-				
-				shader->texcoord_loc[j] = get_shader_attribute_loc(shader, name);
-				
-				
+			shader->texcoord_loc[j] = get_shader_attribute_loc(shader, name);
 			
-
-			}		
-		}
-		
-		//transform
-		shader->modelview_uloc = get_shader_uniform_loc(shader, "gx_modelview");
-		shader->projection_uloc = get_shader_uniform_loc(shader, "gx_projection");
-		shader->camera_pos_uloc = get_shader_uniform_loc(shader, "gx_camera_pos");
-		
-		//material properties
-		shader->specular_color_uloc = get_shader_uniform_loc(shader, "gx_specular_color");
-		shader->specular_exponent_uloc = get_shader_uniform_loc(shader, "gx_specular_exponent");
-		
-		//light properties
-		shader->ambient_light_uloc =  get_shader_uniform_loc(shader, "gx_ambient_light");
-		shader->light0_color_uloc = get_shader_uniform_loc(shader, "gx_light0_color");
-		shader->light0_pos_camspace_uloc =  get_shader_uniform_loc(shader, "gx_light0_pos_camspace");
-
-		shader->light0_atten_const_uloc = get_shader_uniform_loc(shader, "gx_light0_atten_const");
-		shader->light0_atten_linear_uloc = get_shader_uniform_loc(shader, "gx_light0_atten_linear");
-		shader->light0_atten_squared_uloc = get_shader_uniform_loc(shader, "gx_light0_atten_squared");
-		
-		
+			
 		
 
-	if (tmp)
-		ram_free(tmp);
+		}		
+	}
+	
+	//transform
+	shader->modelview_uloc = get_shader_uniform_loc(shader, "gx_modelview");
+	shader->projection_uloc = get_shader_uniform_loc(shader, "gx_projection");
+	shader->camera_pos_uloc = get_shader_uniform_loc(shader, "gx_camera_pos");
+	
+	//material properties
+	shader->specular_color_uloc = get_shader_uniform_loc(shader, "gx_specular_color");
+	shader->specular_exponent_uloc = get_shader_uniform_loc(shader, "gx_specular_exponent");
+	
+	//light properties
+	shader->ambient_light_uloc =  get_shader_uniform_loc(shader, "gx_ambient_light");
+	
+	for (j=0;j<GX_MAXLIGHTS;j++) {
+	
+		sprintf(name, "gx_light%d_color", j);
+		shader->light_color_uloc[j] = get_shader_uniform_loc(shader, name);
+		
+		sprintf(name, "gx_light%d_pos_camspace", j);
+		shader->light_pos_camspace_uloc[j] =  get_shader_uniform_loc(shader, name);
+		
+		sprintf(name, "gx_light%d_atten_const", j);
+		shader->light_atten_const_uloc[j] = get_shader_uniform_loc(shader, name);
+		
+		sprintf(name, "gx_light%d_atten_linear", j);
+		shader->light_atten_linear_uloc[j] = get_shader_uniform_loc(shader, name);
+		
+		sprintf(name, "gx_light%d_atten_squared", j);
+		shader->light_atten_squared_uloc[j] = get_shader_uniform_loc(shader, name);
+	
+	}
+	
+		
+	
+	//delete the vec holding all the strings
+	
+	//remove the fragment shader source from the end of the list
+	zvec_set_at( &strings, zvec_count(&strings) -1, NULL);
+	//everything else in that vector can now be deleted
+	zvec_cleanup(&strings); 
+	
+		
+//todo: create the variant!
 
-	if (tmp2)
-		ram_free(tmp2);
-
-	return shader;
+	var = ram_alloc(sizeof(*var), gxi_delete_shader_variant);
+	if (var) {
+		printf("ADD VARIANT TO LIST\n");getc(stdin);
+		var->spec = ram_strdup(spec);
+		var->shader = shader;
+		zlist_addhead(&sg->variants, &var->zlistnode);
+	}
+	
+	return ram_addref(shader);  //return reference to shader (1st reference is in the linked list)
 }
 #endif

@@ -20,6 +20,7 @@
 
 
 #include "../structures/zvector.h"
+#include "../structures/zlist.h"
 #include "gx_image.h"
 #include "gx_buffers.h"
 #include "gx_drawstyle.h"
@@ -224,6 +225,7 @@ void gxi_refresh_matrix(gx_shader_t* shader) {
 		printMatrix44("ff", matr);
 		
 		ff_matrix_version= matrix_version;
+				
 	}
 	
 	if (shader && shader->modelview_uloc != -1) {

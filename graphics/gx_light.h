@@ -22,6 +22,7 @@ typedef struct gx_light_s
 } gx_light_t;
 
 
+
 typedef struct gx_environment_s{
 	
 	zbool usefog;

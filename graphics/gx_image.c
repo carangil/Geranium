@@ -296,14 +296,26 @@ void gx_image_test(gx_image_t* image)
 //manage opengl texture unit state
 //This turns a set of textures on/off
 
+#define GX_MAX_TEXTURE 8
+gx_image_t* current_textures[GX_MAX_TEXTURE] = {NULL};
+
 
 static zuint32 _gx_texture_enabled_count = 0;  //specified how many texture units have been turned on
 void gx_set_active_textures(gx_image_t** texes, zuint32 numtex)
 {
 	zuint32 i = 0;
+	
+	if (numtex > GX_MAX_TEXTURE)
+		numtex = GX_MAX_TEXTURE;
 
 	for (i=0;i<numtex;i++)
 	{
+				
+		if (current_textures[i] == texes[i]) {
+			printf(" texture %x already on\n", i);
+			continue;  //skip setting already-set texture
+		}
+		
 		glActiveTexture(GL_TEXTURE0 + i);  //set active texture unit
 		
 		if (i>=_gx_texture_enabled_count)
@@ -318,6 +330,9 @@ void gx_set_active_textures(gx_image_t** texes, zuint32 numtex)
 		}
 
 		_gx_image_enable(texes[i]); //enable this image for use on the current texture unit
+		
+		current_textures[i] = texes[i];  
+		printf(" texture %x  on\n",i);
 	}
 
 	//disable any texture units we had enabled but don't need anymore
@@ -325,6 +340,8 @@ void gx_set_active_textures(gx_image_t** texes, zuint32 numtex)
 	{
 		glActiveTexture(GL_TEXTURE0+i);
 		glDisable(GL_TEXTURE_2D);
+		current_textures[i] = NULL; 
+		printf(" texture %x off\n", i);
 	}
 
 	_gx_texture_enabled_count = numtex;

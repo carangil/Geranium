@@ -1,4 +1,5 @@
 
+#define GX_MAXLIGHTS 4
 typedef struct gx_shader_s {
 	zuint32 v_shader;
 	zuint32 f_shader;
@@ -21,17 +22,42 @@ typedef struct gx_shader_s {
 	zuint32 specular_exponent_uloc;
 	zuint32 ambient_light_uloc;
 
-	zuint32 light0_color_uloc;
-	zuint32 light0_pos_camspace_uloc;
-	zuint32 light0_atten_const_uloc;
-	zuint32 light0_atten_linear_uloc;
-	zuint32 light0_atten_squared_uloc;
+	zuint32 light_color_uloc[GX_MAXLIGHTS];
+	zuint32 light_pos_camspace_uloc[GX_MAXLIGHTS];
+	zuint32 light_atten_const_uloc[GX_MAXLIGHTS];
+	zuint32 light_atten_linear_uloc[GX_MAXLIGHTS];
+	zuint32 light_atten_squared_uloc[GX_MAXLIGHTS];
+	
 	
 	zuint32 matrix_version;  //to prevent unnecessary gluniform loads
 
 	
-} gx_shader_t;
+	//variantinfo
+	
+	
+} gx_shader_t; 
 
+
+typedef struct gxi_shader_variant_s{
+	zlistnode_t zlistnode;
+	char* spec;
+	gx_shader_t* shader;  //actual compiled shader
+} gxi_shader_variant_t;
+
+typedef struct shadergroup_s {
+	char* vsource;
+	char* fsource;
+	zlist_t variants;
+} gx_shadergroup_t;
+
+//gives source code for a shader group
+gx_shadergroup_t* gx_shader_source(char* vsource, char* fsource);
+
+//get a particular version of a shader given some spec
+gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  );
+
+
+	
 typedef enum
 {
 	gx_blend_nothing = 0,

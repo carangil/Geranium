@@ -6,6 +6,7 @@
 #include "../vmath/zmath.h"
 #include "../memory/zmem.h"
 #include "../structures/zvector.h"
+#include "../structures/zlist.h"
 #include <stdio.h>
 #include "gx_image.h"
 #include "gx_buffers.h"

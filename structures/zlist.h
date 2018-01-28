@@ -33,3 +33,5 @@ typedef struct zlist_s
 void zlist_addhead(zlist_t* list, zlistnode_t* node);
 void zlist_addtail(zlist_t* list, zlistnode_t* tail);
 void zlist_remove(zlist_t* list, zlistnode_t* node);
+
+zbool zlist_cleanup(zlist_t* list);
