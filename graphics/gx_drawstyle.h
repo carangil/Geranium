@@ -32,7 +32,6 @@ typedef struct gx_shader_s {
 	zuint32 matrix_version;  //to prevent unnecessary gluniform loads
 
 	
-	//variantinfo
 	
 	
 } gx_shader_t; 
@@ -83,8 +82,13 @@ typedef struct
 	zvec_t textures;
 
 	//put any other parameters here too!
-	gx_shader_t* shader;
+	//gx_shader_t* shader;
 	
+	gx_shadergroup_t * shadergroup;  //shadergroup for the drawstyle
+	
+	char* spec;  //spec for drawstyle options
+	
+	//gx_shader_t *shader;  //go awasy
 } gx_drawstyle_t;
 
 
@@ -94,7 +98,7 @@ gx_drawstyle_t* gx_drawstyle_mk(gx_image_t* img);
 void gx_drawstyle_activate(gx_drawstyle_t* style);
 
 gx_shader_t* gxi_active_shader();
-
+void gxi_bind_drawstyle(gx_vbuffer_t* vb);
 
 gx_shader_t* gx_shader_mk(char* vsource, char* psource) ;
 

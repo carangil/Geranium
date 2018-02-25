@@ -197,7 +197,8 @@ static int _gx_window = 0;
 
 int _gx_no_vbos = 0; //set to true when falling back to vertex arrays
 
-int gx_init(zint32 width, zint32 height, zchar* window_title )
+
+int gx_init(zint32 width, zint32 height, zchar* window_title)
 {
 	/* Fake argc/argv fool GLUT into getting different parameters */
 	int fakeargc=0;
@@ -284,7 +285,6 @@ int gx_init(zint32 width, zint32 height, zchar* window_title )
 		glDeleteBuffers = NULL;
 		glBindBuffer = NULL;
 		glBufferData = NULL;
-
 #endif
 	
 	

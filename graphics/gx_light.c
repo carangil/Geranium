@@ -14,6 +14,7 @@
 #include "gx_drawstyle.h"
 #include "gx_light.h"
 #include "gx_trans.h"
+#include "../structures/zstring.h"
 
 gx_light_t* gx_light_mk(gx_light_e type, vec3* position, vec3* color, vec3* ambient)
 {
@@ -105,6 +106,35 @@ void gx_light_restore()
 		glEnable(GL_LIGHTING);
 }
 
+void gx_light_evaluate(gx_light_t* li) {
+	//the position for the light is set relative to the current transformation
+	
+	if (!li)
+		return;
+	
+	vec3mov(li->camspace_position, li->position);
+				
+	if (li->light_type == gx_light_directional) {
+		gx_trans_dir_vec3(&li->camspace_position);
+	} else
+	{
+		gx_trans_vec3(&li->camspace_position);
+	}
+	
+}
+
+
+void gx_env_evaluate_lights(gx_environment_t* env){
+	int i;
+	gx_light_t* li;
+
+	for(i=0;i<zvec_count(&env->lights);i++) {
+		li = zvec_get_at(&env->lights, i);
+		gx_light_evaluate(li);
+	}
+
+}
+
 
 //simple lighting policy:
 //if _number_active_lights is zero, gl lighting is disabled
@@ -164,6 +194,20 @@ static void ff_set_active_lights(gx_light_t** lights, zuint32 count)
 	}
 
 	printf(" setting %d ff lights\n", count);
+	glPushMatrix();
+	glLoadIdentity();
+	/* When in fixed function mode, opengl transforms the light position
+	 * passed in using the modelview matrix.  I already did this when
+	 * I calculated position_camspace value, so we load identity here
+	 * so opengl doesn't transformt the light again.
+	 * In traditional FF opengl, we wouldn't calculate the camspace position,
+	 * but instead just pass in the light position, with the matrix already
+	 * set.  But when we use shaders we use our own matrix stack and can
+	 * do our own matrix transforms, so when we do fixed function, we still
+	 * use our own matrix stack
+	 * */
+
+
 	for (i=0;i<count;i++)
 	{
 		float p[4];
@@ -200,9 +244,9 @@ static void ff_set_active_lights(gx_light_t** lights, zuint32 count)
 			
 			
 			//set light position
-			p[0]=lights[i]->position.named.x;
-			p[1]=lights[i]->position.named.y;
-			p[2]=lights[i]->position.named.z;
+			p[0]=lights[i]->camspace_position.named.x;
+			p[1]=lights[i]->camspace_position.named.y;
+			p[2]=lights[i]->camspace_position.named.z;
 
 			if (lights[i]->light_type == gx_light_directional)
 			{
@@ -212,7 +256,8 @@ static void ff_set_active_lights(gx_light_t** lights, zuint32 count)
 			{
 				p[3]=1;
 			}
-		
+	
+				
 			glLightfv(GL_LIGHT0+i, GL_POSITION, p);
 			
 	#if 0
@@ -247,6 +292,7 @@ static void ff_set_active_lights(gx_light_t** lights, zuint32 count)
 		}
 				
 	}
+	glPopMatrix();
 
 	for (i= count; i < _number_active_lights;i++)
 	{
@@ -286,16 +332,9 @@ static void shader_set_active_lights( gx_shader_t* set, gx_light_t** lights, int
 		}
 		if (set->light_pos_camspace_uloc[i] != -1) {
 			
-			vec3mov(p, lights[i]->position);
-				
-			if (lights[i]->light_type == gx_light_directional) {
-				gx_trans_dir_vec3(&p);
-			} else
-			{
-				gx_trans_vec3(&p);
-			}
+			
 
-			glUniform3fv(set->light_pos_camspace_uloc[i], 1, p.array);
+			glUniform3fv(set->light_pos_camspace_uloc[i], 1, lights[i]->camspace_position.array);
 								
 		}
 			
@@ -324,9 +363,12 @@ static void shader_set_active_lights( gx_shader_t* set, gx_light_t** lights, int
 	}
 
 	printf("Ambient sum: %f %f %f\n", ambientsum.VX, ambientsum.VY, ambientsum.VZ);
-		
-	if (set->ambient_light_uloc!=-1)
+
+	
+	
+	if (set->ambient_light_uloc!=-1) 
 		glUniform3fv(set->ambient_light_uloc, 1, ambientsum.array);
+	
 				
 }
 
@@ -347,10 +389,52 @@ void gx_debug_show_light(gx_light_t* light, zfloat32 size)
 }
 
 
+
+
 static gx_environment_t* current_env = NULL;
+
+char* gxi_env_spec() {
+	
+	char* spec ;
+	gx_environment_t* env = current_env;
+	
+	if (env->spec)
+		return env->spec;
+	
+	int i;
+	
+	gx_light_t* li;
+	
+	spec = zstr_mk(100,0);
+	
+	if (env->usefog)
+		spec = zstr_cat(spec, "GX_FOG|");
+	
+	for (i=0; i< zvec_count( &env->lights); i++) {
+		char b[50];
+		li = zvec_get_at(&env->lights, i);
+		
+		if (li->light_type == gx_light_directional)
+			snprintf(b, sizeof(b), "GX_LIGHT%d|GX_LIGHT%dDIR|", i,i);
+		else
+			snprintf(b, sizeof(b), "GX_LIGHT%d|GX_LIGHT%dPOS|",i,i );
+			
+		spec = zstr_cat(spec, b);
+	}
+
+
+	
+	env->spec = spec;
+	
+	return spec;
+}
+
+
 
 void gx_set_environment(gx_environment_t* env) {
 	current_env = env;
+	//printf(" env spec: %s\n", gxi_env_spec(env));
+	//getc(stdin);
 }
 
 zbool _gx_environment_cleanup(void* ve) {

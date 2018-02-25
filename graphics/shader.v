@@ -51,8 +51,13 @@ void main()
 		F_Texcoord = gx_texcoord0;  //bydefault, we use a single texture coordinate pair, for all textures. 
 	#endif
 	
-	//start with ambient diffuse
-	F_DiffuseColor = vec4(gx_ambient_light, 1.0) ;
+	#ifdef GX_LIGHT0
+		//start with ambient diffuse, if any lights are enabled at all
+		F_DiffuseColor = vec4(gx_ambient_light, 1.0) ;
+	#else
+		//otherwise we start with a base of white
+		F_DiffuseColor = vec4(1.0,1.0,1.0,1.0);
+	#endif
 	
 	//and no specular
 	F_SpecularColor = vec4(0,0,0,0);

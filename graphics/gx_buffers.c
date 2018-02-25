@@ -13,6 +13,7 @@
 #include "gx_drawstyle.h"
 #include "gx_trans.h"
 #include "gx_sys.h"
+#include "../structures/zstring.h"
 
 #include "glheaders.h"
 
@@ -26,7 +27,6 @@ static zbool _destruct_vbuffer(void* x)
 {
 	gx_vbuffer_t* v = x;
 	
-
 	if ( !_gx_no_vbos && v->_sent_to_gl)
 	{
 		//todo: Free any buffers still in opengl	
@@ -80,6 +80,35 @@ void init_attrib_buffer(){
 	
 }
 
+
+char* gxi_vbuffer_spec(gx_vbuffer_t* vb) {
+	int len;
+	
+	char* spec ;
+	
+	if (vb->spec)
+		return vb->spec;
+	
+	spec = zstr_mk(100,0);
+	
+	if (vb->color_data)
+		spec = zstr_cat(spec, "GX_COLOR|");
+	
+	if (vb->normal_data)
+		spec = zstr_cat(spec, "GX_NORMAL|");
+	
+	if (vb->texcoord_data)
+		spec = zstr_cat(spec, "GX_TEXCOORD0|");
+	
+	//TODO: in future, support multiple explicit texcoords
+	
+
+	
+	vb->spec = spec;
+	
+	return spec;
+}
+
 gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices, 
                             zuint32 num_indices, 
                             zuint32 options)
@@ -88,8 +117,8 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 	gx_vbuffer_t* v = NULL;
 	size_t size_per_vertex = 0;
 	zfloat32* vp = 0;
-
-       
+	
+	       
     
 	zuint32 i = 0;
 	
@@ -179,7 +208,7 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
         v->num_texcoord = 1;
         vp += (TEXTURE_COMPONENTS * num_vertices);
     }
-
+        
 	return v;
 }
 
@@ -464,10 +493,19 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	zuint32 i=0;
 	zuint32 newtcount=0;
 
-	gx_shader_t* shader = gxi_active_shader(); //get the active shader, if there is one
+	gx_shader_t* shader;
+	
+	
 	
 	if (!v)
 		return;
+	
+	gxi_bind_drawstyle(v);
+	
+	
+	shader = gxi_active_shader(); //get the active shader, if there is one
+	
+	
 	
 	if (stop <=start)
 		return;
@@ -494,6 +532,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	
 	if (shader && legacy_arrays_enabled ) {
 		//if we are drawing with a shader, but legacy were previously used, disable all of them
+		//don't unconditionally disable them, as that is an invalid operation in modern gl where there are no ff pipeline
 		printf("Disable legacy attribute arrays\n");
 		glDisableClientState(GL_VERTEX_ARRAY);
 		glDisableClientState(GL_NORMAL_ARRAY);

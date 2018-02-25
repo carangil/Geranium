@@ -49,20 +49,11 @@ void gx_spin(zbool flip, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gx_mat_3x3
 	vec3* right = &rot->x_axis;
 	vec3* forward = &rot->z_axis;
 
-
-	if (fabsf(roll) > .2)
-		return;
-
-	if (fabsf(pitch) > .2)
-		return;
-
-	if (fabsf(yaw) > .2)
-		return;
-
-
+	
+	
 	//roll
 
-	if (roll != 0.0)
+	//if (roll != 0.0)
 	{
 		//add a little bit of the right vector to the up vector:
 		
@@ -85,7 +76,7 @@ void gx_spin(zbool flip, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gx_mat_3x3
 	}
 
 	//yaw
-	if (yaw != 0.0)
+	//if (yaw != 0.0)
 	{
 		//add some 'right' to 'forward'
 		vec3madd( *forward, yaw, *right);
@@ -104,7 +95,7 @@ void gx_spin(zbool flip, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gx_mat_3x3
 		}
 	}
 
-	if (pitch != 0.0)
+	//if (pitch != 0.0)
 	{
 		//add some 'up' to the forward vector
 		vec3madd( *forward, pitch, *up);

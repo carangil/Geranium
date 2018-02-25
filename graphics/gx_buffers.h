@@ -37,6 +37,7 @@ typedef struct {
     /* TODO when dealing with multiple texture coordinates: */
     //zuint32 _texcoord_vbo[GX_MAX_TEXTURES]; //note: _texcoord_vbo[0] will not be used
     
+    char* spec; //spec string for shader generation
 }  gx_vbuffer_t;
 
 typedef enum
@@ -96,6 +97,9 @@ void gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i);
 
 zint32 gx_vbuffer_current_index(gx_vbuffer_t* v);
 zint32 gx_vbuffer_current_vertex(gx_vbuffer_t* v);
+
+
+char* gxi_vbuffer_spec(gx_vbuffer_t* vb);
 
 #if 0
 

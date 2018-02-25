@@ -33,8 +33,16 @@ typedef int zerror;
 
 
 #ifdef linux
+#define LIB 
 #define stricmp strcasecmp
 #endif
 
+#ifdef _WIN32
+
+
+
+#define sleep(sec)  Sleep( (int)(sec*1000))
+
+#endif
 
 #endif

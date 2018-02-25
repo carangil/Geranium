@@ -20,7 +20,7 @@
 
 extern int transmode;
 
-int shademode=0;
+int shademode=1;
 
 float ang=0;
 
@@ -32,9 +32,8 @@ gx_vbuffer_t* gensphere(int quality){
 	float s,t;
 	float ds =2*PI/quality;
 	float dt = PI/quality;
-//	glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-	
-	//gx_translate3(-2, 0, -4);
+
+
 	
 	gx_vbuffer_t* sbuf = gx_vbuffer_mk((1+quality)*(1+quality)*4, 0, GX_VBUFFER_NORMAL |GX_VBUFFER_COLOR  | GX_VBUFFER_TEXCOORD  );
 		
@@ -115,49 +114,9 @@ int main(int argc, char** argv)
 			
 	gx_environment_t* testenv = gx_environment_mk();
 	
-	gx_shadergroup_t* sg = gx_shader_source("@shader.v", "@shader.f");
-	
-	gx_shader_t* shadertex = gx_shader_variant(sg, "GX_NORMAL|GX_COLOR|GX_LIGHT0|GX_LIGHT0DIR|GX_TEXCOORD0|GX_TEXTURE0|GX_LIGHT1|GX_LIGHT1DIR");
-	
-	if (!shadertex)
-		exit(0);
-	getc(stdin);
-	
-	gx_shader_t* shaderuntex = gx_shader_variant(sg, "GX_NORMAL|GX_COLOR|GX_LIGHT0|GX_LIGHT0DIR|GX_LIGHT1|GX_LIGHT1DIR");
-	
-	if (!shaderuntex)
-		exit(0);
-	
-	
-	
-	
-/*	
-	ram_free(shader);
-	ram_free(sg);
-	ram_free(tex);
-	ram_free(tex2);
-	ram_free(testenv);
-	ram_free(teststyle);
-	*/
-	
-	
-	//ram_allocs();
-	//exit(0);
+//	gx_shadergroup_t* sg = gx_shader_source("@../graphics/shader.v", "@../graphics/shader.f");
 		
-	//if (!shadertex) 
-	//	exit(1);
-	
-//	if (!shaderuntex) 
-//		exit(1);
-		
-	teststyle->shader = shadertex;
-	
-	teststylenotex->shader = shaderuntex;
-	
-	//vec3set(testenv->fogcolor, .3,.5,.5);
-	//testenv->usefog = ZTRUE;
-	//testenv->fogstartz = 1;
-	//testenv->fogendz = 5;
+	gx_shadergroup_t* sg = NULL;  //should force use of default shader
 	
 	{
 		vec3 p,c,ca;
@@ -166,9 +125,7 @@ int main(int argc, char** argv)
 		vec3set(c, .1,1,.5);
 		vec3set(ca, .1, .1, .3);
 		
-		
-		
-		li = gx_light_mk(gx_light_directional, &p, &c, &ca  );
+		li = gx_light_mk(gx_light_point, &p, &c, &ca  );
 
 		gx_light_set_attenuation( li, ZTRUE, 10, 10, 1);
 		
@@ -179,8 +136,6 @@ int main(int argc, char** argv)
 		li = gx_light_mk(gx_light_directional, &p, &c, &ca  );
 		
 		zvec_add_or_free(&testenv->lights, li);
-		
-		
 		
 	}
 	
@@ -293,7 +248,8 @@ int main(int argc, char** argv)
 			delta_pitch += mouse_y*.003;
 			delta_yaw += mouse_x*.003;
 
-			gx_spin(ZTRUE, delta_yaw, delta_pitch, delta_roll, &player_camera.rot);
+			if (fabsf(delta_pitch) < .3 && fabsf(delta_yaw) < .3)  //large mouse movements are probably just entering/leaving window
+				gx_spin(ZTRUE, delta_yaw, delta_pitch, delta_roll, &player_camera.rot);
 
 		}	
 
@@ -306,7 +262,8 @@ GX_TRACE
 
  		gx_camera_pos_rot( &player_camera.pos,&player_camera.rot.x_axis, &player_camera.rot.y_axis, &player_camera.rot.z_axis);
 
-	
+		
+		gx_env_evaluate_lights(testenv);
 //
 GX_TRACE
 	
@@ -318,12 +275,14 @@ GX_TRACE
 		
 		
 		if(shademode) {
-			teststyle->shader = shadertex;
-			teststylenotex->shader = shaderuntex;
+			
+			teststyle->shadergroup =sg;
+			teststylenotex->shadergroup =sg;
+			
 		}
 		else {
-			teststyle->shader = NULL;	
-			teststylenotex->shader = NULL;
+			teststyle->shadergroup = NULL;
+			teststylenotex->shadergroup = NULL;
 		}
 		
 		
@@ -376,7 +335,7 @@ GX_TRACE
 				
 
 
-		ang+=2;
+		ang+=.1;
 
 	
 	GX_TRACE

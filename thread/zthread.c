@@ -1,9 +1,76 @@
 #include "../ztypes.h"
 #include "zthread.h"
+#include <stdio.h>
 
 #ifdef _WIN32
 
-#error Need windows thread implementation
+//#error Need windows thread implementation
+
+
+
+zuint32 zlock_inc(zuint32* i) {
+	//return ++(*i);//fake
+	
+	return InterlockedIncrement(i);
+}
+
+zuint32 zlock_dec(zuint32* i) {
+
+	//return --(*i);//fake
+	
+	return InterlockedDecrement(i);
+}
+
+void zlock(zlock_t* lk) {
+	int r = WaitForSingleObject(*lk, INFINITE);
+	if (r != WAIT_OBJECT_0)
+		printf(" CRAP WaitForSingleObject returned %x\n", r);
+}
+
+void zunlock(zlock_t* lk) {
+	ReleaseMutex(*lk);
+}
+
+zbool ztrylock(zlock_t*lk) {
+
+	int r = WaitForSingleObject(*lk, 0);
+	if (r == WAIT_OBJECT_0)
+		return ZTRUE;
+	
+	return ZFALSE;
+
+}
+
+
+DWORD WINAPI th_wrapper(LPVOID pv) {
+	zthread_t* th = pv;
+	th->func(th);
+	th->finished = ZTRUE;
+	return 0;
+}
+
+
+
+zbool zthread_start(zthread_t* th, void(*func) (struct zthread_s* th) ) {
+	th->finished = ZFALSE;
+	th->func = func;
+	th->thh = CreateThread(NULL, 0, th_wrapper, (void*)th, 0, NULL);
+	printf("attempt to make thread %x\n", th->thh);
+	if (th->thh != NULL)
+		return ZTRUE;
+	else
+		return ZFALSE;
+}
+
+zbool zthread_isfinished(volatile zthread_t* th) {
+	return th->finished;
+}
+
+zbool zthread_join(zthread_t* th) {
+	WaitForSingleObject(th->thh, INFINITE);
+	CloseHandle(th->thh);
+	return TRUE;
+}
 
 #else
 
@@ -21,7 +88,7 @@ static zbool zthread_ram_mt = ZFALSE;
 
 /* Returns true for success */
 
-zbool zthread_start(zthread_t* th,   void* func) 
+zbool zthread_start(zthread_t* th,   void (*func) (struct zthread_s* th)) 
 {
 	if (th == NULL)
 		return ZFALSE;  /* Not valid*/

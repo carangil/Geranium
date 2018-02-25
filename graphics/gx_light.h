@@ -13,7 +13,9 @@ typedef struct gx_light_s
 	vec3 color;
 	vec3 ambient;
 	vec3 position;
-
+	
+	vec3 camspace_position;
+	
 	zbool attenuated;
 	float constant;
 	float linear;
@@ -25,11 +27,16 @@ typedef struct gx_light_s
 
 typedef struct gx_environment_s{
 	
+	//FOG
 	zbool usefog;
 	vec3 fogcolor;
 	float fogstartz;
 	float fogendz;
+	
+	
 	zvec_t lights;  //gx_light_t*
+	
+	char* spec;//for shader choice
 	
 	//TODO: perhaps other textures can go here 'global' textures
 	
@@ -60,3 +67,9 @@ void gx_light_tmp_off();
 
 //restore lights to state before gx_light_restore
 void gx_light_restore();
+
+
+void gx_env_evaluate_lights(gx_environment_t* env);
+void gx_light_evaluate(gx_light_t* li) ;
+
+char* gxi_env_spec();

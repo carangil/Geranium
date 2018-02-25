@@ -6,43 +6,154 @@
 
 
 
-
-//cats left and right, optionally frees either or both
-
-char* zstrcat(char* left, char* right, zbool freeleft, zbool freeright) {
+//increases storage of a string to accomodate extra space
+char* zstr_grow(char* dest, int additional) {
 	
-	int lsize,rsize;
-	char * news = NULL;
-	lsize = strlen(left);
-	rsize = strlen(right);
+	int xlen;
+	int newcap;
 	
-	news = ram_alloc( lsize + rsize + 1, NULL);
-	if (news) {
-		strcpy(news, left);
-		strcpy(news+lsize, right);
-		if (freeleft)
-			ram_free(left);
-		if (freeright)
-			ram_free(right);
+	zstring_shadow_t* sh = ram_shadow(dest);
+	
+	if (!sh) {
+		printf(" Cannot grow non-shadow string\n");
+		return NULL;
 	}
 	
-	return news;
-}
-
-char* zstrndup(char* str, int count) {
-	char * news;	
-	int len = strlen(str);
-	if (len > count)
-		len = count;
+	xlen = additional + sh->len + 1; 
 	
-	news = ram_alloc(len+1, NULL);
-	if (news){
-		strncpy(news, str, len);
-		news[len]= '\0';
+	if (xlen >= sh->capacity ) {
+		
+		
+		//try doubling capacity
+		newcap = sh->len * 2;
+		
+		//if not good enough, at least fit what we have
+		if (newcap <  xlen)
+			newcap = xlen;
+				
+		dest = ram_resize(dest, newcap);
+		if (dest == NULL)
+			return NULL;// resize failed
+		
+		sh = ram_shadow(dest); //follow the shadow buffer to the new location
+		sh->capacity = newcap; 
+	
 	}
 	
-	return news;
+	return dest;
 }
+
+
+char* zstr_cat(char* dest, char* src)
+{
+	int srclen;
+	int newcap;
+	zstring_shadow_t* sh;
+	
+	
+	srclen = strlen(src);
+	
+	dest = zstr_grow(dest, strlen(src) );
+	
+	if (!dest)
+		return NULL;
+	
+	sh = ram_shadow(dest);
+	
+	if (!sh)
+		printf(" WHERE DID THE SHADOW GO?\n");
+	
+			
+	//it should now fit
+	if (dest[sh->len] != '\0') {
+		printf("NULL TERMINATOR MISSING IN TARGET STRING... THIS IS BAD\n");
+	}
+	
+	strcpy(dest + sh->len , src);
+	sh->len += srclen;
+	
+	return dest;
+	
+}
+
+
+
+//0 capacity means copy all 
+char* zstr_mk(int capacity, int use)
+{
+	char* x;
+	zstring_shadow_t* zs;
+	
+	if (use > capacity)
+		capacity = use;
+	
+	if (capacity < 0)
+		return NULL;
+	
+	capacity ++; //null terminator
+	
+	x = ram_alloc_shadow( capacity, NULL, sizeof(zstring_shadow_t));
+	
+	zs = ram_shadow(x);
+	
+	if (zs) {
+		zs->len = use;
+		zs->capacity = capacity ; //, including null terminator
+	}
+	
+	return x;
+}
+
+
+char* zstrndup(char* a, int n) {
+	int len;
+	char *z;
+	
+	if (n==0)
+		len=0;
+	else if (n>0) 
+		len = strnlen(a, n);
+	else 
+		len= strlen(a);
+	
+	if (n < len)
+		n = len;
+	
+	
+	z = zstr_mk(n, len); //n is capacity of string, len is length to be used
+	printf("mk %d, %d\n", len,n);
+	
+	if(z) {
+		strncpy(z,a,len); 
+		z[len]='\0';
+	}
+	return z;
+	
+}
+
+
+
+
+void zstr_debug(char* x) {
+	zstring_shadow_t* sh;
+	
+	if (x == NULL) {
+		printf(" %p is null\n", x);
+		return;
+	}
+	
+	sh = ram_shadow(x);
+	if (!sh) {
+		printf(" %p is c string %s\n", x, x);
+		return;
+	}
+//	printf("len:%d\n", sh->len);
+	//printf("capacity:%d\n", sh->capacity);
+	
+	printf(" %p has shadow %p: %d sh->len    %d strlen     %d capacity %s\n", x, sh, sh->len, strlen(x) ,  sh->capacity,   x);
+	
+}
+
 
 //split string into vector of string, by delim.
 //if delim not found, returns vector of 1 string
@@ -62,18 +173,18 @@ zvec_t*  zsplit(zvec_t* v, char* str, char delim){
 	for (;;) {
 		
 		p= strchr(str, delim);
-		printf("start str is %s, p is %s\n", str, p);
+	//	printf("start str is %s, p is %s\n", str, p);
 
 		if (!p) {
 			//no delims left
-			zvec_add_or_free(v, ram_strdup(str));
+			zvec_add_or_free(v, zstrndup(str, ZSTRING_ALL));
 			break;
 		}
 	
 		zvec_add_or_free(v, zstrndup(str, p-str));
 		
 		str = p+1;
-		printf("end str is %s, p is %s\n", str, p);
+		//printf("end str is %s, p is %s\n", str, p);
 	}
 	return v;
 	

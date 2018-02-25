@@ -6,7 +6,7 @@
 
 #ifdef _WIN32
 
-zbool g_tm_init = zfalse;
+zbool g_tm_init = ZFALSE;
 LARGE_INTEGER g_tm_perf_frequency;
 
 zuint32 tm_diff_microstamp_us(tm_microstamp_t* before, tm_microstamp_t* after)
@@ -17,7 +17,7 @@ zuint32 tm_diff_microstamp_us(tm_microstamp_t* before, tm_microstamp_t* after)
 	if (!g_tm_init)
 	{
 		QueryPerformanceFrequency(&g_tm_perf_frequency);
-		g_tm_init = ztrue;
+		g_tm_init = ZTRUE;
 	}
 
 	if ((g_tm_perf_frequency.QuadPart == 0) || (after == NULL) || (before == NULL))

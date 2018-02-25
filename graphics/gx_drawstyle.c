@@ -15,7 +15,13 @@
 
 #include "gx_drawstyle.h"
 #include "gx_light.h"
+
+#include "defshader.v.h"
+#include "defshader.f.h"
+
 #include "glheaders.h"
+
+//static int force_shaders = ZTRUE; // will not use any FF pipeline
 
 
 static gx_shader_t* active_shader = NULL;
@@ -24,17 +30,55 @@ static gx_shader_t* active_shader = NULL;
 		return active_shader;
 }
 
-
+static gx_shadergroup_t* gxi_default_shader_group();
 
 
 //activate a drawstyle
-
+static gx_drawstyle_t* active_drawstyle = NULL;
+static zbool active_drawstyle_dirty = ZTRUE;
 
 void gx_drawstyle_activate(gx_drawstyle_t* style)
 {
-	
-	zuint32 i=0;
+	if (active_drawstyle == style)
+		return;  //do nothing if already set
+		
+	active_drawstyle = style;
+	active_drawstyle_dirty = ZTRUE; 
+}
 
+char* gxi_drawstyle_spec(gx_drawstyle_t* style){
+	char* spec ;
+
+	if (style->spec)
+		return style->spec;
+	
+	int i;
+	
+	spec = zstr_mk(100,0);
+	
+	for (i=0; i< zvec_count( &style->textures); i++) {
+		char b[50];
+	
+		snprintf(b, sizeof(b), "GX_TEXTURE%d|", i);
+							
+		spec = zstr_cat(spec, b);
+	}
+	
+	style->spec = spec;
+	
+	return spec;
+	
+}
+
+
+void gxi_bind_drawstyle(gx_vbuffer_t* vb)
+{
+	gx_shader_t* set = NULL;
+	
+	gx_drawstyle_t* style = active_drawstyle;
+		
+	zuint32 i=0;
+	
 	if (!style)
 	{
 #if 1
@@ -49,6 +93,8 @@ void gx_drawstyle_activate(gx_drawstyle_t* style)
 		return;
 	}
 
+
+	
 	//set blending mode
 	if (style->blending)
 	{
@@ -74,14 +120,30 @@ void gx_drawstyle_activate(gx_drawstyle_t* style)
 	//activate all set textures
 	gx_set_active_textures(zvec_elements_as(gx_image_t*, &style->textures), zvec_count(&style->textures));
 
+	
+	//printf(" SPEC FOR ENV IS %s\n", gxi_env_spec());
+	//printf(" SPEC FOR DRAWSTYLE IS %s\n", gxi_drawstyle_spec(style));
+	//printf(" SPEC FOR BUFFER IS %s\n", gxi_vbuffer_spec(vb));
+	char* fullspec = zstrndup(gxi_env_spec(), 100);
+	fullspec = zstr_cat(fullspec, gxi_drawstyle_spec(style));
+	fullspec = zstr_cat(fullspec, gxi_vbuffer_spec(vb));
+	printf(" SHADER SPEC WILL BE %s\n", fullspec);
 
+	if (style->shadergroup) 
+		set = gx_shader_variant(style->shadergroup, fullspec);
+	else 
+		set = gx_shader_variant(gxi_default_shader_group(), fullspec);
+
+	ram_free(fullspec);  //TODO: should cache the fullspec
+	
+		
 	//if we are using shaders, activate them
 	
-	if (style->shader) {
+	if (set) {  
 		int txcount = zvec_count(&style->textures);
 		char texname[20];
 		int loc;
-		gx_shader_t* set = style->shader;
+		//gx_shader_t* set = style->shader;
 		active_shader = set;
 		
 		glUseProgram(set->program);
@@ -226,6 +288,22 @@ gx_shadergroup_t* gx_shader_source(char* vsource, char* fsource) {
 	
 }
 
+/*
+char* gx_generate_drawstyle_spec(gx_drawstyle_t*  style){
+	
+	char* spec = "";
+	int i;
+	
+	for (i=0;i<zvec_count(&style->textures); i++) {
+		if (i!=0)
+			spec = zstrcat(spec, "GX_TEXTURE0
+	}
+	
+	
+}
+*/
+
+
 zbool gxi_delete_shader_variant(void* v){
 	gxi_shader_variant_t * var = (gxi_shader_variant_t *) v;
 	
@@ -235,14 +313,21 @@ zbool gxi_delete_shader_variant(void* v){
 	return ZTRUE;
 }
 
-gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  ) {
+static gx_shadergroup_t* builtin_shader_group = NULL;
+static gx_shadergroup_t* gxi_default_shader_group(){
+	
+	if (builtin_shader_group)
+		return builtin_shader_group;
+	
+	return builtin_shader_group = gx_shader_source( gxi_def_shader_v, gxi_def_shader_f);
+	
+}
 
+gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  ) {
 	
 	gxi_shader_variant_t* var = NULL;
+	gx_shader_t* shader = NULL;
 	
-	
-	gx_shader_t* shader = NULL;;
-	char * news;
 	zvec_t strings;
 	int i;
 	int j;
@@ -250,21 +335,24 @@ gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  ) {
 	char log[1024] = "uninit";
 	int len;
 	int status;
+	char* news;
 	
 	if (!sg)
-		return NULL;
+		sg = gxi_default_shader_group();
 
 	//check if variant already exists
 	var = (gxi_shader_variant_t*) zlist_head(&sg->variants);
-	
+
 	for ( ; var  ; var = zlist_next(var) ){
 		
 		if ( !strcmp(var->spec , spec)) {
-			printf("FOUND VARIANT %s\n", var->spec);getc(stdin);
-			return ram_addref(var->shader); //return the same shader again
+			printf("FOUND VARIANT %s\n", var->spec);
+			return var->shader;
+			//return ram_addref(var->shader); //return the same shader again
 		}
 		
 	}
+
 	
 	if (!sg->fsource)
 		return NULL;
@@ -280,11 +368,17 @@ gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  ) {
 		zsplit (&strings, spec, '|');
 		
 		for(i=1;i<zvec_count(&strings);i++) {
-			//prepend define to this shader line, free the original
-			news = zstrcat("#define ", zvec_get_x_at(&strings, char *, i), ZFALSE, ZTRUE);
-			news = zstrcat(news, "\n", ZTRUE, ZFALSE);
 			
-			zvec_set_at( &strings, i, news);
+			if (!strlen(zvec_get_at(&strings, i)))
+				continue;   //skip empty strings
+			
+			news = zstrndup( "#define ", ZSTRING_ALL);
+			news = zstr_cat(news, zvec_get_at(&strings, i));
+			news = zstr_cat(news, "\n" );
+			
+			ram_free(zvec_get_at(&strings, i));
+			
+			zvec_set_at(&strings, i, news);
 			
 		}
 	}
@@ -295,7 +389,6 @@ gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  ) {
 		printf("%s\n", zvec_get_x_at(&strings, char *, i));
 	}
 	
-			
 	
 	shader = ram_alloc(sizeof(gx_shader_t), NULL);
 
@@ -428,7 +521,7 @@ gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  ) {
 
 	var = ram_alloc(sizeof(*var), gxi_delete_shader_variant);
 	if (var) {
-		printf("ADD VARIANT TO LIST\n");getc(stdin);
+		printf("ADD VARIANT TO LIST\n");
 		var->spec = ram_strdup(spec);
 		var->shader = shader;
 		zlist_addhead(&sg->variants, &var->zlistnode);
