@@ -18,7 +18,7 @@
 #include "glheaders.h"
 
 
-extern  int _gx_no_vbos;
+
 
 #define GX_UPDATE_FREQ  GL_STATIC_DRAW
 
@@ -27,16 +27,16 @@ static zbool _destruct_vbuffer(void* x)
 {
 	gx_vbuffer_t* v = x;
 	
-	if ( !_gx_no_vbos && v->_sent_to_gl)
+	if ( !gxi_no_vbos && v->_sent_to_gl)
 	{
 		//todo: Free any buffers still in opengl	
 		glDeleteBuffers(1,  &(v->_vertex_combined_vbo));
-		_gx_gl_vbos_del++;
+		gxi_gl_vbos_del++;
 
 		if (v->index_data)
 		{
 			glDeleteBuffers(1, &(v->_index_vbo));
-			_gx_gl_vbos_del++;
+			gxi_gl_vbos_del++;
 		}
 	}
 
@@ -102,8 +102,6 @@ char* gxi_vbuffer_spec(gx_vbuffer_t* vb) {
 	
 	//TODO: in future, support multiple explicit texcoords
 	
-
-	
 	vb->spec = spec;
 	
 	return spec;
@@ -127,7 +125,7 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 	}
 	
 
-	printf(" VERTEX_USE_COMPONENTS: %d, VERTEX_COMPONENTS: %d\n", VERTEX_USE_COMPONENTS, VERTEX_COMPONENTS);
+//	printf(" VERTEX_USE_COMPONENTS: %d, VERTEX_COMPONENTS: %d\n", VERTEX_USE_COMPONENTS, VERTEX_COMPONENTS);
 
 	if (num_vertices ==0)
 		return NULL;
@@ -212,9 +210,6 @@ gx_vbuffer_t* gx_vbuffer_mk(zuint32 num_vertices,
 	return v;
 }
 
-
-
-
 zint32 gx_vbuffer_current_index(gx_vbuffer_t* v)
 {
 
@@ -223,8 +218,6 @@ zint32 gx_vbuffer_current_index(gx_vbuffer_t* v)
 	else
 		return 0;
 }
-
-
 
 zint32 gx_vbuffer_current_vertex(gx_vbuffer_t* v)
 {
@@ -236,8 +229,6 @@ zint32 gx_vbuffer_current_vertex(gx_vbuffer_t* v)
 }
 
 
-
-
 zbool gx_vbuffer_update(gx_vbuffer_t* v)
 {
 	zuint32 i = 0;
@@ -247,7 +238,7 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 	if (!v)
 		return ZFALSE;
 
-	if (_gx_no_vbos)
+	if (gxi_no_vbos)
 	{
 		return ZTRUE; //if using vertex arrays, we don't need to send anything
 	}
@@ -255,13 +246,13 @@ zbool gx_vbuffer_update(gx_vbuffer_t* v)
 	if (!v->_sent_to_gl)
 	{
 		glGenBuffers(1, &(v->_vertex_combined_vbo));
-		_gx_gl_vbos_gen++;
+		gxi_gl_vbos_gen++;
  
 
 		if (v->index_data)
 		{
 			glGenBuffers(1, &(v->_index_vbo));
-			_gx_gl_vbos_gen++;
+			gxi_gl_vbos_gen++;
 
 		}
 
@@ -422,8 +413,8 @@ zint32 gx_vbuffer_import_vertex(gx_vbuffer_t* dest, gx_vbuffer_t* src, zint32 ve
 
 	// TODO: also need to copy normals, colors, and other texcoords
 	
-	gx_vbuffer_tex2(dest, 0, _gx_vbuffer_s(src, vertex, 0), _gx_vbuffer_t(src, vertex, 0));
-	return gx_vbuffer_vertex( dest,*_gx_vbuffer_v(src, vertex));
+	gx_vbuffer_tex2(dest, 0, gxi_vbuffer_s(src, vertex, 0), gxi_vbuffer_t(src, vertex, 0));
+	return gx_vbuffer_vertex( dest,*gxi_vbuffer_v(src, vertex));
 
 }
 
@@ -485,7 +476,7 @@ static zbool legacy_arrays_enabled = ZFALSE;  	//Set to true whenever vertex arr
 
 
 
-static zuint32 _gx_texture_pointer_enabled_count = 0;  //specified how many texture units have been turned on
+static zuint32 gxi_texture_pointer_enabled_count = 0;  //specified how many texture units have been turned on
 
 //drawing a vbuffer
 void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e prim  , zbool indexed)
@@ -493,24 +484,26 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	zuint32 i=0;
 	zuint32 newtcount=0;
 
-	gx_shader_t* shader;
-	
-	
+	gx_shader_t* shader=NULL;
 	
 	if (!v)
 		return;
 	
-	gxi_bind_drawstyle(v);
-	
-	
-	shader = gxi_active_shader(); //get the active shader, if there is one
-	
-	
-	
 	if (stop <=start)
 		return;
 
-	printf(" refresh matrix... %p %d\n", shader, shader? shader->matrix_version : 666);
+	/* This sets up the shader to draw*/
+	/* Shader isn't set up earlier because the contents of the vbuffer (does it have color info, normals, texcoords, etc? 
+	 * affects the choice of shader
+	 * 
+	 * When drawing many vbuffers of the same kind, this shouldn't do much if anything, as it'll all have the same state
+	 * 
+	 */
+	
+	shader = gxi_select_shader(v);
+	
+		
+	//printf(" refresh matrix... %p %d\n", shader, shader? shader->matrix_version : 666);
 	GX_TRACE
 	gxi_refresh_matrix(shader);
 	GX_TRACE
@@ -537,19 +530,17 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		glDisableClientState(GL_VERTEX_ARRAY);
 		glDisableClientState(GL_NORMAL_ARRAY);
 		glDisableClientState(GL_COLOR_ARRAY);
-		for (i=0 ; i< _gx_texture_pointer_enabled_count; i++)
+		for (i=0 ; i< gxi_texture_pointer_enabled_count; i++)
 		{
 			glClientActiveTexture(GL_TEXTURE0+i);
 			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		}
 		
 		legacy_arrays_enabled = ZFALSE;
-		_gx_texture_pointer_enabled_count=0;
+		gxi_texture_pointer_enabled_count=0;
 	}
 	
-	//TODO: switch pos_data, normal_data and texcoord0 data to use generic attributes
-	// Then we also need to track which attribute indices are enabled, so that later when we run thru here
-	// we disable the attributes that are not used
+
 
 	if (shader) {
 		/* Set generic attributes for shader */
@@ -612,7 +603,7 @@ GX_TRACE
 		
 		if (v->pos_data)
 		{
-			if (_gx_no_vbos)
+			if (gxi_no_vbos)
 				glVertexPointer(VERTEX_USE_COMPONENTS, GL_FLOAT, VERTEX_COMPONENTS*sizeof(float),   v->pos_data );
 			else
 				glVertexPointer(VERTEX_USE_COMPONENTS, GL_FLOAT, VERTEX_COMPONENTS*sizeof(float), (void*) ( (v->pos_data - v->combined_vertex_data) * sizeof (zfloat32)) );
@@ -625,7 +616,7 @@ GX_TRACE
 			
 		
 			
-			if (_gx_no_vbos)
+			if (gxi_no_vbos)
 					glColorPointer(COLOR_COMPONENTS, GL_FLOAT, COLOR_COMPONENTS*sizeof(float),   v->color_data );
 			else  
 				glColorPointer(COLOR_COMPONENTS, GL_FLOAT, COLOR_COMPONENTS*sizeof(float), (void*)((v->color_data - v->combined_vertex_data) * sizeof(zfloat32)));
@@ -639,7 +630,7 @@ GX_TRACE
 		if (v->normal_data)
 		{
 			
-			if (_gx_no_vbos)
+			if (gxi_no_vbos)
 				glNormalPointer( GL_FLOAT, VERTEX_COMPONENTS*sizeof(float),  v->normal_data  );
 			else
 				glNormalPointer( GL_FLOAT, VERTEX_COMPONENTS*sizeof(float),  (void*) ( (v->normal_data - v->combined_vertex_data) * sizeof (zfloat32)) );
@@ -661,7 +652,7 @@ GX_TRACE
 				//printf(" Alias texcoord %d for unit %d\n", 0, i);
 				glClientActiveTexture(GL_TEXTURE0+i);
 			
-				if (_gx_no_vbos)
+				if (gxi_no_vbos)
 					glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0, v->texcoord_data[0] );
 				else
 					glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0, (void*)( (v->texcoord_data[0] - v->combined_vertex_data) * sizeof (zfloat32)));
@@ -674,12 +665,12 @@ GX_TRACE
 		}
 				
 		//disable texture pointers for any leftover units
-		for (newtcount ; i< _gx_texture_pointer_enabled_count; i++)
+		for (newtcount ; i< gxi_texture_pointer_enabled_count; i++)
 		{
 			glClientActiveTexture(GL_TEXTURE0+i);
 			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		}
-		_gx_texture_pointer_enabled_count = newtcount;
+		gxi_texture_pointer_enabled_count = newtcount;
 				
 	}  //end of legacy arrays
 	
@@ -691,12 +682,12 @@ GX_TRACE
 	
 #if 0
 	else {
-		//TODO: THIS PATH NOT USED MUCH, MAKE SURE IT ACTS NORMALISH
+		//TODO: THIS PATH NOT USED MUCH, MAKE SURE IT ACTS NORMALISH, disbaled for now until i need it
 		for (i=0;i<v->num_textures;i++)
 		{
 			glClientActiveTexture(GL_TEXTURE0+i);
 
-			if (_gx_no_vbos)
+			if (gxi_no_vbos)
 				glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0, v->texcoord_data[i] );
 			else
 				glTexCoordPointer(TEXTURE_COMPONENTS, GL_FLOAT, 0, (void*)( (v->texcoord_data[i] - v->combined_vertex_data) * sizeof (zfloat32)));
@@ -713,7 +704,7 @@ GX_TRACE
 	switch(prim)
 	{
 	case gx_points:
-		if (indexed && _gx_no_vbos)
+		if (indexed && gxi_no_vbos)
 			printf(" TODO: indexed points vertex arrays\n");
 		else if (indexed)
 			glDrawElements(GL_POINTS, stop-start, GL_UNSIGNED_INT, (void*) (sizeof(zuint32) * start)  );
@@ -722,7 +713,7 @@ GX_TRACE
 		break;
 
 	case gx_lines:
-		if (indexed && _gx_no_vbos)
+		if (indexed && gxi_no_vbos)
 			printf(" TODO: indexed lines vertex arrays\n");
 		else if (indexed)
 			glDrawElements(GL_LINES, stop-start, GL_UNSIGNED_INT, (void*) (sizeof(zuint32) * start));
@@ -731,7 +722,7 @@ GX_TRACE
 		break;
 
 	case gx_triangles:
-		if (indexed && _gx_no_vbos)
+		if (indexed && gxi_no_vbos)
 			glDrawElements(GL_TRIANGLES, stop-start, GL_UNSIGNED_INT,  v->index_data+  start  );
 		else if (indexed)
 			glDrawElements(GL_TRIANGLES, stop-start, GL_UNSIGNED_INT,  (void*) (sizeof(zuint32) * start) );
@@ -741,7 +732,7 @@ GX_TRACE
 
 
 	case gx_quads:
-		if (indexed && _gx_no_vbos)
+		if (indexed && gxi_no_vbos)
 			printf(" TODO: indexed quads vertex arrays\n");
 		else if (indexed)
 			glDrawElements(GL_QUADS, stop-start, GL_UNSIGNED_INT,(void*) (sizeof(zuint32) * start));
@@ -749,18 +740,13 @@ GX_TRACE
 			glDrawArrays(GL_QUADS, start, stop-start);
 		
 		//TODO : NEED A SOLUATION FOR GL_QUADS IN CORE PROFILE 3.3
+		// MAYBE REMOVE COMPLETELY?
 		break;
 	}
 	
 	
 	
 }
-
-
-
-
-
-
 
 
 

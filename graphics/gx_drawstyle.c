@@ -13,6 +13,7 @@
 #include "../structures/zlist.h"
 #include "../structures/zstring.h"
 
+#include "gx_sys.h"
 #include "gx_drawstyle.h"
 #include "gx_light.h"
 
@@ -21,14 +22,11 @@
 
 #include "glheaders.h"
 
-//static int force_shaders = ZTRUE; // will not use any FF pipeline
+
 
 
 static gx_shader_t* active_shader = NULL;
 
- gx_shader_t* gxi_active_shader(){
-		return active_shader;
-}
 
 static gx_shadergroup_t* gxi_default_shader_group();
 
@@ -71,7 +69,7 @@ char* gxi_drawstyle_spec(gx_drawstyle_t* style){
 }
 
 
-void gxi_bind_drawstyle(gx_vbuffer_t* vb)
+gx_shader_t* gxi_select_shader(gx_vbuffer_t* vb)
 {
 	gx_shader_t* set = NULL;
 	
@@ -89,8 +87,8 @@ void gxi_bind_drawstyle(gx_vbuffer_t* vb)
 		glColor4f(1,1,1,1);
 		glDisable(GL_BLEND);
 #endif	
-
-		return;
+		//TODO: when using shaders, need to use a default drawstyle if none specified
+		return NULL;
 	}
 
 
@@ -120,24 +118,22 @@ void gxi_bind_drawstyle(gx_vbuffer_t* vb)
 	//activate all set textures
 	gx_set_active_textures(zvec_elements_as(gx_image_t*, &style->textures), zvec_count(&style->textures));
 
-	
-	//printf(" SPEC FOR ENV IS %s\n", gxi_env_spec());
-	//printf(" SPEC FOR DRAWSTYLE IS %s\n", gxi_drawstyle_spec(style));
-	//printf(" SPEC FOR BUFFER IS %s\n", gxi_vbuffer_spec(vb));
-	char* fullspec = zstrndup(gxi_env_spec(), 100);
-	fullspec = zstr_cat(fullspec, gxi_drawstyle_spec(style));
-	fullspec = zstr_cat(fullspec, gxi_vbuffer_spec(vb));
-	printf(" SHADER SPEC WILL BE %s\n", fullspec);
+		if (! gxi_fixed_function) {
+		char* fullspec = zstrndup(gxi_env_spec(), 100);
+		fullspec = zstr_cat(fullspec, gxi_drawstyle_spec(style));
+		fullspec = zstr_cat(fullspec, gxi_vbuffer_spec(vb));
+		printf(" SHADER SPEC WILL BE %s\n", fullspec);
 
-	if (style->shadergroup) 
-		set = gx_shader_variant(style->shadergroup, fullspec);
-	else 
-		set = gx_shader_variant(gxi_default_shader_group(), fullspec);
+		if (style->shadergroup) 
+			set = gx_shader_variant(style->shadergroup, fullspec);
+		else 
+			set = gx_shader_variant(gxi_default_shader_group(), fullspec);
 
-	ram_free(fullspec);  //TODO: should cache the fullspec
+		ram_free(fullspec);  //TODO: should cache the fullspec
+	}
 	
 		
-	//if we are using shaders, activate them
+	//if we are using a shader, activate it
 	
 	if (set) {  
 		int txcount = zvec_count(&style->textures);
@@ -204,6 +200,7 @@ void gxi_bind_drawstyle(gx_vbuffer_t* vb)
 	
 	gxi_set_shader_env_params(active_shader);
 
+	return active_shader;
 }
 
 
@@ -336,6 +333,9 @@ gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  ) {
 	int len;
 	int status;
 	char* news;
+	
+	if (gxi_fixed_function)
+		return NULL;  /* No shaders */
 	
 	if (!sg)
 		sg = gxi_default_shader_group();

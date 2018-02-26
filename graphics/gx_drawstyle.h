@@ -97,8 +97,10 @@ gx_drawstyle_t* gx_drawstyle_mk(gx_image_t* img);
 
 void gx_drawstyle_activate(gx_drawstyle_t* style);
 
-gx_shader_t* gxi_active_shader();
-void gxi_bind_drawstyle(gx_vbuffer_t* vb);
+//gx_shader_t* gxi_active_shader();
+//void gxi_bind_drawstyle(gx_vbuffer_t* vb);
+
+gx_shader_t* gxi_select_shader(gx_vbuffer_t*);
 
 gx_shader_t* gx_shader_mk(char* vsource, char* psource) ;
 

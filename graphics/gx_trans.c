@@ -213,7 +213,7 @@ void gxi_refresh_matrix(gx_shader_t* shader) {
 	
 		glLoadIdentity();
 		glLoadMatrixf(matr);
-		printMatrix44("ff", matr);
+		//printMatrix44("ff", matr);
 		
 		ff_matrix_version= matrix_version;
 				
@@ -231,7 +231,7 @@ void gxi_refresh_matrix(gx_shader_t* shader) {
 		shader->matrix_version = matrix_version;
 		
 		if (shader->camera_pos_uloc != -1) {
-			printf(" upload campos %d   %f %f %f\n", shader->camera_pos_uloc, modelview_camera_pos.VX,modelview_camera_pos.VY,modelview_camera_pos.VZ);
+			//printf(" upload campos %d   %f %f %f\n", shader->camera_pos_uloc, modelview_camera_pos.VX,modelview_camera_pos.VY,modelview_camera_pos.VZ);
 			glUniform3fv(shader->camera_pos_uloc, 1, modelview_camera_pos.array);	
 		}
 		

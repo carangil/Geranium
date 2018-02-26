@@ -20,19 +20,17 @@
 
 extern int transmode;
 
-int shademode=1;
+
 
 float ang=0;
 
 
 gx_vbuffer_t* gensphere(int quality){
 
-
 	vec3 p;
 	float s,t;
 	float ds =2*PI/quality;
 	float dt = PI/quality;
-
 
 	
 	gx_vbuffer_t* sbuf = gx_vbuffer_mk((1+quality)*(1+quality)*4, 0, GX_VBUFFER_NORMAL |GX_VBUFFER_COLOR  | GX_VBUFFER_TEXCOORD  );
@@ -92,25 +90,22 @@ int main(int argc, char** argv)
 {
 	int i,j,k;
     gx_image_t * tex;
-	gx_image_t * tex2;
 	gx_camera_t	player_camera;
 	gx_camera_init(&player_camera);
 
 	gx_vbuffer_t* vb = NULL;
-	gx_init(800, 600 , "Test");
+	//gx_init(800, 600 , "Test", GX_OPTION_NO_VBO);
+	gx_init(800, 600 , "Test", 0);
 	
 	gx_vbuffer_t* sph = NULL;
 
     tex = gx_image_load_tga("../shared/rock.tga");
-	tex2 = gx_image_load_tga("../shared/font32.tga");
 	
 	gx_drawstyle_t* teststyle = gx_drawstyle_mk( tex);
 	gx_drawstyle_t* teststylenotex = gx_drawstyle_mk( NULL);
 	
 	
-//	zvec_add(&teststyle->textures, tex2); //add second texture
 	ram_free(tex);  //reference counts by owning objects keep these alive
-	ram_free(tex2);
 			
 	gx_environment_t* testenv = gx_environment_mk();
 	
@@ -133,9 +128,9 @@ int main(int argc, char** argv)
 		
 		vec3set(c, 1,1,0);
 		vec3set(p, 0, -2, 1);
-		li = gx_light_mk(gx_light_directional, &p, &c, &ca  );
+		//li = gx_light_mk(gx_light_directional, &p, &c, &ca  );
 		
-		zvec_add_or_free(&testenv->lights, li);
+		//zvec_add_or_free(&testenv->lights, li);
 		
 	}
 	
@@ -148,7 +143,7 @@ int main(int argc, char** argv)
 	//create vbuffer
 
 	
-	vb = gx_vbuffer_mk(3*3*3*3, 0, GX_VBUFFER_COLOR  | GX_VBUFFER_TEXCOORD |GX_VBUFFER_NORMAL  );
+	vb = gx_vbuffer_mk(3*3*3*3, 0, /*GX_VBUFFER_COLOR  |*/ GX_VBUFFER_TEXCOORD |GX_VBUFFER_NORMAL  );
 
 	for (i=0;i<3;i++){
 		for(j=0;j<3;j++){
@@ -217,7 +212,7 @@ int main(int argc, char** argv)
 			
 			if (x==('T')) transmode ^=1;
 			
-			if (x==('P')) shademode ^=1;
+		//	if (x==('P')) shademode ^=1;
 			if (x=='~') exit(0);
 
 			if (gx_key_state('q')) delta_roll=-.02;
@@ -274,16 +269,12 @@ GX_TRACE
 		vec3set(teststyle->specular_color, 1, 1, 1);
 		
 		
-		if(shademode) {
+	
 			
-			teststyle->shadergroup =sg;
-			teststylenotex->shadergroup =sg;
+		teststyle->shadergroup =sg;
+		teststylenotex->shadergroup =sg;
 			
-		}
-		else {
-			teststyle->shadergroup = NULL;
-			teststylenotex->shadergroup = NULL;
-		}
+	
 		
 		
 		GX_TRACE
@@ -335,11 +326,11 @@ GX_TRACE
 				
 
 
-		ang+=.1;
+		ang+=1;
 
 	
 	GX_TRACE
-		gx_drawstyle_activate(teststylenotex);
+		gx_drawstyle_activate(teststyle);
 			{
 			vec3 p;
 			vec3set(p, -2, -1, -2);

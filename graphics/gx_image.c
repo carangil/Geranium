@@ -14,7 +14,7 @@
 
 
 
-zbool _gx_destruct_image(void* x)
+zbool gxi_destruct_image(void* x)
 {
 	gx_image_t* i = x;
 	if  (i->data)
@@ -26,7 +26,7 @@ zbool _gx_destruct_image(void* x)
 	{
 		glDeleteTextures(1, & (i->_gl_texture_number) );
 
-		_gx_gl_textures_del++;
+		gxi_gl_textures_del++;
 
 
 	}
@@ -42,7 +42,7 @@ gx_image_t* gx_image_mk(zuint32 w, zuint32 h, zuint32 bpp)
 {
 	gx_image_t* image = NULL;
 
-	image = ram_alloc(sizeof(gx_image_t), _gx_destruct_image);
+	image = ram_alloc(sizeof(gx_image_t), gxi_destruct_image);
 
 	if (!image)
 		return NULL;
@@ -75,7 +75,7 @@ gx_image_t* gx_image_load_tga( zchar* f)
 	if (!fi)
 		return NULL;
 
-	image = ram_alloc(sizeof(gx_image_t), _gx_destruct_image);
+	image = ram_alloc(sizeof(gx_image_t), gxi_destruct_image);
 
 	if (!image)
 		return NULL;
@@ -199,7 +199,7 @@ void gx_image_set_scaler(gx_image_t* image, int scaler)
 
 
 //enables an image for use in rendering (sends it to opengl for use in sprites or texture mapping)
-zbool _gx_image_enable(gx_image_t* image)
+zbool gxi_image_enable(gx_image_t* image)
 {
 	if (!image)
 		return ZFALSE;
@@ -208,7 +208,7 @@ zbool _gx_image_enable(gx_image_t* image)
 	{
 		//attempt to create texture object in GL
 		glGenTextures(1, &(image->_gl_texture_number) );
-		_gx_gl_textures_gen++;
+		gxi_gl_textures_gen++;
 	}
 	
 	//bind the texture for the current texture unit
@@ -300,7 +300,7 @@ void gx_image_test(gx_image_t* image)
 gx_image_t* current_textures[GX_MAX_TEXTURE] = {NULL};
 
 
-static zuint32 _gx_texture_enabled_count = 0;  //specified how many texture units have been turned on
+static zuint32 gxi_texture_enabled_count = 0;  //specified how many texture units have been turned on
 void gx_set_active_textures(gx_image_t** texes, zuint32 numtex)
 {
 	zuint32 i = 0;
@@ -318,7 +318,7 @@ void gx_set_active_textures(gx_image_t** texes, zuint32 numtex)
 		
 		glActiveTexture(GL_TEXTURE0 + i);  //set active texture unit
 		
-		if (i>=_gx_texture_enabled_count)
+		if (i>=gxi_texture_enabled_count)
 		{	
 			//if we haven't enabled this unit yet, enable it
 			glEnable(GL_TEXTURE_2D);
@@ -329,14 +329,14 @@ void gx_set_active_textures(gx_image_t** texes, zuint32 numtex)
 				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL); //default as alpha blending
 		}
 
-		_gx_image_enable(texes[i]); //enable this image for use on the current texture unit
+		gxi_image_enable(texes[i]); //enable this image for use on the current texture unit
 		
 		current_textures[i] = texes[i];  
 		printf(" texture %x  on\n",i);
 	}
 
 	//disable any texture units we had enabled but don't need anymore
-	for (i=numtex;i<_gx_texture_enabled_count;i++)
+	for (i=numtex;i<gxi_texture_enabled_count;i++)
 	{
 		glActiveTexture(GL_TEXTURE0+i);
 		glDisable(GL_TEXTURE_2D);
@@ -344,12 +344,12 @@ void gx_set_active_textures(gx_image_t** texes, zuint32 numtex)
 		printf(" texture %x off\n", i);
 	}
 
-	_gx_texture_enabled_count = numtex;
+	gxi_texture_enabled_count = numtex;
 }
 
 
 int gxi_num_texture_units(){
-		return _gx_texture_enabled_count;
+		return gxi_texture_enabled_count;
 }
 
 

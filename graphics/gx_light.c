@@ -437,7 +437,7 @@ void gx_set_environment(gx_environment_t* env) {
 	//getc(stdin);
 }
 
-zbool _gx_environment_cleanup(void* ve) {
+zbool gxi_environment_cleanup(void* ve) {
 		gx_environment_t* env = ve;
 		
 		
@@ -447,7 +447,7 @@ zbool _gx_environment_cleanup(void* ve) {
 }
 
 gx_environment_t*  gx_environment_mk(){
-		gx_environment_t* env = ram_alloc( sizeof(*env), _gx_environment_cleanup);
+		gx_environment_t* env = ram_alloc( sizeof(*env), gxi_environment_cleanup);
 		
 		zvec_mk( & env->lights, 4);
 		
@@ -511,7 +511,7 @@ void gxi_set_shader_env_params(gx_shader_t* set){
 
 		shader_set_active_lights(set, zvec_elements_as(gx_light_t*,&env->lights), zvec_count(&env->lights) );
 		
-		
+		//todo: shader fog
 		
 	}
 

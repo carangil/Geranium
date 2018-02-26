@@ -21,7 +21,7 @@ typedef struct
 
 void gx_image_test(gx_image_t* image);
 
-zbool _gx_image_enable(gx_image_t* image);
+zbool gxi_image_enable(gx_image_t* image);
 
 gx_image_t* gx_image_load_tga( zchar* f);
 gx_image_t* gx_image_mk(zuint32 w, zuint32 h, zuint32 bpp);

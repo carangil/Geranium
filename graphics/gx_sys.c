@@ -14,50 +14,50 @@
 #include <math.h>
 
 //gl allocation count
-int _gx_gl_textures_gen = 0;
-int _gx_gl_vbos_gen = 0;
-int _gx_gl_textures_del = 0;
-int _gx_gl_vbos_del = 0;
+int gxi_gl_textures_gen = 0;
+int gxi_gl_vbos_gen = 0;
+int gxi_gl_textures_del = 0;
+int gxi_gl_vbos_del = 0;
 
 
 //internal data
-static zint32 _gx_window_width=0;
-static zint32 _gx_window_height=0;
-static zint32 _gx_auto_viewport_adjust=ZTRUE; /*true to automatically adjust viewport*/
+static zint32 gxi_window_width=0;
+static zint32 gxi_window_height=0;
+static zint32 gxi_auto_viewport_adjust=ZTRUE; /*true to automatically adjust viewport*/
 
-static zfloat32 _gx_2d_top =0;
-static zfloat32 _gx_2d_bottom =0;
-static zfloat32 _gx_2d_left = 0;
-static zfloat32 _gx_2d_right = 0;
+static zfloat32 gxi_2d_top =0;
+static zfloat32 gxi_2d_bottom =0;
+static zfloat32 gxi_2d_left = 0;
+static zfloat32 gxi_2d_right = 0;
 
 //keyboard data
 
 static zchar _keybuffer = 0;;
-zbool _gx_keystate[256];  //up/down state of all possible chars
+zbool gxi_keystate[256];  //up/down state of all possible chars
 
 //mouse data
-static zbool	_gx_mouse_capture = ZFALSE;
-static zuint32	_gx_mouse_capture_last_x = 0;
-static zuint32	_gx_mouse_capture_last_y = 0; 
-static zuint32	_gx_last_mouse_x = 0;
-static zuint32	_gx_last_mouse_y = 0; 
-static zbool	_gx_mouse_present_state = ZTRUE;
-static zbool	_gx_mouse_first_capture = ZFALSE;
+static zbool	gxi_mouse_capture = ZFALSE;
+static zuint32	gxi_mouse_capture_last_x = 0;
+static zuint32	gxi_mouse_capture_last_y = 0; 
+static zuint32	gxi_last_mouse_x = 0;
+static zuint32	gxi_last_mouse_y = 0; 
+static zbool	gxi_mouse_present_state = ZTRUE;
+static zbool	gxi_mouse_first_capture = ZFALSE;
 
 // GLUT callbacks
 
-void _gx_callback_keyboard(unsigned char key, int x, int y)
+void gxi_callback_keyboard(unsigned char key, int x, int y)
 {
 	_keybuffer = key;  //store last key pressed
 	
 
-	_gx_keystate[   key] = ZTRUE;  //store updated key state
+	gxi_keystate[   key] = ZTRUE;  //store updated key state
 
 }
 
-void _gx_callback_keyboard_up(unsigned char key, int x, int y)
+void gxi_callback_keyboard_up(unsigned char key, int x, int y)
 {
-	_gx_keystate[   key] = ZFALSE;  //indicate the key is not pressed
+	gxi_keystate[   key] = ZFALSE;  //indicate the key is not pressed
 }
 
 
@@ -98,7 +98,7 @@ zbool gx_mouse_state(zuint32 button)
 	return ZFALSE;
 }
 
-static void _gx_callback_mouseclick(int button, int state, int x, int y)
+static void gxi_callback_mouseclick(int button, int state, int x, int y)
 {
 
 
@@ -136,56 +136,56 @@ static void _gx_callback_mouseclick(int button, int state, int x, int y)
 
 
 
-static void _gx_callback_mouseactive(int x, int y)
+static void gxi_callback_mouseactive(int x, int y)
 {
 
-		_gx_last_mouse_x = x;
-		_gx_last_mouse_y = y;
+		gxi_last_mouse_x = x;
+		gxi_last_mouse_y = y;
 	
 }
 
 
-static void _gx_callback_mousepassive(int x, int y)
+static void gxi_callback_mousepassive(int x, int y)
 {
 	//called when mouse is moved and no buttons are pressed
 	//at this point, there is no reason to differentiate behavior (clicks already cause events)
 
-	_gx_callback_mouseactive(x,y);
+	gxi_callback_mouseactive(x,y);
 }
 
-static void _gx_callback_mouse_entry(int state)
+static void gxi_callback_mouse_entry(int state)
 {
 //	printf( "Mouse entry %d\n", state);
 	if (state == GLUT_LEFT)
-		_gx_mouse_present_state = ZFALSE;
+		gxi_mouse_present_state = ZFALSE;
 	else if (state == GLUT_ENTERED)
-		_gx_mouse_present_state = ZTRUE;
+		gxi_mouse_present_state = ZTRUE;
 
 }
 
-static void _gx_callback_reshape(int w, int h) //called when window is resized
+static void gxi_callback_reshape(int w, int h) //called when window is resized
 {
 #ifdef DOPRINTF 
 	printf(" window resize %d %d\n", w, h);
 #endif
 
 	/*Remember window size*/
-	_gx_window_width=w;
-	_gx_window_height=h;
+	gxi_window_width=w;
+	gxi_window_height=h;
 
-	if (_gx_auto_viewport_adjust)
+	if (gxi_auto_viewport_adjust)
 	{
 		glViewport(0,0,w,h);
 	}
 
 }
 
-static void _gx_callback_disp(void)
+static void gxi_callback_disp(void)
 {
 	/*Don't do anything here, its just required to keep GLUT happy*/
 }
 
-static void _gx_callback_special(void)
+static void gxi_callback_special(void)
 {
 		
 	
@@ -193,12 +193,12 @@ static void _gx_callback_special(void)
 
 //Initialization 
 
-static int _gx_window = 0;
+static int gxi_window = 0;
 
-int _gx_no_vbos = 0; //set to true when falling back to vertex arrays
+int gxi_no_vbos = ZFALSE; //set to true when falling back to vertex arrays
+int gxi_fixed_function = ZFALSE; //set to true when falling back to fixed function
 
-
-int gx_init(zint32 width, zint32 height, zchar* window_title)
+int gx_init(zint32 width, zint32 height, zchar* window_title, zuint32 options)
 {
 	/* Fake argc/argv fool GLUT into getting different parameters */
 	int fakeargc=0;
@@ -206,7 +206,7 @@ int gx_init(zint32 width, zint32 height, zchar* window_title)
 	char ** fakeargv= &fakeargv0;
 	int ver[2];
 	
-	memset(_gx_keystate, 0, sizeof(_gx_keystate));		
+	memset(gxi_keystate, 0, sizeof(gxi_keystate));		
 
 	glutInit(&fakeargc, fakeargv);
 	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
@@ -214,43 +214,45 @@ int gx_init(zint32 width, zint32 height, zchar* window_title)
 	//glutInitContextVersion(3,3);	
 	
 
+	if (options & GX_OPTION_NO_VBO) 
+		gxi_no_vbos = ZTRUE;
 	
+	if (options & GX_OPTION_NO_SHADER)
+		gxi_fixed_function = ZTRUE;
 	
 	glutInitWindowSize(width, height);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_ALPHA | GLUT_DEPTH | GLUT_STENCIL );
-	_gx_window = glutCreateWindow(window_title);
-
+	gxi_window = glutCreateWindow(window_title);
 
 	
 	glGetIntegerv(GL_MAJOR_VERSION, &ver[0]);
 	glGetIntegerv(GL_MINOR_VERSION, &ver[1]);
 	printf(" OPENGL VERSION:%d/%d\n", ver[0], ver[1]);	
 	
-	
 
 	//exit(0);
 	
 	//set callbacks
-	glutReshapeFunc(_gx_callback_reshape);
-	glutKeyboardFunc(_gx_callback_keyboard);
-	glutKeyboardUpFunc(_gx_callback_keyboard_up);
-	//glutSpecialInput(_gx_callback_special);
-	glutMouseFunc(_gx_callback_mouseclick);
-	glutMotionFunc(_gx_callback_mouseactive);
-	glutPassiveMotionFunc(_gx_callback_mousepassive);
-	glutDisplayFunc(_gx_callback_disp);
-	glutEntryFunc(_gx_callback_mouse_entry);
+	glutReshapeFunc(gxi_callback_reshape);
+	glutKeyboardFunc(gxi_callback_keyboard);
+	glutKeyboardUpFunc(gxi_callback_keyboard_up);
+	//glutSpecialInput(gxi_callback_special);
+	glutMouseFunc(gxi_callback_mouseclick);
+	glutMotionFunc(gxi_callback_mouseactive);
+	glutPassiveMotionFunc(gxi_callback_mousepassive);
+	glutDisplayFunc(gxi_callback_disp);
+	glutEntryFunc(gxi_callback_mouse_entry);
 	glPointSize(1.0);
 	
 	
 	
 
-	_gx_callback_reshape( width, height);  //reshape will use defaults
+	gxi_callback_reshape( width, height);  //reshape will use defaults
 
 	gx_setup_2d(-1.0, -1.0, 1.0, 1.0) ;  //default coords are -1,-1 to 1,1
 	//gx_setup_2d( 0.0f, 0.0f, width-1.0f, height-1.0f);
 
-//	_gx_line_init();  //initialize line drawing functions
+//	gxi_line_init();  //initialize line drawing functions
 
 	if (glewInit()!=GLEW_OK)
 	{
@@ -290,19 +292,21 @@ int gx_init(zint32 width, zint32 height, zchar* window_title)
 	
 	if (!glGenBuffers)
 	{
-		_gx_no_vbos = ZTRUE;
+		gxi_no_vbos = ZTRUE;
 		printf("Cannot initialize VBO functions, using vertex arrays\n");
-		//return GX_ERROR;
 	}
-
+	
+	if (gxi_no_vbos) {
+		gxi_fixed_function = ZTRUE; //can't used shaders without VBOs
+		printf("Fallback to fixed function because VBO not available\n");
+	}
+		
+		
 
 	//default blending mode is alpha, but is off by default
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glDisable(GL_BLEND);
 
-
-	
-	//glutFullScreen();
 
 	return GX_OK;
 }
@@ -312,16 +316,16 @@ int gx_init(zint32 width, zint32 height, zchar* window_title)
 void gx_disable()
 {
 	
-//	_gx_line_disable();
+//	gxi_line_disable();
 
-	if (_gx_window)
-		glutDestroyWindow(_gx_window);
-	_gx_window = 0;
+	if (gxi_window)
+		glutDestroyWindow(gxi_window);
+	gxi_window = 0;
 	
-	printf(" %d textures allocated\n", _gx_gl_textures_gen);
-	printf(" %d textures deleted\n", _gx_gl_textures_del);
-	printf(" %d vbos allocated\n", _gx_gl_vbos_gen);
-	printf(" %d vbos deleted\n", _gx_gl_vbos_del);
+	printf(" %d textures allocated\n", gxi_gl_textures_gen);
+	printf(" %d textures deleted\n", gxi_gl_textures_del);
+	printf(" %d vbos allocated\n", gxi_gl_vbos_gen);
+	printf(" %d vbos deleted\n", gxi_gl_vbos_del);
 
 
 
@@ -341,7 +345,7 @@ void gx_window_event()
 //returns the state of a single key.  true means pressed
 zbool gx_key_state(zbyte a)
 {
-	return _gx_keystate[ (unsigned char) a];
+	return gxi_keystate[ (unsigned char) a];
 }
 
 zchar gx_getkey()   //returns last key pressed
@@ -358,17 +362,17 @@ void gx_mouse_capture(zbool cap)
 	{
 		//center mouse in window
 
-		_gx_mouse_capture_last_x=_gx_window_width/2;
-		_gx_mouse_capture_last_y=_gx_window_height/2;		
+		gxi_mouse_capture_last_x=gxi_window_width/2;
+		gxi_mouse_capture_last_y=gxi_window_height/2;		
 
-		_gx_last_mouse_x = 0;
-		_gx_last_mouse_y = 0;
+		gxi_last_mouse_x = 0;
+		gxi_last_mouse_y = 0;
 
-		_gx_mouse_capture = ZTRUE;
+		gxi_mouse_capture = ZTRUE;
 
-		_gx_mouse_first_capture = ZTRUE; //we want to ignore the 1st mouse mouse event
+		gxi_mouse_first_capture = ZTRUE; //we want to ignore the 1st mouse mouse event
 
-		glutWarpPointer( _gx_mouse_capture_last_x, _gx_mouse_capture_last_y);	
+		glutWarpPointer( gxi_mouse_capture_last_x, gxi_mouse_capture_last_y);	
 		glutSetCursor(GLUT_CURSOR_NONE); //hide mouse pointer
 #ifdef _WIN32
 		ShowCursor(0);//windows call
@@ -377,7 +381,7 @@ void gx_mouse_capture(zbool cap)
 	}
 	else
 	{
-		_gx_mouse_capture = ZFALSE;
+		gxi_mouse_capture = ZFALSE;
 		glutSetCursor(GLUT_CURSOR_INHERIT); //bring back mouse pointer
 
 #ifdef _WIN32
@@ -393,33 +397,33 @@ void gx_mouse_pos(zint32* x, zint32* y, zbool* rel)
 		int dy;
 	
 		if (rel)
-			*rel = _gx_mouse_capture;
+			*rel = gxi_mouse_capture;
 
-		if (!_gx_mouse_capture)
+		if (!gxi_mouse_capture)
 		{
 
-			*x = _gx_last_mouse_x;
-			*y = _gx_last_mouse_y;
+			*x = gxi_last_mouse_x;
+			*y = gxi_last_mouse_y;
 		}
 		else
 		{
 			
-			dx = _gx_last_mouse_x - _gx_mouse_capture_last_x;
-			dy = _gx_last_mouse_y - _gx_mouse_capture_last_y;
+			dx = gxi_last_mouse_x - gxi_mouse_capture_last_x;
+			dy = gxi_last_mouse_y - gxi_mouse_capture_last_y;
 
 			if ( dx || dy)  //if the mouse moved, re-center it
 			{
 
-				_gx_mouse_capture_last_x=_gx_window_width/2;
-				_gx_mouse_capture_last_y=_gx_window_height/2;		
-				glutWarpPointer( _gx_mouse_capture_last_x, _gx_mouse_capture_last_y);
+				gxi_mouse_capture_last_x=gxi_window_width/2;
+				gxi_mouse_capture_last_y=gxi_window_height/2;		
+				glutWarpPointer( gxi_mouse_capture_last_x, gxi_mouse_capture_last_y);
 
 			}
-			if (_gx_mouse_first_capture)
+			if (gxi_mouse_first_capture)
 			{
 				dx=0;
 				dy=0;
-				_gx_mouse_first_capture = 0;
+				gxi_mouse_first_capture = 0;
 				
 			}
 			*x = dx;
@@ -438,14 +442,14 @@ void gx_mouse_posf(zfloat32* fx, zfloat32* fy, zbool* rel)
 
 	//translate to 
 
-	if (_gx_window_width > 0)
+	if (gxi_window_width > 0)
 	{
-		*fx =  (x * (_gx_2d_right - _gx_2d_left) ) / _gx_window_width;
+		*fx =  (x * (gxi_2d_right - gxi_2d_left) ) / gxi_window_width;
 	}
 
-	if (_gx_window_height > 0)
+	if (gxi_window_height > 0)
 	{
-		*fy =  (y * (_gx_2d_bottom - _gx_2d_top) ) / _gx_window_height;
+		*fy =  (y * (gxi_2d_bottom - gxi_2d_top) ) / gxi_window_height;
 	}
 	
 }
@@ -457,7 +461,7 @@ void gx_hide_mouse()
 
 zbool gx_mouse_present()
 {
-	return _gx_mouse_present_state;
+	return gxi_mouse_present_state;
 }
 
 /* Simple framebuffer control */
@@ -485,12 +489,12 @@ void gx_frame_show()
 zfloat32 gx_frame_get_dimensions(zuint32* width, zuint32* height)
 {
 	if (height)
-		*height = _gx_window_height;
+		*height = gxi_window_height;
 
 	if (width)
-		*width = _gx_window_width;
+		*width = gxi_window_width;
 
-	return ((zfloat32) _gx_window_width) / ((zfloat32)_gx_window_height);
+	return ((zfloat32) gxi_window_width) / ((zfloat32)gxi_window_height);
 }
 
 
@@ -503,7 +507,7 @@ void gx_setup_2d(float left,  float top, float right, float bottom)
 	glOrtho(left, right, bottom, top, -1.0,1.0);
 	glMatrixMode(GL_MODELVIEW);
 
-//	_gx_reset_matrix();// reset camera matrix
+//	gxi_reset_matrix();// reset camera matrix
 
 	//makes most sense to disable depth:
 	//glDepthMask(GL_FALSE);  //don't write to depth bufer
@@ -513,10 +517,10 @@ void gx_setup_2d(float left,  float top, float right, float bottom)
 
 	glDisable(GL_CULL_FACE);
 
-	_gx_2d_top = top;
-	_gx_2d_bottom = bottom;
-	_gx_2d_left = left; 
-	_gx_2d_right = right;
+	gxi_2d_top = top;
+	gxi_2d_bottom = bottom;
+	gxi_2d_left = left; 
+	gxi_2d_right = right;
 
 
 }
@@ -526,7 +530,7 @@ void gx_setup_2d_pixels(int* width, int *height)
 	//give dimensions to client application
 	gx_frame_get_dimensions(width, height);
 
-	gx_setup_2d(-.375f, _gx_window_height-.375f, _gx_window_width-.375f, -.375f);
+	gx_setup_2d(-.375f, gxi_window_height-.375f, gxi_window_width-.375f, -.375f);
 }
 
 
