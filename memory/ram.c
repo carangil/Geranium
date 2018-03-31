@@ -76,7 +76,7 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_siz
 {
 	mem_header_t* x;
 	char * xbuffer;
-	int padd = 0;
+    int rem = 0;
 
 #ifdef RAM_DEBUG 
 	if (!ram_debug_lock_valid) {
@@ -87,10 +87,14 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_siz
 		
 	if (shadow_size) {
 		//keep alignment when we allocate the shadow buffer
-	//	printf(" Requested %d shadow bytes\n", shadow_size);
-		padd = sizeof(void*) - ( shadow_size % 64);
-		shadow_size += padd;
-	//	printf(" %d shadow bytes allocated\n", shadow_size); 
+		printf(" Requested %d shadow bytes\n", shadow_size);
+        
+        rem = shadow_size % sizeof(void*);
+        if (rem) {
+            shadow_size += (sizeof(void*)) - rem;
+        }
+        
+        printf(" %d shadow bytes allocated\n", shadow_size); 
 		
 	}
 		
