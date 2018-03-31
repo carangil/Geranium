@@ -397,7 +397,10 @@ char* gxi_env_spec() {
 	
 	char* spec ;
 	gx_environment_t* env = current_env;
-	
+    
+	if (!env)
+        return NULL;
+    
 	if (env->spec)
 		return env->spec;
 	

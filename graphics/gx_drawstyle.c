@@ -401,7 +401,7 @@ gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  ) {
 
 	//printf(" Created vshader %u\n", shader->v_shader);
 	
-	glShaderSource(shader->v_shader, zvec_count(&strings), zvec_elements(&strings), NULL );
+	glShaderSource(shader->v_shader, zvec_count(&strings), (const char**) zvec_elements(&strings), NULL );
 
 	glCompileShader(shader->v_shader);
 	
@@ -422,7 +422,7 @@ gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  ) {
 
 	//printf(" Created fshader %u\n", shader->f_shader);
 	
-	glShaderSource(shader->f_shader, zvec_count(&strings), zvec_elements(&strings), NULL );
+	glShaderSource(shader->f_shader, zvec_count(&strings), (const char**) zvec_elements(&strings), NULL );
 
 	glCompileShader(shader->f_shader);
 	

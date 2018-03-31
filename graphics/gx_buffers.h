@@ -134,21 +134,25 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 #define COLOR_COMPONENTS 4
 #define TEXTURE_COMPONENTS 2
 
+//internal accessors
+#define gxi_vbuffer_v(vbbb, iii)   ((vec3*)(&((vbbb)->pos_data[(iii)* VERTEX_COMPONENTS])))
+#define gxi_vbuffer_n(vbbb, iii)   ((vec3*)(&((vbbb)->normal_data[(iii)* VERTEX_COMPONENTS])))
+#define gxi_vbuffer_s(vbbb, iii, ttt)  ((vbbb)->texcoord_data[ttt][(iii)* TEXTURE_COMPONENTS])
+#define gxi_vbuffer_t(vbbb, iii, ttt)  ((vbbb)->texcoord_data[ttt][(iii)* TEXTURE_COMPONENTS+1])
+
+
+
+
 //experimental accessors
-#if 1
+#if 0
 //#define gx_vbuffer_x(vbbb, iii)  ((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS])
 //#define gx_vbuffer_y(vbbb, iii)  ((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS+1])
 //#define gx_vbuffer_z(vbbb, iii)  ((vbbb)->vertex_data[(iii)* VERTEX_COMPONENTS+2])
 
-#define gxi_vbuffer_v(vbbb, iii)   ((vec3*)(&((vbbb)->pos_data[(iii)* VERTEX_COMPONENTS])))
-#define gxi_vbuffer_n(vbbb, iii)   ((vec3*)(&((vbbb)->normal_data[(iii)* VERTEX_COMPONENTS])))
 
 //#define gx_vbuffer_c(vbbb, iii)   ((float*)(&((vbbb)->color_data[(iii)* COLOR_COMPONENTS])))
 
 
-
-#define gxi_vbuffer_s(vbbb, iii, ttt)  ((vbbb)->texcoord_data[ttt][(iii)* TEXTURE_COMPONENTS])
-#define gxi_vbuffer_t(vbbb, iii, ttt)  ((vbbb)->texcoord_data[ttt][(iii)* TEXTURE_COMPONENTS+1])
 
 
 #endif

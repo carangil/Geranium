@@ -94,7 +94,7 @@ int main(int argc, char** argv)
 	gx_camera_init(&player_camera);
 
 	gx_vbuffer_t* vb = NULL;
-	//gx_init(800, 600 , "Test", GX_OPTION_NO_VBO);
+	//gx_init(800, 600 , "Test", GX_OPTION_NO_SHADER);
 	gx_init(800, 600 , "Test", 0);
 	
 	gx_vbuffer_t* sph = NULL;
