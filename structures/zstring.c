@@ -100,7 +100,7 @@ char* zstr_mk(int capacity, int use)
 		zs->len = use;
 		zs->capacity = capacity ; //, including null terminator
 	}
-	
+	x[use] = 0;
 	return x;
 }
 
@@ -109,6 +109,9 @@ char* zstrndup(char* a, int n) {
 	int len;
 	char *z;
 	
+    if (a == NULL)
+        return zstr_mk(n,0);
+    
 	if (n==0)
 		len=0;
 	else if (n>0) 
