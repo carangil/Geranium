@@ -124,7 +124,7 @@ char* zstrndup(char* a, int n) {
 	
 	
 	z = zstr_mk(n, len); //n is capacity of string, len is length to be used
-	printf("mk %d, %d\n", len,n);
+	//printf("mk %d, %d\n", len,n);
 	
 	if(z) {
 		strncpy(z,a,len); 

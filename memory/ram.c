@@ -87,14 +87,14 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_siz
 		
 	if (shadow_size) {
 		//keep alignment when we allocate the shadow buffer
-		printf(" Requested %d shadow bytes\n", shadow_size);
+		//printf(" Requested %d shadow bytes\n", shadow_size);
         
         rem = shadow_size % sizeof(void*);
         if (rem) {
             shadow_size += (sizeof(void*)) - rem;
         }
         
-        printf(" %d shadow bytes allocated\n", shadow_size); 
+        //printf(" %d shadow bytes allocated\n", shadow_size); 
 		
 	}
 		
@@ -106,7 +106,7 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_siz
 		
 		x = (mem_header_t*) (xbuffer + shadow_size);
 		if (shadow_size) {
-				printf("Allocate physical buffer %p with shadow %d.  Header starts at %p Userdata at %p\n", xbuffer, shadow_size, x, x+1);
+				//printf("Allocate physical buffer %p with shadow %d.  Header starts at %p Userdata at %p\n", xbuffer, shadow_size, x, x+1);
 		}
 		x->shadow_size = shadow_size;
 		x->destructor = destructor;
@@ -230,7 +230,7 @@ void ram_free(void* thing)
 				buffer = (char*) header;
 				buffer -= header->shadow_size;
 				if (header->shadow_size) {
-					printf("Free physical buffer %p with shadow %d.  Header starts at %p Userdata at %p\n", buffer, header->shadow_size, header, header+1);
+					//printf("Free physical buffer %p with shadow %d.  Header starts at %p Userdata at %p\n", buffer, header->shadow_size, header, header+1);
 				}
 				free(buffer);
 			}
@@ -282,7 +282,7 @@ void* ram_resize(void* ram, zsize size)
 		
 		
 		if (shadow_size) {
-				printf("Realloc physical buffer %p with shadow %d.  Header starts at %p Userdata at %p\n", buffer, shadow_size, header, header+1);
+				//printf("Realloc physical buffer %p with shadow %d.  Header starts at %p Userdata at %p\n", buffer, shadow_size, header, header+1);
 		}
 		
 		buffer = realloc(buffer, sizeof(mem_header_t) + size + header->shadow_size);  //attempt resize to new size;
@@ -292,7 +292,7 @@ void* ram_resize(void* ram, zsize size)
 			header = NULL;
 		
 		if (shadow_size) {
-				printf("Realloced to  physical buffer %p with shadow %d.  Header starts at %p Userdata at %p\n", buffer, shadow_size, header, header+1);
+				//printf("Realloced to  physical buffer %p with shadow %d.  Header starts at %p Userdata at %p\n", buffer, shadow_size, header, header+1);
 		}
 		
 

@@ -122,7 +122,7 @@ gx_shader_t* gxi_select_shader(gx_vbuffer_t* vb)
 		char* fullspec = zstrndup(gxi_env_spec(), 100);
 		fullspec = zstr_cat(fullspec, gxi_drawstyle_spec(style));
 		fullspec = zstr_cat(fullspec, gxi_vbuffer_spec(vb));
-		printf(" SHADER SPEC WILL BE %s\n", fullspec);
+		gxdprintf(" SHADER SPEC WILL BE %s\n", fullspec);
 
 		if (style->shadergroup) 
 			set = gx_shader_variant(style->shadergroup, fullspec);
@@ -151,7 +151,7 @@ gx_shader_t* gxi_select_shader(gx_vbuffer_t* vb)
 					sprintf(texname, "gx_texture%d", i);
 					loc = glGetUniformLocation(set->program , texname);
 					if (loc!=-1) {
-							printf(" %s is at %d, set to unit %d\n", texname, loc, i);
+							gxdprintf(" %s is at %d, set to unit %d\n", texname, loc, i);
 							glUniform1i(loc, i); //set texture uniform loc to use texture unit i
 					}
 				
@@ -238,13 +238,13 @@ gx_drawstyle_t* gx_drawstyle_mk(gx_image_t* img)
 
 int get_shader_uniform_loc(gx_shader_t* shader, char* name) {
 		int loc = glGetUniformLocation(shader->program, name);
-		printf(" UNFM %s -> %d\n", name, loc);
+		gxdprintf(" UNFM %s -> %d\n", name, loc);
 		return loc;
 }
 
 int get_shader_attribute_loc(gx_shader_t* shader, char* name) {
 		int loc = glGetAttribLocation(shader->program, name);
-		printf(" ATTR %s -> %d\n", name,loc);
+		gxdprintf(" ATTR %s -> %d\n", name,loc);
 		return loc;
 }
 
@@ -346,7 +346,7 @@ gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  ) {
 	for ( ; var  ; var = zlist_next(var) ){
 		
 		if ( !strcmp(var->spec , spec)) {
-			printf("FOUND VARIANT %s\n", var->spec);
+			gxdprintf("FOUND VARIANT %s\n", var->spec);
 			return var->shader;
 			//return ram_addref(var->shader); //return the same shader again
 		}
@@ -386,7 +386,7 @@ gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  ) {
 	zvec_add(&strings, sg->vsource);
 		
 	for(i=0;i<zvec_count(&strings);i++) {
-		printf("%s\n", zvec_get_x_at(&strings, char *, i));
+		gxdprintf("%s\n", zvec_get_x_at(&strings, char *, i));
 	}
 	
 	
@@ -408,7 +408,7 @@ gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  ) {
 	status = 0;
 	glGetShaderiv(shader->v_shader, GL_COMPILE_STATUS, &status);
 	glGetShaderInfoLog(shader->v_shader, 1024, &len, log);
-	printf("vertex:\n%s\n", log);
+	gxdprintf("vertex:\n%s\n", log);
 	if (!status) {
 		//todo:cleanup
 		return NULL;
@@ -430,7 +430,7 @@ gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  ) {
 	glGetShaderiv(shader->f_shader, GL_COMPILE_STATUS, &status);
 	glGetShaderInfoLog(shader->f_shader, 1024, &len, log);
 	
-	printf("fragment:\n%s\n", log);
+	gxdprintf("fragment:\n%s\n", log);
 	if (!status) {
 		//todo:cleanup
 		return NULL;

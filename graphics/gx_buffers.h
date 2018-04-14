@@ -91,7 +91,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 void gx_test_draw_vertices(gx_vbuffer_t* v);
 
 
-void gx_vbuffer_add_index(gx_vbuffer_t* v, zuint32 i);
+void gx_vbuffer_index(gx_vbuffer_t* v, zuint32 i);
 
 
 
@@ -137,9 +137,15 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 //internal accessors
 #define gxi_vbuffer_v(vbbb, iii)   ((vec3*)(&((vbbb)->pos_data[(iii)* VERTEX_COMPONENTS])))
 #define gxi_vbuffer_n(vbbb, iii)   ((vec3*)(&((vbbb)->normal_data[(iii)* VERTEX_COMPONENTS])))
-#define gxi_vbuffer_s(vbbb, iii, ttt)  ((vbbb)->texcoord_data[ttt][(iii)* TEXTURE_COMPONENTS])
-#define gxi_vbuffer_t(vbbb, iii, ttt)  ((vbbb)->texcoord_data[ttt][(iii)* TEXTURE_COMPONENTS+1])
+#define gxi_vbuffer_s(vbbb,ttt, iii)  ((vbbb)->texcoord_data[ttt][(iii)* TEXTURE_COMPONENTS])
+#define gxi_vbuffer_t(vbbb,ttt, iii)  ((vbbb)->texcoord_data[ttt][(iii)* TEXTURE_COMPONENTS+1])
 
+
+
+// 'read only' accessors for user programs: right now only used in gx_quadpatch detail functions
+#define gx_vbuffer_get_v(p,vb,i)  p = *gxi_vbuffer_v(vb, i)
+#define gx_vbuffer_get_s(p,vb,t,i)  p = gxi_vbuffer_s(vb,t,i)
+#define gx_vbuffer_get_t(p,vb,t,i)  p = gxi_vbuffer_t(vb,t,i)
 
 
 

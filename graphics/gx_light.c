@@ -9,6 +9,7 @@
 #include "../vmath/zmath.h"
 #include "../structures/zvector.h"
 #include "../structures/zlist.h"
+#include "gx_sys.h"
 #include "gx_image.h"
 #include "gx_buffers.h"
 #include "gx_drawstyle.h"
@@ -72,7 +73,7 @@ void gx_light_set_attenuation( gx_light_t* li, zbool attenuated, float maximum, 
 			li->squared = s =  falloff * ((1-c) / (unityrange * unityrange));
 			li->linear = l = (1-c - (1-c)*falloff) / unityrange;
 			
-			printf("Light parameters: C=%f L=%f S=%f\n",c,l,s  );
+			gxdprintf("Light parameters: C=%f L=%f S=%f\n",c,l,s  );
 	
 			
 		} else {
@@ -193,7 +194,7 @@ static void ff_set_active_lights(gx_light_t** lights, zuint32 count)
 		glLightModeli (GL_LIGHT_MODEL_LOCAL_VIEWER,  0);
 	}
 
-	printf(" setting %d ff lights\n", count);
+	gxdprintf(" setting %d ff lights\n", count);
 	glPushMatrix();
 	glLoadIdentity();
 	/* When in fixed function mode, opengl transforms the light position
@@ -268,12 +269,12 @@ static void ff_set_active_lights(gx_light_t** lights, zuint32 count)
 				
 				float v[4];
 			
-				printf("Originalp: %f %f %f\n", p[0], p[1], p[2]);
+				gxdprintf("Originalp: %f %f %f\n", p[0], p[1], p[2]);
 				glLightfv(GL_LIGHT0+i, GL_POSITION, p);
 				glGetLightfv(GL_LIGHT0+i, GL_POSITION,v);
-				printf("GL Light0: %f %f %f %f\n", v[0] ,v[1], v[2]);
+				gxdprintf("GL Light0: %f %f %f %f\n", v[0] ,v[1], v[2]);
 				gx_trans_vec3(&p);
-				printf("Trans   p: %f %f %f\n", p[0], p[1], p[2]);
+				gxdprintf("Trans   p: %f %f %f\n", p[0], p[1], p[2]);
 				
 				
 			}
@@ -362,7 +363,7 @@ static void shader_set_active_lights( gx_shader_t* set, gx_light_t** lights, int
 			
 	}
 
-	printf("Ambient sum: %f %f %f\n", ambientsum.VX, ambientsum.VY, ambientsum.VZ);
+	gxdprintf("Ambient sum: %f %f %f\n", ambientsum.VX, ambientsum.VY, ambientsum.VZ);
 
 	
 	
@@ -476,7 +477,7 @@ void gxi_set_shader_env_params(gx_shader_t* set){
 			ff_enabled_env = ZFALSE;
 			ff_set_active_lights(NULL, 0);
 			glDisable(GL_FOG);
-			printf(" Clear out FF environment settings\n");
+			gxdprintf(" Clear out FF environment settings\n");
 	}
 	
 	

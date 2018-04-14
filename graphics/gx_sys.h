@@ -64,3 +64,6 @@ extern int gxi_fixed_function;
 
 void gx_error(char* file, int line);
 #define GX_TRACE gx_error( __FILE__ , __LINE__);
+
+#define GXDEBUG 0
+#define gxdprintf  if(GXDEBUG) printf

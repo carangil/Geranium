@@ -180,7 +180,7 @@ void gxi_refresh_matrix(gx_shader_t* shader) {
 	/* load our 3x3 matrix and translation vector as a 4x4 matrix to opengl */
 	
 	if (shader && shader->matrix_version == matrix_version)  {
-		printf(" Skip redundent matrix upload\n");
+		gxdprintf(" Skip redundent matrix upload\n");
 		return;
 		
 	}
@@ -199,11 +199,11 @@ void gxi_refresh_matrix(gx_shader_t* shader) {
 	
 	if (!shader) {
 		if (ff_matrix_version == matrix_version) {
-				printf("skip same ff matrix\n");
+				gxdprintf("skip same ff matrix\n");
 				return ;
 				
 		}
-		printf(" upload FF matrix\n");
+		gxdprintf(" upload FF matrix\n");
 		
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
@@ -222,7 +222,7 @@ void gxi_refresh_matrix(gx_shader_t* shader) {
 	if (shader && shader->modelview_uloc != -1) {
 		//ff_matrix_version = -1; //if we turn shaders off, we will have to resend the fixed function matrix
 
-		printf(" upload shader matrix to ver %d\n", matrix_version);
+		gxdprintf(" upload shader matrix to ver %d\n", matrix_version);
 		
 		glUniformMatrix4fv(shader->modelview_uloc, 1, 0, matr);	
 		
@@ -383,13 +383,13 @@ void getmatrix(){
 
 void printMatrix44(char* name, float* m){
 	int i;
-	printf("[ %s ", name);
+	gxdprintf("[ %s ", name);
 	for (i=0;i<16;i++){
 		if (! (i&3) ) 
-			printf("\n");
-		printf("%f ", m[i]);
+			gxdprintf("\n");
+		gxdprintf("%f ", m[i]);
 	}
-	printf(" ]\n");
+	gxdprintf(" ]\n");
 }
 
 

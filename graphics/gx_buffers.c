@@ -510,7 +510,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	
 	for (i=0;i<gxi_num_attr;i++){
 			if (gxi_attr_buffer[i] == ATTR_ENABLED) {
-				printf(" flagging attr %d for posible disable\n",i);
+				gxdprintf(" flagging attr %d for posible disable\n",i);
 				gxi_attr_buffer[i] = ATTR_TODISABLE;
 			}
 	}
@@ -518,7 +518,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	
 	if (v->_vertex_combined_vbo)
 	{
-		printf(" Bind vbo %d\n", v->_vertex_combined_vbo);
+		gxdprintf(" Bind vbo %d\n", v->_vertex_combined_vbo);
 		glBindBuffer(GL_ARRAY_BUFFER,  v->_vertex_combined_vbo );
 	}
 
@@ -526,7 +526,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	if (shader && legacy_arrays_enabled ) {
 		//if we are drawing with a shader, but legacy were previously used, disable all of them
 		//don't unconditionally disable them, as that is an invalid operation in modern gl where there are no ff pipeline
-		printf("Disable legacy attribute arrays\n");
+		gxdprintf("Disable legacy attribute arrays\n");
 		glDisableClientState(GL_VERTEX_ARRAY);
 		glDisableClientState(GL_NORMAL_ARRAY);
 		glDisableClientState(GL_COLOR_ARRAY);

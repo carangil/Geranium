@@ -312,7 +312,7 @@ void gx_set_active_textures(gx_image_t** texes, zuint32 numtex)
 	{
 				
 		if (current_textures[i] == texes[i]) {
-			printf(" texture %x already on\n", i);
+		//	printf(" texture %x already on\n", i);
 			continue;  //skip setting already-set texture
 		}
 		
