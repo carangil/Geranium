@@ -9,7 +9,7 @@ OBJSgraphics+=graphics/gx_drawstyle.o
 OBJSgraphics+=graphics/gx_light.o
 #OBJSgraphics+=graphics/gx_mesh.o
 #OBJSgraphics+=graphics/gx_sprite.o
-#OBJSgraphics+=graphics/gx_quadpatch.o
+OBJSgraphics+=graphics/gx_quadpatch.o
 
 
 OBJS_TOCLEAN += $(OBJSgraphics)
@@ -26,7 +26,7 @@ Hgraphics+=graphics/gx_light.h
 Hgraphics+=graphics/gx_trans.h
 #Hgraphics+=graphics/gx_sprite.h
 Hgraphics+=graphics/gx_sys.h
-#Hgraphics+=graphics/gx_quadpatch.h
+Hgraphics+=graphics/gx_quadpatch.h
 Hgraphics+=graphics/defshader.v.h
 Hgraphics+=graphics/defshader.f.h
 
@@ -37,8 +37,8 @@ graphics/defshader.v.h: graphics/shader.v ./tools/string-to-c
 graphics/defshader.f.h: graphics/shader.f ./tools/string-to-c
 	tools/string-to-c graphics/shader.f graphics/defshader.f.h gxi_def_shader_f
 	
-graphics/%.o: %.c    $(Hgraphics) $(Hstructures) $(Hmemory) 
-	$(CC) $(CFLAGS) -c -o $@ $<
+graphics/%.o: graphics/%.c    $(Hgraphics) $(Hstructures) $(Hmemory) 
+	$(CC)   $(CFLAGS)  -c -o $@ $< 
 
 	
 objs/libgraphics.a: $(Hgraphics)  $(OBJSgraphics) 

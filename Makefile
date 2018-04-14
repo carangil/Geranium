@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g
+CFLAGS=-g -I. -Imemory -Ivmath -Istructures
 
 #rule to build o files into c files
 #%.o: %.c $(H)
