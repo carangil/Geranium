@@ -8,7 +8,7 @@
 #define GEN_CUBE_LEFT	4
 #define GEN_CUBE_RIGHT	5
 
-//CUBE_INSIDE reorders vertices so culling order is correct
+// 2018INSIDE reorders vertices so culling order is correct
 //from viewing inside the cube
 
 #define GEN_INSIDE	1

@@ -153,7 +153,7 @@ zbool gen_qpcube(gx_quadpatch_sys_t* qpsys,
 		
 		qpo[i] = qp =  gx_quadpatch_mk(tessel,tessel, detailer[i]);
 
-		if (flags|GEN_INSIDE)
+		if (flags&GEN_INSIDE)
 			qp->skirtflip=ZTRUE;
 		
 		for (b=0;b<tessel;b++)

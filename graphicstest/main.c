@@ -1,5 +1,5 @@
 // projectZ - This file is part of a project named 'projectZ'
-// ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
+// ProjectZ is (C) 2018 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
 #include <stdio.h>
@@ -18,13 +18,10 @@
 #include "gx_drawstyle.h"
 #include "gx_trans.h"
 #include "gx_light.h"
-
 #include "gx_quadpatch.h"
 
+#include "gx_misc.h"
 #include "gen.h"
-
-
-
 
 
 #if 1
@@ -43,6 +40,9 @@ int main(int argc, char** argv)
 	gx_camera_t	player_camera;
 	gx_camera_init(&player_camera);
 
+	zvec_t sectors;
+	gx_sector_t *camera_sector=NULL;
+	
 
 	//gx_init(800, 600 , "Test", GX_OPTION_NO_SHADER);
 	gx_init(800, 600 , "Test", 0);
@@ -58,7 +58,8 @@ int main(int argc, char** argv)
 	ram_free(tex);  //reference counts by owning objects keep these alive
 
 	gx_environment_t* testenv = gx_environment_mk();
-
+	gx_environment_t* nolights = gx_environment_mk();
+	
 	//	gx_shadergroup_t* sg = gx_shader_source("@../graphics/shader.v", "@../graphics/shader.f");
 
 	gx_shadergroup_t* sg = NULL;  //should force use of default shader
@@ -120,10 +121,68 @@ int main(int argc, char** argv)
 				NULL,
 				NULL,
 				detailers,
-				/*GEN_SPHERE|*/GEN_INSIDE,
+				/*GEN_SPHERE | GEN_INSIDE*/ GEN_INSIDE,
 				30, 0.07
   			);
 
+#define S_NX_NY_NZ	0
+#define S_NX_PY_NZ	1
+#define S_PX_PY_NZ	2
+#define S_PX_NY_NZ	3
+#define S_NX_NY_PZ	4
+#define S_NX_PY_PZ	5
+#define S_PX_PY_PZ	6
+#define S_PX_NY_PZ	7
+	
+	/* generate 1 sector */
+	{
+		vec3 min,max;
+	//	vec3set(min,-1,-1,-1);
+	//	vec3set(max,1,1,1);
+	
+		
+		int a,b;
+		
+		zvec_mk(&sectors, 16);
+		
+		
+		
+		for (b=0;b<10;b++) {
+			
+			for (a=0;a<10;a++) {
+				
+				
+			vec3set(min, -.5+ a,-.5,-b);
+			vec3set(max, -.5+a+1,.5,-b+1);
+			gx_sector_t* sector = gx_sector_mk(&min,&max);
+		
+			if (!camera_sector) 
+				camera_sector = sector; //spawn the camera here
+		
+			zvec_add(&sectors, sector);
+			}
+		}
+		
+	}
+	
+	//now make all the portals
+	{
+		int a=0;
+		int b=0;
+		for (b=0;b<9;b++) {
+			vec3 pos;
+			vec3set(pos, a, 0, -b);
+			gx_sector_t* s = zvec_get_at(&sectors, (b*10)+a );
+			gx_sector_t* t =zvec_get_at(&sectors, (b+1)*10 + a);
+			gx_sector_add_portal_sphere(s,&pos, sqrt(2)/2, t, NULL);
+			
+		
+			
+		}
+	}
+	
+	printf("start\n");
+	
 	gx_mouse_capture(ZTRUE);
 	//The game loop 
 	for(;;)  
@@ -235,11 +294,42 @@ int main(int argc, char** argv)
 		GX_TRACE
 
 
-	
+	/*
 		if (run_tesselator)
 			gx_quadpatch_sys_eval(&qpsys, &player_camera);
+*/
+	
+		//gx_quadpatch_sys_draw(&qpsys, &player_camera);
+	
+	
+		gx_set_environment(nolights);
+		gx_drawstyle_activate(teststylenotex);
 
-		gx_quadpatch_sys_draw(&qpsys, &player_camera);
+		
+		gx_traverse_sectors(&player_camera, camera_sector ); 
+/*
+		gx_sector_outline(camera_sector,ZTRUE);
+		{
+			int a=0;
+			int b=0;
+			gx_sector_t* t =zvec_get_at(&sectors, (a+1)*10+b);
+			gx_sector_outline(t,ZTRUE);
+		}*/
+#if 0
+		gx_sector_outline(camera_sector,ZTRUE);
+	
+		{
+				gx_sector_t * s;
+				int i;
+				for (i=0;i<zvec_count(&sectors);i++) {
+					gx_sector_t * s = zvec_elements_as(gx_sector_t*, &sectors)[i];
+					
+					gx_sector_outline(s,ZTRUE);
+					
+				}
+		}
+#endif
+
 
 		gx_frame_show(); 
 		
