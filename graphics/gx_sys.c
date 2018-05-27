@@ -1,5 +1,5 @@
 // projectZ - This file is part of a project named 'projectZ'
-// ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
+// ProjectZ is (C) 2018 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
 #include <stdio.h>
@@ -563,13 +563,36 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 
 }
 
+void gx_zbuffer_mapping(zfloat32 min, zfloat32 max) {
+	glDepthRange(min, max);
+}
+
+
 //depth buffer
-void gx_zbuffer(zbool en)
+void gx_zbuffer(zbool dowrite, zbool dotest)
 {
-	if (en)
-		glEnable(GL_DEPTH_TEST);
-	else
+	if (!dowrite && !dotest) {
+		//don't want to do anything with z buffer
 		glDisable(GL_DEPTH_TEST);
+		//disableing depth test ALSO disables depth writes
+		return;
+	}
+
+	//need to enable GL_DEPTH_TEST if we are testing or writing to the depth buffer
+
+	glEnable(GL_DEPTH_TEST);  //enabling testing enables writing to depth buffer in opengl
+
+
+	if (dotest) 
+		glDepthFunc(GL_LEQUAL);  //draw things equally far or closer
+	else
+		glDepthFunc(GL_ALWAYS);  //dummy test, always pass
+	
+
+	if (dowrite) 
+		glDepthMask(GL_TRUE); 
+	else
+		glDepthMask(GL_FALSE);
 	
 }
 

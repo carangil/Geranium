@@ -1,5 +1,5 @@
 // projectZ - This file is part of a project named 'projectZ'
-// ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
+// ProjectZ is (C) 2018 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
 #include "../ztypes.h"
@@ -492,6 +492,11 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 	if (stop <=start)
 		return;
 
+	if (!v->_sent_to_gl) {
+		
+		gx_vbuffer_update(v);
+	}
+	
 	/* This sets up the shader to draw*/
 	/* Shader isn't set up earlier because the contents of the vbuffer (does it have color info, normals, texcoords, etc? 
 	 * affects the choice of shader
@@ -546,7 +551,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		/* Set generic attributes for shader */
 		
 		 if (shader->vertex_loc != -1 ) {
-			//printf(" set vertex attrib\n");
+			printf(" set vertex attrib\n");
 			glVertexAttribPointer(shader->vertex_loc, VERTEX_COMPONENTS, GL_FLOAT, 0, 0, (void*) ( (v->pos_data - v->combined_vertex_data) * sizeof (zfloat32)) );
 			glEnableVertexAttribArray(shader->vertex_loc);
 			gxi_attr_buffer[shader->vertex_loc] = ATTR_ENABLED;
@@ -560,7 +565,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		 }
 		 
 		if (shader->normal_loc != -1 ) {
-			//printf(" set norm attrib\n");
+			printf(" set norm attrib\n");
 			glVertexAttribPointer(shader->normal_loc, VERTEX_COMPONENTS, GL_FLOAT, 0, 0, (void*) ( (v->normal_data - v->combined_vertex_data) * sizeof (zfloat32)) );
 			glEnableVertexAttribArray(shader->normal_loc);
 			gxi_attr_buffer[shader->normal_loc] = ATTR_ENABLED;
@@ -569,7 +574,7 @@ void gx_vbuffer_draw(gx_vbuffer_t* v, zuint32 start, zuint32 stop, gx_prim_e pri
 		
 		for (i=0;i<GX_MAX_TEXCOORD;i++) {
 			if (shader->texcoord_loc[i] != -1 ) {
-				//printf(" set tex %d attrib\n", i);
+				printf(" set tex %d attrib\n", i);
 				glVertexAttribPointer(shader->texcoord_loc[i], 2, GL_FLOAT, 0, 0, (void*) ( (v->texcoord_data[i] - v->combined_vertex_data) * sizeof (zfloat32)) );
 				glEnableVertexAttribArray(shader->texcoord_loc[i]);
 				gxi_attr_buffer[shader->texcoord_loc[i]] = ATTR_ENABLED;

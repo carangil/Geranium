@@ -332,7 +332,7 @@ void gx_set_active_textures(gx_image_t** texes, zuint32 numtex)
 		gxi_image_enable(texes[i]); //enable this image for use on the current texture unit
 		
 		current_textures[i] = texes[i];  
-		printf(" texture %x  on\n",i);
+		//printf(" texture %x  on\n",i);
 	}
 
 	//disable any texture units we had enabled but don't need anymore
@@ -341,7 +341,7 @@ void gx_set_active_textures(gx_image_t** texes, zuint32 numtex)
 		glActiveTexture(GL_TEXTURE0+i);
 		glDisable(GL_TEXTURE_2D);
 		current_textures[i] = NULL; 
-		printf(" texture %x off\n", i);
+		//printf(" texture %x off\n", i);
 	}
 
 	gxi_texture_enabled_count = numtex;

@@ -7,7 +7,7 @@ OBJSgraphics+=graphics/gx_trans.o
 OBJSgraphics+=graphics/gx_sys.o
 OBJSgraphics+=graphics/gx_drawstyle.o
 OBJSgraphics+=graphics/gx_light.o
-#OBJSgraphics+=graphics/gx_mesh.o
+OBJSgraphics+=graphics/gx_mesh.o
 #OBJSgraphics+=graphics/gx_sprite.o
 OBJSgraphics+=graphics/gx_quadpatch.o
 
@@ -21,7 +21,7 @@ Hgraphics+=graphics/gx_drawstyle.h
 Hgraphics+=graphics/gx_image.h
 Hgraphics+=graphics/gx_light.h
 #Hgraphics+=graphics/gx_line.h
-#Hgraphics+=graphics/gx_mesh.h
+Hgraphics+=graphics/gx_mesh.h
 #Hgraphics+=graphics/gx_misc.h
 Hgraphics+=graphics/gx_trans.h
 #Hgraphics+=graphics/gx_sprite.h
@@ -38,10 +38,10 @@ graphics/defshader.f.h: graphics/shader.f ./tools/string-to-c
 	tools/string-to-c graphics/shader.f graphics/defshader.f.h gxi_def_shader_f
 	
 graphics/%.o: graphics/%.c    $(Hgraphics) $(Hstructures) $(Hmemory) 
-	$(CC)   $(CFLAGS)  -c -o $@ $< 
-
+	$(CC)  $(CFLAGS)  -c -o $@ $< 
 	
 objs/libgraphics.a: $(Hgraphics)  $(OBJSgraphics) 
+	echo Packing $@
 	ar rvcs $@  $(OBJSgraphics)
 
 

@@ -20,6 +20,8 @@
 #include "gx_light.h"
 #include "gx_quadpatch.h"
 
+#include "gx_mesh.h"
+
 #include "gx_misc.h"
 #include "gen.h"
 
@@ -42,32 +44,36 @@ int main(int argc, char** argv)
 
 	zvec_t sectors;
 	gx_sector_t *camera_sector=NULL;
+	gx_mesh_t* testobj=NULL;
+
+	gx_init(800, 600 , "Test", GX_OPTION_NO_SHADER);
+//	gx_init(800, 600 , "Test", 0);
+
+	//testobj = gx_mesh_load_obj(NULL, "../shared/untitled.obj", NULL);
+	//testobj = gx_mesh_load_obj(NULL, "/home/alarm/Downloads/blendermodels/test.obj", NULL);
+	testobj = gx_mesh_load_obj(NULL, "/home/alarm/Downloads/blendermodels/humans/jkm_futuristic_female_cc3_gpl/jkm_female1_fixed.obj", NULL);
+	printf(" Loaded mesh %p\n", testobj);
 	
-
-	//gx_init(800, 600 , "Test", GX_OPTION_NO_SHADER);
-	gx_init(800, 600 , "Test", 0);
-
-
-
-	tex = gx_image_load_tga("../shared/label.tga");
+	//tex = gx_image_load_tga("../shared/label.tga");
+	tex = gx_image_load_tga("../shared/rock.tga");
 
 	gx_drawstyle_t* teststyle = gx_drawstyle_mk( tex);
 	gx_drawstyle_t* teststylenotex = gx_drawstyle_mk( NULL);
 
 
-	ram_free(tex);  //reference counts by owning objects keep these alive
+//	ram_free(tex);  //reference counts by owning objects keep these alive
 
 	gx_environment_t* testenv = gx_environment_mk();
 	gx_environment_t* nolights = gx_environment_mk();
 	
-	//	gx_shadergroup_t* sg = gx_shader_source("@../graphics/shader.v", "@../graphics/shader.f");
+	gx_shadergroup_t* sg = gx_shader_source("@../graphics/shader.v", "@../graphics/shader.f");
 
-	gx_shadergroup_t* sg = NULL;  //should force use of default shader
+//	gx_shadergroup_t* sg = NULL;  //should force use of default shader
 
 	{
 		vec3 p,c,ca;
 		gx_light_t* li;
-		vec3set(p, 1, 2, 1);
+		vec3set(p, 1,8, 10);
 		vec3set(c, .1,1,.5);
 		vec3set(ca, .1, .1, .3);
 
@@ -86,7 +92,7 @@ int main(int argc, char** argv)
 	}
 
 
-	gx_clear_color(.1,.1,.1,1);
+	gx_clear_color(.2,.2,.1,1);
 
 
 	gx_setup_3d( 90.0, 4.0/3.0, .1, 100);
@@ -125,18 +131,15 @@ int main(int argc, char** argv)
 				30, 0.07
   			);
 
-#define S_NX_NY_NZ	0
-#define S_NX_PY_NZ	1
-#define S_PX_PY_NZ	2
-#define S_PX_NY_NZ	3
-#define S_NX_NY_PZ	4
-#define S_NX_PY_PZ	5
-#define S_PX_PY_PZ	6
-#define S_PX_NY_PZ	7
+
+	
+#if 1
 	
 	/* generate 1 sector */
 	{
 		vec3 min,max;
+		vec3 p[8];
+		
 	//	vec3set(min,-1,-1,-1);
 	//	vec3set(max,1,1,1);
 	
@@ -150,11 +153,16 @@ int main(int argc, char** argv)
 		for (b=0;b<10;b++) {
 			
 			for (a=0;a<10;a++) {
-				
+				gx_sector_t* sector;
 				
 			vec3set(min, -.5+ a,-.5,-b);
 			vec3set(max, -.5+a+1,.5,-b+1);
-			gx_sector_t* sector = gx_sector_mk(&min,&max);
+			gx_cube_points(p, &min, &max);
+
+			sector = gx_cube_sector_mk(p);
+			
+			
+		//	gx_sector_t* sector = gx_sector_mk(&min,&max);
 		
 			if (!camera_sector) 
 				camera_sector = sector; //spawn the camera here
@@ -176,13 +184,43 @@ int main(int argc, char** argv)
 			gx_sector_t* t =zvec_get_at(&sectors, (b+1)*10 + a);
 			gx_sector_add_portal_sphere(s,&pos, sqrt(2)/2, t, NULL);
 			
-		
 			
 		}
 	}
+#endif
+
+
+	zvec_mk(&sectors, 16);
+	{
+		gx_cube_sector_t* s;
+	//	s = cube_sector_mk;
+		
+		zvec_add(&sectors, s);
 	
+	}
+
 	printf("start\n");
-	
+#if 0
+	{
+		int i;
+		
+			vec3 p[8];
+			vec3 min;
+			vec3 max;
+			vec3set(min, -1,-2,-3);
+			vec3set(max, 1, 2, 3);
+			
+			gx_cube_points(p, &min, &max);
+			for (i=0;i<8;i++) {
+					printf(" %d ", i);
+					vec3print(p[i]);
+					printf("\n");
+			}
+		
+		
+	}
+#endif
+
 	gx_mouse_capture(ZTRUE);
 	//The game loop 
 	for(;;)  
@@ -305,8 +343,36 @@ int main(int argc, char** argv)
 		gx_set_environment(nolights);
 		gx_drawstyle_activate(teststylenotex);
 
+
+	//	gx_traverse_sectors(&player_camera, camera_sector ); 
 		
-		gx_traverse_sectors(&player_camera, camera_sector ); 
+		{
+				int i;
+				gx_immediate(gx_lines);
+				for (i=0;i<zvec_count(&testenv->lights);i++) {
+					float green[] = { 0,1,0,1};
+					vec3 v;
+					vec3 p;
+					
+					gx_light_t* li = zvec_get_at(&testenv->lights, i);
+					
+					
+					vec3set(p,.1,.1,.1);
+					vec3mov(v, li->position);
+					gx_point(&v, NULL, &green, 0,0);
+					vec3add(v, p);
+					gx_point(&v, NULL, &green, 0,0);
+				}
+				gx_end();
+		}
+		
+		gx_set_environment(testenv);
+		gx_drawstyle_activate(teststyle);
+
+		gx_mesh_draw(testobj);
+
+
+		
 /*
 		gx_sector_outline(camera_sector,ZTRUE);
 		{

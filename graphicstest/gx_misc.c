@@ -96,6 +96,8 @@ zbool sector_free(void* x)
 
 }
 
+
+//creates a sector based on axis aligned bounding box
 gx_sector_t* gx_sector_mk(vec3* min, vec3* max )
 {
 	gx_sector_t* b = NULL;
@@ -118,6 +120,44 @@ gx_sector_t* gx_sector_mk(vec3* min, vec3* max )
 		
 	return b;
 }
+
+//creates a sector based on 8 bounding points
+// (distorted cube)
+void gx_cube_sector_outline(gx_sector_t* sector, zbool show_portals);
+
+gx_cube_sector_t* gx_cube_sector_mk(vec3* points) {
+	int i;
+	gx_cube_sector_t* cs;
+	
+	vec3 p;
+	vec3set(p,0,0,0);
+	
+	cs = ram_alloc(sizeof(*cs), sector_free);
+	
+	
+	for (i=0;i<8;i++){
+		vec3add(p, points[i]);
+	
+		vec3mov(cs->points[i], points[i]);
+	}
+	vec3scale(p, 1/8.0);  //use average point as center
+	vec3mov(cs->sector.center, p);
+	
+	cs->sector.outline = gx_cube_sector_outline;
+	
+	return cs;
+}
+
+void gx_cube_points(vec3* points, vec3* min, vec3* max){
+	
+	vec3 * a[] = {min,max};
+	int i;
+	for (i=0;i<8;i++) {
+		vec3set(points[i], a[(i&SECTOR_CUBE_X)?1:0]->vec3x,a[(i&SECTOR_CUBE_Y)?1:0]->vec3y, a[(i&SECTOR_CUBE_Z)?1:0]->vec3z);
+	}
+	
+}
+
 
 void gx_sector_draw(gx_sector_t* sect)
 {
@@ -144,6 +184,8 @@ zbool gx_traverse_sectors_prim(gx_camera_t* cam, gx_sector_t* sector, gx_portal_
 	float aspect = 1;
 	vec3 p;
 	gx_portal_t* portal;
+	if (!sector)
+		return;
 	
 	gx_sector_outline(sector, ZFALSE);
 	
@@ -496,6 +538,71 @@ gx_portal_t* gx_sector_add_portal_quad(gx_sector_t* sector, gx_sector_t* target,
 	return p;
 }
 
+void gx_cube_sector_outline(gx_sector_t* sector, zbool show_portals)
+{
+	gx_cube_sector_t* cs = (gx_cube_sector_t*) sector;
+		
+
+	gx_immediate(gx_lines);
+	//front
+	gx_point(&cs->points[0], NULL,NULL,0,0);
+	gx_point(&cs->points[1], NULL,NULL,0,0);
+	
+	gx_point(&cs->points[1], NULL,NULL,0,0);
+	gx_point(&cs->points[3], NULL,NULL,0,0);
+	
+	gx_point(&cs->points[3], NULL,NULL,0,0);
+	gx_point(&cs->points[2], NULL,NULL,0,0);
+	
+	gx_point(&cs->points[2], NULL,NULL,0,0);
+	gx_point(&cs->points[0], NULL,NULL,0,0);
+	
+	//back
+	gx_point(&cs->points[4+0], NULL,NULL,0,0);
+	gx_point(&cs->points[4+1], NULL,NULL,0,0);
+	
+	gx_point(&cs->points[4+1], NULL,NULL,0,0);
+	gx_point(&cs->points[4+3], NULL,NULL,0,0);
+	
+	gx_point(&cs->points[4+3], NULL,NULL,0,0);
+	gx_point(&cs->points[4+2], NULL,NULL,0,0);
+	
+	gx_point(&cs->points[4+2], NULL,NULL,0,0);
+	gx_point(&cs->points[4+0], NULL,NULL,0,0);
+	
+	//left
+	
+	gx_point(&cs->points[0], NULL,NULL,0,0);
+	gx_point(&cs->points[2], NULL,NULL,0,0);
+	
+	gx_point(&cs->points[2], NULL,NULL,0,0);
+	gx_point(&cs->points[6], NULL,NULL,0,0);
+	
+	gx_point(&cs->points[6], NULL,NULL,0,0);
+	gx_point(&cs->points[4], NULL,NULL,0,0);
+	
+	gx_point(&cs->points[4], NULL,NULL,0,0);
+	gx_point(&cs->points[0], NULL,NULL,0,0);
+	
+	//right
+	
+	gx_point(&cs->points[1+0], NULL,NULL,0,0);
+	gx_point(&cs->points[1+2], NULL,NULL,0,0);
+	
+	gx_point(&cs->points[1+2], NULL,NULL,0,0);
+	gx_point(&cs->points[1+6], NULL,NULL,0,0);
+	
+	gx_point(&cs->points[1+6], NULL,NULL,0,0);
+	gx_point(&cs->points[1+4], NULL,NULL,0,0);
+	
+	gx_point(&cs->points[1+4], NULL,NULL,0,0);
+	gx_point(&cs->points[1+0], NULL,NULL,0,0);
+	
+		
+	gx_end();
+	
+}
+
 
 void gx_sector_outline(gx_sector_t* sector, zbool show_portals)
 {
@@ -507,6 +614,13 @@ void gx_sector_outline(gx_sector_t* sector, zbool show_portals)
 		return;
 	
 
+	if (sector->outline) {
+			//if there is an overridden callback, use it isntead
+		
+		sector->outline(sector, show_portals);
+		return;
+	}
+	
 	//BTW this is the lamest way to draw a sector ever
 
 //	glDisable(GL_DEPTH_TEST);

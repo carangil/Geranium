@@ -6,7 +6,7 @@ CFLAGS=-g -I. -Imemory -Ivmath -Istructures
 #	$(CC) $(CFLAGS) -c -o $@ $<
 
 
-objs: objs/memory.o  objs/thread.o  objs/libstructures.a  objs/time.o objs/vmath.o  objs/libgraphics.a 
+objs: objs/memory.o  objs/thread.o  objs/libstructures.a  objs/time.o objs/zmath.o  objs/libgraphics.a 
 
 
 include thread/thread.inc

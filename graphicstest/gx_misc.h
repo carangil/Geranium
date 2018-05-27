@@ -13,11 +13,45 @@ typedef struct gx_sector_s
 
 	//vec_t meshes;  //meshes to draw in this sector
 	struct portal_s* portals;
-			
+	
+	void (*outline)(struct gx_sector_s*, zbool);
+	
 	//int lastframe; //last frame number processed (to prevent cycles)
 	//int rdepth; //number of hops from camera
 	//zbool visiting;
 } gx_sector_t;
+
+
+
+#define SECTOR_CUBE_Z	4
+#define SECTOR_CUBE_Y	2
+#define SECTOR_CUBE_X 	1
+
+
+//points 0-7, broken out as  components
+// - zero, and left, down, forward
+// + are bitpositions for right, up, and backward
+/*
+#define POINT_LEFT_BOTTOM_FRONT		(0)
+#define POINT_RIGHT_BOTTOM_FRONT	(SECTOR_CUBE_X)
+#define POINT_LEFT_TOP_FRONT		(SECTOR_CUBE_Y)
+#define POINT_RIGHT_TOP_FRONT		(SECTOR_CUBE_X|SECTOR_CUBE_Y)
+#define POINT_LEFT_BOTTOM_BACK		(SECTOR_CUBE_Z)
+#define POINT_RIGHT_BOTTOM_BACK		(SECTOR_CUBE_Z|SECTOR_CUBE_X)
+#define POINT_LEFT_TOP_BACK			(SECTOR_CUBE_Z| SECTOR_CUBE_Y)
+#define POINT_RIGHT_TOP_BACK		(SECTOR_CUBE_Z|SECTOR_CUBE_X|SECTOR_CUBE_Y)
+*/
+
+
+
+typedef struct cubesector_s{
+		gx_sector_t sector;
+		vec3 points[8];
+} gx_cube_sector_t;
+
+void gx_cube_points(vec3* points, vec3* min, vec3* max);
+gx_cube_sector_t* gx_cube_sector_mk(vec3* points);
+
 
 
 //a portal can connect two sectors

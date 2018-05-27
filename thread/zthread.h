@@ -1,5 +1,5 @@
 // projectZ - This file is part of a project named 'projectZ'
-// ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
+// ProjectZ is (C) 2018 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
 #define ZTHREAD_SIMPLE_ATOMICS

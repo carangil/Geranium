@@ -1,5 +1,5 @@
 // projectZ - This file is part of a project named 'projectZ'
-// ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
+// ProjectZ is (C) 2018 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
 #include "../ztypes.h"
@@ -24,7 +24,7 @@
 
 
 
-
+#define GXDEBUG 1
 static gx_shader_t* active_shader = NULL;
 
 

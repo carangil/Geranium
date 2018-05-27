@@ -1,5 +1,5 @@
 // projectZ - This file is part of a project named 'projectZ'
-// ProjectZ is (C) 2010 Mark W. Sherman, all rights reserved.
+// ProjectZ is (C) 2018 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
 #define DOPRINTF
@@ -36,8 +36,9 @@ void gx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 far
 void gx_setup_2d_pixels(int* width, int *height);
 
 
-void gx_zbuffer(zbool en);  //turns depth buffer test on/off
+void gx_zbuffer(zbool write, zbool test);  //turns depth buffer test on/off
 
+void gx_zbuffer_mapping(zfloat32 min, zfloat32 max); //maps near and far z planes.  0.0 to 1.0 is the recommended value
 
 //read keyboard
 zchar gx_getkey();

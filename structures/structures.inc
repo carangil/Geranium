@@ -1,6 +1,6 @@
 OBJSstructures=structures/zlist.o structures/zvector.o   structures/zstring.o
 
-Hstructures=structures/zlist.h   structures/zvector.h  zstring.h
+Hstructures=structures/zlist.h   structures/zvector.h  structures/zstring.h
 
 OBJS_TOCLEAN += $(OBJSstructures)
 
@@ -8,7 +8,7 @@ objs/libstructures.a: $(OBJSstructures)
 	ar rvcs $@ $(OBJSstructures)
 
 
-structures/%.o: %.c   $(Hstructures) $(Hmemory)
+structures/%.o: structures/%.c   $(Hstructures) $(Hmemory)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean-structures:

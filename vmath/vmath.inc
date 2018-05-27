@@ -1,11 +1,14 @@
 Hvmath=vmath/zmath.h
 
-o_vmath=objs/vmath.o
+o_vmath=objs/zmath.o
+src_vmath=vmath/vmath.c
 
-$(o_vmath): vmath/vmath.c   $(Hvmath)
-	$(CC) $(CFLAGS) -O3 -c -o objs/zmath.o vmath/vmath.c
 
-vmath: $(o_vmath)
+$(o_vmath): $(src_vmath) $(Hvmath)
+	echo DO $(CC)   $(CFLAGS)  -c -o $@ $< 
+	$(CC)   $(CFLAGS)  -c -o $@ $< 
+
+vmath: objs/vmath.o
 
 
 clean-vmath: 

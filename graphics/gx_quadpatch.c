@@ -254,14 +254,14 @@ void gx_quadpatch_draw(gx_quadpatch_t* qp)
 
 	if (qp->useskirt )
 
-		//gx_vbuffer_draw(qp->vb, qp->startindex, qp->endindex,  gx_triangles, ZTRUE);
-		gx_vbuffer_draw(qp->vb, qp->startindex, qp->endindex,  gx_lines, ZTRUE);
+		gx_vbuffer_draw(qp->vb, qp->startindex, qp->endindex,  gx_triangles, ZTRUE);
+	//	gx_vbuffer_draw(qp->vb, qp->startindex, qp->endindex,  gx_lines, ZTRUE);
 	
 		
 	else 
 #endif
-		//gx_vbuffer_draw(qp->vb, qp->startindex, qp->endindex_noskirt,  gx_triangles, ZTRUE);
-		gx_vbuffer_draw(qp->vb, qp->startindex, qp->endindex_noskirt,  gx_lines, ZTRUE);
+		gx_vbuffer_draw(qp->vb, qp->startindex, qp->endindex_noskirt,  gx_triangles, ZTRUE);
+		//gx_vbuffer_draw(qp->vb, qp->startindex, qp->endindex_noskirt,  gx_lines, ZTRUE);
 }
 
 
@@ -777,7 +777,7 @@ void gx_quadpatch_sew(gx_quadpatch_t* source, int source_edge, gx_quadpatch_t* d
 
 	vec3* s;
 	vec3* sn;
-	
+
 	if (!source || !dest)
 		return;
 
