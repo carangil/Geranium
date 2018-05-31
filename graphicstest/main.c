@@ -41,7 +41,7 @@ int main(int argc, char** argv)
 	gx_image_t * tex;
 	gx_camera_t	player_camera;
 	gx_camera_init(&player_camera);
-
+	zvec_t* materials;
 	zvec_t sectors;
 	gx_sector_t *camera_sector=NULL;
 	gx_mesh_t* testobj=NULL;
@@ -51,14 +51,47 @@ int main(int argc, char** argv)
 
 	//testobj = gx_mesh_load_obj(NULL, "../shared/untitled.obj", NULL);
 	//testobj = gx_mesh_load_obj(NULL, "/home/alarm/Downloads/blendermodels/test.obj", NULL);
-	testobj = gx_mesh_load_obj(NULL, "/home/alarm/Downloads/blendermodels/humans/jkm_futuristic_female_cc3_gpl/jkm_female1_fixed.obj", NULL);
+
+
+
+
+//	#define FOLDER 			"/home/alarm/Downloads/blendermodels/chicken/"
+//	#define FOLDERTEX FOLDER 	"textures/"
+//	#define OBJ    			"chickenV2.obj"
+//	#define MTL			"chickenV2.mtl"
+
+
+//	#define FOLDER 			"/home/alarm/Downloads/blendermodels/humans/free3d-nude/"
+//	#define FOLDERTEX FOLDER 	""
+//	#define OBJ    			"WhipperNude" ".obj"
+//	#define MTL			"WhipperNude-tga" ".mtl"
+
+//	#define FOLDER 			"/home/alarm/Downloads/blendermodels/humans/soldier_DM/"
+//	#define FOLDERTEX FOLDER 	""
+//	#define OBJ    			"Soldier_final" ".obj"
+//	#define MTL			"soldier_final" ".mtl"
+
+
+	#define FOLDER 			"/home/alarm/"
+	#define FOLDERTEX FOLDER 	""
+	#define OBJ    			"untitled" ".obj"
+	#define MTL			"untitled" ".mtl"
+
+
+
+	materials = gx_drawstyle_load_mtl(NULL, FOLDER MTL, FOLDERTEX);
+
+	testobj = gx_mesh_load_obj(NULL, FOLDER OBJ, materials);
 	printf(" Loaded mesh %p\n", testobj);
-	
+
+
+
+
 	//tex = gx_image_load_tga("../shared/label.tga");
 	tex = gx_image_load_tga("../shared/rock.tga");
 
-	gx_drawstyle_t* teststyle = gx_drawstyle_mk( tex);
-	gx_drawstyle_t* teststylenotex = gx_drawstyle_mk( NULL);
+	gx_drawstyle_t* teststyle = gx_drawstyle_mk("teststyle", tex);
+	gx_drawstyle_t* teststylenotex = gx_drawstyle_mk("notexture", NULL);
 
 
 //	ram_free(tex);  //reference counts by owning objects keep these alive
@@ -70,24 +103,23 @@ int main(int argc, char** argv)
 
 //	gx_shadergroup_t* sg = NULL;  //should force use of default shader
 
+	gx_light_t* li;
 	{
 		vec3 p,c,ca;
-		gx_light_t* li;
-		vec3set(p, 1,8, 10);
-		vec3set(c, .1,1,.5);
+		vec3set(p, -10,10, 10);
+		vec3set(c, 1, .8, .9);
 		vec3set(ca, .1, .1, .3);
-
 		li = gx_light_mk(gx_light_point, &p, &c, &ca  );
-
 		gx_light_set_attenuation( li, ZTRUE, 10, 10, 1);
+
 
 		zvec_add_or_free(&testenv->lights, li);
 
-		vec3set(c, 1,1,0);
-		vec3set(p, 0, -2, 1);
-		//li = gx_light_mk(gx_light_directional, &p, &c, &ca  );
 
-		//zvec_add_or_free(&testenv->lights, li);
+//		vec3set(c, 1,1,.4);
+////		vec3set(p, 10,-10, -10);
+//		li = gx_light_mk(gx_light_point, &p, &c, &ca  );
+//		zvec_add_or_free(&testenv->lights, li);
 
 	}
 
@@ -306,6 +338,13 @@ int main(int argc, char** argv)
 
 		GX_TRACE
 
+
+		{ 
+			vec3 p;
+			vec3set(p, .5,.5,.5);
+			vec3mov(li->position, player_camera.pos); //set light to camera pos	
+			vec3add(li->position, p);
+		}
 
 		gx_camera_pos_rot( &player_camera.pos,&player_camera.rot.x_axis, &player_camera.rot.y_axis, &player_camera.rot.z_axis);
 

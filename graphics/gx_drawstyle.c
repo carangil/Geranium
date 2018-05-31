@@ -214,7 +214,7 @@ zbool drawstyle_free(void* x)
 	return ZTRUE;
 }
 
-gx_drawstyle_t* gx_drawstyle_mk(gx_image_t* img)
+gx_drawstyle_t* gx_drawstyle_mk(char* name, gx_image_t* img)
 {
 	gx_drawstyle_t* ds;
 
@@ -228,6 +228,9 @@ gx_drawstyle_t* gx_drawstyle_mk(gx_image_t* img)
 		{
 			ram_addref(img);
 			zvec_add_or_free(&ds->textures, img);
+		}
+		if (name) {
+			ds->name = ram_strdup(name);
 		}
 	}
 
@@ -530,3 +533,87 @@ gx_shader_t* gx_shader_variant(gx_shadergroup_t* sg, char* spec  ) {
 	return ram_addref(shader);  //return reference to shader (1st reference is in the linked list)
 }
 #endif
+
+
+int delimfold(int delim) {
+	//fold line ends
+	if (delim == '\r')
+		delim = '\n';
+
+	//fold other space
+	if (delim == '\t')
+		delim = ' ';
+
+	return delim;
+}
+
+//load mtl file
+zvec_t* gx_drawstyle_load_mtl(zvec_t* materials, char* filename, char* prefix){
+	
+	FILE* f = fopen(filename, "rb");
+	int delim=0;
+	char cmd[100];
+	char name[100]="";
+	char fullname[2000];
+	gx_image_t* tex = NULL;
+	int ret;
+	gx_drawstyle_t* ds = NULL;
+
+	if (!f)
+		return ZFALSE;
+
+	if (!materials)
+		materials = zvec_mk(NULL, 10);
+
+
+	if (materials) {
+
+		while (delim >= 0) {
+			delim = delimfold(gxi_read_to_delim(f, cmd, sizeof(cmd), " \n\r\t"));
+
+			if (!strcmp(cmd, "newmtl")) {
+
+				if (ds) {
+					zvec_add(materials, ds);
+				}
+
+
+				ret = fscanf(f, " %99s", name);
+				if (ret == 1) {
+					printf("new mat: [%s]\n", name);
+					ds = gx_drawstyle_mk(name, NULL);
+				}			
+				continue;
+			}
+
+			if (!strcmp(cmd, "map_Kd")) {
+				ret = fscanf(f, " %99s", name);
+				if (ret == 1) {
+					printf("Kd texture: [%s]\n", name);
+					
+					snprintf(fullname,sizeof(fullname), "%s%s", prefix, name);
+
+					tex = gx_image_load_tga(fullname);
+					if (tex && ds) {
+						zvec_add(&ds->textures, tex);
+					}	
+				}			
+				continue;
+			}
+		}
+
+		if (ds)
+			zvec_add(materials, ds);
+
+	}
+
+	fclose(f);	
+	return materials;
+}
+
+
+
+
+
+
+

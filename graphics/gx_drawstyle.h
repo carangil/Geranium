@@ -87,13 +87,13 @@ typedef struct
 	gx_shadergroup_t * shadergroup;  //shadergroup for the drawstyle
 	
 	char* spec;  //spec for drawstyle options
-	
+	char* name;  //optional name
 	//gx_shader_t *shader;  //go awasy
 } gx_drawstyle_t;
 
 
 //make a drawstyle, with optional 1st texture
-gx_drawstyle_t* gx_drawstyle_mk(gx_image_t* img);
+gx_drawstyle_t* gx_drawstyle_mk(char* name, gx_image_t* img);
 
 void gx_drawstyle_activate(gx_drawstyle_t* style);
 
@@ -103,4 +103,10 @@ void gx_drawstyle_activate(gx_drawstyle_t* style);
 gx_shader_t* gxi_select_shader(gx_vbuffer_t*);
 
 gx_shader_t* gx_shader_mk(char* vsource, char* psource) ;
+
+
+//load obj mtl files
+
+zvec_t*  gx_drawstyle_load_mtl(zvec_t* materials, char* filename, char* prefix) ;
+
 

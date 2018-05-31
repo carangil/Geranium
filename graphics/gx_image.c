@@ -72,9 +72,12 @@ gx_image_t* gx_image_load_tga( zchar* f)
 
 	FILE* fi =fopen(f,"r+b");
 
-	if (!fi)
+	if (!fi) {
+		printf(" can't open {%s}\n", f);
 		return NULL;
+	}
 
+	printf(" opened {%s}\n", f);
 	image = ram_alloc(sizeof(gx_image_t), gxi_destruct_image);
 
 	if (!image)

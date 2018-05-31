@@ -653,3 +653,57 @@ void gx_scale(float scale)
 	glScalef( scale, scale, scale);
 }
 #endif
+
+
+
+//reads from input until delimiter in 'delims' in  reached
+//return value:  0  reached terminator
+//               -1 buffer is full
+//				 -2 end of file
+//				 >0 the delimiter character
+zint32 gxi_read_to_delim(FILE* f, zchar* buffer, zuint32 buffer_len, zchar* delims)
+{
+	int i = 0 ;
+	int c;
+	int j;
+	int retval = -1;
+	int br=0;
+
+	if (!f)
+		return -1;
+
+
+	while (i<buffer_len)
+	{
+		c = fgetc(f);
+		if (feof(f) || c <0)
+		{
+			retval = -2;
+			break;
+		}
+
+		if (c==0)
+		{
+			retval = 0;
+			break;
+		}
+
+		for (j=0; delims[j];j++)
+		{
+			if (c== delims[j])
+			{
+				retval = delims[j];
+				br=1;
+				break;
+			}
+		}
+		if (br) 
+			break;
+		buffer[i++]=c;
+	}
+
+	buffer[i]='\0';
+
+	return retval;
+}
+
