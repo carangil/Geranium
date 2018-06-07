@@ -148,6 +148,7 @@ gx_vbuffer_t* gx_vbuffer_from_image(gx_vbuffer_t* preferred_buffer,
 #define gx_vbuffer_get_t(p,vb,t,i)  p = gxi_vbuffer_t(vb,t,i)
 
 
+#define gx_vbuffer_get_i(p,vb,i)  p = (vb)->index_data[i]
 
 //experimental accessors
 #if 0

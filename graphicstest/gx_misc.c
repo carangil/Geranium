@@ -1,4 +1,4 @@
-// projectZ - This file is frt of a project named 'projectZ'
+// projectZ - This file is part of a project named 'projectZ'
 // ProjectZ is (C) 2018 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
@@ -21,7 +21,7 @@
 
 #include "glheaders.h"
 
-
+#include "gx_mesh.h"
 
 #include "gx_misc.h"
 
@@ -44,7 +44,7 @@ void gx_immediate(gx_prim_e prim)
 }
 
 
-void gx_point(vec3* vec, vec3* norm, float* c, float s, float t){
+void gx_point(vec3* vec, vec3* norm, float c[4], float s, float t){
 	
 	if (imm_vb->vertex_count == imm_vb->vertex_capacity) {
 		gx_vbuffer_update(imm_vb);
@@ -91,6 +91,7 @@ zbool sector_free(void* x)
 
 	//ram_destructor_tail(s->portals);
 	ram_free(s->portals);
+	ram_free(s->name);
 
 	return ZTRUE;
 
@@ -98,7 +99,7 @@ zbool sector_free(void* x)
 
 
 //creates a sector based on axis aligned bounding box
-gx_sector_t* gx_sector_mk(vec3* min, vec3* max )
+gx_sector_t* gx_sector_mk(char* name, vec3* min, vec3* max )
 {
 	gx_sector_t* b = NULL;
 	vec3 center;
@@ -114,7 +115,9 @@ gx_sector_t* gx_sector_mk(vec3* min, vec3* max )
 	vec3add(center, *max);
 	vec3scale(center, .5);
 	vec3mov(b->center, center);
-	
+
+	if (name)
+		b->name = ram_strdup(name);	
 	
 	//vec_mk( &(b->meshes), 6);
 		
@@ -166,6 +169,15 @@ void gx_sector_draw(gx_sector_t* sect)
 	if (!sect)
 		return;
 
+	///printf(" drawing %p\n", sect->mesh);
+	gx_mesh_draw( sect->mesh);
+	//
+	//gx_drawstyle_activate(sect->mesh->style);
+	//gx_vbuffer_draw(sect->mesh->data, sect->mesh->drawstart, sect->mesh->drawstart+3, sect->mesh->prim, sect->mesh->indexed);
+
+	gx_sector_outline(sect,ZTRUE);
+
+
 //	for (i=0;i<vec_count(&sect->meshes);i++)
 //	{
 
@@ -177,24 +189,38 @@ void gx_sector_draw(gx_sector_t* sect)
 }
 
 
-zbool gx_traverse_sectors_prim(gx_camera_t* cam, gx_sector_t* sector, gx_portal_t* peer ) {
+
+
+gx_sector_t*  gx_traverse_sectors_prim(gx_camera_t* cam, gx_sector_t* sector, gx_portal_t* peer) {
 	
 	//todo:
 	float fovy = 90.0;
 	float aspect = 1;
+	gx_sector_t* new_camera_sector = NULL;
+
 	vec3 p;
 	gx_portal_t* portal;
+	
 	if (!sector)
-		return;
-	
-	gx_sector_outline(sector, ZFALSE);
-	
+		return NULL;
+
+
+	if (sector->visiting)
+		return NULL;
+
+	sector->visiting = ZTRUE;
+
+	//gx_sector_outline(sector, ZFALSE);
+	gx_sector_draw(sector);
+
 	portal = sector->portals;
+
 	zbool visible;
 	zbool inside;
 	
 	while(portal)
 	{
+		vec3 norm;
 		float dot;
 		float backface;
 		float dist;
@@ -211,32 +237,51 @@ zbool gx_traverse_sectors_prim(gx_camera_t* cam, gx_sector_t* sector, gx_portal_
 		dist = sqrt(vec3abs_sq(p));
 		vec3scale(p, (1/dist));
 		//p is now normalized
-		
-		//check which way portal is facing
-		backface = vec3dot(cam->rot.z_axis,portal->normal); 
-		
-		if (backface > 0){
-			portal = portal->next_portal;
-			continue;  
-		}
-						   
-		dot = vec3dot(p, cam->rot.z_axis);
-		//dot is cosine of angle between p and view direction
-		
-		pa =  .5 * fovy / 180*3.142;  //angle of code enclosing frustum
-		pa += asin(portal->radius / dist); //add angular distance of sphere to cone
-		
+	
+
+
 		if (dist <= portal->radius) {
-		//	printf("inside\n");
+			//if inside portal radius, treat it as visible
 			visible = ZTRUE;
 			inside = ZTRUE;
 		}
-		else if (dot > cos( pa ) ) {
+
+
+					 
+		//dot is cosine of angle between p and view direction
+		dot = vec3dot(p, cam->rot.z_axis);
+	
+
+		pa =  .5 * fovy / 180*3.142;  //angle of cone enclosing frustum
+		pa += asin(portal->radius / dist); //add angular distance of sphere being tested to cone.  now if point is inside cone, then sphere around the point is partially inside cone.
+		if (dot > cos( pa ) ) {
 				
 				visible = ZTRUE;
 		}
-	//	visible = ZTRUE;//remove
+
+
+
+		//check if angle from camera to portal is in same direction (positive) as the normal
+		//checks if the camera has gone 'behind' the plane defined by portal point and normal
+		if (inside && vec3dot( p, portal->normal) > 0) {
+			new_camera_sector = portal->target;
+		}
+
+
 		
+		//check which way portal is facing
+		backface = vec3dot(cam->rot.z_axis,portal->normal); 
+
+		if (backface > 0){
+
+			portal = portal->next_portal;
+			continue;  
+		}
+	
+
+
+
+
 		
 		if (visible && ! inside && peer ) {  
 			float dist2;
@@ -299,13 +344,13 @@ zbool gx_traverse_sectors_prim(gx_camera_t* cam, gx_sector_t* sector, gx_portal_
 		
 	}
 	
-	
-	return ZFALSE;
+	sector->visiting=ZFALSE;	
+	return new_camera_sector;
 	
 }
 
 
-zbool gx_traverse_sectors(gx_camera_t* cam, gx_sector_t* sector ) {
+gx_sector_t* gx_traverse_sectors(gx_camera_t* cam, gx_sector_t* sector ) {
 	return gx_traverse_sectors_prim(cam, sector, NULL);
 }
 
@@ -335,14 +380,14 @@ void gx_portal_draw_test(gx_portal_t* p, zbool active)
 			
 			gx_immediate(gx_points);
 			
-			gx_point(&pos,NULL ,&green, 0,0);
+			gx_point(&pos,NULL ,green, 0,0);
 			
 			for (a=-3.14;a<3.14;a+=.5){
 				for(b=-3.14/2;b<3.14/2;b+=.5) {
 					vec3set(pos2, r*sin(a)*cos(b), r*sin(a)*sin(b), r*cos(a));
 					vec3add(pos2, pos);
 				
-					gx_point(&pos2, NULL,&color, 0,0);
+					gx_point(&pos2, NULL,color, 0,0);
 					
 				}
 			}
@@ -704,5 +749,87 @@ glEnable(GL_POLYGON_OFFSET_FILL);
 	gx_light_restore();
 }
 
+zbool gx_vbuffer_collide(gx_vbuffer_t* vb, zuint32 start, zuint32 end,vec3* pos, vec3* dir ) {
 
+	int i;
+	int idx;	
+	vec3 v0,v1,v2;
+	vec3 edge1, edge2, h, s, q;
+	float a,f,u,v;
+
+	for(i=start;i<end;i+=3){
+
+		//intersection test Möller-Trumbore from wikipedia
+
+//	  	const float EPSILON = 0.0000001; 
+		#define EPSILON 0.0001
+
+	 	//Vector3D vertex0 = inTriangle->vertex0;
+		gx_vbuffer_get_i(idx, vb, i);
+		gx_vbuffer_get_v(v0, vb, idx);	
+
+		//Vector3D vertex1 = inTriangle->vertex1;  
+		gx_vbuffer_get_i(idx, vb, i+1);
+		gx_vbuffer_get_v(v1, vb, idx);	
+
+		//Vector3D vertex2 = inTriangle->vertex2;
+		gx_vbuffer_get_i(idx, vb, i+2);
+		gx_vbuffer_get_v(v2, vb, idx);	
+
+	
+		//edge1 = vertex1 - vertex0;
+		vec3mov(edge1, v1);vec3sub (edge1, v0);
+		
+		
+		//edge2 = vertex2 - vertex0;
+		vec3mov(edge2, v2); vec3sub(edge2, v0)
+
+
+		//h = rayVector.crossProduct(edge2);
+		vec3cross(h, *dir, edge2);
+		
+
+		//a = edge1.dotProduct(h);
+		a = vec3dot(edge1, h);
+		
+		if (a > -EPSILON && a < EPSILON)
+			continue;  //no intersection here
+
+		f = 1/a;
+
+		//s = rayOrigin - vertex0;
+		vec3mov(s, *pos); vec3sub(s, v0);
+		//u = f * (s.dotProduct(h));
+		u = f * vec3dot(s,h);
+
+		if (u < 0.0 || u > 1.0)
+		    continue;
+
+
+		//q = s.crossProduct(edge1);
+		vec3cross(q, s, edge1);
+
+		//v = f * rayVector.dotProduct(q);
+		v = f * vec3dot(*dir, q);
+		//
+		//
+		//
+		if (v < 0.0 || u + v > 1.0)
+			continue;
+
+		// At this stage we can compute t to find out where the intersection point is on the line.
+		//float t = f * edge2.dotProduct(q);
+		float t = f * vec3dot(edge2,q);
+
+		printf("intersect in t= %f \n", t);
+		if (t > -EPSILON && t< .2)
+			return ZTRUE;	 
+
+	}
+
+
+
+
+	return ZFALSE;
+}
 

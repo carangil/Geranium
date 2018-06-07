@@ -208,7 +208,8 @@ gx_shader_t* gxi_select_shader(gx_vbuffer_t* vb)
 zbool drawstyle_free(void* x)
 {
 	gx_drawstyle_t* ds = x;
-
+	printf(" destroy drawstyle\n");
+	ram_free(ds->name);
 	zvec_cleanup(&ds->textures);
 
 	return ZTRUE;

@@ -567,6 +567,14 @@ void gx_zbuffer_mapping(zfloat32 min, zfloat32 max) {
 	glDepthRange(min, max);
 }
 
+void gx_wireframe(zbool a){
+
+	if (a)
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	else
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+}
+
 
 //depth buffer
 void gx_zbuffer(zbool dowrite, zbool dotest)

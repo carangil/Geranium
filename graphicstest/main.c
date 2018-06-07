@@ -31,10 +31,194 @@
 
 #endif
 
+#define VEC3PASS(v)   ((v).vec3x),((v).vec3y),((v).vec3z)
 
 
-int main(int argc, char** argv)
-{
+
+//return last occurance of character
+char* lastchr(char* s, char c){
+	char* p=NULL;
+	while (*s) {
+		if ((*s)==c)
+			p=s;
+		s++;
+	}
+	return p;
+}
+
+
+gx_sector_t* find_sector( zvec_t* sectors, char* name) {
+
+	int i;
+	vec3 p;
+	vec3set (p,0,0,0);
+
+	gx_sector_t* s;
+
+	for (i=0;i<zvec_count(sectors);i++) {
+		s = zvec_get_at(sectors, i);
+		if (!strcmp(s->name, name))
+			return s;
+	}
+	printf(" %s not found, creating\n", name);
+
+
+	s=gx_sector_mk(name, &p, &p);
+	zvec_add(sectors, s);
+	return s;
+
+
+}
+
+typedef struct pending_portal_s{
+
+	gx_sector_t* room1;
+	gx_sector_t* room2;
+	vec3	     center;
+	float	     radius;
+} pending_portal_t;
+
+void process_obj(zvec_t* sectors, zvec_t* pending_portals, gx_mesh_t* obj,vec3* center, float radius) {
+	char *p;
+	char *name;
+	char *name1;
+	char *name2;
+	gx_sector_t* s;
+
+	pending_portal_t* np=NULL;
+
+
+	if (!obj->name) {
+		return;
+	}
+	printf(" CHECK %s\n", obj->name);
+
+
+	name = ram_strdup(obj->name);
+
+	
+	p = lastchr(name, '_');
+	if (p)
+		*p=0; //end
+
+
+	printf("%s^^^%s\n", name,p+1);
+
+	if (!strncmp(name, "sportal.",8)){
+	
+		name1 = name+8;
+		name2 = strchr(name1, '.');
+		if (name2) {
+			*name2=0;
+			name2++;
+		}
+
+		printf(" {%s} and {%s}\n", name1, name2);
+
+		np = ram_alloc(sizeof(pending_portal_t), NULL);
+		np->room1 = find_sector(sectors, name1);
+		np->room2 = find_sector(sectors, name2);
+		np->radius = radius;
+		np->center = *center;
+
+		//add to pending portal list
+		zvec_add(pending_portals, np);
+
+
+	} else {  //just a room
+		s = find_sector(sectors, name);
+		s->mesh = obj;
+		s->center = *center;
+		//printf(" Create room %s with center %f %f %f\n", s->name, VEC3PASS(s->center));		
+	}
+
+	ram_free(name);
+	return;
+
+}	
+
+
+zvec_t* sectors_from_obj(gx_mesh_t* objs) {
+
+	zvec_t* sectors = zvec_mk(NULL,10);
+	zvec_t* pending_portals = zvec_mk(NULL,10);
+	int i;
+
+	char* o_name=NULL;
+
+	gx_mesh_t* obj=objs;
+	gx_mesh_t* startobj=NULL;
+	gx_mesh_t* prev = NULL;
+
+	vec3 average;
+	vec3 p;
+	int  naverage;
+	float radius=0;
+
+	while(obj) {
+
+		int i;
+		
+		if (obj->name) {
+			if ( (!o_name) || strcmp(o_name, obj->name)) {
+				//if next mesh has a name, and the name is different
+				if (naverage >0) {
+					vec3scale(average, 1.0/naverage);
+					vec3sub (p, average);
+					radius = sqrt( vec3abs_sq(p));
+					printf(" Object %s has %d points average %f %f %f  radius %f\n", o_name,naverage, VEC3PASS(average), radius);
+
+					process_obj(sectors,pending_portals, startobj, &average, radius);
+					if (prev)
+						prev->next = NULL;
+				}
+				naverage = 0;
+				vec3set(average, 0,0,0);
+				printf("start object %s\n", obj->name);
+				o_name = obj->name;
+				startobj = obj;
+			} else {
+				printf("continue object %s\n", obj->name);
+			}
+		}
+
+		printf(" load %d to %d from buffer %p\n", obj->drawstart, obj->drawend, obj->data);
+		for(i=obj->drawstart;i<obj->drawend;i++) {
+			int j;
+			gx_vbuffer_get_i(j, obj->data, i);
+			gx_vbuffer_get_v(p, obj->data, j);
+		//	vec3print(p);printf("\n");	
+			vec3add(average,p);
+
+		}
+		naverage += (obj->drawend-obj->drawstart);
+		prev = obj;
+		obj=obj->next;
+	}
+
+	//last object
+	if (naverage >0) {
+		vec3scale(average, 1.0/naverage);
+		printf(" Object %s has %d points average %f %f %f\n", o_name,naverage, VEC3PASS(average));
+		process_obj(sectors, pending_portals, startobj, &average, radius);
+	}
+	
+	for (i=0;i<zvec_count(pending_portals);i++) {
+		pending_portal_t* pp = zvec_get_at(pending_portals, i);
+
+		printf(" Pending portal: %s %s %f\n",pp->room1->name,pp->room2->name, pp->radius); 
+		gx_sector_add_portal_sphere( pp->room1, &pp->center, pp->radius, pp->room2, NULL);
+		gx_sector_add_portal_sphere( pp->room2, &pp->center, pp->radius, pp->room1, NULL);
+
+	}	
+	//exit(0);
+
+	return sectors;
+}
+
+
+
+int main(int argc, char** argv) {
 
 
 	int run_tesselator=1;
@@ -42,12 +226,12 @@ int main(int argc, char** argv)
 	gx_camera_t	player_camera;
 	gx_camera_init(&player_camera);
 	zvec_t* materials;
-	zvec_t sectors;
+	zvec_t* sectors=NULL;
 	gx_sector_t *camera_sector=NULL;
 	gx_mesh_t* testobj=NULL;
 
 	gx_init(800, 600 , "Test", GX_OPTION_NO_SHADER);
-//	gx_init(800, 600 , "Test", 0);
+	//gx_init(800, 600 , "Test", 0);
 
 	//testobj = gx_mesh_load_obj(NULL, "../shared/untitled.obj", NULL);
 	//testobj = gx_mesh_load_obj(NULL, "/home/alarm/Downloads/blendermodels/test.obj", NULL);
@@ -72,6 +256,7 @@ int main(int argc, char** argv)
 //	#define MTL			"soldier_final" ".mtl"
 
 
+	
 	#define FOLDER 			"/home/alarm/"
 	#define FOLDERTEX FOLDER 	""
 	#define OBJ    			"untitled" ".obj"
@@ -82,26 +267,26 @@ int main(int argc, char** argv)
 	materials = gx_drawstyle_load_mtl(NULL, FOLDER MTL, FOLDERTEX);
 
 	testobj = gx_mesh_load_obj(NULL, FOLDER OBJ, materials);
-	printf(" Loaded mesh %p\n", testobj);
+	
+	ram_free(materials);//the mesh will keep any materials still used alive via reference counts
 
 
 
+	sectors = sectors_from_obj(testobj);
+	camera_sector = find_sector(sectors, "start");
 
 	//tex = gx_image_load_tga("../shared/label.tga");
-	tex = gx_image_load_tga("../shared/rock.tga");
+//	tex = gx_image_load_tga("../shared/rock.tga");
 
 	gx_drawstyle_t* teststyle = gx_drawstyle_mk("teststyle", tex);
 	gx_drawstyle_t* teststylenotex = gx_drawstyle_mk("notexture", NULL);
 
-
-//	ram_free(tex);  //reference counts by owning objects keep these alive
-
 	gx_environment_t* testenv = gx_environment_mk();
-	gx_environment_t* nolights = gx_environment_mk();
+	//gx_environment_t* nolights = gx_environment_mk();
 	
-	gx_shadergroup_t* sg = gx_shader_source("@../graphics/shader.v", "@../graphics/shader.f");
+	//gx_shadergroup_t* sg = gx_shader_source("@../graphics/shader.v", "@../graphics/shader.f");
 
-//	gx_shadergroup_t* sg = NULL;  //should force use of default shader
+	gx_shadergroup_t* sg = NULL;  //should force use of default shader
 
 	gx_light_t* li;
 	{
@@ -165,94 +350,6 @@ int main(int argc, char** argv)
 
 
 	
-#if 1
-	
-	/* generate 1 sector */
-	{
-		vec3 min,max;
-		vec3 p[8];
-		
-	//	vec3set(min,-1,-1,-1);
-	//	vec3set(max,1,1,1);
-	
-		
-		int a,b;
-		
-		zvec_mk(&sectors, 16);
-		
-		
-		
-		for (b=0;b<10;b++) {
-			
-			for (a=0;a<10;a++) {
-				gx_sector_t* sector;
-				
-			vec3set(min, -.5+ a,-.5,-b);
-			vec3set(max, -.5+a+1,.5,-b+1);
-			gx_cube_points(p, &min, &max);
-
-			sector = gx_cube_sector_mk(p);
-			
-			
-		//	gx_sector_t* sector = gx_sector_mk(&min,&max);
-		
-			if (!camera_sector) 
-				camera_sector = sector; //spawn the camera here
-		
-			zvec_add(&sectors, sector);
-			}
-		}
-		
-	}
-	
-	//now make all the portals
-	{
-		int a=0;
-		int b=0;
-		for (b=0;b<9;b++) {
-			vec3 pos;
-			vec3set(pos, a, 0, -b);
-			gx_sector_t* s = zvec_get_at(&sectors, (b*10)+a );
-			gx_sector_t* t =zvec_get_at(&sectors, (b+1)*10 + a);
-			gx_sector_add_portal_sphere(s,&pos, sqrt(2)/2, t, NULL);
-			
-			
-		}
-	}
-#endif
-
-
-	zvec_mk(&sectors, 16);
-	{
-		gx_cube_sector_t* s;
-	//	s = cube_sector_mk;
-		
-		zvec_add(&sectors, s);
-	
-	}
-
-	printf("start\n");
-#if 0
-	{
-		int i;
-		
-			vec3 p[8];
-			vec3 min;
-			vec3 max;
-			vec3set(min, -1,-2,-3);
-			vec3set(max, 1, 2, 3);
-			
-			gx_cube_points(p, &min, &max);
-			for (i=0;i<8;i++) {
-					printf(" %d ", i);
-					vec3print(p[i]);
-					printf("\n");
-			}
-		
-		
-	}
-#endif
-
 	gx_mouse_capture(ZTRUE);
 	//The game loop 
 	for(;;)  
@@ -296,8 +393,10 @@ int main(int argc, char** argv)
 			if (x=='M') gx_mouse_capture(ZTRUE);
 			if (x=='t') run_tesselator^=1;
 
+			if (x=='l') gx_wireframe(ZTRUE);
+			if (x=='L') gx_wireframe(ZFALSE);
 
-			if (x=='~') exit(0);
+			if (x=='~') break;
 
 			if (gx_key_state('q')) delta_roll=-.005;
 			if (gx_key_state('e')) delta_roll=.005;
@@ -308,10 +407,33 @@ int main(int argc, char** argv)
 			if (gx_key_state('g')) delta_pitch=-.02;
 			if (gx_key_state('b')) delta_pitch=.02;
 
+	{
+			vec3 world_delta_pos;
+			vec3 world_delta_pos_norm;
+			vec3set(world_delta_pos, 0,0,0);
+
 			//move camera using camera's basis
-			vec3madd(player_camera.pos, delta_pos.vec3x, player_camera.rot.x_axis);
-			vec3madd(player_camera.pos, delta_pos.vec3y, player_camera.rot.y_axis);
-			vec3madd(player_camera.pos, delta_pos.vec3z, player_camera.rot.z_axis);
+			vec3madd(world_delta_pos, delta_pos.vec3x, player_camera.rot.x_axis);
+			vec3madd(world_delta_pos, delta_pos.vec3y, player_camera.rot.y_axis);
+			vec3madd(world_delta_pos, delta_pos.vec3z, player_camera.rot.z_axis);
+			printf("\t\t\t world deltapos %f %f %f\n", VEC3PASS(world_delta_pos));
+
+			vec3mov(world_delta_pos_norm, world_delta_pos);
+			vec3normalize(&world_delta_pos_norm);
+			zbool block = gx_vbuffer_collide(camera_sector->mesh->data, camera_sector->mesh->drawstart, camera_sector->mesh->drawend,  &player_camera.pos, &world_delta_pos_norm);
+			if (block) {
+				printf(" HIT\n");
+			}else {
+				vec3add(player_camera.pos, world_delta_pos);
+			}
+
+
+		}
+
+
+
+
+
 
 
 			//lets spin camera  (relative to its own coord system)
@@ -379,17 +501,23 @@ int main(int argc, char** argv)
 		//gx_quadpatch_sys_draw(&qpsys, &player_camera);
 	
 	
-		gx_set_environment(nolights);
-		gx_drawstyle_activate(teststylenotex);
+//		gx_set_environment(nolights);
+//		gx_drawstyle_activate(teststylenotex);
+
+		{
+			gx_sector_t* ncs = gx_traverse_sectors(&player_camera, camera_sector );
+			if (ncs)
+				camera_sector = ncs;
+		}
 
 
-	//	gx_traverse_sectors(&player_camera, camera_sector ); 
-		
+	
+
 		{
 				int i;
 				gx_immediate(gx_lines);
 				for (i=0;i<zvec_count(&testenv->lights);i++) {
-					float green[] = { 0,1,0,1};
+					float green[4] = { 0,1,0,1};
 					vec3 v;
 					vec3 p;
 					
@@ -398,9 +526,9 @@ int main(int argc, char** argv)
 					
 					vec3set(p,.1,.1,.1);
 					vec3mov(v, li->position);
-					gx_point(&v, NULL, &green, 0,0);
+					gx_point(&v, NULL, green, 0,0);
 					vec3add(v, p);
-					gx_point(&v, NULL, &green, 0,0);
+					gx_point(&v, NULL, green, 0,0);
 				}
 				gx_end();
 		}
@@ -408,7 +536,7 @@ int main(int argc, char** argv)
 		gx_set_environment(testenv);
 		gx_drawstyle_activate(teststyle);
 
-		gx_mesh_draw(testobj);
+		//gx_mesh_draw(testobj);
 
 
 		

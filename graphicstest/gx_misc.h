@@ -11,14 +11,15 @@ typedef struct gx_sector_s
 	//vec3 pmin;  // defines min/max for portal usage (no border)
 	//vec3 pmax;
 
+	gx_mesh_t* mesh;
 	//vec_t meshes;  //meshes to draw in this sector
 	struct portal_s* portals;
 	
 	void (*outline)(struct gx_sector_s*, zbool);
-	
-	//int lastframe; //last frame number processed (to prevent cycles)
-	//int rdepth; //number of hops from camera
-	//zbool visiting;
+
+	char* name;
+
+	zbool visiting;//true during tree traversal.. breaks cycles
 } gx_sector_t;
 
 
@@ -81,9 +82,9 @@ typedef struct gx_portal_s
 
 } gx_portal_t;
 
-zbool gx_traverse_sectors(gx_camera_t* cam, gx_sector_t* sector ) ;
+gx_sector_t* gx_traverse_sectors(gx_camera_t* cam, gx_sector_t* sector ) ;
 
-gx_sector_t* gx_sector_mk(vec3* min, vec3* max );
+gx_sector_t* gx_sector_mk(char* name, vec3* min, vec3* max );
 
 void gx_sector_outline(gx_sector_t* box, zbool show_portals);
 void gx_sector_draw(gx_sector_t* sect);
@@ -97,14 +98,11 @@ gx_portal_t* gx_sector_add_portal_sphere(gx_sector_t* sector, vec3* position, zf
 ///
 //need some quick immediate mode functions
 void gx_immediate(gx_prim_e); //return a vbuffer for like immediate mode
-void gx_done();
+void gx_end();
 
 
-void gx_color(float *);
-void gx_texcoord0(float s, float t);
-void gx_normal(vec3* v);
-void gx_vertex(vec3* v);
+void gx_point(vec3* vec, vec3* norm, float c[4], float s, float t);
 
 
-
+zbool gx_vbuffer_collide(gx_vbuffer_t* vb, zuint32 start, zuint32 end,vec3* pos, vec3* dir ) ;
 

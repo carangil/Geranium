@@ -70,6 +70,7 @@ void gx_error(char* file, int line);
 #define gxdprintf  if(GXDEBUG) printf
 
 
+void gx_wireframe(zbool a);
 
 zint32 gxi_read_to_delim(FILE* f, zchar* buffer, zuint32 buffer_len, zchar* delims);
 
