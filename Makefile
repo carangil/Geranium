@@ -1,22 +1,25 @@
 CC=gcc
-CFLAGS=-g -I. -Imemory -Ivmath -Istructures
+CONFIG?=debugconfig.inc
 
-#rule to build o files into c files
-#%.o: %.c $(H)
-#	$(CC) $(CFLAGS) -c -o $@ $<
+include $(CONFIG)
+
+CFLAGS += -I. -Imemory -Ivmath -Istructures
+
+vars:
+	@echo CFLAGS = $(CFLAGS)
+	@echo CONFIG = $(CONFIG)
 
 
-objs: objs/memory.o  objs/thread.o  objs/libstructures.a  objs/time.o objs/zmath.o  objs/libgraphics.a 
+objs: objs/memory.o  objs/thread.o  objs/libstructures.a #  objs/time.o objs/zmath.o  objs/libgraphics.a 
 
 
 include thread/thread.inc
 include memory/memory.inc
 include structures/structures.inc
-include graphics/graphics.inc
-include time/time.inc
+#include graphics/graphics.inc
+#include time/time.inc
 #include sound/sound.inc
-include vmath/vmath.inc
-
+#include vmath/vmath.inc
 include test/test.inc
 
 clean-objs: 

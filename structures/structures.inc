@@ -1,6 +1,6 @@
-OBJSstructures=structures/zlist.o structures/zvector.o   structures/zstring.o
+OBJSstructures=structures/zlist.o structures/zvector.o structures/zarray.o  #  structures/zstring.o
 
-Hstructures=structures/zlist.h   structures/zvector.h  structures/zstring.h
+Hstructures=structures/zlist.h   structures/zvector.h structures/zarray.h  #structures/zstring.h
 
 OBJS_TOCLEAN += $(OBJSstructures)
 

@@ -16,16 +16,16 @@ typedef struct zthread_s {
 	zbool id_valid;
 	zbool finished;
 	void(*func) (struct zthread_s* th);
-} zthread_t;
+} zthreadT;
 
-typedef HANDLE  zlock_t;
+typedef HANDLE  zlockT;
 
 #define zlock_init(ZL)           *(ZL)=CreateMutex(NULL,FALSE,NULL)
 #define zlock_destroy(ZL)        CloseHandle(*ZL)
 
-void zlock(zlock_t* lk);
-zbool ztrylock(zlock_t* lk);
-void zunlock(zlock_t* lk);
+void zlock(zlockT* lk);
+zbool ztrylock(zlockT* lk);
+void zunlock(zlockT* lk);
 
 
 //#error TODO WINDOWS THREAD IMPLEMENTATION
@@ -39,10 +39,10 @@ typedef struct zthread_s {
 	zbool id_valid;
 	zbool finished;
         void (*func) (struct zthread_s* th);
-} zthread_t;
+} zthreadT;
 
 
-typedef pthread_mutex_t zlock_t;
+typedef pthread_mutex_t zlockT;
 
 #define zlock_init(ZL)           pthread_mutex_init( (ZL), NULL)
 #define zlock_destroy(ZL)        pthread_mutex_destroy( (ZL))
@@ -62,7 +62,7 @@ zuint32 zlock_dec(zuint32* i);
 /* Threads*/       
 
 
-zbool zthread_start(zthread_t* th, void (*func) (struct zthread_s* th) );
-zbool zthread_isfinished(volatile zthread_t* th) ;  
-zbool zthread_join(zthread_t* th);
+zbool zthread_start(zthreadT* th, void (*func) (struct zthread_s* th) );
+zbool zthread_isfinished(volatile zthreadT* th) ;  
+zbool zthread_join(zthreadT* th);
 

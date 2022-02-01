@@ -31,18 +31,17 @@ typedef int zerror;
 #define ZERR 0xFFFFFFFF
 /* ZERR is a generic error value.  Use any nonzero value for custom error codes*/
 
+/* A few small 'translations' between linux and windows*/
 
 #ifdef linux
-#define LIB 
-#define stricmp strcasecmp
+
+#include <unistd.h> 		//brings in sleep()
+#define stricmp strcasecmp	//stricmp is from windows land
 #endif
 
 #ifdef _WIN32
-
-
-
-#define sleep(sec)  Sleep( (int)(sec*1000))
-
+#include <windows.h>
+#define sleep(sec)  Sleep( (int)((sec)*1000))
 #endif
 
 #endif

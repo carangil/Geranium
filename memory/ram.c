@@ -9,13 +9,14 @@
 #include <string.h>
 #include "zmem.h"
 #include <stdio.h>
-#include "../thread/zthread.h"
 
 #ifdef RAM_DEBUG
+#include "../thread/zthread.h"
 #include "../structures/zlist.h"
 #endif
 
 #define MYMAGIC 0xf1e2f3e4
+
 
 /*****************
  *RAM allocation
@@ -24,10 +25,11 @@
 /* stats */
 static zuint32 ram_allocs_cnt = 0; //count of current allocations (to check for leaks)
 
+zsize	z_global_ram_header_size = 0;  //advertises the size of an allocation wrapper header
 
 #ifdef RAM_DEBUG
-static zbool    ram_debug_lock_valid=0;
-static zlock_t  ram_debug_lock;
+static zbool    zmem_inited=0;
+static zlockT  ram_debug_lock;
 #endif
 
 /* Memory block header */
@@ -36,34 +38,37 @@ static zlock_t  ram_debug_lock;
 typedef struct mem_header_s
 {
 #ifdef RAM_DEBUG
-	zlistnode_t zlistnode;
+	zlistnodeT zlistnode;
 #endif
 	ram_destructor destructor;
 	int refcount;
-	int shadow_size; //allow alloced buffers to have a shadow buffer of out-of-band data (lengths on cstring, CRAP like that)
+	int shadow_size; //allow alloced buffers to have a shadow buffer of out-of-band data (lets zstrings be passed or ram_free'd like regular c strings, but allows additional metadata
 	int magic;
 #ifdef RAM_DEBUG
 	char* file;
 	int   line;
 #endif
 	
-} mem_header_t;
+} mem_headerT;
 
 #ifdef RAM_DEBUG
-zlist_t _ram_debuglist = {NULL,NULL};
+zlistT _ram_debuglist = {NULL,NULL};
 #endif
 
 void ram_init() {
 
+  if (!zmem_inited){
+
+	z_global_ram_header_size = sizeof(mem_headerT);
+	
 #ifdef RAM_DEBUG
-  if (!ram_debug_lock_valid){
-                fprintf(stderr,"Creating ram debug lock\n");
+        fprintf(stderr,"Creating ram debug lock\n");
 		
-                /* This creates the lock that memory shares when */
-                zlock_init(&ram_debug_lock); 
-                ram_debug_lock_valid=ZTRUE;
-       }      
+        /* This creates the lock that memory shares when */
+        zlock_init(&ram_debug_lock); 
+        zmem_inited=ZTRUE;
 #endif  
+       }      
 
 }
 
@@ -74,16 +79,21 @@ void* ram_alloc_shadow_debug(zsize size, ram_destructor destructor, zuint32 shad
 void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_size)
 #endif
 {
-	mem_header_t* x;
+	mem_headerT* x;
 	char * xbuffer;
-    int rem = 0;
+	int rem = 0;
 
-#ifdef RAM_DEBUG 
-	if (!ram_debug_lock_valid) {
+#ifdef LARGEST_ALLOC
+	if ((shadow_size > LARGEST_ALLOC) || (size > LARGEST_ALLOC)){
+		fprintf(stderr, "tried to alloc %d:%d but LARGEST_ALLOC is %d\n", size, shadow_size, LARGEST_ALLOC);
+		return NULL;
+	}
+#endif
+
+	if (!zmem_inited) {
 		fprintf(stderr, "(warning)Auto-initing ram module.\n");
 		ram_init();
 	}
-#endif
 		
 	if (shadow_size) {
 		//keep alignment when we allocate the shadow buffer
@@ -98,13 +108,13 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_siz
 		
 	}
 		
-	xbuffer = malloc( sizeof(mem_header_t)  + size + shadow_size); //allocate header + some size
+	xbuffer = malloc( sizeof(mem_headerT)  + size + shadow_size); //allocate header + some size
 
 	if (xbuffer)
 	{
-		memset(xbuffer, 0,  sizeof(mem_header_t)  + size  + shadow_size);
+		memset(xbuffer, 0,  sizeof(mem_headerT)  + size  + shadow_size);
 		
-		x = (mem_header_t*) (xbuffer + shadow_size);
+		x = (mem_headerT*) (xbuffer + shadow_size);
 		if (shadow_size) {
 				//printf("Allocate physical buffer %p with shadow %d.  Header starts at %p Userdata at %p\n", xbuffer, shadow_size, x, x+1);
 		}
@@ -113,9 +123,9 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_siz
 		x->magic = MYMAGIC;
 		x->refcount = 1;
                 
-                int aa=zlock_inc(&ram_allocs_cnt);
 
 #ifdef RAM_DEBUG
+                int aa=zlock_inc(&ram_allocs_cnt);
 				
                 zlock(&ram_debug_lock);
                 
@@ -138,7 +148,7 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_siz
 //if the shadow size is zero, a null pointer is returned
 void* ram_shadow(void* thing)
 {
-	mem_header_t* header = (mem_header_t*) thing;
+	mem_headerT* header = (mem_headerT*) thing;
 	char* shadow = NULL;
 	
 	if (header) 
@@ -187,7 +197,7 @@ void* ram_alloc(zsize size, ram_destructor destructor) {
 
 void ram_free(void* thing)
 {
-	mem_header_t* header = (mem_header_t*) thing;
+	mem_headerT* header = (mem_headerT*) thing;
 	zbool do_free = ZTRUE;
 	char* buffer= NULL;
 
@@ -202,7 +212,7 @@ void ram_free(void* thing)
 
 		if (header->refcount<0)
 		{
-			fprintf(stderr,"negative refcount!\n");
+			fprintf(stderr,"ERROR: negative refcount on %p\n");
 		}
 
 		if (header->refcount ==0)
@@ -216,9 +226,9 @@ void ram_free(void* thing)
 			
 			if (do_free)
 			{
-                              int x=  zlock_dec(&ram_allocs_cnt);
 							  
 #ifdef RAM_DEBUG
+                              int x=  zlock_dec(&ram_allocs_cnt);
 								
                                 zlock(&ram_debug_lock);
                                 
@@ -241,7 +251,7 @@ void ram_free(void* thing)
 
 void* ram_addref(void* thing)
 {
-	mem_header_t* header = (mem_header_t*) thing;
+	mem_headerT* header = (mem_headerT*) thing;
 	if (header)
 	{
 		header --;
@@ -250,13 +260,17 @@ void* ram_addref(void* thing)
 	return thing;
 }
 
-void* ram_resize(void* ram, zsize size)
+void* ram_resize(void* ram, zsize size, zbool* okptr)
 {
 	char* buffer;
 	int shadow_size;
-	mem_header_t* header = (mem_header_t*) ram; //take pointer given to application
+
+	if (okptr)
+		*okptr = ZFALSE;
+
+	mem_headerT* header = (mem_headerT*) ram; //take pointer given to application
 #ifdef RAM_DEBUG
-        mem_header_t* oldheader;
+        mem_headerT* oldheader;
 #endif
 
 	if (header)
@@ -267,7 +281,7 @@ void* ram_resize(void* ram, zsize size)
 		if (header->refcount !=1 )
 		{
 			fprintf(stderr, " can't resize if refcount !=1\n");
-			return NULL;
+			return ZFALSE;
 		}
 #ifdef RAM_DEBUG
                 zlock(&ram_debug_lock);
@@ -284,10 +298,19 @@ void* ram_resize(void* ram, zsize size)
 		if (shadow_size) {
 				//printf("Realloc physical buffer %p with shadow %d.  Header starts at %p Userdata at %p\n", buffer, shadow_size, header, header+1);
 		}
-		
-		buffer = realloc(buffer, sizeof(mem_header_t) + size + header->shadow_size);  //attempt resize to new size;
+	
+
+#ifdef LARGEST_ALLOC
+		if ((shadow_size > LARGEST_ALLOC) || (size > LARGEST_ALLOC)){
+			fprintf(stderr, "tried to realloc %d:%d but LARGEST_ALLOC is %d\n", size, shadow_size, LARGEST_ALLOC);
+			buffer = NULL;
+		} else
+#endif
+		buffer = realloc(buffer, sizeof(mem_headerT) + size + header->shadow_size);  //attempt resize to new size;
+
+
 		if (buffer)
-			header = (mem_header_t*)(buffer + shadow_size);
+			header = (mem_headerT*)(buffer + shadow_size);
 		else
 			header = NULL;
 		
@@ -298,7 +321,7 @@ void* ram_resize(void* ram, zsize size)
 
 #ifdef RAM_DEBUG
 		if (header)          /*Put new one on */
-				zlist_addhead(&_ram_debuglist, &header->zlistnode);
+			zlist_addhead(&_ram_debuglist, &header->zlistnode);
                 else                    /*Put old one back on list */
                        	zlist_addhead(&_ram_debuglist, &oldheader->zlistnode);
                 
@@ -306,6 +329,8 @@ void* ram_resize(void* ram, zsize size)
 #endif
 
 		if (header) {
+			if (okptr)
+				*okptr = ZTRUE;
 			return header+1;
 		}
 		else
@@ -314,7 +339,6 @@ void* ram_resize(void* ram, zsize size)
 
 	return NULL;
 }
-
 
 char* ram_strdup_func(char* in, char* file, int line)
 {
@@ -356,7 +380,7 @@ zuint32 ram_allocs()
 #ifdef RAM_DEBUG
 	int count=0;
 
-	mem_header_t* node = zlist_head(&_ram_debuglist);
+	mem_headerT* node = zlist_head(&_ram_debuglist);
 	
 
 	while(node)
@@ -366,6 +390,8 @@ zuint32 ram_allocs()
 		count++;
 		node = zlist_next(node);
 	}
+	
+	fprintf(stderr, "%d unfreed allocations\n", count);
 
 	if (ram_allocs_cnt != count)
 		fprintf(stderr, " Internal inconsistency in ram.c, oops\n");

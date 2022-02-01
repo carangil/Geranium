@@ -2,7 +2,7 @@
 #include "../memory/zmem.h"
 #include "zlist.h"
 
-void zlist_addhead(zlist_t* list, zlistnode_t* node)
+void zlist_addhead(zlistT* list, zlistnodeT* node)
 {
 	if (!list || !node)
 		return;
@@ -18,7 +18,7 @@ void zlist_addhead(zlist_t* list, zlistnode_t* node)
 		list->tail = node;
 }
 
-void zlist_addtail(zlist_t* list, zlistnode_t* node)
+void zlist_addtail(zlistT* list, zlistnodeT* node)
 {
 	if (!list || !node)
 		return;
@@ -34,7 +34,7 @@ void zlist_addtail(zlist_t* list, zlistnode_t* node)
 		list->head = node;
 }
 
-void zlist_remove(zlist_t* list, zlistnode_t* node)
+void zlist_remove(zlistT* list, zlistnodeT* node)
 {
 	if (list->head == node)
 		list->head = node->next;
@@ -52,8 +52,8 @@ void zlist_remove(zlist_t* list, zlistnode_t* node)
 	node->prev = NULL;
 }
 
-zbool zlist_cleanup(zlist_t* list) {
-	zlistnode_t* node;
+zbool zlist_cleanup(zlistT* list) {
+	zlistnodeT* node;
 	
 	for (node = list->head ; node; node = list->head) {
 			zlist_remove(list, node);

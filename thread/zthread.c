@@ -21,17 +21,17 @@ zuint32 zlock_dec(zuint32* i) {
 	return InterlockedDecrement(i);
 }
 
-void zlock(zlock_t* lk) {
+void zlock(zlockT* lk) {
 	int r = WaitForSingleObject(*lk, INFINITE);
 	if (r != WAIT_OBJECT_0)
 		printf(" CRAP WaitForSingleObject returned %x\n", r);
 }
 
-void zunlock(zlock_t* lk) {
+void zunlock(zlockT* lk) {
 	ReleaseMutex(*lk);
 }
 
-zbool ztrylock(zlock_t*lk) {
+zbool ztrylock(zlockT*lk) {
 
 	int r = WaitForSingleObject(*lk, 0);
 	if (r == WAIT_OBJECT_0)
@@ -43,7 +43,7 @@ zbool ztrylock(zlock_t*lk) {
 
 
 DWORD WINAPI th_wrapper(LPVOID pv) {
-	zthread_t* th = pv;
+	zthreadT* th = pv;
 	th->func(th);
 	th->finished = ZTRUE;
 	return 0;
@@ -51,7 +51,7 @@ DWORD WINAPI th_wrapper(LPVOID pv) {
 
 
 
-zbool zthread_start(zthread_t* th, void(*func) (struct zthread_s* th) ) {
+zbool zthread_start(zthreadT* th, void(*func) (struct zthread_s* th) ) {
 	th->finished = ZFALSE;
 	th->func = func;
 	th->thh = CreateThread(NULL, 0, th_wrapper, (void*)th, 0, NULL);
@@ -62,11 +62,11 @@ zbool zthread_start(zthread_t* th, void(*func) (struct zthread_s* th) ) {
 		return ZFALSE;
 }
 
-zbool zthread_isfinished(volatile zthread_t* th) {
+zbool zthread_isfinished(volatile zthreadT* th) {
 	return th->finished;
 }
 
-zbool zthread_join(zthread_t* th) {
+zbool zthread_join(zthreadT* th) {
 	WaitForSingleObject(th->thh, INFINITE);
 	CloseHandle(th->thh);
 	return TRUE;
@@ -76,7 +76,7 @@ zbool zthread_join(zthread_t* th) {
 
 void* th_wrapper(void* data) {
 
-	zthread_t* th = data;
+	zthreadT* th = data;
 	th->func(th);
 	th->finished=ZTRUE;
 	return NULL;
@@ -88,7 +88,7 @@ static zbool zthread_ram_mt = ZFALSE;
 
 /* Returns true for success */
 
-zbool zthread_start(zthread_t* th,   void (*func) (struct zthread_s* th)) 
+zbool zthread_start(zthreadT* th,   void (*func) (struct zthread_s* th)) 
 {
 	if (th == NULL)
 		return ZFALSE;  /* Not valid*/
@@ -109,12 +109,12 @@ zbool zthread_start(zthread_t* th,   void (*func) (struct zthread_s* th))
 	return ZFALSE;
 }
 
-zbool zthread_isfinished(volatile zthread_t* th) 
+zbool zthread_isfinished(volatile zthreadT* th) 
 {
 	return th->finished;
 }
 
-zbool zthread_join(zthread_t* th) 
+zbool zthread_join(zthreadT* th) 
 {
 	if (!th->id_valid)
 		return ZFALSE;

@@ -5,8 +5,7 @@
 #include <malloc.h>
 #include <string.h>
 
-#define RAM_DEBUG
-
+extern zsize	z_global_ram_header_size;
 
 //destructor returns true if the ram should be freed
 typedef zbool (*ram_destructor)(void* block);
@@ -29,7 +28,8 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadowsize
 /* If multiple threads will be allocating memory, ram_init must be called before creating those threads to prevent a race condition. */
 void ram_init();
 
-void* ram_resize(void* ram, zsize newsize);
+//returns true if resize successful. Replaces pointer with new one
+void* ram_resize(void* ram, zsize size, zbool* successful);
 void* ram_addref(void* thing);
 void  ram_free(void* thing);  //call on an object to dec refcount, ultimately calling its destructor when refcount==0
 
