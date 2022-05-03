@@ -1,0 +1,3 @@
+CFLAGS+= -g
+#CFLAGS+= -o3
+CFLAGS+= -DRAM_DEBUG
