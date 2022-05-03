@@ -13,7 +13,8 @@ void compare(char* s, int a, int b){
 
 }
 
-int main(int argc, char** args){
+void mem_array_string_test(){
+
 	char* s = ram_strdup("Testing\n");	//1 allocation
 
 	printf(" Copied string: %s %p\n", s, s);
@@ -150,8 +151,96 @@ int main(int argc, char** args){
 	ram_free(c);
 	ram_free(g);
 
+
+	zvecT* ss = zstrsplit(NULL, "This|is|a|test", '|');
+	zstrsplit(ss, "More:strings", ':');
+
+	for (i=0;i< zvec_count(ss); i++){
+		printf("%d:%s\n", i, zvec_elements_as(char*,ss)[i]);
+	}
+
+	char* together = zstrbuild(ss, '-');
+
+	char* str = ram_addref(zvec_elements(ss)[3]);
+	ram_free(ss);
+
+	char* copy = zstrdup(together);
+	copy = zstrcat(copy, "AAAAA");
+
+	printf(" final string: %s\n", together);
+	printf(" copy string: %s\n", copy);
+
+
+	ram_free(together);
+	ram_free(copy);
+	ram_free(str);
+
 	printf(" Final allocations %d\n", ram_allocs());
 	#endif
+
+
+
+}
+
+
+
+#include "zthread.h"
+typedef struct myThreadType_s{
+	zthreadT	th;
+
+	//can define whatever
+	int input;
+	int output;
+} myThreadType;
+
+void myThreadTypeFunc(zthreadT* th){
+	myThreadType* mth = (myThreadType*)th;
+
+	printf(" Thread %d presleep\n", mth->input);
+	sleep( (mth->input) % 4 );
+//	printf(" Thread %d postsleep\n", mth->input);
+
+
+	mth->output = mth->input * mth->input;
+}
+
+void thread_test(){
+
+	int i;
+	int N = 100;
+	int j;
+
+	myThreadType* threads = zarray_alloc(myThreadType, N);
+	for (i=0;i<N;i++){
+		threads[i].input = i;
+		zthread_start(&threads[i].th, myThreadTypeFunc);
+	}
+
+	for (j=0;j<3;j++){
+		sleep(1);
+
+		for (i=0;i<N;i++){
+		
+			printf("%d", zthread_isfinished(&threads[i]));
+		}
+		printf("\n");
+	}
+
+
+
+	for (i=0;i<N;i++){
+		zthread_join(&threads[i].th);
+		printf(" %d finished with %d\n", threads[i].input, threads[i].output);
+	}	
+
+}
+
+int main(int argc, char** args){
+
+//	mem_array_string_test();
+
+	thread_test();
+
 
 }
 

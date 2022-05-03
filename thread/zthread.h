@@ -28,7 +28,6 @@ zbool ztrylock(zlockT* lk);
 void zunlock(zlockT* lk);
 
 
-//#error TODO WINDOWS THREAD IMPLEMENTATION
 
 #else
 
@@ -36,9 +35,10 @@ void zunlock(zlockT* lk);
 
 typedef struct zthread_s {
 	pthread_t th_id;
+	zint32 is_finished;
 	zbool id_valid;
-	zbool finished;
         void (*func) (struct zthread_s* th);
+	void* data;
 } zthreadT;
 
 
@@ -56,13 +56,14 @@ typedef pthread_mutex_t zlockT;
 
 
 /* Atomic increment, decrement */
-zuint32 zlock_inc(zuint32* i);
-zuint32 zlock_dec(zuint32* i);
+zint32 zlock_inc(zuint32* i);
+zint32 zlock_dec(zuint32* i);
+zint32 zlock_get(zuint32* i);
         
 /* Threads*/       
 
 
-zbool zthread_start(zthreadT* th, void (*func) (struct zthread_s* th) );
-zbool zthread_isfinished(volatile zthreadT* th) ;  
+zbool zthread_start(zthreadT* th, void (*func) (struct zthread_s* th));
+zbool zthread_isfinished(zthreadT* th) ;  
 zbool zthread_join(zthreadT* th);
 

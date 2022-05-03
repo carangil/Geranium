@@ -1,5 +1,6 @@
 #include "ztypes.h"
 #include "zthread.h"
+#include "zmem.h"
 #include <stdio.h>
 
 #ifdef _WIN32
@@ -45,7 +46,7 @@ zbool ztrylock(zlockT*lk) {
 DWORD WINAPI th_wrapper(LPVOID pv) {
 	zthreadT* th = pv;
 	th->func(th);
-	th->finished = ZTRUE;
+	th->finsihed=ZTRUE;
 	return 0;
 }
 
@@ -78,7 +79,7 @@ void* th_wrapper(void* data) {
 
 	zthreadT* th = data;
 	th->func(th);
-	th->finished=ZTRUE;
+	zlock_inc(&th->is_finished); //should be setting 0 to 1
 	return NULL;
 }
 
@@ -88,13 +89,14 @@ static zbool zthread_ram_mt = ZFALSE;
 
 /* Returns true for success */
 
-zbool zthread_start(zthreadT* th,   void (*func) (struct zthread_s* th)) 
+zbool zthread_start(zthreadT* th, void (*func) (struct zthread_s* th)) 
 {
+
 	if (th == NULL)
 		return ZFALSE;  /* Not valid*/
 
 	th->func = func;
-	th->finished = ZFALSE;  
+	th->is_finished = 0;
 
 	if (!pthread_create(&th->th_id, NULL, th_wrapper, th))
 	{
@@ -109,9 +111,9 @@ zbool zthread_start(zthreadT* th,   void (*func) (struct zthread_s* th))
 	return ZFALSE;
 }
 
-zbool zthread_isfinished(volatile zthreadT* th) 
+zbool zthread_isfinished(zthreadT* th) 
 {
-	return th->finished;
+	return zlock_get(&th->is_finished);
 }
 
 zbool zthread_join(zthreadT* th) 
@@ -128,14 +130,17 @@ zbool zthread_join(zthreadT* th)
 
 /* Atomic increment, decrement operations */
 
-zuint32 zlock_inc(zuint32* i) {
+zint32 zlock_inc(zuint32* i) {
         return __sync_add_and_fetch(i,1);
 }
 
-zuint32 zlock_dec(zuint32* i) {
+zint32 zlock_dec(zuint32* i) {
         return __sync_add_and_fetch(i,-1);
 }
 
+zint32 zlock_get(zuint32* i) {
+        return __sync_add_and_fetch(i,0);
+}
 
 
 #endif

@@ -5,80 +5,6 @@
 #include "zstring.h"
 #include "zarray.h"
 
-
-#if 0
-//increases storage of a string to accomodate extra space
-char* zstr_grow(char* dest, int additional) {
-	
-	int xlen;
-	int newcap;
-	
-	zstring_shadow_t* sh = ram_shadow(dest);
-	
-	if (!sh) {
-		printf(" Cannot grow non-shadow string\n");
-		return NULL;
-	}
-	
-	xlen = additional + sh->len + 1; 
-	
-	if (xlen >= sh->capacity ) {
-		
-		
-		//try doubling capacity
-		newcap = sh->len * 2;
-		
-		//if not good enough, at least fit what we have
-		if (newcap <  xlen)
-			newcap = xlen;
-				
-		dest = ram_resize(dest, void zstr_debug(char* a)newcap);
-		if (dest == NULL)
-			return NULL;// resize failed
-		
-		sh = ram_shadow(dest); //follow the shadow buffer to the new location
-		sh->capacity = newcap; 
-	
-	}
-	
-	return dest;
-}
-
-
-char* zstr_cat(char* dest, char* src)
-{
-	int srclen;
-	int newcap;
-	zstring_shadow_t* sh;
-	
-	
-	srclen = strlen(src);
-	
-	dest = zstr_grow(dest, strlen(src) );
-	
-	if (!dest)
-		return NULL;
-	
-	sh = ram_shadow(dest);
-	
-	if (!sh)
-		printf(" WHERE DID THE SHADOW GO?\n");
-	
-			
-	//it should now fit
-	if (dest[sh->len] != '\0') {
-		printf("NULL TERMINATOR MISSING IN TARGET STRING... THIS IS BAD\n");
-	}
-	
-	strcpy(dest + sh->len , src);
-	sh->len += srclen;
-	
-	return dest;
-	
-}
-
-#endif
-
 //allocates space (plus null terminator) for string n bytes long
 char* zstr_mk(int n)
 {
@@ -144,32 +70,40 @@ char* zstrndup(char* a, int n) {
 	
 char* zstrcatsub(char* dest, char* src, int start, int count){
 
+	if (ram_numrefs(dest) != 1){
+		printf(" Can't append to string with multiple references\n");
+		return dest;
+
+	}
+
+	if (src == NULL)
+		return dest;
+
 	if (count == ZSTRING_ALL){
 		count = strlen(src) - start;
 	}
-    
+   
 	if (!zarray_space(dest, count+2)){
 		dest = zarray_expand(dest);
 	}
 
 	int pos = zarray_count(dest);
-	
 	if (pos>0)
 	    pos--;
 
 	memcpy(dest+pos, src+start, count);
-	zarray_use(dest, pos+count);
+	dest[pos+count]=0;
+	zarray_use(dest, pos+count+1);
 	
 	return dest;
 }
 
 
 
-#if 1
 
 //split string into vector of string, by delim.
 //if delim not found, returns vector of 1 string
-zvecT*  zsplit(zvecT* v, char* str, char delim){
+zvecT*  zstrsplit(zvecT* v, char* str, char delim){
 	char* p;
 	int len;
 	char* tmp;
@@ -201,4 +135,37 @@ zvecT*  zsplit(zvecT* v, char* str, char delim){
 	return v;
 	
 }
-#endif
+
+char* zstrbuild(zvecT* v, char delim){
+	size_t sz=0;
+	int i;
+	char dl[2];
+	dl[0]=delim;
+	dl[1]=0;
+
+	if (v==NULL)
+		return NULL;
+
+	if (delim)
+		sz += zvec_count(v);
+
+	for (i=0;i<zvec_count(v);i++){
+		if ( zvec_elements(v)[i])
+			sz += strlen(zvec_elements(v)[i]);
+	}
+	char* str = zstr_mk(sz);	//make string of this length
+	
+	for (i=0;i<zvec_count(v);i++){
+
+		if ((i>0) && delim)
+			str = zstrcat(str, dl);
+		//printf("%s\n", str);
+
+		if ( zvec_elements(v)[i])
+			str = zstrcat(str, zvec_elements(v)[i]);
+		//printf("%s\n", str);
+	}
+
+	return str;
+
+}
