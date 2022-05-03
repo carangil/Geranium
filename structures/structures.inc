@@ -1,18 +1,23 @@
-OBJSstructures=structures/zlist.o structures/zvector.o structures/zarray.o  #  structures/zstring.o
+Hstructures=$(INCDIR)/zlist.h   $(INCDIR)/zvector.h $(INCDIR)/zarray.h  $(INCDIR)/zstring.h
+Hstructuresdeps+=$(INCDIR)/zmem.h
 
-Hstructures=structures/zlist.h   structures/zvector.h structures/zarray.h  #structures/zstring.h
+#List all o files here
+.structures-objs: structures/zlist.o structures/zarray.o structures/zstring.o structures/zvector.o
+	touch .structures-objs
 
-OBJS_TOCLEAN += $(OBJSstructures)
+structures/%.o: structures/%.c  $(Hstructures) $(Hstructuresdeps)
+	$(CC) $(CFLAGS) -c -o $@ $< 
 
-objs/libstructures.a: $(OBJSstructures)
-	ar rvcs $@ $(OBJSstructures)
+$(INCDIR)/%.h: structures/%.h
+	$(COPY) $< $(INCDIR)
 
 
-structures/%.o: structures/%.c   $(Hstructures) $(Hmemory)
-	$(CC) $(CFLAGS) -c -o $@ $<
+$(INCDIR)/%.h: structures/%.h
+	$(COPY) $< $(INCDIR)
+
 
 clean-structures:
+	echo clean-structures
 	-rm structures/*.o
-	-rm objs/libstructures.a
 
-structures: objs/libstructures.a
+

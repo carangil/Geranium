@@ -43,6 +43,6 @@ zuint32 tm_diff_microstamp_us(tm_microstamp_t* before, tm_microstamp_t* after)
 	//printf("  %d:%d  - %d:%d \n", (int)after->tv_sec, (int)after->tv_usec, (int)before->tv_sec, (int)before->tv_usec);
 
 
-	return (sdiff*10000000) + udiff;
+	return (sdiff*1000000) + udiff;
 }
 #endif

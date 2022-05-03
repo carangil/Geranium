@@ -3,8 +3,8 @@
 // Commercial use prohibited.
 
 
-#include "../ztypes.h"
-#include "../memory/zmem.h"
+#include "ztypes.h"
+#include "memory/zmem.h"
 #include <stdio.h>
 #include "zvector.h"
 #include <string.h>

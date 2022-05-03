@@ -1,5 +1,5 @@
-#include "../ztypes.h"
-#include "../memory/zmem.h"
+#include "ztypes.h"
+#include "zmem.h"
 #include "zarray.h"
 
 //return number of items array can hold
@@ -26,14 +26,29 @@ void* zarray_allocf( int elemsize, int elemnum){
 	size_t size = elemsize * elemnum;
 	printf(" array needs %d\n", size);
 
+	//if array is byte array (elements are size one), allocate an extra byte
+	if (elemsize==1)
+	    size++;
+	
+	
 	void * array = ram_alloc_shadow(size, NULL, sizeof(array_shadowT));
 
+	if (array&&(elemsize==1)){
+		    //if array is bytearray, keep a zero after all the elements
+		    //(So that a byte array is always safe as a C string)
+	    
+		    ((char*)array)  [elemnum] = 0;
+	}
+	
+	
 	array_shadowT * sh = ram_shadow(array);
 	if (sh){
 		sh->used = 0;
 		sh->capacity = elemnum;
+		
+	
+		
 	}
-
 	return array;
 }
 
@@ -41,13 +56,23 @@ void* zarray_resizef(void* array, int elemsize, int elemnum, zbool* ok){
 	size_t newsize = elemsize * elemnum;
 	printf(" array resize needs %d for %d * %d\n", newsize, elemsize, elemnum);
 
+	//allocate extra byte for byte arrays null terminator (in case we want C strings out of here)
+	if (elemsize==1)
+	    newsize++;
+		
+	
 	void * newarray = ram_resize(array, newsize, ok);
 
-	array_shadowT * sh = ram_shadow(array);
+	if (newarray && (elemsize == 1))
+	    ((char*)newarray)[elemnum] = 0;	//null terminator for byte arrays
+	
+	
+	array_shadowT * sh = ram_shadow(newarray);
 	if (newarray && sh){
-		printf(" resize successful\n");
-//		sh->used = 0;
+		
+	 
 		sh->capacity = elemnum;
+		printf(" resize successful %d %d\n", sh->used, sh->capacity);
 		return newarray;
 	}
 
@@ -59,7 +84,96 @@ void* zarray_resizef(void* array, int elemsize, int elemnum, zbool* ok){
 		
 	//did not get anything, and user didn't pass in a ok return pointer
 	//so we die
-	fprintf(stderr, "Array resize failed, and function not given an 'bool' check to recover from failure, so it is fatal.  Pass in zbool &ok to allow failures to be nonfatal\n");
+	fprintf(stderr, "Array resize failed, and function not given a 'bool' check to recover from failure.\n");
 
 	return NULL;
+}
+
+//copies part of source array to destination array
+void zarray_copyf(void* dest, zuint32 pos, void* src, zuint32 srcstart, zuint32 srcend, zuint32 elemsize1, zuint32 elemsize2){
+	if  ( (dest == NULL) || (src==NULL) || (elemsize1 != elemsize2)  ||(srcend < srcstart) ) {
+		fprintf(stderr, "ERROR: array copy bad parms %p +%d by %d=  %p (+%d to %d) by %d\n", 
+			dest, pos, elemsize1, src, srcstart, srcend, elemsize2);
+		return;
+	}
+
+	if (pos+(srcend-srcstart) > zarray_size(dest)) {
+		printf(" Exceed dest array bounds on zarray_copy \n");
+	}
+	
+	memmove( dest + (elemsize1*pos) , src + (elemsize2*srcstart), elemsize2*(srcend-srcstart));
+
+}
+
+void zarray_use(void* array, int num){
+
+	if(!array)
+		return;
+
+	if (num > zarray_size(array)) {
+		fprintf(stderr, "Past array bounds\n" );
+		return; //past end of array
+	}
+
+	zarray_count(array) = num;
+
+}
+
+
+void* zarray_appendf(void* dest, void* src, zbool grow2x, zbool* ok, zuint32 elemsize1, zuint32 elemsize2){
+	if  ( (dest == NULL) || (src==NULL) || (elemsize1 != elemsize2)   ) {
+		fprintf(stderr, "ERROR: array copy bad parms %p by %d=  %p  by %d\n", 
+			dest, elemsize1, src,  elemsize2);
+		return NULL;
+	}
+	
+	zuint32 pos = zarray_count(dest);
+	zuint32 srccount = zarray_count(src);
+
+	int exact_needed = pos + srccount;
+	int needed = exact_needed;
+	
+	//determine if we need extra for performance or string reasons:
+	
+	if (elemsize1 == 1){
+	    printf(" need %d, but alloc +1 for terminator\n", needed);
+	    needed ++; //add space for byte array null terminator
+	}
+
+	
+	//if using a doubleing (amortized O(1) growth performance like a vector)
+	if (needed > zarray_size(dest)){
+	    int size2x = zarray_size(dest) * 2;
+	    if (grow2x && (size2x > needed)) {
+		needed = size2x;
+	    }
+	}
+	
+	printf(" append will resize to %d to acccomdate %d (+%d)\n", needed, pos+srccount, srccount);
+	
+	//array resize guarantees that newarray will return a pointer OR ok will be set to false
+	//if user did not pass us ok and it fails, zarray_resizef below will fail the whole program for us
+	void* newarray = zarray_resizef(dest, elemsize1, needed, ok);
+	
+	if (newarray){
+	    memmove( dest + (elemsize1*pos) , src , elemsize2*(srccount));
+	    zarray_use(newarray, exact_needed);
+	    if (elemsize1 == 1) {
+		printf(" Putting null terminator at [%d]\n", exact_needed);
+	    }
+	}
+		
+	return newarray;
+}
+
+
+void zarray_debug(void* array){
+    
+	   
+	
+	if (array)
+	    printf(" count/size:%d/%d count/size(slow):%d/%d\n", zarray_count(array), zarray_size(array), zarray_countf(array), zarray_sizef(array));    
+	else
+	    printf("zarray is null\n");
+    
 }

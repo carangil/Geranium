@@ -1,16 +1,41 @@
 CC=gcc
+COPY=cp
 CONFIG?=debugconfig.inc
+
+#OBJDIR and INCDIR are populated during the build
+OBJDIR=build/objs
+INCDIR=build/includes
+MAKEFLAGS += --no-builtin-rules
 
 include $(CONFIG)
 
-CFLAGS += -I. -Imemory -Ivmath -Istructures
+CFLAGS += -I. -Iincludes -Ibuild/includes
+
+objs: $(OBJDIR) $(INCDIR) $(OBJDIR)/libzmemory.a  $(OBJDIR)/libzthread.a  $(OBJDIR)/libzstructures.a #  $(OBJDIR)/time.o $(OBJDIR)/zmath.o  $(OBJDIR)/libgraphics.a
+
 
 vars:
 	@echo CFLAGS = $(CFLAGS)
 	@echo CONFIG = $(CONFIG)
+	@echo OBJDIR = $(OBJDIR)
+	@echo INCDIR = $(INCDIR)
+	@echo Type make objs to make build/objs/* and build/includes/*
 
 
-objs: objs/memory.o  objs/thread.o  objs/libstructures.a #  objs/time.o objs/zmath.o  objs/libgraphics.a 
+
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
+
+$(INCDIR):
+	mkdir -p $(INCDIR)
+
+
+
+.PRECIOUS: build/includes/%.h
+
+#make .a from .o's
+$(OBJDIR)/libz%.a: .%-objs
+	ar rvcs $@ $*/*.o
 
 
 include thread/thread.inc
@@ -22,10 +47,9 @@ include structures/structures.inc
 #include vmath/vmath.inc
 include test/test.inc
 
-clean-objs: 
-	-rm objs/*
-	-rm $(OBJS_TOCLEAN)
+clean:	clean-memory clean-thread clean-structures
+	-rm $(OBJDIR)/*
+	-rm $(INCDIR)/*
 
 
-clean: clean-objs
 

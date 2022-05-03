@@ -1,4 +1,3 @@
-#include "../ztypes.h"
 
 #ifndef ZARRAY
 #define ZARRAY
@@ -11,17 +10,37 @@ void* zarray_allocf( int elemsize, int elemnum);
 void* zarray_resizef(void* array, int elemsize, int elemnum, zbool* ok);
 
 #define zarray_alloc(ARRAYTYPE, len)  	zarray_allocf( sizeof(ARRAYTYPE), len)
-#define zarray_resize(ARRAYNAME, NEWSIZE, ISOK)  zarray_resizef(ARRAYNAME, sizeof(*ARRAYNAME), NEWSIZE, ISOK)
+#define zarray_resize(ARRAYNAME, NEWSIZE, ISOK)  zarray_resizef(ARRAYNAME, sizeof(ARRAYNAME[0]), NEWSIZE, ISOK)
+
+
+#define zarray_copy(DEST,POS,SRC,SRCS,SRCE)\
+	zarray_copyf(DEST, POS, SRC, SRCS, SRCE, sizeof(DEST[0]), sizeof(SRC[0]))
+
+void zarray_copyf(void* dest, zuint32 pos, void* src, zuint32 srcstart, zuint32 srcend, zuint32 elemsize1, zuint32 elemsize2);
+
+
+
+
+#define zarray_append(DEST,SRC,GROW2X,BOK)\
+	zarray_appendf(DEST, SRC, GROW2X, BOK, sizeof(DEST[0]), sizeof(SRC[0]))
+
+void* zarray_appendf(void* dest, void* src, zbool grow2x, zbool* ok, zuint32 elemsize1, zuint32 elemsize2);
+
+void zarray_debug(void* array);
+
 
 typedef struct array_shadow{
 	int capacity; //number of elements allocated
 	int used; //number of elements used (optional)
 } array_shadowT;
 
+//set 'num' number of elements as in use
+void zarray_use(void* array, int num);
 
 //function versions of count and size... slower but reliable
 int zarray_countf(void* array) ;
 int zarray_sizef(void* array) ;
+
 
 
 //experimental macro versions of the above functions.  They seem to work fine...
@@ -32,15 +51,17 @@ int zarray_sizef(void* array) ;
 #define zarray_size(ARRAY)   (((array_shadowT*) (  ((char*)(ARRAY)) - z_global_ram_header_size - sizeof(array_shadowT)))->capacity)
 
 
-//fast append
+//checks if there is space for MORE number elements in the array
+#define zarray_space(ARRAY, MORE)   ( (zarray_count(ARRAY)+(MORE)) <= zarray_size(ARRAY))
 
+//Doubles the size of an array, returning a new pointer if necessary (returns old pointer if not)
+#define zarray_expand(ARRAY) 	zarray_resizef(ARRAY, sizeof(ARRAY[0]), zarray_size(ARRAY)*2, NULL)
 
-#define zarray_hasspaceI(ARRAY)   ( zarray_count(ARRAY) < zarray_size(ARRAY))
+//check is array has space, and expand if not, returning a potentially new pointer
+#define zarray_sizecheck(ARRAY, MORE)  (zarray_space(ARRAY,MORE)? (ARRAY) : zarray_expand(ARRAY) )
 
-#define zarray_expand(ARRAY) 	zarray_resizef(ARRAY, sizeof(*ARRAY), zarray_size(ARRAY)*2, NULL)
-
-
-#define zarray_add(ARRAY, ITEM) (zarray_hasspaceI(ARRAY) ?  ARRAY[ zarray_count(ARRAY)++ ] = ITEM, ARRAY:  NULL  )
+//fast append (only if has space)
+#define zarray_add(ARRAY, ITEM) (zarray_space(ARRAY,1) ?  ARRAY[ zarray_count(ARRAY)++ ] = ITEM, ARRAY:  NULL  )
 
 
 

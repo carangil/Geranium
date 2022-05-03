@@ -1,4 +1,4 @@
-#include "../ztypes.h"
+#include "ztypes.h"
 #include "zthread.h"
 #include <stdio.h>
 

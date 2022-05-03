@@ -1,5 +1,5 @@
-#include "../ztypes.h"
-#include "../memory/zmem.h"
+#include "ztypes.h"
+#include "zmem.h"
 #include "zlist.h"
 
 void zlist_addhead(zlistT* list, zlistnodeT* node)

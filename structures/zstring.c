@@ -1,11 +1,12 @@
 #include <stdio.h>
-#include "../ztypes.h"
-#include "../memory/zmem.h"
+#include "ztypes.h"
+#include "zmem.h"
 #include "zvector.h"
 #include "zstring.h"
+#include "zarray.h"
 
 
-
+#if 0
 //increases storage of a string to accomodate extra space
 char* zstr_grow(char* dest, int additional) {
 	
@@ -31,7 +32,7 @@ char* zstr_grow(char* dest, int additional) {
 		if (newcap <  xlen)
 			newcap = xlen;
 				
-		dest = ram_resize(dest, newcap);
+		dest = ram_resize(dest, void zstr_debug(char* a)newcap);
 		if (dest == NULL)
 			return NULL;// resize failed
 		
@@ -76,91 +77,99 @@ char* zstr_cat(char* dest, char* src)
 	
 }
 
+#endif
 
-
-//0 capacity means copy all 
-char* zstr_mk(int capacity, int use)
+//allocates space (plus null terminator) for string n bytes long
+char* zstr_mk(int n)
 {
 	char* x;
-	zstring_shadow_t* zs;
-	
-	if (use > capacity)
-		capacity = use;
-	
-	if (capacity < 0)
-		return NULL;
-	
-	capacity ++; //null terminator
-	
-	x = ram_alloc_shadow( capacity, NULL, sizeof(zstring_shadow_t));
-	
-	zs = ram_shadow(x);
-	
-	if (zs) {
-		zs->len = use;
-		zs->capacity = capacity ; //, including null terminator
-	}
-	x[use] = 0;
+
+	x = zarray_alloc(char , n+2 );
+	x[0]=0;
+	zarray_use(x, 1); //terminator is here
+	x[n+1]='$';  //'canary' for debugging
+
 	return x;
 }
 
+void zstr_debug(char* a){
+
+	if (a == NULL)
+		printf("string '' is NULL\n");
+	else if(!ram_shadow(a))
+		printf("string '%s' is not a zstring\n", a);
+	else {
+		int size = zarray_size(a);
+		printf("string '%s' is zstring... char zarray of size %d, %d used\n", a, size, zarray_count(a));
+
+		int len = strlen(a);	
+
+		printf(" end of string: %x:%c %c %x:%c   end of array: %x %x:%c\n", 
+			a[len-1], a[len-1], a[len], a[len+1], a[len+1], a[size-2], a[size-1], a[size-1]);
+
+	}
+
+}
 
 char* zstrndup(char* a, int n) {
 	int len;
 	char *z;
 	
-    if (a == NULL)
-        return zstr_mk(n,0);
-    
-	if (n==0)
-		len=0;
-	else if (n>0) 
+	if (a == NULL)
+        	return zstr_mk(0);
+   
+	if (n== ZSTRING_ALL){
+		len = strlen(a);
+		n = len;
+	} else {
 		len = strnlen(a, n);
-	else 
-		len= strlen(a);
-	
+	}
+
 	if (n < len)
 		n = len;
-	
-	
-	z = zstr_mk(n, len); //n is capacity of string, len is length to be used
-	//printf("mk %d, %d\n", len,n);
-	
-	if(z) {
-		strncpy(z,a,len); 
-		z[len]='\0';
+
+	z = zstr_mk(n);  //string for n chars
+
+	if (z){
+		strncpy(z, a, n);
+		z[n]='\0';
+		zarray_count(z)=n+1; //include terminator in byte count of array
 	}
+	
 	return z;
 	
 }
-
-
-
-
-void zstr_debug(char* x) {
-	zstring_shadow_t* sh;
+	//copies  src[start] up to, not including, src[start+count]  to the end of dest;
+	//if count ==-1, it copies to the end of the string
 	
-	if (x == NULL) {
-		printf(" %p is null\n", x);
-		return;
+char* zstrcatsub(char* dest, char* src, int start, int count){
+
+	if (count == ZSTRING_ALL){
+		count = strlen(src) - start;
 	}
-	
-	sh = ram_shadow(x);
-	if (!sh) {
-		printf(" %p is c string %s\n", x, x);
-		return;
+    
+	if (!zarray_space(dest, count+2)){
+		dest = zarray_expand(dest);
 	}
-//	printf("len:%d\n", sh->len);
-	//printf("capacity:%d\n", sh->capacity);
+
+	int pos = zarray_count(dest);
 	
-	printf(" %p has shadow %p: %d sh->len    %d strlen     %d capacity %s\n", x, sh, sh->len, strlen(x) ,  sh->capacity,   x);
+	if (pos>0)
+	    pos--;
+
+	memcpy(dest+pos, src+start, count);
+	zarray_use(dest, pos+count);
 	
+	return dest;
 }
 
 
+
+#if 1
+
 //split string into vector of string, by delim.
 //if delim not found, returns vector of 1 string
-zvec_t*  zsplit(zvec_t* v, char* str, char delim){
+zvecT*  zsplit(zvecT* v, char* str, char delim){
 	char* p;
 	int len;
 	char* tmp;
@@ -192,3 +201,4 @@ zvec_t*  zsplit(zvec_t* v, char* str, char delim){
 	return v;
 	
 }
+#endif

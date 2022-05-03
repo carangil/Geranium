@@ -1,13 +1,22 @@
-Hmemory=memory/zmem.h  structures/zlist.h
+Hmemory=memory/zmem.h
+Hmemorydeps+=$(INCDIR)/zthread.h $(INCDIR)/zlist.h 
 
-o_mem=objs/memory.o
+#List all o files here
+.memory-objs: memory/ram.o
+	touch .memory-objs
 
-$(o_mem): memory/ram.c   $(Hmemory)
-	$(CC) $(CFLAGS) -c -o objs/memory.o memory/ram.c 
+memory/%.o: memory/%.c  $(Hmemory) $(Hmemorydeps)
+	$(CC) $(CFLAGS) -c -o $@ $< 
 
-memory: $(o_mem)
+$(INCDIR)/%.h: memory/%.h
+	$(COPY) $< $(INCDIR)
 
 
-clean-memory: 
-	-rm $(o_mem)
+$(INCDIR)/%.h: structures/%.h
+	$(COPY) $< $(INCDIR)
+
+
+clean-memory:
+	echo clean-memory
+	-rm memory/*.o
 

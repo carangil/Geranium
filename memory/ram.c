@@ -4,15 +4,15 @@
 
 #define RAM_C
 
-#include "../ztypes.h"
+#include "ztypes.h"
 #include <malloc.h>
 #include <string.h>
 #include "zmem.h"
 #include <stdio.h>
 
 #ifdef RAM_DEBUG
-#include "../thread/zthread.h"
-#include "../structures/zlist.h"
+#include "zthread.h"
+#include "zlist.h"
 #endif
 
 #define MYMAGIC 0xf1e2f3e4
@@ -265,9 +265,7 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 	char* buffer;
 	int shadow_size;
 
-	if (okptr)
-		*okptr = ZFALSE;
-
+	
 	mem_headerT* header = (mem_headerT*) ram; //take pointer given to application
 #ifdef RAM_DEBUG
         mem_headerT* oldheader;
@@ -281,7 +279,11 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 		if (header->refcount !=1 )
 		{
 			fprintf(stderr, " can't resize if refcount !=1\n");
-			return ZFALSE;
+			
+			if (okptr)
+			    *okptr = ZFALSE;
+
+			return NULL;
 		}
 #ifdef RAM_DEBUG
                 zlock(&ram_debug_lock);
@@ -311,12 +313,12 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 
 		if (buffer)
 			header = (mem_headerT*)(buffer + shadow_size);
-		else
+		else 
 			header = NULL;
 		
-		if (shadow_size) {
+	//	if (shadow_size) {
 				//printf("Realloced to  physical buffer %p with shadow %d.  Header starts at %p Userdata at %p\n", buffer, shadow_size, header, header+1);
-		}
+	//	}
 		
 
 #ifdef RAM_DEBUG
@@ -333,10 +335,11 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 				*okptr = ZTRUE;
 			return header+1;
 		}
-		else
-			return NULL;  //could not resize, return NULL
+		
 	}
-
+	
+	if (okptr)
+			okptr = ZFALSE;
 	return NULL;
 }
 
