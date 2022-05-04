@@ -19,12 +19,16 @@ extern tm_microstamp_t tm_zero_microstamp;
 
 #else
 
+#include <time.h>
+
 typedef struct timeval tm_microstamp_t;
 
 #define tm_get_microstamp(zzzstamp)   gettimeofday(zzzstamp, NULL)
 
 
 #define tm_msleep(x)  usleep((x)*1000)
+
+#define tm_epoch()  time(NULL)
 
 #endif
 

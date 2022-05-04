@@ -2,16 +2,18 @@ CC=gcc
 COPY=cp
 CONFIG?=debugconfig.inc
 
-#OBJDIR and INCDIR are populated during the build
-OBJDIR=build/objs
-INCDIR=build/includes
-MAKEFLAGS += --no-builtin-rules
-
 include $(CONFIG)
 
-CFLAGS += -I. -Iincludes -Ibuild/includes
+#OBJDIR and INCDIR are populated during the build
+OBJDIR?=build/objs
+INCDIR?=build/includes
+MAKEFLAGS += --no-builtin-rules
 
-objs: $(OBJDIR) $(INCDIR) $(OBJDIR)/libzmemory.a  $(OBJDIR)/libzthread.a  $(OBJDIR)/libzstructures.a #  $(OBJDIR)/time.o $(OBJDIR)/zmath.o  $(OBJDIR)/libgraphics.a
+
+CFLAGS += -I. -Iincludes -I$(INCDIR)
+
+objs: $(OBJDIR) $(INCDIR) .includes $(OBJDIR)/libzmemory.a $(OBJDIR)/libzthread.a $(OBJDIR)/libzstructures.a $(OBJDIR)/libzmisc.a $(OBJDIR)/libzvmath.a #  $(OBJDIR)/libgraphics.a
+#$(OBJDIR)/libzblank_module.a	  Sample extra dir
 
 
 vars:
@@ -22,32 +24,35 @@ vars:
 	@echo Type make objs to make build/objs/* and build/includes/*
 
 
-
+.includes: $(INCDIR)/ztypes.h	#list headers in includes that should be copied to build/includes
+	touch .includes
+	
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
 $(INCDIR):
 	mkdir -p $(INCDIR)
 
+$(INCDIR)/%.h: includes/%.h
+	$(COPY) $< $@
 
-
-.PRECIOUS: build/includes/%.h
+.PRECIOUS: $(INCDIR)/%.h
 
 #make .a from .o's
 $(OBJDIR)/libz%.a: .%-objs
 	ar rvcs $@ $*/*.o
 
-
+#blank_module is the 'example' template to copy from for new libs
+#include blank_module/blank.inc
 include thread/thread.inc
 include memory/memory.inc
 include structures/structures.inc
+include misc/misc.inc
+include vmath/vmath.inc
 #include graphics/graphics.inc
-#include time/time.inc
 #include sound/sound.inc
-#include vmath/vmath.inc
-include test/test.inc
 
-clean:	clean-memory clean-thread clean-structures
+clean:	clean-memory clean-thread clean-structures clean-misc clean-vmath #clean-blank_module
 	-rm $(OBJDIR)/*
 	-rm $(INCDIR)/*
 

@@ -1,6 +1,6 @@
-#include "../ztypes.h"
-#include "math.h"
-#include "zmath.h"
+#include "ztypes.h"
+#include <math.h>
+#include "zvectormath.h"
 #include <stdlib.h>
 
 //normalize a vector
@@ -31,22 +31,6 @@ zbool vec3_point_in_box( vec3* min, vec3* point, vec3* max, float border)
 
 }
 
-//garbage random numbers
-//
 
-
-float randf()
-{
-	
-	return  rand() /  (float)RAND_MAX;
-	
-}
-
-
-//random float -1.0 to 1.0
-float randfs()
-{
-	return -1.0 + 2*(rand()&511) / 511.0;
-}
 
 

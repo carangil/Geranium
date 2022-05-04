@@ -28,9 +28,9 @@ static zuint32 ram_allocs_cnt = 0; //count of current allocations (to check for 
 zsize	z_global_ram_header_size = 0;  //advertises the size of an allocation wrapper header
 
 #ifdef RAM_DEBUG
-static zbool    zmem_inited=0;
 static zlockT  ram_debug_lock;
 #endif
+static zbool    zmem_inited=0;
 
 /* Memory block header */
 
@@ -259,6 +259,23 @@ void* ram_addref(void* thing)
 	}
 	return thing;
 }
+
+int ram_numrefs(void* thing)
+{
+	mem_headerT* header = (mem_headerT*) thing;
+	if (header)
+	{
+		header --;
+		if (header->magic != MYMAGIC){
+
+			printf(" Attempt to count references for non-zmem object\n");
+			return 0;
+		}
+		return header->refcount;
+	}
+	return 0;
+}
+
 
 void* ram_resize(void* ram, zsize size, zbool* okptr)
 {

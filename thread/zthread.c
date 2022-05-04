@@ -1,6 +1,5 @@
 #include "ztypes.h"
 #include "zthread.h"
-#include "zmem.h"
 #include <stdio.h>
 
 #ifdef _WIN32

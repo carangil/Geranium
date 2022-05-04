@@ -2,6 +2,8 @@
 #include "zarray.h"
 #include "zvector.h"
 #include "zstring.h"
+#include "ztime.h"
+#include "zrand.h"
 
 void compare(char* s, int a, int b){
 	if (a==b) 
@@ -149,7 +151,7 @@ void mem_array_string_test(){
 	printf("%p %d %d %s\n", c, zarray_count(c), zarray_size(c), c);
 	
 	ram_free(c);
-	ram_free(g);
+
 
 
 	zvecT* ss = zstrsplit(NULL, "This|is|a|test", '|');
@@ -177,7 +179,6 @@ void mem_array_string_test(){
 
 	printf(" Final allocations %d\n", ram_allocs());
 	#endif
-
 
 
 }
@@ -221,7 +222,7 @@ void thread_test(){
 
 		for (i=0;i<N;i++){
 		
-			printf("%d", zthread_isfinished(&threads[i]));
+			printf("%d", zthread_isfinished(&threads[i].th));
 		}
 		printf("\n");
 	}
@@ -237,158 +238,21 @@ void thread_test(){
 
 int main(int argc, char** args){
 
-//	mem_array_string_test();
+	mem_array_string_test();
 
 	thread_test();
 
+	int i;
+	for (i=0;i<10;i++){
+		printf("unix time: %d (then msleep 250...)\n", tm_epoch());
+		tm_msleep(250);
+	}
+
+	//random numbers:
+	for (i=0;i<10;i++)
+		printf(" %x  %f\n", zrand(), zrandf(-2,5));
 
 }
 
 
-#if 0
-#include "../thread/zthread.h"
-#include "../structures/zvector.h"
-#include "../structures/zstring.h"
 
-
-#include "stdio.h"
-
-
-typedef struct mythreadtype_s{
-        zthread_t thread;  //the 'base' class must be first
-        char* string;   //data for my thread type
-}
-mythread_t ;
-
-zlock_t lock;
-void testf(void* v) {
-	mythread_t* mt = v;
-	zlock(&lock);
-	sleep(2);
-	zunlock(&lock);
-	mt->string = "CHANGED";
-}
-
-void mythreadfunc(void* thread){
-        mythread_t* mt = thread;
-        
-        int i;
-        char* x;
-        for(i=0;i<10;i++) {
-                
-                x = ram_strdup(mt->string);
-                printf(" %s %s\n", mt->string,x);
-                ram_free(x);
-               // sleep(0.1);
-        }
-}
-void mythread_cleanup(mythread_t* mt)
-{
-        ram_free(mt->string);
-        
-}
-
-int main(int argc, char** args) {
-        mythread_t t;
-          
-        
-        mythread_t* mt;
-        int i;
-        int j;
-        char buffer[100];
-		zvec_t v;
-		char* s;
-		char* a, *b;
-		
-
-		
-		s = zstrndup("This is a test", 4);
-		
-		printf("4chars: [%s]\n", s);
-		
-		ram_free(s);
-		
-		a = ram_strdup("LEFT");
-		b = ram_strdup("rightstring");
-		
-		
-		a = zstrcat(b,a, ZFALSE, ZTRUE);
-		
-		printf("[%s]\n", a);
-		
-		ram_free(a);
-		ram_free(b);
-		
-		zsplit(&v, "This;is;a;test;splitting;string;boo", ';');
-		
-		for (j=0;j<zvec_count(&v);j++) {
-			zvec_set_at(&v, j, zstrcat( "LEFT ", (char*) zvec_get_at(&v,j), ZFALSE, ZTRUE));
-		}
-		
-		for (j=0;j<zvec_count(&v);j++) {
-			printf("{%s}\n", (char*) zvec_get_at(&v,j));
-			
-		}
-		
-		zvec_cleanup(&v);
-		
-		
-		exit (0);
-		
-		
-		
-
-
-		ram_clear(&t, sizeof(t));
-		t.string = "This is a thread";
-		
-		zlock_init(&lock);
-		
-		if (zthread_start(&t.thread, testf)) {
-			sleep(1);
-			while (!ztrylock(&lock)) {
-				printf("trylock didn't get lock\n");
-
-			}
-			printf("got the lock\n");
-			zunlock(&lock);
-
-		}
-		zlock_destroy(&lock);
-
-
-		
-		
-		
-		mt = ram_alloc_array( mythread_t, 10);
-        
-        for (i=0;i<10;i++){
-                snprintf(buffer, sizeof(buffer), "Thread %d", i);
-                mt[i].string = ram_strdup(buffer);
-              
-        }
-        for (j=0;j<10;j++) {
-                
-                for (i=0;i<10;i++){
-                zthread_start(&mt[i].thread, mythreadfunc);
-                }
-                
-                for (i=0;i<10;i++){
-                        zthread_join(&mt[i].thread);
-                        printf("%d joined", i);
-                }
-        }
-           
-           
-       for (i=0;i<10;i++){
-               mythread_cleanup(&mt[i]);
-       }
-        
-       ram_free(mt);
-        
-       printf("\n%d allocations left\n", ram_allocs());
-       	printf("boo %s", 2); 
-        
-       return 0;
-}
-#endif

@@ -1,16 +1,23 @@
-Hvmath=vmath/zmath.h
+Hvmath=$(INCDIR)/zvectormath.h 
+Hvmathdeps+=
 
-o_vmath=objs/zmath.o
-src_vmath=vmath/vmath.c
+#List all o files here
+.vmath-objs: vmath/vectormath.o 
+	touch .vmath-objs
+
+vmath/%.o: vmath/%.c  $(Hvmath) $(Hvmathdeps)
+	$(CC) $(CFLAGS) -c -o $@ $< 
+
+$(INCDIR)/%.h: vmath/%.h
+	$(COPY) $< $(INCDIR)
 
 
-$(o_vmath): $(src_vmath) $(Hvmath)
-	echo DO $(CC)   $(CFLAGS)  -c -o $@ $< 
-	$(CC)   $(CFLAGS)  -c -o $@ $< 
-
-vmath: objs/vmath.o
+$(INCDIR)/%.h: vmath/%.h
+	$(COPY) $< $(INCDIR)
 
 
-clean-vmath: 
-	-rm $(o_vmath)
+clean-vmath:
+	echo clean-vmath
+	-rm vmath/*.o
+
 

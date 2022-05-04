@@ -4,7 +4,8 @@
 
 
 //structure definition of a vector
-
+#ifndef ZVECTOR_H
+#define ZVECTOR_H
 
 typedef struct zvec_s {
 	zuint32 _size;		// max number of elements physical array can fit
@@ -69,4 +70,4 @@ void* zvec_remove_ordered(zvecT* v, zuint32 index);
 void zvec_disown(zvecT* v);
 
 
-
+#endif

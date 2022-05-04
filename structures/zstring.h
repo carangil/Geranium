@@ -2,6 +2,7 @@
 //(C)2021-2022 Mars Sherman
 //This library provides a string implementation that is compatible with C strings
 //This depends on zarray, which is a resizable array implementation compatible with C arrays
+#include "zvector.h"
 
 //Pass ZSTRING_ALL when ALL of a string should be used (instead of just n bytes)
 #define ZSTRING_ALL -1

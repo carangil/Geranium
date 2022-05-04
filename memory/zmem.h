@@ -33,17 +33,13 @@ void* ram_resize(void* ram, zsize size, zbool* successful);
 void* ram_addref(void* thing);
 void  ram_free(void* thing);  //call on an object to dec refcount, ultimately calling its destructor when refcount==0
 
-/* experimental ideas for recursive destructors */
-void ram_delref(void* thing); //decrements reference to object.  returns true if object should be deleted
-void ram_deallocate(void* v); //call only inside a destructor.  it will deallocate an item without calling its destructor.  
-/* end experiment */
-
 //char* ram_strdup(char* in);
 char* ram_strdup_func(char* in, char* file,  int line);
 #define ram_strdup(xx) ram_strdup_func(xx,__FILE__,  __LINE__)
 
 char* ram_strdup_cat(char* in1, char* in2); //cat two string together into a new buffer
 
+int ram_numrefs(void* ptr);
 
 char* ram_loadstr(char* filename);  //load contents of filename into a buffer
 

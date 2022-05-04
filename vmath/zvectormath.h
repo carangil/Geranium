@@ -163,17 +163,3 @@ void vec3normalize( vec3* p);
 zbool vec3_point_in_box( vec3* min, vec3* point, vec3* max, float border);
 
 
-
-
-//some misc non-vector match
-
-
-
-
-//random number 0 to 1
-float randf();
-
-
-//random number -1 to 1
-float randfs();
-
