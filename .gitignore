@@ -1,0 +1,8 @@
+/.*
+/release
+/build
+*.o
+*.a
+*.swp
+test/test
+gfxtest/test
