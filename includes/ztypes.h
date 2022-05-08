@@ -6,6 +6,9 @@
 /* Basic datatypes for my projects**/
 
 #include <stdlib.h>
+#include <stdio.h>
+
+
 #ifndef ZTYPES
 #define ZTYPES
 

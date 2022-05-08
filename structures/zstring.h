@@ -5,10 +5,10 @@
 #include "zvector.h"
 
 //Pass ZSTRING_ALL when ALL of a string should be used (instead of just n bytes)
-#define ZSTRING_ALL -1
+#define ZSTRING_ALL ((size_t)-1)
 
 //Copy C or zstring into a new zstring
-char* zstrndup(char* str, int count);
+char* zstrndup(char* a, zsize n);
 #define zstrdup(SSS)  zstrndup(SSS,ZSTRING_ALL)
 
 //Split C or zstring on delimiter, returning vector of zstrings
@@ -21,14 +21,13 @@ char*  zstrbuild(zvecT* v, char delim);
 void zstr_debug(char* x) ;
 
 //Make an empty zstring with space for 'capacity' bytes.  Null terminator automatically added to length.
-char* zstr_mk(int capacity);
+char* zstr_mk(zsize capacity);
 
 //Append substring of a C or zstring to the end of a zstring.
 //dest cannot be a C string or have more than 1 reference
 //dest may be resized, so the return value may be different:
 //dest = strcatsub(dest, otherstring,1,10);
-char* zstrcatsub(char* dest, char* src, int start, int count);
-
+char* zstrcatsub(char* dest, char* src, zsize start, zsize count);
 
 //abbreviated version of zstrcatsub that takes the whole src string
 #define zstrcat(XDEST,XSRC) zstrcatsub(XDEST,XSRC,0,ZSTRING_ALL)

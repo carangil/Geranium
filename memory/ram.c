@@ -4,11 +4,12 @@
 
 #define RAM_C
 
-#include "ztypes.h"
+
 #include <malloc.h>
-// #include <string.h>
+#include <string.h>
+#include "ztypes.h"
 #include "zmem.h"
-#include <stdio.h>
+
 
 #ifdef RAM_DEBUG
 #include "zthread.h"
@@ -212,7 +213,7 @@ void ram_free(void* thing)
 
 		if (header->refcount<0)
 		{
-			fprintf(stderr,"ERROR: negative refcount on %p\n");
+			fprintf(stderr,"ERROR: negative refcount on %p\n", thing);
 		}
 
 		if (header->refcount ==0)

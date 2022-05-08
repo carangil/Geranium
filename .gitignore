@@ -6,3 +6,10 @@
 *.swp
 test/test
 gfxtest/test
+*.bak
+VS/hcopy/*.h
+VS/.vs
+x64
+*.user
+
+

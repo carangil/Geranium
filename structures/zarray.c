@@ -1,6 +1,7 @@
 #include "ztypes.h"
 #include "zmem.h"
 #include "zarray.h"
+#include <stdio.h>
 
 //return number of items array can hold
 int zarray_sizef(void* array) {
@@ -22,9 +23,9 @@ int zarray_countf(void* array) {
 	return 0;
 }
 
-void* zarray_allocf( int elemsize, int elemnum){
+void* zarray_allocf( zsize elemsize, zuint32 elemnum){
 	size_t size = elemsize * elemnum;
-	printf(" array needs %d\n", size);
+	printf(" array needs %d\n", (int)size);
 
 	//if array is byte array (elements are size one), allocate an extra byte
 	if (elemsize==1)
@@ -44,7 +45,7 @@ void* zarray_allocf( int elemsize, int elemnum){
 	array_shadowT * sh = ram_shadow(array);
 	if (sh){
 		sh->used = 0;
-		sh->capacity = elemnum;
+		sh->capacity = (zuint32) elemnum;
 		
 	
 		
@@ -52,9 +53,9 @@ void* zarray_allocf( int elemsize, int elemnum){
 	return array;
 }
 
-void* zarray_resizef(void* array, int elemsize, int elemnum, zbool* ok){
+void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok){
 	size_t newsize = elemsize * elemnum;
-	printf(" array resize needs %d for %d * %d\n", newsize, elemsize, elemnum);
+	printf(" array resize needs %d for %d * %d\n", (int)newsize, (int)elemsize, (int)elemnum);
 
 	//allocate extra byte for byte arrays null terminator (in case we want C strings out of here)
 	if (elemsize==1)
@@ -90,10 +91,10 @@ void* zarray_resizef(void* array, int elemsize, int elemnum, zbool* ok){
 }
 
 //copies part of source array to destination array
-void zarray_copyf(void* dest, zuint32 pos, void* src, zuint32 srcstart, zuint32 srcend, zuint32 elemsize1, zuint32 elemsize2){
+void zarray_copyf(void* dest, zuint32 pos, void* src, zuint32 srcstart, zuint32 srcend, zsize elemsize1, zsize elemsize2){
 	if  ( (dest == NULL) || (src==NULL) || (elemsize1 != elemsize2)  ||(srcend < srcstart) ) {
 		fprintf(stderr, "ERROR: array copy bad parms %p +%d by %d=  %p (+%d to %d) by %d\n", 
-			dest, pos, elemsize1, src, srcstart, srcend, elemsize2);
+			dest, pos, (int)elemsize1, src, srcstart, srcend, (int)elemsize2);
 		return;
 	}
 
@@ -101,11 +102,11 @@ void zarray_copyf(void* dest, zuint32 pos, void* src, zuint32 srcstart, zuint32 
 		printf(" Exceed dest array bounds on zarray_copy \n");
 	}
 	
-	memmove( dest + (elemsize1*pos) , src + (elemsize2*srcstart), elemsize2*(srcend-srcstart));
+	memmove( ((char*)dest) + (elemsize1*pos) , ((char*)src) + (elemsize2*srcstart), elemsize2*(srcend-srcstart));
 
 }
 
-void zarray_use(void* array, int num){
+void zarray_use(void* array, zuint32 num){
 
 	if(!array)
 		return;
@@ -120,18 +121,18 @@ void zarray_use(void* array, int num){
 }
 
 
-void* zarray_appendf(void* dest, void* src, zbool grow2x, zbool* ok, zuint32 elemsize1, zuint32 elemsize2){
+void* zarray_appendf(void* dest, void* src, zbool grow2x, zbool* ok, zsize elemsize1, zsize elemsize2){
 	if  ( (dest == NULL) || (src==NULL) || (elemsize1 != elemsize2)   ) {
 		fprintf(stderr, "ERROR: array copy bad parms %p by %d=  %p  by %d\n", 
-			dest, elemsize1, src,  elemsize2);
+			dest, (int)elemsize1, src, (int)elemsize2);
 		return NULL;
 	}
 	
 	zuint32 pos = zarray_count(dest);
 	zuint32 srccount = zarray_count(src);
 
-	int exact_needed = pos + srccount;
-	int needed = exact_needed;
+	zuint32 exact_needed = pos + srccount;
+	zuint32 needed = exact_needed;
 	
 	//determine if we need extra for performance or string reasons:
 	
@@ -156,7 +157,7 @@ void* zarray_appendf(void* dest, void* src, zbool grow2x, zbool* ok, zuint32 ele
 	void* newarray = zarray_resizef(dest, elemsize1, needed, ok);
 	
 	if (newarray){
-	    memmove( dest + (elemsize1*pos) , src , elemsize2*(srccount));
+	    memmove(((char*)dest) + (elemsize1*pos) , ((char*)src) , elemsize2*(srccount));
 	    zarray_use(newarray, exact_needed);
 	    if (elemsize1 == 1) {
 		printf(" Putting null terminator at [%d]\n", exact_needed);

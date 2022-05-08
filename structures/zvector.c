@@ -4,7 +4,7 @@
 
 
 #include "ztypes.h"
-#include "memory/zmem.h"
+#include "zmem.h"
 #include <stdio.h>
 #include "zvector.h"
 #include <string.h>

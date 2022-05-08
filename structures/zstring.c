@@ -6,9 +6,10 @@
 #include "zarray.h"
 
 //allocates space (plus null terminator) for string n bytes long
-char* zstr_mk(int n)
+char* zstr_mk(zsize ns)
 {
 	char* x;
+	zuint32 n = (zuint32)ns;
 
 	x = zarray_alloc(char , n+2 );
 	x[0]=0;
@@ -28,7 +29,7 @@ void zstr_debug(char* a){
 		int size = zarray_size(a);
 		printf("string '%s' is zstring... char zarray of size %d, %d used\n", a, size, zarray_count(a));
 
-		int len = strlen(a);	
+		size_t len = strlen(a);	
 
 		printf(" end of string: %x:%c %c %x:%c   end of array: %x %x:%c\n", 
 			a[len-1], a[len-1], a[len], a[len+1], a[len+1], a[size-2], a[size-1], a[size-1]);
@@ -37,29 +38,23 @@ void zstr_debug(char* a){
 
 }
 
-char* zstrndup(char* a, int n) {
-	int len;
+char* zstrndup(char* a, zsize n) {
+
 	char *z;
 	
 	if (a == NULL)
         	return zstr_mk(0);
    
-	if (n== ZSTRING_ALL){
-		len = strlen(a);
-		n = len;
-	} else {
-		len = strnlen(a, n);
+	if (n == ZSTRING_ALL) {
+		n = strlen(a);
 	}
-
-	if (n < len)
-		n = len;
-
+	
 	z = zstr_mk(n);  //string for n chars
 
 	if (z){
 		strncpy(z, a, n);
 		z[n]='\0';
-		zarray_count(z)=n+1; //include terminator in byte count of array
+		zarray_use(z, (zuint32)n + 1);  //include terminator in byte count of array
 	}
 	
 	return z;
@@ -68,7 +63,7 @@ char* zstrndup(char* a, int n) {
 	//copies  src[start] up to, not including, src[start+count]  to the end of dest;
 	//if count ==-1, it copies to the end of the string
 	
-char* zstrcatsub(char* dest, char* src, int start, int count){
+char* zstrcatsub(char* dest, char* src, zsize start, zsize count){
 
 	if (ram_numrefs(dest) != 1){
 		printf(" Can't append to string with multiple references\n");
@@ -80,7 +75,7 @@ char* zstrcatsub(char* dest, char* src, int start, int count){
 		return dest;
 
 	if (count == ZSTRING_ALL){
-		count = strlen(src) - start;
+		count = ((zuint32)strlen(src)) - start;
 	}
    
 	if (!zarray_space(dest, count+2)){
@@ -93,7 +88,7 @@ char* zstrcatsub(char* dest, char* src, int start, int count){
 
 	memcpy(dest+pos, src+start, count);
 	dest[pos+count]=0;
-	zarray_use(dest, pos+count+1);
+	zarray_use(dest, (zuint32) pos+count+1);
 	
 	return dest;
 }
@@ -105,8 +100,6 @@ char* zstrcatsub(char* dest, char* src, int start, int count){
 //if delim not found, returns vector of 1 string
 zvecT*  zstrsplit(zvecT* v, char* str, char delim){
 	char* p;
-	int len;
-	char* tmp;
 	
 	//create a vector is none was specified (otherwise we are appending to existing one)
 	if (v == NULL)
@@ -138,7 +131,7 @@ zvecT*  zstrsplit(zvecT* v, char* str, char delim){
 
 char* zstrbuild(zvecT* v, char delim){
 	size_t sz=0;
-	int i;
+	zuint32 i;
 	char dl[2];
 	dl[0]=delim;
 	dl[1]=0;

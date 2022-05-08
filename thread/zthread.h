@@ -56,9 +56,9 @@ typedef pthread_mutex_t zlockT;
 
 
 /* Atomic increment, decrement */
-zint32 zlock_inc(zuint32* i);
-zint32 zlock_dec(zuint32* i);
-zint32 zlock_get(zuint32* i);
+zint32 zlock_inc(zint32* i);
+zint32 zlock_dec(zint32* i);
+zint32 zlock_get(zint32* i);
         
 /* Threads*/       
 

@@ -8,13 +8,13 @@
 
 
 
-zuint32 zlock_inc(zuint32* i) {
+zint32 zlock_inc(zint32* i) {
 	//return ++(*i);//fake
 	
 	return InterlockedIncrement(i);
 }
 
-zuint32 zlock_dec(zuint32* i) {
+zint32 zlock_dec(zint32* i) {
 
 	//return --(*i);//fake
 	
@@ -45,7 +45,7 @@ zbool ztrylock(zlockT*lk) {
 DWORD WINAPI th_wrapper(LPVOID pv) {
 	zthreadT* th = pv;
 	th->func(th);
-	th->finsihed=ZTRUE;
+	th->finished=ZTRUE;
 	return 0;
 }
 
@@ -55,7 +55,7 @@ zbool zthread_start(zthreadT* th, void(*func) (struct zthread_s* th) ) {
 	th->finished = ZFALSE;
 	th->func = func;
 	th->thh = CreateThread(NULL, 0, th_wrapper, (void*)th, 0, NULL);
-	printf("attempt to make thread %x\n", th->thh);
+	printf("attempt to make thread %p\n",  th->thh);
 	if (th->thh != NULL)
 		return ZTRUE;
 	else

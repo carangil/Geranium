@@ -2,12 +2,12 @@
 #ifndef ZARRAY
 #define ZARRAY
 
-void* zarray_allocf( int elemsize, int elemnum);
+void* zarray_allocf( zsize elemsize, zuint32 elemnum);
 
 
 
 
-void* zarray_resizef(void* array, int elemsize, int elemnum, zbool* ok);
+void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok);
 
 #define zarray_alloc(ARRAYTYPE, len)  	zarray_allocf( sizeof(ARRAYTYPE), len)
 #define zarray_resize(ARRAYNAME, NEWSIZE, ISOK)  zarray_resizef(ARRAYNAME, sizeof(ARRAYNAME[0]), NEWSIZE, ISOK)
@@ -16,7 +16,7 @@ void* zarray_resizef(void* array, int elemsize, int elemnum, zbool* ok);
 #define zarray_copy(DEST,POS,SRC,SRCS,SRCE)\
 	zarray_copyf(DEST, POS, SRC, SRCS, SRCE, sizeof(DEST[0]), sizeof(SRC[0]))
 
-void zarray_copyf(void* dest, zuint32 pos, void* src, zuint32 srcstart, zuint32 srcend, zuint32 elemsize1, zuint32 elemsize2);
+void zarray_copyf(void* dest, zuint32 pos, void* src, zuint32 srcstart, zuint32 srcend, zsize elemsize1, zsize elemsize2);
 
 
 
@@ -24,18 +24,18 @@ void zarray_copyf(void* dest, zuint32 pos, void* src, zuint32 srcstart, zuint32 
 #define zarray_append(DEST,SRC,GROW2X,BOK)\
 	zarray_appendf(DEST, SRC, GROW2X, BOK, sizeof(DEST[0]), sizeof(SRC[0]))
 
-void* zarray_appendf(void* dest, void* src, zbool grow2x, zbool* ok, zuint32 elemsize1, zuint32 elemsize2);
+void* zarray_appendf(void* dest, void* src, zbool grow2x, zbool* ok, zsize elemsize1, zsize elemsize2);
 
 void zarray_debug(void* array);
 
 
 typedef struct array_shadow{
-	int capacity; //number of elements allocated
-	int used; //number of elements used (optional)
+	zuint32 capacity; //number of elements allocated
+	zuint32 used; //number of elements used (optional)
 } array_shadowT;
 
 //set 'num' number of elements as in use
-void zarray_use(void* array, int num);
+void zarray_use(void* array, zuint32 num);
 
 //function versions of count and size... slower but reliable
 int zarray_countf(void* array) ;
