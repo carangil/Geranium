@@ -1,3 +1,3 @@
-CFLAGS+= -g
-#CFLAGS+= -o3
-CFLAGS+= -DRAM_DEBUG
+CFLAGS+= -g -O1
+ZFLAGS+= -DRAM_DEBUG
+PIXELTOASTER=../external/pixeltoaster

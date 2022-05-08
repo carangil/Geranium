@@ -10,10 +10,10 @@ INCDIR?=build/includes
 MAKEFLAGS += --no-builtin-rules
 
 
-CFLAGS += -I. -Iincludes -I$(INCDIR)
+CFLAGS += -I. -Iincludes -I$(INCDIR) $(ZFLAGS)
 
-objs: $(OBJDIR) $(INCDIR) .includes $(OBJDIR)/libzmemory.a $(OBJDIR)/libzthread.a $(OBJDIR)/libzstructures.a $(OBJDIR)/libzmisc.a $(OBJDIR)/libzvmath.a #  $(OBJDIR)/libgraphics.a
-#$(OBJDIR)/libzblank_module.a	  Sample extra dir
+objs: $(OBJDIR) $(INCDIR) .includes $(OBJDIR)/libzmemory.a $(OBJDIR)/libzthread.a $(OBJDIR)/libzstructures.a $(OBJDIR)/libzmisc.a $(OBJDIR)/libzvmath.a  $(OBJDIR)/libzblank.a $(OBJDIR)/libzgfx_pixeltoaster.a #  $(OBJDIR)/libgraphics.a
+#$(OBJDIR)/libzblank.a	  Sample extra dir
 
 
 vars:
@@ -42,17 +42,20 @@ $(INCDIR)/%.h: includes/%.h
 $(OBJDIR)/libz%.a: .%-objs
 	ar rvcs $@ $*/*.o
 
-#blank_module is the 'example' template to copy from for new libs
-#include blank_module/blank.inc
+#blank is the 'example' template to copy from for new libs
+include blank/blank.inc
+
+
 include thread/thread.inc
 include memory/memory.inc
 include structures/structures.inc
 include misc/misc.inc
 include vmath/vmath.inc
+include gfx_pixeltoaster/gfx_pixeltoaster.inc
 #include graphics/graphics.inc
 #include sound/sound.inc
 
-clean:	clean-memory clean-thread clean-structures clean-misc clean-vmath #clean-blank_module
+clean:	clean-memory clean-thread clean-structures clean-misc clean-vmath clean-blank clean-gfx_pixeltoaster
 	-rm $(OBJDIR)/*
 	-rm $(INCDIR)/*
 

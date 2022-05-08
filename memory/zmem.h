@@ -5,6 +5,7 @@
 #include <malloc.h>
 #include <string.h>
 
+
 extern zsize	z_global_ram_header_size;
 
 //destructor returns true if the ram should be freed

@@ -6,7 +6,7 @@
 
 #include "ztypes.h"
 #include <malloc.h>
-#include <string.h>
+// #include <string.h>
 #include "zmem.h"
 #include <stdio.h>
 
