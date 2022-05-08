@@ -102,7 +102,7 @@ void process_obj(zvec_t* sectors, zvec_t* pending_portals, gx_mesh_t* obj,vec3* 
 		*p=0; //end
 
 
-	printf("%s^^^%s\n", name,p+1);
+//	printf("%s^^^%s\n", name,p+1);
 
 	if (!strncmp(name, "sportal.",8)){
 	
@@ -167,8 +167,9 @@ zvec_t* sectors_from_obj(gx_mesh_t* objs) {
 					vec3sub (p, average);
 					radius = sqrt( vec3abs_sq(p));
 					printf(" Object %s has %d points average %f %f %f  radius %f\n", o_name,naverage, VEC3PASS(average), radius);
-
+					
 					process_obj(sectors,pending_portals, startobj, &average, radius);
+//					printf(" done process obj\n");
 					if (prev)
 						prev->next = NULL;
 				}
@@ -222,7 +223,7 @@ int main(int argc, char** argv) {
 
 
 	int run_tesselator=1;
-	gx_image_t * tex;
+	gx_image_t * tex=NULL;
 	gx_camera_t	player_camera;
 	gx_camera_init(&player_camera);
 	zvec_t* materials;
@@ -257,10 +258,10 @@ int main(int argc, char** argv) {
 
 
 	
-	#define FOLDER 			"/home/alarm/"
+	#define FOLDER 			"../shared/"
 	#define FOLDERTEX FOLDER 	""
-	#define OBJ    			"untitled" ".obj"
-	#define MTL			"untitled" ".mtl"
+	#define OBJ    			"testmap" ".obj"
+	#define MTL			"testmap" ".mtl"
 
 
 
@@ -276,7 +277,7 @@ int main(int argc, char** argv) {
 	camera_sector = find_sector(sectors, "start");
 
 	//tex = gx_image_load_tga("../shared/label.tga");
-//	tex = gx_image_load_tga("../shared/rock.tga");
+	tex = gx_image_load_tga("../shared/rock.tga");
 
 	gx_drawstyle_t* teststyle = gx_drawstyle_mk("teststyle", tex);
 	gx_drawstyle_t* teststylenotex = gx_drawstyle_mk("notexture", NULL);
@@ -309,7 +310,7 @@ int main(int argc, char** argv) {
 	}
 
 
-	gx_clear_color(.2,.2,.1,1);
+	gx_clear_color(0,0,0,1);
 
 
 	gx_setup_3d( 90.0, 4.0/3.0, .1, 100);
@@ -379,7 +380,7 @@ int main(int argc, char** argv) {
 			zbool	mouse_relative;
 
 			//speed of motion
-#define SSS .005
+#define SSS .05
 			if (gx_key_state('w')) delta_pos.vec3z+=SSS;
 			if (gx_key_state('s')) delta_pos.vec3z=-SSS;
 			if (gx_key_state('a')) delta_pos.vec3x=-SSS;
@@ -398,11 +399,11 @@ int main(int argc, char** argv) {
 
 			if (x=='~') break;
 
-			if (gx_key_state('q')) delta_roll=-.005;
-			if (gx_key_state('e')) delta_roll=.005;
+			if (gx_key_state('q')) delta_roll=-SSS;
+			if (gx_key_state('e')) delta_roll=SSS;
 
-			if (gx_key_state('z')) delta_yaw=-.005;
-			if (gx_key_state('x')) delta_yaw=.005;
+			if (gx_key_state('z')) delta_yaw=-SSS;
+			if (gx_key_state('x')) delta_yaw=SSS;
 
 			if (gx_key_state('g')) delta_pitch=-.02;
 			if (gx_key_state('b')) delta_pitch=.02;
@@ -420,7 +421,16 @@ int main(int argc, char** argv) {
 
 			vec3mov(world_delta_pos_norm, world_delta_pos);
 			vec3normalize(&world_delta_pos_norm);
-			zbool block = gx_vbuffer_collide(camera_sector->mesh->data, camera_sector->mesh->drawstart, camera_sector->mesh->drawend,  &player_camera.pos, &world_delta_pos_norm);
+			zbool block = ZFALSE;
+			gx_mesh_t* m = camera_sector->mesh;
+			while (m) {	
+
+				block |= gx_vbuffer_collide(m->data, m->drawstart, m->drawend,  &player_camera.pos, &world_delta_pos_norm);
+					
+
+				m=m->next;
+			}
+
 			if (block) {
 				printf(" HIT\n");
 			}else {

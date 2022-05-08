@@ -169,13 +169,13 @@ void gx_sector_draw(gx_sector_t* sect)
 	if (!sect)
 		return;
 
-	///printf(" drawing %p\n", sect->mesh);
+	printf(" drawing %s\n", sect->name);
 	gx_mesh_draw( sect->mesh);
 	//
 	//gx_drawstyle_activate(sect->mesh->style);
 	//gx_vbuffer_draw(sect->mesh->data, sect->mesh->drawstart, sect->mesh->drawstart+3, sect->mesh->prim, sect->mesh->indexed);
 
-	gx_sector_outline(sect,ZTRUE);
+//	gx_sector_outline(sect,ZTRUE);
 
 
 //	for (i=0;i<vec_count(&sect->meshes);i++)
@@ -272,7 +272,7 @@ gx_sector_t*  gx_traverse_sectors_prim(gx_camera_t* cam, gx_sector_t* sector, gx
 		//check which way portal is facing
 		backface = vec3dot(cam->rot.z_axis,portal->normal); 
 
-		if (backface > 0){
+		if ((backface > 0) && ! (inside)){
 
 			portal = portal->next_portal;
 			continue;  
@@ -319,8 +319,8 @@ gx_sector_t*  gx_traverse_sectors_prim(gx_camera_t* cam, gx_sector_t* sector, gx
 			
 		//	pringx_sector_add_portal_sphere(s,&pos, sqrt(2)/2, t, NULL);tf(" vis:%d\n", visible);
 			
-					gx_portal_draw_test(peer, ZTRUE);
-			gx_portal_draw_test(portal, visible);
+			//gx_portal_draw_test(peer, ZTRUE);
+			//gx_portal_draw_test(portal, visible);
 		}
 			
 			
@@ -373,7 +373,7 @@ void gx_portal_draw_test(gx_portal_t* p, zbool active)
 	float green[] = { 0,1,0,1};
 	if (active) 
 		color[1] = 1;
-	
+	glPointSize(4.0);	
 	if (!p->isquad) {
 		
 			vec3mov (pos, p->pos);
@@ -762,7 +762,7 @@ zbool gx_vbuffer_collide(gx_vbuffer_t* vb, zuint32 start, zuint32 end,vec3* pos,
 		//intersection test Möller-Trumbore from wikipedia
 
 //	  	const float EPSILON = 0.0000001; 
-		#define EPSILON 0.0001
+		#define EPSILON 0.000001
 
 	 	//Vector3D vertex0 = inTriangle->vertex0;
 		gx_vbuffer_get_i(idx, vb, i);
@@ -821,9 +821,18 @@ zbool gx_vbuffer_collide(gx_vbuffer_t* vb, zuint32 start, zuint32 end,vec3* pos,
 		//float t = f * edge2.dotProduct(q);
 		float t = f * vec3dot(edge2,q);
 
-		printf("intersect in t= %f \n", t);
-		if (t > -EPSILON && t< .2)
+		//printf("intersect in t= %f \n", t);
+		if (t > -EPSILON && t< .3) {
+
+//			vec3 c;
+//			vec3set (c, 0,0,0);
+			vec3madd(*pos, .001*vec3dot(edge1, *dir) , edge1);
+			vec3madd(*pos, .001*vec3dot(edge2, *dir) , edge2);
+
+			
 			return ZTRUE;	 
+
+		}
 
 	}
 
