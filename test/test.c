@@ -4,6 +4,7 @@
 #include "zstring.h"
 #include "ztime.h"
 #include "zrand.h"
+#include "blank.h"
 
 void compare(char* s, int a, int b){
 	if (a==b) 
@@ -236,13 +237,44 @@ void thread_test(){
 
 }
 
+#define BS 4096
+char buffer[BS];
+
+void outbuffer(){
+	fprintf( stderr, " BUFFER HAS {%s}\n", buffer);
+	fflush(stdout);
+	memset(buffer, 0, sizeof(buffer));
+	
+
+}
+
 int main(int argc, char** args){
 
+	int i;
+
+	blank_example("banana");
+/*
+	memset(buffer, '$', 200);
+	FILE* f = freopen("out", "w", stdout);
+
+	//setvbuf(f, buffer, _IOLBF,BS); //line buffer
+	setvbuf(stdout, buffer, _IOFBF,BS); //full buffer
+
+	
+
+	printf("BOO\n");
+	for (i=0;i<10;i++){
+		printf("T %d ", i);
+	}
+		outbuffer();
+
+
+	exit(0);	
+*/
 	mem_array_string_test();
 
 	thread_test();
 
-	int i;
 	for (i=0;i<10;i++){
 		printf("unix time: %d (then msleep 250...)\n", tm_epoch());
 		tm_msleep(250);
