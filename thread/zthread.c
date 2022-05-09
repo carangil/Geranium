@@ -129,15 +129,15 @@ zbool zthread_join(zthreadT* th)
 
 /* Atomic increment, decrement operations */
 
-zint32 zlock_inc(zuint32* i) {
+zint32 zlock_inc(zint32* i) {
         return __sync_add_and_fetch(i,1);
 }
 
-zint32 zlock_dec(zuint32* i) {
+zint32 zlock_dec(zint32* i) {
         return __sync_add_and_fetch(i,-1);
 }
 
-zint32 zlock_get(zuint32* i) {
+zint32 zlock_get(zint32* i) {
         return __sync_add_and_fetch(i,0);
 }
 
