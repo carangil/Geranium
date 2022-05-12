@@ -54,6 +54,12 @@ void* ram_shadow(void* thing);
 
 void ram_free(void* thing);
 
+//ram_malloc_interface can be passed to functions that expect a pointer to malloc.  No destructor will be available, but functions that take in a malloc function pointer handle their own memory
+//ram_free can be passed as a free interface already
+void* ram_malloc_interface(size_t size);
+#define ram_free_interface ram_free
+
+
 //forbid standard functions
 #ifndef RAM_C
 #define malloc	dont_use_malloc

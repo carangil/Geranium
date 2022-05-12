@@ -273,13 +273,13 @@ int main(int argc, char** args){
 */
 	mem_array_string_test();
 
-	thread_test();
-
+//	thread_test();
+/*
 	for (i=0;i<10;i++){
 		printf("unix time: %d (then msleep 250...)\n", tm_epoch());
 		tm_msleep(250);
 	}
-
+*/
 	//random numbers:
 	for (i=0;i<10;i++)
 		printf(" %x  %f\n", zrand(), zrandf(-2,5));
