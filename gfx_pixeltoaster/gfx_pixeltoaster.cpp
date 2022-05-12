@@ -293,7 +293,7 @@ protected:
 
 
 typedef struct ptWindow_s{
-	zwindowT interface;
+	zwindowT iface;
 	WindowListener* wl;
 	Display* display;
 } ptWindowT;
@@ -359,16 +359,16 @@ extern "C" zwindowT* pt_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flag
 	ptWindowT* ptw = (ptWindowT*) malloc(sizeof(ptWindowT));
 
 	ptw->wl = new WindowListener();
-	ptw->wl->zwin = &ptw->interface;
+	ptw->wl->zwin = &ptw->iface;
 	ptw->display = new Display();	
 	ptw->display->listener(ptw->wl);
 	ptw->display->open(title, w, h, Output::Windowed, Mode::TrueColor);
-	ptw->interface.event = pt_event;  //function to get events
-	ptw->interface.pixels = pt_pixels;
-	ptw->interface.close= pt_close;
-	ptw->interface.w=w;
-	ptw->interface.h=h;
-	return &ptw->interface;
+	ptw->iface.event = pt_event;  //function to get events
+	ptw->iface.pixels = pt_pixels;
+	ptw->iface.close= pt_close;
+	ptw->iface.w=w;
+	ptw->iface.h=h;
+	return &ptw->iface;
 }
 
 

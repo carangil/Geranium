@@ -16,6 +16,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "misc", "misc\misc.vcxproj",
 		{B39B5E05-7B57-42B5-8BA5-21A2B0B2DEB8} = {B39B5E05-7B57-42B5-8BA5-21A2B0B2DEB8}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gfx_pixeltoaster", "gfx_pixeltoaster\gfx_pixeltoaster.vcxproj", "{AE099E7D-5A3D-4054-9B96-745388E83045}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -48,6 +50,14 @@ Global
 		{56D2D64F-6296-4E1E-8C0C-7AF381034F73}.Release|x64.Build.0 = Release|x64
 		{56D2D64F-6296-4E1E-8C0C-7AF381034F73}.Release|x86.ActiveCfg = Release|Win32
 		{56D2D64F-6296-4E1E-8C0C-7AF381034F73}.Release|x86.Build.0 = Release|Win32
+		{AE099E7D-5A3D-4054-9B96-745388E83045}.Debug|x64.ActiveCfg = Debug|x64
+		{AE099E7D-5A3D-4054-9B96-745388E83045}.Debug|x64.Build.0 = Debug|x64
+		{AE099E7D-5A3D-4054-9B96-745388E83045}.Debug|x86.ActiveCfg = Debug|Win32
+		{AE099E7D-5A3D-4054-9B96-745388E83045}.Debug|x86.Build.0 = Debug|Win32
+		{AE099E7D-5A3D-4054-9B96-745388E83045}.Release|x64.ActiveCfg = Release|x64
+		{AE099E7D-5A3D-4054-9B96-745388E83045}.Release|x64.Build.0 = Release|x64
+		{AE099E7D-5A3D-4054-9B96-745388E83045}.Release|x86.ActiveCfg = Release|Win32
+		{AE099E7D-5A3D-4054-9B96-745388E83045}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
