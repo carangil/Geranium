@@ -1,7 +1,17 @@
 #include <zrand.h>
 
 #ifdef _WIN32
-	#error zrand not implemented yet
+
+#define ZRANDMAX (0xFFFFFFFF)
+zuint32 zrand() {
+	unsigned int r;
+	if (!rand_s(&r))
+		return r;
+
+	fprintf(stdout, "rand_s failed\n");
+	exit(1);
+
+}
 
 
 #else

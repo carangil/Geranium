@@ -3,8 +3,9 @@
 #include "zmem.h"
 #include "zvector.h"
 #include "zstring.h"
-#include "zarray.h""
+#include "zarray.h"
 #include "zthread.h"
+#include "zrand.h"
 
 typedef struct myThreadType_s {
 	zthreadT	th;
@@ -86,6 +87,12 @@ void main() {
 	zarray_add(n, 60);
 	zarray_add(n, 70);
 
-	thread_test();
+	//thread_test();
+
+	for (int i = 0; i < 100; i++) {
+
+		printf("zrand %d %f\n", zrand(), zrandf(-10, 10));
+
+	}
 
 }
