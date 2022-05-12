@@ -184,8 +184,8 @@ protected:
 	char c = ptkey(key,1, (keystate & ZKEY_SHIFT)  == ZKEY_SHIFT );
 
 	if (c) {
-		printf(" Generate char %c with keystate %x\n",c,0);
-    		pt_enqueue(this->zwin, ZEVENT_KEY|ZEVENT_CHAR|keystate , 0 , 0, 0);
+	//	printf(" Generate char %c with keystate %x\n",c,keystate);
+    		pt_enqueue(this->zwin, ZEVENT_KEY|ZEVENT_CHAR|keystate , c , 0, 0);
 	}
 
     }
@@ -256,11 +256,12 @@ protected:
 
     void onActivate( DisplayInterface & display, bool active )
     {
-        printf( "onActivate: active=%d\n", active );
+        //printf( "onActivate: active=%d\n", active );
     }
 
     void onOpen( DisplayInterface & display )
 	{
+	    /*
 		printf( "onOpen: \"%s\", %d x %d ", display.title(), display.width(), display.height() );
 		switch ( display.mode() )
 		{
@@ -273,11 +274,14 @@ protected:
 			case Output::Fullscreen: printf( " (fullscreen)\n" ); break;
 			default: break;
 		}
+		*/
     }
 
     bool onClose( DisplayInterface & display )
     {
+	/*
 		printf( "onClose" );
+	    */
         return true;
     }
 
@@ -286,12 +290,6 @@ protected:
 
 };
 
-
-//extern "C" int ptmain()
-//{
- //   Window w;
-  //  w.run();
-//}
 
 
 typedef struct ptWindow_s{
@@ -331,7 +329,7 @@ extern "C" zbool pt_event(zwindowT* zw, zeventT* ev){
 		ev->type=ZEVENT_CLOSE;
 		return ZFALSE;
 	}
-//	printf("e\n");
+
 	//try to return an event
 	if (zw->first != zw->last){
 		*ev = zw->queue[zw->first]; //copy event
@@ -350,6 +348,12 @@ extern "C" void pt_pixels(zwindowT* zw, void* px){
 	ptw->display->update((const PixelToaster::TrueColorPixel*)px);
 }
 
+extern "C" void pt_close(zwindowT* zw){
+	ptWindowT* ptw = (ptWindowT*) zw;
+
+	ptw->display->close();
+}
+
 extern "C" zwindowT* pt_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags){
 
 	ptWindowT* ptw = (ptWindowT*) malloc(sizeof(ptWindowT));
@@ -361,6 +365,7 @@ extern "C" zwindowT* pt_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flag
 	ptw->display->open(title, w, h, Output::Windowed, Mode::TrueColor);
 	ptw->interface.event = pt_event;  //function to get events
 	ptw->interface.pixels = pt_pixels;
+	ptw->interface.close= pt_close;
 	ptw->interface.w=w;
 	ptw->interface.h=h;
 	return &ptw->interface;

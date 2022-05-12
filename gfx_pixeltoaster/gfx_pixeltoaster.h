@@ -102,6 +102,7 @@ typedef struct zevent_s{
 typedef struct zwindow_s{
 	zbool (*event) (struct zwindow_s* w, zeventT* ev);
 	void (*pixels) (struct zwindow_s* w, void* pixels);
+	void (*close) (struct zwindow_s* w);
 	int w,h;
 	zeventT queue[MAXEVENT];
 	int first;

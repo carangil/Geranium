@@ -1,5 +1,5 @@
 CC=gcc
-COPY=cp
+COPY=ln -rsf 
 CONFIG?=debugconfig.inc
 
 include $(CONFIG)

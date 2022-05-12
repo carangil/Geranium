@@ -1,8 +1,8 @@
-Hmisc=$(INCDIR)/ztime.h $(INCDIR)/zrand.h
+Hmisc=$(INCDIR)/ztime.h $(INCDIR)/zrand.h $(INCDIR)/zbitmap.h
 Hmiscdeps+=
 
 #List all o files here
-.misc-objs: misc/tm.o misc/zrand.o
+.misc-objs: misc/tm.o misc/zrand.o misc/zbitmap.o
 	touch .misc-objs
 
 misc/%.o: misc/%.c  $(Hmisc) $(Hmiscdeps)

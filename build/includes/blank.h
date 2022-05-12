@@ -1,2 +1,1 @@
-
-char* blank_example(char* a);
+../../blank/blank.h
