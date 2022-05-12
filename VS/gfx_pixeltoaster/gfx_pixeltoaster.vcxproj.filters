@@ -18,5 +18,13 @@
     <ClCompile Include="..\..\gfx_pixeltoaster\gfx_pixeltoaster.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\3rdparty\pixeltoaster\PixelToaster.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\3rdparty\pixeltoaster\PixelToasterWindows.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

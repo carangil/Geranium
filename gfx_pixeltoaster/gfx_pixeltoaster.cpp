@@ -356,7 +356,9 @@ extern "C" void pt_close(zwindowT* zw){
 
 extern "C" zwindowT* pt_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags){
 
-	ptWindowT* ptw = (ptWindowT*) malloc(sizeof(ptWindowT));
+	ptWindowT* ptw = (ptWindowT*) malloc(sizeof(ptWindowT)); //had trouble getting zmem.h to work in .cpp files
+
+	memset(ptw, 0, sizeof(*ptw)); 
 
 	ptw->wl = new WindowListener();
 	ptw->wl->zwin = &ptw->iface;

@@ -6,7 +6,6 @@
 #include "zrand.h"
 #include "gfx_pixeltoaster.h"
 #include "math.h"
-#include "ztime.h"
 #include "zbitmap.h"
 
 
@@ -23,18 +22,18 @@ int main(int argc, char** args){
 	
 	zbitmapT* font = zbitmap_load_tga("../../Zcore-data/font8rle.tga", ZTGA_TOP | ZTGA_COPY_GRAY_TO_ALPHA );
 	
-	//zbitmapT* small = zbitmap_load_tga("../../Zcore-data/label-rgba-norle-topleft.tga", ZTGA_TOP );
-	zbitmapT* small = zbitmap_load_tga("../../Zcore-data/label-rgba-rle-bottomleft.tga",ZTGA_TOP);
-	//zbitmapT* small = zbitmap_load_tga("../../Zcore-data/brickrgb.tga",ZTGA_TOP );
-	//zbitmapT* small = zbitmap_load_tga("../../Zcore-data/font8rle.tga", ZTGA_TOP | ZTGA_COPY_GRAY_TO_ALPHA );
+	//zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/label-rgba-norle-topleft.tga", ZTGA_TOP );
+	zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/label-rgba-rle-bottomleft.tga",ZTGA_TOP);
+	//zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/brickrgb.tga",ZTGA_TOP );
+	//zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/font8rle.tga", ZTGA_TOP | ZTGA_COPY_GRAY_TO_ALPHA );
 	
 	
 	/*
-	zbitmapT* small = zbitmap_mk( 64, 32, window_pxformat  );
+	zbitmapT* pic = zbitmap_mk( 64, 32, window_pxformat  );
 	int i,j;
-	for (j=0;j<small->h;j++){
-	    for(i=0;i<small->w;i++){
-		zpset4(small, i, j,     (j*i) | ((5*j+5*i)<<8 ) | ((5*j^5*i)<<16)   );
+	for (j=0;j<pic->h;j++){
+	    for(i=0;i<pic->w;i++){
+		zpset4(pic, i, j,     (j*i) | ((5*j+5*i)<<8 ) | ((5*j^5*i)<<16)   );
 	    }
 	}
 	*/
@@ -81,9 +80,9 @@ int main(int argc, char** args){
 		    
 		}	*/
 		
-		zpblit4c( bmp, 200,30, small, 0,0, small->w, small->h, 0xff0000, ZBLIT_COLORMASK|ZBLIT_ALPHATEST);
+		zpblit4c( bmp, 200,30, pic, 0,0, pic->w, pic->h, 0xff0000, ZBLIT_COLORMASK|ZBLIT_ALPHATEST);
 		
-		zpblit4c( bmp, 300,0, small, 0,0, small->w, small->h, 0xc0c0c0, ZBLIT_COLORMASK|ZBLIT_ALPHATEST);
+		zpblit4c( bmp, 300,0, pic, 0,0, pic->w, pic->h, 0xc0c0c0, ZBLIT_COLORMASK|ZBLIT_ALPHATEST);
 		
 				
 		zdrawtext4(bmp, font, "Whatever", 50,100, 0xffffff, 0);
