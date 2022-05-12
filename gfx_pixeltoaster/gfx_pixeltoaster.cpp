@@ -12,7 +12,7 @@ using namespace PixelToaster;
 
 
 
-void pt_enqueue(zwindowT* zw, zuint32 type, zuint32 a, zuint32 b, void* ptr);
+void zw_enqueue(zwindowT* zw, zuint32 type, zuint32 a, zuint32 b, void* ptr);
 
 
 const zuint32 ktab_shift[] =
@@ -179,13 +179,13 @@ protected:
 
 
 
-    	pt_enqueue(this->zwin, ZEVENT_KEY|ZEVENT_DOWN|keystate , ptkey(key,0,0) , 0, 0);
+    	zw_enqueue(this->zwin, ZEVENT_KEY|ZEVENT_DOWN|keystate , ptkey(key,0,0) , 0, 0);
 	
 	char c = ptkey(key,1, (keystate & ZKEY_SHIFT)  == ZKEY_SHIFT );
 
 	if (c) {
 	//	printf(" Generate char %c with keystate %x\n",c,keystate);
-    		pt_enqueue(this->zwin, ZEVENT_KEY|ZEVENT_CHAR|keystate , c , 0, 0);
+    		zw_enqueue(this->zwin, ZEVENT_KEY|ZEVENT_CHAR|keystate , c , 0, 0);
 	}
 
     }
@@ -210,7 +210,7 @@ protected:
 	keystate |= 0x80;  //don't clear the top bit
 
 
-    	pt_enqueue(this->zwin, ZEVENT_KEY|ZEVENT_UP , ptkey(key,0,0) , 0, 0);
+    	zw_enqueue(this->zwin, ZEVENT_KEY|ZEVENT_UP , ptkey(key,0,0) , 0, 0);
 
     }
 
@@ -241,17 +241,17 @@ protected:
 
     void onMouseButtonDown( DisplayInterface & display, Mouse mouse )
     {
-    	pt_enqueue(this->zwin, ZEVENT_MOUSE | ZEVENT_DOWN | mouseButtons(mouse, ZEVENT_DOWN) |keystate, mouse.x, mouse.y, 0);
+    	zw_enqueue(this->zwin, ZEVENT_MOUSE | ZEVENT_DOWN | mouseButtons(mouse, ZEVENT_DOWN) |keystate, (zuint32) mouse.x, (zuint32)mouse.y, 0);
     }
 
     void onMouseButtonUp( DisplayInterface & display, Mouse mouse )
     {
-    	pt_enqueue(this->zwin, ZEVENT_MOUSE | ZEVENT_UP | mouseButtons(mouse, ZEVENT_UP) |keystate, mouse.x, mouse.y, 0);
+    	zw_enqueue(this->zwin, ZEVENT_MOUSE | ZEVENT_UP | mouseButtons(mouse, ZEVENT_UP) |keystate, (zuint32)mouse.x, (zuint32)mouse.y, 0);
     }
 
     void onMouseMove( DisplayInterface & display, Mouse mouse )
     {
-    	pt_enqueue(this->zwin, ZEVENT_MOUSE | ZEVENT_MOVE | mouseButtons(mouse, 0) |keystate, mouse.x, mouse.y, 0);
+    	zw_enqueue(this->zwin, ZEVENT_MOUSE | ZEVENT_MOVE | mouseButtons(mouse, 0) |keystate, (zuint32)mouse.x, (zuint32)mouse.y, 0);
     }
 
     void onActivate( DisplayInterface & display, bool active )
@@ -304,7 +304,7 @@ typedef struct ptWindow_s{
 // 5		6	1 item (at 5)
 // 5		4	//items at 5,6 7,8,9, 0,1 ,2 3
 
-void pt_enqueue(zwindowT* zw, zuint32 type, zuint32 a, zuint32 b, void* ptr){
+void zw_enqueue(zwindowT* zw, zuint32 type, zuint32 a, zuint32 b, void* ptr){
 
 	int nlast = (zw->last + 1 ) % MAXEVENT;
 
@@ -319,8 +319,37 @@ void pt_enqueue(zwindowT* zw, zuint32 type, zuint32 a, zuint32 b, void* ptr){
 	zw->last = nlast;
 }
 
+extern "C" zbool zw_event(zwindowT * zw, zeventT * ev) {
+	ptWindowT* ptw = (ptWindowT*)zw;
+
+	int op = ptw->display->open();
+
+	if (!op) {
+		ev->type = ZEVENT_CLOSE;
+		return ZFALSE;
+	}
+
+	//try to return an event
+	if (zw->first != zw->last) {
+		*ev = zw->queue[zw->first]; //copy event
+		zw->first = (zw->first + 1) % MAXEVENT;
+		return ZTRUE;
+	}
+
+	ev->type = ZEVENT_NONE;
+	return ZFALSE;
+
+}
+
+
 
 extern "C" zbool pt_event(zwindowT* zw, zeventT* ev){
+
+	//read from queue first
+	if (zw_event(zw, ev)) {
+		return ZTRUE;
+	}
+
 	ptWindowT* ptw = (ptWindowT*) zw;
 
 	int op = ptw->display->open();
@@ -329,17 +358,9 @@ extern "C" zbool pt_event(zwindowT* zw, zeventT* ev){
 		ev->type=ZEVENT_CLOSE;
 		return ZFALSE;
 	}
-
-	//try to return an event
-	if (zw->first != zw->last){
-		*ev = zw->queue[zw->first]; //copy event
-		zw->first = (zw->first+1) % MAXEVENT;
-		return ZTRUE;
-	}
-
+	
 	ev->type = ZEVENT_NONE;
 	return ZFALSE;
-
 }
 
 extern "C" void pt_pixels(zwindowT* zw, void* px){
