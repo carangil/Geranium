@@ -41,6 +41,7 @@ $(INCDIR)/%.h: includes/%.h
 #make .a from .o's
 $(OBJDIR)/libz%.a: .%-objs
 	ar rvcs $@ $*/*.o
+	touch .achange
 
 #blank is the 'example' template to copy from for new libs
 include blank/blank.inc

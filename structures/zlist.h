@@ -26,7 +26,7 @@ typedef struct zlist_s
 } zlistT;
 
 #define zlist_head(ZLIST) ((void*) ((ZLIST)->head))
-#define zlistTail(ZLIST) ((void*) ((ZLIST)->tail))
+#define zlist_tail(ZLIST) ((void*) ((ZLIST)->tail))
 #define zlist_next(ZNODE) ((void*) ((ZNODE)->zlistnode.next))
 #define zlist_prev(ZNODE) ((void*) ((ZNODE)->zlistnode.prev))
 

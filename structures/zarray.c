@@ -25,7 +25,10 @@ int zarray_countf(void* array) {
 
 void* zarray_allocf( zsize elemsize, zuint32 elemnum){
 	size_t size = elemsize * elemnum;
+
+#ifdef STRUCT_DEBUG
 	printf(" array needs %d\n", (int)size);
+#endif
 
 	//if array is byte array (elements are size one), allocate an extra byte
 	if (elemsize==1)
@@ -55,7 +58,9 @@ void* zarray_allocf( zsize elemsize, zuint32 elemnum){
 
 void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok){
 	size_t newsize = elemsize * elemnum;
+#ifdef STRUCT_DEBUG
 	printf(" array resize needs %d for %d * %d\n", (int)newsize, (int)elemsize, (int)elemnum);
+#endif
 
 	//allocate extra byte for byte arrays null terminator (in case we want C strings out of here)
 	if (elemsize==1)
@@ -73,7 +78,9 @@ void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok){
 		
 	 
 		sh->capacity = elemnum;
+#ifdef STRUCT_DEBUG
 		printf(" resize successful %d %d\n", sh->used, sh->capacity);
+#endif
 		return newarray;
 	}
 
@@ -99,7 +106,7 @@ void zarray_copyf(void* dest, zuint32 pos, void* src, zuint32 srcstart, zuint32 
 	}
 
 	if (pos+(srcend-srcstart) > zarray_size(dest)) {
-		printf(" Exceed dest array bounds on zarray_copy \n");
+		fprintf(stderr, " Exceed dest array bounds on zarray_copy \n");
 	}
 	
 	memmove( ((char*)dest) + (elemsize1*pos) , ((char*)src) + (elemsize2*srcstart), elemsize2*(srcend-srcstart));
@@ -137,7 +144,9 @@ void* zarray_appendf(void* dest, void* src, zbool grow2x, zbool* ok, zsize elems
 	//determine if we need extra for performance or string reasons:
 	
 	if (elemsize1 == 1){
+#ifdef STRUCT_DEBUG
 	    printf(" need %d, but alloc +1 for terminator\n", needed);
+#endif
 	    needed ++; //add space for byte array null terminator
 	}
 
@@ -149,9 +158,9 @@ void* zarray_appendf(void* dest, void* src, zbool grow2x, zbool* ok, zsize elems
 		needed = size2x;
 	    }
 	}
-	
+#ifdef STRUCT_DEBUG
 	printf(" append will resize to %d to acccomdate %d (+%d)\n", needed, pos+srccount, srccount);
-	
+#endif	
 	//array resize guarantees that newarray will return a pointer OR ok will be set to false
 	//if user did not pass us ok and it fails, zarray_resizef below will fail the whole program for us
 	void* newarray = zarray_resizef(dest, elemsize1, needed, ok);
@@ -159,9 +168,14 @@ void* zarray_appendf(void* dest, void* src, zbool grow2x, zbool* ok, zsize elems
 	if (newarray){
 	    memmove(((char*)dest) + (elemsize1*pos) , ((char*)src) , elemsize2*(srccount));
 	    zarray_use(newarray, exact_needed);
+
 	    if (elemsize1 == 1) {
+#ifdef STRUCT_DEBUG
 		printf(" Putting null terminator at [%d]\n", exact_needed);
+#endif
+		((char*)newarray)[exact_needed]=0;
 	    }
+
 	}
 		
 	return newarray;
