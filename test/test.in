@@ -1,0 +1,5 @@
+var f: ( int  float >> int )*
+var y:[ 10 [ 5 int]  ];
+var x:[[[int]*]**];
+
+

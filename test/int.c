@@ -20,23 +20,31 @@ tokenT* mkToken(zuint32 tok){
     return t;
 }
 
-char safechar(zuint32 c){
-    if ((c >= ' ')&&(c<=0x7f))
-	return c;
-    return ' ';
-}
 
 char* safestr(char* s){
    return s ? s:""; 
 }
 
-void printList(zlistT* list){
-    zlistnodeT* x;
+void printList(zlistnodeT* x, tokenT* cur, zuint32 stop_tok){
     tokenT* t; 
+    char* iscur;
     
-    for (x=zlist_head(list); x; x=zlist_next(t)){
+    for (;x; x=zlist_next(t)){
 	t = (tokenT*) x;
-	printf("{%c %x '%s'}->", safechar(t->tok),t->tok, safestr(t->str));
+	if (t==cur)
+		iscur="CUR";
+	else 
+		iscur ="";
+
+	if ( (t->tok >20) && (t->tok < 0x7f))
+
+		printf("{%s %c %s}->",iscur, t->tok , safestr(t->str));
+	else
+		printf("{%s %x %s}->",iscur, t->tok , safestr(t->str));
+
+
+	if (t->tok == stop_tok)
+		break;
     }
     printf("{end}\n\n");
         
@@ -115,23 +123,30 @@ int acceptLiteral(char* in, char start, char escape){
     return 0;
 }
 
-#define PAIR	0x1000
-#define NAME	0x2000
-#define NUMBER	0x3000
-#define LITERAL 0x4000
+#define PAIR		0x1000
+#define NAME		0x2000
+#define NUMBER		0x3000
+#define LITERAL 	0x4000
+#define ENDFILE		0x5000
+#define PASTENDFILE	0x6000
+#define STARTFILE	0x7000
 
 zlistT* tokenize(zlistT* list, char* in){
     
     int c,next;
+	tokenT* t=NULL;
     
     int i;
     
-    if (!list)
+    if (!list) {
 	list = ram_alloc(sizeof(zlistT), NULL);
+	t = mkToken(STARTFILE);
+	zlist_addhead(list,t);
+	t->zlistnode.prev=t;  //'trap' so ->prev->prev is always safe
+    }
      	
     while (c = *in){
 	next = *(in+1);
-	tokenT* t=NULL;
 	char*p;
 	
 	//find twochar patterns like ->,etc. including comment start/end markers
@@ -167,10 +182,13 @@ zlistT* tokenize(zlistT* list, char* in){
 	int space = acceptPatterns(in, " \t\n\r", "", " \t\n\r");
 	
 	if (space) {
-	    t = mkToken(' ');
 	    in+= space;
+	//ignore whitespace
+	#if 0
+	    t = mkToken(' ');
 	    t->str=zstrdup(" ");
 	    zlist_addtail(list, &t->zlistnode);
+	#endif
 	    continue;
 	}
 	
@@ -207,8 +225,158 @@ zlistT* tokenize(zlistT* list, char* in){
 	in++;
 		
     }
+    //something should stop reading at endfile
+    tokenT* end = mkToken(ENDFILE);
+    end->str = zstrdup("ENDFILE");
+    zlist_addtail(list, &end->zlistnode);
+
+    //if program ever advances reads PASTENDFILE, its an error
+    //this is a trap so 'next->next->next' always is safe
+    end = mkToken(PASTENDFILE);
+    zlist_addtail(list, &end->zlistnode);
+    end->str = zstrdup("PASTENDFILE");
+    end->zlistnode.next = (zlistnodeT*) end;
+
     return list;
 }
+
+
+zuint32 strSelect(char** options, char* in){
+    zuint32 i;
+    for(i=0;options[i];i++)
+	if (!strcmp(options[i], in))
+	    return i+1;
+	
+    return 0;
+}
+
+#define ERR( ...) { fprintf(stderr,__VA_ARGS__); exit(1);}
+
+/* Parse out stuff */
+
+//#define tNext(TTT)   (((TTT)?(  (tokenT*)( (TTT)->zlistnode.next)):end))
+
+
+#define tnext(ITEM) ((tokenT*)(ITEM)->zlistnode.next)
+#define tprev(ITEM)    ((ITEM)?((tokenT*)(ITEM)->zlistnode.prev):NULL)
+
+
+
+zlistnodeT*  parseType(zlistnodeT* pos) {
+    
+    tokenT* t = (tokenT*) pos; 
+	char* count=NULL;
+
+	printf(" Enter parseType\n");
+
+
+
+    for (t= (tokenT*)pos; t;  t = (tokenT*)( t->zlistnode.next)) {
+
+	printList(tprev(tprev(t)),(void*)t,ENDFILE);
+
+
+	if (t->tok == '['){ //array type
+
+		if (tnext(t)->tok == NUMBER){
+			t=tnext(t);
+			count = t->str;
+		}
+				
+		t  = parseType( tnext(t)); //parse the type
+		if (t->tok != ']'){
+			printf(" missing ]\n");
+		}
+
+
+		t->str = zstrcat( zstrdup("array ("), tprev(t)->str );
+		if (count){
+			t->str = zstrcat( t->str, " x ");
+			t->str = zstrcat( t->str,  count );
+		}
+
+		t->str = zstrcat( t->str, ")");
+
+		printf(" t->str is %s\n", t->str);
+
+		
+		continue;
+
+	}
+
+	if (t->tok == NAME){ //simple typename
+		printf(" type %s\n", t->str);
+		t->str = zstrcat( t->str, "$type" );
+		continue;
+	}
+	if (t->tok == '*'){ //pointer type
+		printf(" mk pointer to %s\n", tprev(t)->str);
+		t->str = zstrcat( zstrdup("{pointer to("), tprev(t)->str);
+		t->str = zstrcat( t->str,")}");
+		printf(" made %s\n", t->str );
+		continue;
+	}
+	if ( (t->tok == PAIR) && !strcmp(t->str, ">>")){
+		printf(" function detected\n");
+	}
+
+	printf(" last was %s\n", tprev(t)->str);
+	break;
+    }
+
+	return t;
+}
+
+
+zlistnodeT*  parse(zlistnodeT* pos) {
+    
+    tokenT* t; 
+    zbool expectEnd=ZFALSE;
+    
+    for (t= (tokenT*)pos; t;  t = (tokenT*)( t->zlistnode.next)) {
+
+
+	if (t->tok == ';')
+	    break; //DONE
+
+	if (expectEnd){
+		fprintf(stderr, " Expected end of statrment\n");
+		exit(1);
+	}
+	
+	if (t->tok == NAME){
+
+	    if (!strcmp(t->str, "var")){
+
+		if (tnext(t)->tok == NAME && tnext(tnext(t))->tok == ':'){
+			printf("Name is %s and type follows\n", tnext(t)->str);
+		}
+		t = parseType(tnext(tnext(tnext(t))) );
+		printf(" Type returned was %s\n", tprev(t)->str);
+		
+		expectEnd=ZTRUE;
+	    }
+	}
+    }
+
+}
+
+
+ 
+int func(int a, int b){
+    printf(" two %d %d\n", a, b);
+    return a+b;
+}
+
+int   (*getFunc(int a)) (int a, int b)      {
+    printf(" getFunc called %d %d n", a );
+    return func;
+}
+
+int (*(*getGetFunc(void))(int a))(int a, int b){
+	
+	return getFunc;
+   }
 
 
 
@@ -216,6 +384,9 @@ int main(int argc, char** args){
     
 	//char* t = "int x; void main(int c, char x){printf(\"boo\"";
 	  
+ //   int (*f)(int,int) = getGetFunc()(5);
+   // f(1,2);
+    
     if (argc < 2)
 	exit(1);
     
@@ -223,8 +394,10 @@ int main(int argc, char** args){
 	
 	zlistT* tokens = tokenize(NULL, x);
     
-	printList(tokens);
+	printList(tokens->head,NULL,ENDFILE);
     
- return 0;   
+	parse(tokens->head->next);
+    
+	return 0;   
 }
 

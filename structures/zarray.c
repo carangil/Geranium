@@ -10,6 +10,7 @@ int zarray_sizef(void* array) {
 	if (sh)
 		return sh->capacity;
 	fprintf(stderr, "No shadow on array %p\n", array);
+	exit(1);
 	return 0;
 }
 
@@ -20,6 +21,7 @@ int zarray_countf(void* array) {
 	if (sh)
 		return sh->used;
 	fprintf(stderr, "No shadow on array %p\n", array);
+	exit(1);
 	return 0;
 }
 
@@ -93,6 +95,7 @@ void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok){
 	//did not get anything, and user didn't pass in a ok return pointer
 	//so we die
 	fprintf(stderr, "Array resize failed, and function not given a 'bool' check to recover from failure.\n");
+	exit(1);
 
 	return NULL;
 }
@@ -102,11 +105,13 @@ void zarray_copyf(void* dest, zuint32 pos, void* src, zuint32 srcstart, zuint32 
 	if  ( (dest == NULL) || (src==NULL) || (elemsize1 != elemsize2)  ||(srcend < srcstart) ) {
 		fprintf(stderr, "ERROR: array copy bad parms %p +%d by %d=  %p (+%d to %d) by %d\n", 
 			dest, pos, (int)elemsize1, src, srcstart, srcend, (int)elemsize2);
+	exit(1);
 		return;
 	}
 
 	if (pos+(srcend-srcstart) > zarray_size(dest)) {
 		fprintf(stderr, " Exceed dest array bounds on zarray_copy \n");
+	exit(1);
 	}
 	
 	memmove( ((char*)dest) + (elemsize1*pos) , ((char*)src) + (elemsize2*srcstart), elemsize2*(srcend-srcstart));
@@ -118,8 +123,11 @@ void zarray_use(void* array, zuint32 num){
 	if(!array)
 		return;
 
-	if (num > zarray_size(array)) {
-		fprintf(stderr, "Past array bounds\n" );
+	zuint32 zs = zarray_sizef(array);
+
+	if (num > zs) {
+		fprintf(stderr, "Past array bounds %d/%d\n",num,zs );
+	exit(1);
 		return; //past end of array
 	}
 
@@ -132,6 +140,7 @@ void* zarray_appendf(void* dest, void* src, zbool grow2x, zbool* ok, zsize elems
 	if  ( (dest == NULL) || (src==NULL) || (elemsize1 != elemsize2)   ) {
 		fprintf(stderr, "ERROR: array copy bad parms %p by %d=  %p  by %d\n", 
 			dest, (int)elemsize1, src, (int)elemsize2);
+	exit(1);
 		return NULL;
 	}
 	
