@@ -5,6 +5,7 @@
 #include "ztime.h"
 #include "zrand.h"
 #include "zlist.h"
+#include "zvector.h"
 
 /* Program is a linked list of tokens*/
 
@@ -151,13 +152,15 @@ zlistT* tokenize(zlistT* list, char* in){
 	
 	//find twochar patterns like ->,etc. including comment start/end markers
 	if (p=findPair("<<>>--++->==||&&+=-=/=*=&=|=^=/**///", c, next)){
-	   t = mkToken(PAIR);
+	  
 	   
 	   if (!strncmp(p, "//",2)) { //special handling for // comments
 	       while(*in!= '\n')
 		   in++;
+	       continue;
 	   }
 	   
+	    t = mkToken(PAIR);
 	    t->str = zstrndup(p,2);
 	   
 	   zlist_addtail(list, &t->zlistnode);
@@ -261,6 +264,8 @@ zuint32 strSelect(char** options, char* in){
 #define tprev(ITEM)    ((ITEM)?((tokenT*)(ITEM)->zlistnode.prev):NULL)
 
 
+zlistnodeT*  parseVar(zlistnodeT* pos, zbool name_required) ;
+zlistnodeT*  parseTypeList(zlistnodeT* pos);
 
 zlistnodeT*  parseType(zlistnodeT* pos) {
     
@@ -269,7 +274,7 @@ zlistnodeT*  parseType(zlistnodeT* pos) {
 
 	printf(" Enter parseType\n");
 
-
+	zbool named=ZFALSE;
 
     for (t= (tokenT*)pos; t;  t = (tokenT*)( t->zlistnode.next)) {
 
@@ -304,9 +309,10 @@ zlistnodeT*  parseType(zlistnodeT* pos) {
 
 	}
 
-	if (t->tok == NAME){ //simple typename
+	if (!named && t->tok == NAME){ //simple typename, but only 1 per 'type'
 		printf(" type %s\n", t->str);
 		t->str = zstrcat( t->str, "$type" );
+		named=ZTRUE;
 		continue;
 	}
 	if (t->tok == '*'){ //pointer type
@@ -316,8 +322,26 @@ zlistnodeT*  parseType(zlistnodeT* pos) {
 		printf(" made %s\n", t->str );
 		continue;
 	}
-	if ( (t->tok == PAIR) && !strcmp(t->str, ">>")){
-		printf(" function detected\n");
+	if (t->tok =='('){ //type list
+		printf(" start parseTypeList\n");
+
+		t = parseTypeList(tnext(t));
+
+		
+		
+		printf(" parseTypeList returned at\n");
+		//printList(tprev(tprev(t)), t, ENDFILE);
+
+		if (t->tok !=')'){
+			fprintf(stderr, "Expected )\n");
+				exit(1);
+		}
+		t->str = tprev(t)->str;  //typelist is done, so the closing ')' takes all the data
+		
+		named=ZTRUE;
+
+		continue;
+		
 	}
 
 	printf(" last was %s\n", tprev(t)->str);
@@ -327,39 +351,118 @@ zlistnodeT*  parseType(zlistnodeT* pos) {
 	return t;
 }
 
+zlistnodeT*  parseTypeList(zlistnodeT* pos) {
+    		tokenT* t = (tokenT*) pos; 
+		zvecT* strs=zvec_mk(NULL,10);
+		zvec_disown(strs);//don't free the things we store in here
+		for(;t;t=tnext(t)){
+
+		
+				
+			t = parseVar(t, ZFALSE);
+			printf(" got var %s\n", tprev(t)->str);
+			zvec_add(strs, tprev(t)->str);
+
+			if (t->tok == ';')
+				continue; //list item seperator
+			
+			if ( (t->tok == PAIR) && !strcmp(t->str, ">>")){
+				//is a function
+				printf("FUNCTION\n");
+				zvec_add(strs, " FUNCTION returning ");
+				continue;
+
+			}
+			break;
+
+		}
+
+		//reached end of a type list, guess should group them up
+
+		tprev(t)->str = zstrbuild(strs, '+');
+		//t->str = zstrbuild(strs, '+'); //CLOSING PAREN OR 
+		ram_free(strs);	
+		printf(" endtype list at \n");
+		printList(tprev(t), t, ENDFILE);
+
+		return t; //closing paren on func parm list OR 'end' in typedef
+}
+
+zlistnodeT*  parseVar(zlistnodeT* pos, zbool name_required) {
+    char* name=NULL;
+    tokenT* t; 
+    t= (tokenT*)pos; 
+
+	if (t->tok == NAME && tnext(t)->tok == ':'){
+		name = t->str;
+		t=tnext(tnext(t));
+		printf("Name is %s and type follows\n", name );
+	}
+	if (name==NULL && name_required){
+		fprintf(stderr," var name required\n");
+		exit(1);
+	}
+	t = parseType(t);
+	printf("parsetype returned at\n");
+	
+	printList(tprev(tprev(t)), t, ENDFILE);
+	if(name){
+		
+		tprev(t)->str = zstrcat(tprev(t)->str, " named ");
+		tprev(t)->str = zstrcat(tprev(t)->str, name);
+
+	}
+	return t;
+
+}
 
 zlistnodeT*  parse(zlistnodeT* pos) {
     
     tokenT* t; 
-    zbool expectEnd=ZFALSE;
+
     
     for (t= (tokenT*)pos; t;  t = (tokenT*)( t->zlistnode.next)) {
 
-
-	if (t->tok == ';')
-	    break; //DONE
-
-	if (expectEnd){
-		fprintf(stderr, " Expected end of statrment\n");
-		exit(1);
-	}
-	
+	if (t->tok==ENDFILE || t->tok== PASTENDFILE)
+	    break;
+		
 	if (t->tok == NAME){
 
 	    if (!strcmp(t->str, "var")){
 
-		if (tnext(t)->tok == NAME && tnext(tnext(t))->tok == ':'){
-			printf("Name is %s and type follows\n", tnext(t)->str);
-		}
-		t = parseType(tnext(tnext(tnext(t))) );
+	    	t = parseVar( tnext(t), ZTRUE); //parse variable; name is required
+
 		printf(" Type returned was %s\n", tprev(t)->str);
+		if (t->tok != ';')
+		    printf(" missing ;\n");
 		
-		expectEnd=ZTRUE;
+		continue;
 	    }
+
+           if (!strcmp (t->str, "type")){
+	   	char* name = NULL;
+		if (tnext(t)->tok == NAME) 
+			name = tnext(t)->str;
+		else {
+			fprintf(stderr,"expected type name\n");
+			exit(1);
+		}
+	
+		t = parseTypeList(tnext(tnext(t)));
+		
+		if(t->tok == NAME && !strcmp(t->str, "end")) {
+			printf(" Defined type %s as %s\n", name, tprev(t)->str);
+			continue;
+		}
+		fprintf(stderr, " Expected 'end' for type\n");
+		exit(1);
+	   }
+
 	}
     }
 
 }
+
 
 
  

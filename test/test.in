@@ -1,5 +1,7 @@
-var f: ( int  float >> int )*
-var y:[ 10 [ 5 int]  ];
-var x:[[[int]*]**];
-
-
+var f: ( y:int ; x:(float>>char)  >> (x ; t >>g)  );
+//var xx:int;
+//type point
+  //  x://int;
+ //   ff;
+ //   y:int
+//end
