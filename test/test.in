@@ -1,5 +1,10 @@
-var f: ( y:int ; x:(float>>char)  >> (x ; t >>g)  );
-//var xx:int;
+var xx:R32**;
+var zz:[ 10 N16  ]**;
+var aa:[ 10 N16*  ]**;
+var md:[10 [5 N32]];
+
+//var f: ( y:int ; x:(float>>char)  >> (x ; t >>g)  );
+//
 //type point
   //  x://int;
  //   ff;

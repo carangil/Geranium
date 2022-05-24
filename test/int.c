@@ -13,14 +13,16 @@ typedef struct tokenS{
     zlistnodeT zlistnode;
     zuint32 tok;
     char* str;
+    struct typeS* ty;
 }tokenT;
 
-tokenT* mkToken(zuint32 tok){
+tokenT* mkToken(zuint32 tok, char* str, zuint32 len){
     tokenT* t = ram_alloc( sizeof(tokenT) , NULL );
     t->tok = tok;
+    if (str)
+	t->str = zstrndup(str, len);
     return t;
 }
-
 
 char* safestr(char* s){
    return s ? s:""; 
@@ -141,7 +143,7 @@ zlistT* tokenize(zlistT* list, char* in){
     
     if (!list) {
 	list = ram_alloc(sizeof(zlistT), NULL);
-	t = mkToken(STARTFILE);
+	t = mkToken(STARTFILE, NULL,0);
 	zlist_addhead(list,t);
 	t->zlistnode.prev=t;  //'trap' so ->prev->prev is always safe
     }
@@ -160,9 +162,8 @@ zlistT* tokenize(zlistT* list, char* in){
 	       continue;
 	   }
 	   
-	    t = mkToken(PAIR);
-	    t->str = zstrndup(p,2);
-	   
+	    t = mkToken(PAIR, p, 2);
+	    	   
 	   zlist_addtail(list, &t->zlistnode);
 	   in+=2;
 	   continue;
@@ -174,8 +175,7 @@ zlistT* tokenize(zlistT* list, char* in){
 	    lit = acceptLiteral(in, '"' , '\\' ); //double quote
 	   
 	if (lit) {
-	     t = mkToken(LITERAL);
-	     t->str = zstrndup(in, lit);
+	     t = mkToken(LITERAL, in, lit);
 	     zlist_addtail(list, &t->zlistnode);
 	     in+=lit;
 	     continue;
@@ -215,27 +215,26 @@ zlistT* tokenize(zlistT* list, char* in){
 	}
 	
 	if (digits || name){
-	    t = mkToken( digits? NUMBER : NAME);
-	    t->str = zstrndup(in, digits|name);
+	    t = mkToken( digits? NUMBER : NAME, in ,   digits|name);
 	    in += digits|name;
 	     zlist_addtail(list, &t->zlistnode);
 	     continue;
 	}
 	
 	//just some char
-	t = mkToken( *in);
+	t = mkToken( *in, NULL, 0);
 	zlist_addtail(list, &t->zlistnode);
 	in++;
 		
     }
     //something should stop reading at endfile
-    tokenT* end = mkToken(ENDFILE);
+    tokenT* end = mkToken(ENDFILE, NULL, 0);
     end->str = zstrdup("ENDFILE");
     zlist_addtail(list, &end->zlistnode);
 
     //if program ever advances reads PASTENDFILE, its an error
     //this is a trap so 'next->next->next' always is safe
-    end = mkToken(PASTENDFILE);
+    end = mkToken(PASTENDFILE, NULL, 0);
     zlist_addtail(list, &end->zlistnode);
     end->str = zstrdup("PASTENDFILE");
     end->zlistnode.next = (zlistnodeT*) end;
@@ -244,21 +243,201 @@ zlistT* tokenize(zlistT* list, char* in){
 }
 
 
-zuint32 strSelect(char** options, char* in){
-    zuint32 i;
-    for(i=0;options[i];i++)
-	if (!strcmp(options[i], in))
-	    return i+1;
-	
-    return 0;
-}
-
 #define ERR( ...) { fprintf(stderr,__VA_ARGS__); exit(1);}
 
+/* Simple type system*/
+#define SIMPLE	1
+#define POINTER 2
+#define STRUCT 	3
+#define ARRAY 	4
+#define FUNCTION 5
+
+//MEMBER is not a type, but is used to mark members of a struct
+#define MEMBER	6
+//NAMED is not a type, but when passed into findType looks for struct or simple type
+#define NAMED	7
+//PEDNING not a type, but is for when a type is mentioned in another declaration but not yet defined
+#define PENDING 8
+
+char* typeString[] = {"-0", "simple", "pointer", "struct","array","function","-member","-named", "-pending" };
+char* getTypeString(zuint32 a){
+    if (a < sizeof(typeString)/sizeof(typeString[0]))
+	return typeString[a];
+    
+    return "invalid";
+}
+
+typedef struct typeS{
+    char* name;
+    size_t size;
+    zuint32 category;
+    zuint32 len; //for definite arrays
+    struct typeS* ref; //array or ointer types, or function return type
+    zvecT* members;  //structs or function parameters
+    int tid;
+    zbool pending;
+}typeT;
+
+zvecT* types;
+int tid=0;
+
+typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
+    typeT* ty= ram_alloc(sizeof(typeT), NULL); //todo: destructor
+    ty->tid = tid++;
+    ty->category = category;
+    ty->name = zstrdup(name);
+    ty->ref = ref;
+
+    if (category == ARRAY){
+	ty->len = szlen;
+	ty->size = szlen * ref->size;
+    }
+    else {
+	ty->size = szlen;
+    }
+    
+    //pointer or indefinite array
+    if ((category == POINTER)|| (category == ARRAY) && (szlen == 0)){
+	if (ty->size)
+	    ERR("Cannot specify size of pointer or indefinite array (it is automatically calculated)\n");
+	ty->size = sizeof (void*);
+    }
+    
+    if (types == NULL)
+	types = zvec_mk(NULL, 100);
+  
+	zvec_add(types, ty);
+    
+    return ty;
+}
+
+void printType(typeT* ty, zbool line){
+	int i;
+	if (ty){
+	
+	    if (ty->category == ARRAY)
+		printf("{#%d\t%d:%s\t%zu[%d]\t%s", ty->tid, ty->category,  getTypeString(ty->category), ty->size, ty->len, safestr(ty->name));
+	    else 
+		printf("{#%d\t%d:%s\t%zu\t%s", ty->tid, ty->category,  getTypeString(ty->category), ty->size,  safestr(ty->name));
+	    
+	    if (ty->ref)
+		printType(ty->ref, ZFALSE);
+	    
+	    if (ty->members){
+		printf("(");
+		for (i=0;i<zvec_count(ty->members); i++) 
+		    printType(zvec_get_at(ty->members, i), ZFALSE);
+		printf(")");
+	    }
+	    printf("}");
+		
+		
+	} else {
+	    printf("{nulltype}");
+	}
+
+	if (line)
+	    printf("\n");
+}
+	      
+	      //todo: find/compare function types
+	      
+zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty){
+    
+    
+    if (!ty)
+	ERR("compare null type\n");
+    
+    if (ty->category != category)
+	return ZFALSE;
+    
+    if (category == MEMBER)
+	ERR("struct members shouldn't be compared\n");
+    
+    
+    if ((ty->category == SIMPLE)||(ty->category==STRUCT)){
+	//check named types
+	if (strcmp(ty->name, name))
+	    return ZFALSE;
+    }
+    
+    if ((ty->category == ARRAY) &&(ty->len != len)) //array of different sizes
+	return ZFALSE;
+    
+    //check reference same type  (findType should not be returning equivalent duplicates)
+    if (ty->ref != ref)
+	return ZFALSE;
+    
+    if ( category == FUNCTION){
+	ERR( "Looking up function types not yet supported\n");
+    }
+    
+    return ZTRUE;
+}
+	      
+typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
+    
+    typeT* ty;
+    typeT* found=NULL;
+    int i;
+    
+    for (i=0; i< zvec_count(types);i++){
+	ty = zvec_get_at(types, i);
+	
+	if (category != NAMED) {
+	    //if category is named, we match whether its a struct or int (caller is probably asking which it is)
+	    
+	    if (ty->category != category)
+		continue;
+	}
+	
+	switch (category){
+	    
+	    case SIMPLE: //simple types matched by name only
+	    case STRUCT:
+	    case NAMED:
+		if (!strcmp(name, ty->name)){
+			//found on name
+		    return ty;
+		}
+	    break; //not it
+		    
+	   case POINTER: 
+	   case ARRAY:
+		if (cmpType(category, ref, NULL, len, ty))
+		    return ty;
+	    break;
+		
+	    default:
+		ERR("uknown type category %d\n", category);
+	}
+    
+	
+    }
+    
+    //did not find.
+    
+    if (ref &&((category == ARRAY) || (category == POINTER))) {
+	
+	//If array or pointer, find the type 'underneath' and make it
+    
+	printf(" Creating %s type for ", getTypeString(category));
+	printType(ref, ZTRUE);
+	
+	ty = findType(ref->category, ref->ref, ref->name, ref->len);
+	if (ty){
+	    return mkType( category, ty, NULL, len);
+	}
+    
+    }
+    return NULL;
+    
+    
+    
+}
+
+
 /* Parse out stuff */
-
-//#define tNext(TTT)   (((TTT)?(  (tokenT*)( (TTT)->zlistnode.next)):end))
-
 
 #define tnext(ITEM) ((tokenT*)(ITEM)->zlistnode.next)
 #define tprev(ITEM)    ((ITEM)?((tokenT*)(ITEM)->zlistnode.prev):NULL)
@@ -266,6 +445,8 @@ zuint32 strSelect(char** options, char* in){
 
 zlistnodeT*  parseVar(zlistnodeT* pos, zbool name_required) ;
 zlistnodeT*  parseTypeList(zlistnodeT* pos);
+
+typeT* findType(zuint32 category, typeT* ref, char* name, size_t len);
 
 zlistnodeT*  parseType(zlistnodeT* pos) {
     
@@ -304,18 +485,24 @@ zlistnodeT*  parseType(zlistnodeT* pos) {
 
 		printf(" t->str is %s\n", t->str);
 
-		
+		t->ty = findType( ARRAY, tprev(t)->ty, NULL,atoi(count) );
 		continue;
 
 	}
 
 	if (!named && t->tok == NAME){ //simple typename, but only 1 per 'type'
-		printf(" type %s\n", t->str);
-		t->str = zstrcat( t->str, "$type" );
+		//printf(" type %s\n", t->str);
+		//t->str = zstrcat( t->str, "$type" );
 		named=ZTRUE;
+		t->ty = findType(NAMED, NULL, t->str, 0);
+		if (!t->ty){
+		    t->ty = mkType(PENDING, NULL, t->str, 0);
+		    
+		}
 		continue;
 	}
 	if (t->tok == '*'){ //pointer type
+		t->ty = findType( POINTER, tprev(t)->ty, NULL,0);
 		printf(" mk pointer to %s\n", tprev(t)->str);
 		t->str = zstrcat( zstrdup("{pointer to("), tprev(t)->str);
 		t->str = zstrcat( t->str,")}");
@@ -333,8 +520,7 @@ zlistnodeT*  parseType(zlistnodeT* pos) {
 		//printList(tprev(tprev(t)), t, ENDFILE);
 
 		if (t->tok !=')'){
-			fprintf(stderr, "Expected )\n");
-				exit(1);
+			ERR("Expected )\n");
 		}
 		t->str = tprev(t)->str;  //typelist is done, so the closing ')' takes all the data
 		
@@ -399,8 +585,7 @@ zlistnodeT*  parseVar(zlistnodeT* pos, zbool name_required) {
 		printf("Name is %s and type follows\n", name );
 	}
 	if (name==NULL && name_required){
-		fprintf(stderr," var name required\n");
-		exit(1);
+		ERR("var name required\n");
 	}
 	t = parseType(t);
 	printf("parsetype returned at\n");
@@ -444,8 +629,8 @@ zlistnodeT*  parse(zlistnodeT* pos) {
 		if (tnext(t)->tok == NAME) 
 			name = tnext(t)->str;
 		else {
-			fprintf(stderr,"expected type name\n");
-			exit(1);
+			ERR("expected type name\n");
+			
 		}
 	
 		t = parseTypeList(tnext(tnext(t)));
@@ -454,8 +639,7 @@ zlistnodeT*  parse(zlistnodeT* pos) {
 			printf(" Defined type %s as %s\n", name, tprev(t)->str);
 			continue;
 		}
-		fprintf(stderr, " Expected 'end' for type\n");
-		exit(1);
+		ERR( " Expected 'end' for type\n");
 	   }
 
 	}
@@ -490,6 +674,34 @@ int main(int argc, char** args){
  //   int (*f)(int,int) = getGetFunc()(5);
    // f(1,2);
     
+    mkType( SIMPLE, NULL, "Z32", sizeof(int));
+    mkType( SIMPLE, NULL, "Z16", sizeof(short));
+    mkType( SIMPLE, NULL, "Z8", sizeof(char));
+    mkType( SIMPLE, NULL, "N32", sizeof(unsigned int));
+    mkType( SIMPLE, NULL, "N16", sizeof(unsigned short));
+    mkType( SIMPLE, NULL, "N8", sizeof(unsigned char));
+    typeT* r32 = mkType( SIMPLE, NULL, "R32", sizeof(float));
+    mkType( SIMPLE, NULL, "any", 0 ); //not really a type.. but to support any*   (aka void*)
+    
+    
+    /*
+    typeT* ptr_r32=mkType(POINTER, r32, NULL, 0);  //pointer to r32
+    typeT* r32a = mkType( ARRAY, r32, "R32", 3 );  //array of r32
+    typeT* r32pa = mkType( ARRAY, ptr_r32, "R32", 3 ); //array of pointers to r32
+    typeT* r32ap = mkType( ARRAY, r32a, "R32", 3 ); //pointer to array of r32
+    */
+    
+    
+    
+ //   typeT* ptr_r32=findType(POINTER, r32, NULL, 0);  //pointer to r32
+    
+   // typeT* r32a = findType( ARRAY, r32, "R32", 3 );  //array of r32
+   // typeT* r32pa = findType( ARRAY, ptr_r32, "R32", 3 ); //array of pointers to r32
+   // typeT* r32ap = findType( ARRAY, r32a, "R32", 3 ); //pointer to array of r32
+    
+    
+    
+    
     if (argc < 2)
 	exit(1);
     
@@ -500,6 +712,11 @@ int main(int argc, char** args){
 	printList(tokens->head,NULL,ENDFILE);
     
 	parse(tokens->head->next);
+    
+    
+	int i;
+	for (i=0;i<zvec_count(types);i++)
+	    printType(zvec_get_at(types,i),ZTRUE);
     
 	return 0;   
 }
