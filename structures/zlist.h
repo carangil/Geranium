@@ -30,8 +30,9 @@ typedef struct zlist_s
 #define zlist_next(ZNODE) ((void*) ((ZNODE)->zlistnode.next))
 #define zlist_prev(ZNODE) ((void*) ((ZNODE)->zlistnode.prev))
 
-void zlist_addhead(zlistT* list, zlistnodeT* node);
-void zlist_addtail(zlistT* list, zlistnodeT* tail);
+void* zlist_addhead(zlistT* list, zlistnodeT* node);
+void* zlist_addtail(zlistT* list, zlistnodeT* tail);
 void zlist_remove(zlistT* list, zlistnodeT* node);
+void* zlist_remove_mid( zlistnodeT* node);
 
 zbool zlist_cleanup(zlistT* list);
