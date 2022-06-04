@@ -15,12 +15,21 @@
 
 //var f_int_int:(a:N32>>Z32)*;
 /
-//type foo
-//	x:boo;
-//end
 
-var f:(a:Z16 >> N32);
-var g:(a:Z32 >> N32);
+type boo
+	zz:N8*;
+	z:Z32*;
+
+end
+
+
+type zz
+	x:boo;
+	z:N8;
+end
+
+var f:(a:N32 >> N32);
+var g:(a:R32 >> N8);
 
 
 //var a:(b:Z16 >> Z16*)*;
@@ -31,18 +40,12 @@ var g:(a:Z32 >> N32);
 
 //var ff:(a:Z16* >> Z16 );
 
-//type boo
-//	a:Z16	;
-//	b:Z8;
-//	f:foo*;
+//type boo/
+	//a:Z16	;
+	//b:Z8;
+	//f:foo*;
 //end
 
-//type foo
-//	zz:Z8*;
-//	y:boo;
-//	z:Z16*;
-
-//end
 
 
 

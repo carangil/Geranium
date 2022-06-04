@@ -8,12 +8,23 @@
 
 #define ERR( ...) { fprintf(stderr,__VA_ARGS__); exit(1);}
 
+typedef struct valueS{
+	union as {
+		zuint32 u32;
+		zuint32 z32;
+		float f;
+		void* ptr;
+	};
+	
+}valueT;
+
 /* Program is a linked list of tokens*/
 typedef struct tokenS{
 	zlistnodeT zlistnode;
 	zuint32 tok;
 	char* str;
 	struct typeS* ty;
+	valueT val;
 	zlistT subs;	//make a tree out of token list
 }tokenT;
 
@@ -287,6 +298,10 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 		printf("{nulltype}");
 	
 	if (ty){
+		
+		if (!skipmembers)
+			printf("<size%d>", ty->size);
+		
 		switch(ty->category) {
 			
 		case  FUNCTION:
@@ -314,6 +329,7 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 				end=" end";
 			}
 		case MEMBER:
+			printf("  ");
 		case SIMPLE:
 			break;
 		default:
@@ -415,6 +431,9 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 	for (i=0; i< zvec_count(types);i++){
 		ty = zvec_get_at(types, i);
 
+		if (ty->category == MEMBER)
+			continue;
+		
 		if (category != NAMED) {
 			//if category is named, we match whether its a struct or int (caller doesn't know which it is yet)
 
@@ -510,11 +529,24 @@ void printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indent){
 
 
 /* Need symbol table */
+#define GLOBAL		0
+#define LOCAL		1
+#define LOCALREL		2
+#define HEAP		3
+
+typedef struct addressS {
+	zuint32 space;
+	void* ptr;
+	zuint32 offset;
+	//todo:cached places
+} addressT;
+
+
 
 typedef struct symbolS{
 	char* name;
 	typeT* type;
-	zuint32 vaddress; 
+	addressT addr; 
 } symbolT;
 
 zvecT globals;
@@ -529,6 +561,7 @@ symbolT* findSymbol(zvecT* table, char* name){
 	}
 	return NULL;
 }
+
 
 symbolT* mkSymbol(zvecT* table, char* name, typeT* type){
 	symbolT* sym;
@@ -575,10 +608,6 @@ void fold(tokenT* start, tokenT* under){
 		zlist_addtail(&under->subs, &(t->zlistnode));
 				
 	}
-
-//	printf(" FOLD \n");
-//	printList(prev->zlistnode.prev->prev, under, ENDFILE,0);
-//	printf("--\n");
 }
 
 
@@ -591,8 +620,7 @@ void lfold(tokenT* under, tokenT* end){
 	
 //	printf(" LFOLD before (end not inclusive is highlighted)\n");
 //	printList(under->zlistnode.prev->prev, end, ENDFILE,0);
-	
-	
+		
 	for (tokenT* t = under->zlistnode.next; t!=end; t = next) {
 		
 		next = zlist_next(t);
@@ -752,9 +780,9 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 	}
 
 	//reached end of a type list, guess should group them up
+	if (parent)
+		parent->size = offset;//total size of object (TODO:alignment)
 
-
-	printf(" endtype list at \n");
 
 	return t; //closing paren on func parm list OR 'end' in typedef
 }
@@ -790,7 +818,6 @@ tokenT*  parseVar(tokenT* t,  char** nameOut, typeT** typeOut) {
 }
 
 tokenT*  parse(tokenT* t) {
-
 
 	for ( ; t;  t = (tokenT*)( t->zlistnode.next)) {
 
@@ -845,21 +872,22 @@ tokenT*  parse(tokenT* t) {
 				ERR( " Expected 'end' for type\n");
 
 			}
-
+			
+			
+			
 		}
 	}
 
 }
 
+typeT *tZ32, *tN32, *tN8, *tR32;
+
 int main(int argc, char** args){
 
-	mkType( SIMPLE, NULL, "Z32", sizeof(int));
-	mkType( SIMPLE, NULL, "Z16", sizeof(short));
-	mkType( SIMPLE, NULL, "Z8", sizeof(char));
-	mkType( SIMPLE, NULL, "N32", sizeof(unsigned int));
-	mkType( SIMPLE, NULL, "N16", sizeof(unsigned short));
-	mkType( SIMPLE, NULL, "N8", sizeof(unsigned char));
-	mkType( SIMPLE, NULL, "R32", sizeof(float));
+	tZ32 = mkType( SIMPLE, NULL, "Z32", sizeof(zint32));
+	tN32 = mkType( SIMPLE, NULL, "N32", sizeof(zuint32));
+	tN8 = mkType( SIMPLE, NULL, "N8", sizeof(zbyte));
+	tR32 = mkType( SIMPLE, NULL, "R32", sizeof(zfloat32));
 	mkType( SIMPLE, NULL, "any", 0 ); //not really a type.. but to support any*   (aka void*)
 	
 	if (argc < 2)
@@ -880,8 +908,8 @@ int main(int argc, char** args){
 
 	//printList((tokenT*) tokens->head,NULL,ENDFILE, 0);
 	
+	
 	printSymbols(&globals, "globals");
 
 	return 0;   
 }
-
