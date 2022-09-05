@@ -1,5 +1,8 @@
-//var f1:(b:Z16 >>   (c:Z16 >> Z32)*   )*;  //pointer to a function that return pointer to a function
+var f1:(b:N8 >>   (c:Z32 >> Z32)*   )*;  //pointer to a function that return pointer to a function
 //var f2:(b:Z16 >>   [5 (c:Z8 >> Z32)*]   )*;  //pointer to a function that returns array to  pointers to functions
+
+
+var z:Z32;
 
 //var sh:Z16;
 //var sh_array: [Z16];
@@ -14,22 +17,22 @@
 //var f_take_int_int_ptr:(a:Z32; b:Z32*; >> );
 
 //var f_int_int:(a:N32>>Z32)*;
-/
-
-type boo
-	zz:N8*;
-	z:Z32*;
-
-end
 
 
-type zz
-	x:boo;
-	z:N8;
-end
+//type boo
+//	zz:N8*;
+//	z:Z32*;
 
-var f:(a:N32 >> N32);
-var g:(a:R32 >> N8);
+//end
+
+
+//type zz
+//	x:boo;
+//	z:N8;
+//end
+
+//var f:(a:N32 >> N32);
+//var g:(a:R32 >> N8);
 
 
 //var a:(b:Z16 >> Z16*)*;
@@ -88,3 +91,5 @@ var g:(a:R32 >> N8);
  //   ff;
  //   y:int
 //end
+
+10 20 +

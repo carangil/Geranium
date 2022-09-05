@@ -7,15 +7,15 @@
 #include "zvector.h"
 
 #define ERR( ...) { fprintf(stderr,__VA_ARGS__); exit(1);}
-
-typedef struct valueS{
-	union as {
+typedef union valu {
 		zuint32 u32;
 		zuint32 z32;
 		float f;
 		void* ptr;
-	};
+	} valU;
 	
+typedef struct valueS{
+	valU as;
 }valueT;
 
 /* Program is a linked list of tokens*/
@@ -28,6 +28,28 @@ typedef struct tokenS{
 	zlistT subs;	//make a tree out of token list
 }tokenT;
 
+#define PAIR(B1,B2)	((((unsigned int)(B1&0xff)) <<8) | ((unsigned int)(B2&0xff)))
+#define NAME		0x200
+#define NUMBER		0x300
+#define LITERAL 	0x400
+#define ENDFILE		0x500
+#define PASTENDFILE	0x600
+#define STARTFILE	0x700
+#define KWORDS		0xff00
+#define KVAR		0xff00
+#define KTYPE		0xff01
+#define KEND		0xff02
+
+char*  keywords[] = {"var", "type", "end", NULL};
+
+zuint32 findKeyword(char* c){
+	if (c)
+		for (int i=0;keywords[i];i++) 
+			if ( !strcmp(keywords[i], c))
+				return KWORDS+i;
+	return 0;
+}
+
 tokenT* mkToken(zuint32 tok, char* str, zuint32 len){
 	tokenT* t = ram_alloc( sizeof(tokenT) , NULL );
 	t->tok = tok;
@@ -35,6 +57,11 @@ tokenT* mkToken(zuint32 tok, char* str, zuint32 len){
 		t->str = zstrndup(str, len);
 	else if (str) 
 		t->str = zstrndup(str, ZSTRING_ALL);
+	if ((t->tok == NAME) && t->str) {
+		zuint32 b  = findKeyword(t->str);
+		if (b)	//replace NAME tokens that match a keyword with a keyword token
+			t->tok = b;
+	}
 	return t;
 }
 
@@ -55,20 +82,20 @@ char* safestr(char* s){
  */
 
 //used to recognize 2-letter combinations like ->, etc
-char* findPair(char* patterns, char a, char b){
+zuint32 findPair(char* patterns, char a, char b){
 	for(  ;*patterns;patterns+=2){
 		if ( ((*patterns)==a) &&(*(patterns+1)==b))
-			return patterns;
+			return PAIR(a,b) ;
 	}
-	return NULL;
+	return 0;
 }
 
 //used to either recognize names or numbers. Primitive, not regex-fancy or anything
 int acceptPatterns(char* s, char* startChars, char* continuePairs,  char* continueChars){
 	int i=0;
 	char* st =s;
-	char* p=0;
-
+	zuint32 p=0;
+	
 	if (strchr(startChars, *(s++))){	//if input string 's' begins with any of the start chars
 		i++; //advance to next char
 
@@ -116,14 +143,7 @@ int acceptLiteral(char* in, char start, char escape){
 	return 0;
 }
 
-#define PAIR		0x100
-#define NAME		0x200
-#define NUMBER		0x300
-#define LITERAL 	0x400
-#define ENDFILE		0x500
-#define PASTENDFILE	0x600
-#define STARTFILE	0x700
-#define KEYWORD		0x8000
+
 
 zlistT* tokenize(zlistT* list, char* in){
 
@@ -141,18 +161,18 @@ zlistT* tokenize(zlistT* list, char* in){
 
 	while (c = *in){
 		next = *(in+1);
-		char*p;
+		zuint32 p;
 
 		//find twochar patterns like ->,etc. including comment start/end markers
 		if (p=findPair("<<>>--++->==||&&+=-=/=*=&=|=^=/**///", c, next)){
 			
-			if (!strncmp(p, "//",2)) { //special handling for // comments
+			if (  p == PAIR('/','/')  ) { //special handling for // comments
 				while(*in!= '\n')
 					in++;
 				continue;
 			}
 
-			t = mkToken(PAIR, p, 2);
+			t = mkToken( PAIR(c, next) , NULL, 0);
 
 			zlist_addtail(list, &t->zlistnode);
 			in+=2;
@@ -565,24 +585,41 @@ symbolT* findSymbol(zvecT* table, char* name){
 
 symbolT* mkSymbol(zvecT* table, char* name, typeT* type){
 	symbolT* sym;
+	size_t size = sizeof(symbolT);
+	
 	if (findSymbol(table, name)){
 		ERR(" Attempt to redefine %s in same context\n", name);
 	}	
 	
-	sym = ram_alloc(sizeof(*sym), NULL);
+	if (type->category != FUNCTION){
+		size += type->size;  //add
+		if (type->size == 0){
+			ERR(" type with size 0\n");
+		}
+		
+	}
+	
+	sym = ram_alloc(size, NULL);
 	sym->name = zstrdup(name);
 	sym->type = type;
+	
 	return zvec_add_or_free(table, sym);
 }
 
 void printSymbols(zvecT* table , char* label){
 	int i;	
+	int j;
 	printf("\n\nSymbols for %s\n", label);
 	for (i=0;i<zvec_count(table);i++){
 		symbolT* sym = zvec_get_x_at(table, symbolT*, i);
 		printf("#%d\t%s\t", sym->type->tid, sym->name);
 		printType(sym->type, ZTRUE,ZFALSE);
-		
+		for (j=0;j<sym->type->size;j++){
+			printf("%02x ", * (j+(unsigned char*)(sym+1)));
+			if (j>=31)
+				{printf("..."); break;}
+		}
+		printf("\n");
 	}
 }
 
@@ -590,7 +627,6 @@ void printSymbols(zvecT* table , char* label){
 
 #define tnext(ITEM) ((tokenT*)(ITEM)->zlistnode.next)
 #define tprev(ITEM)    ((ITEM)?((tokenT*)(ITEM)->zlistnode.prev):NULL)
-
 
 tokenT*  parseVar(tokenT*,  char** nameOut, typeT** typeOut) ;
 tokenT*  parseTypeList(tokenT*, typeT* parent);
@@ -621,7 +657,7 @@ void lfold(tokenT* under, tokenT* end){
 //	printf(" LFOLD before (end not inclusive is highlighted)\n");
 //	printList(under->zlistnode.prev->prev, end, ENDFILE,0);
 		
-	for (tokenT* t = under->zlistnode.next; t!=end; t = next) {
+	for (tokenT* t = zlist_next(under) ; t!=end; t = next) {
 		
 		next = zlist_next(t);
 		zlist_remove_mid( &(t->zlistnode) );
@@ -638,7 +674,7 @@ tokenT*  parseType(tokenT* t) {
 	char* count=NULL;
 
 	zbool named=ZFALSE;
-	zlistnodeT* next=NULL;
+	tokenT* next=NULL;
 	
 	for ( ; t;  t = next ) {
 		
@@ -660,7 +696,7 @@ tokenT*  parseType(tokenT* t) {
 			//attach array type to opening bracket
 			S->ty = findType(ARRAY, tprev(t)->ty, NULL, count? atoi(count):0);
 			
-			next = t->zlistnode.next;
+			next = tnext(t);
 			lfold(S,next); //everything after opening bracket to closing bracked is folded under the open
 			continue;
 			
@@ -675,12 +711,12 @@ tokenT*  parseType(tokenT* t) {
 				t->ty = mkType(PENDING, NULL, t->str, 0);
 
 			}
-			next = t->zlistnode.next;
+			next = zlist_next(t);
 			continue;
 		}
 		if (t->tok == '*'){ //pointer type
 			t->ty = findType( POINTER, tprev(t)->ty, NULL,0);
-			next = t->zlistnode.next;
+			next = zlist_next(t);
 			fold(tprev(t),t);
 			continue;
 		}
@@ -699,7 +735,7 @@ tokenT*  parseType(tokenT* t) {
 			S->ty = findType( FUNCTION, ty, NULL, 0); //either adds this function to the type list, or returns the version already existing
 
 			named=ZTRUE;
-			next = t->zlistnode.next;
+			next = tnext(t);
 			lfold(S,next);
 			continue;
 
@@ -724,16 +760,15 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 
 		char* name = NULL;
 		typeT* type = NULL;
-
-		//special case:  a typelist might be in a list that ends with 'end', and it should not be processed as a varname
-		if ( (t->tok == NAME) && !strcmp( t->str, "end"))
+		
+		if (t->tok == KEND)
 			break;
 		
 		if (t->tok == ')')
 			break;  
 
 		
-		if ( (t->tok == PAIR) && !strcmp(t->str, ">>")){
+		if ( (t->tok == PAIR('>','>'))){
 			//is a function
 			parent->category = FUNCTION;
 			reqname = ZFALSE; //no longer need names (returned values are anonymous)
@@ -744,7 +779,7 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 		
 		
 		t = parseVar(t, &name, &type  );
-		printList(t->zlistnode.prev->prev->prev, t, ENDFILE,0);
+		printList((tokenT*)t->zlistnode.prev->prev->prev, t, ENDFILE,0);
 		if ( (reqname && !name) || !type){
 			ERR(" type or name missing for struct member or function arg\n");
 		}
@@ -770,7 +805,7 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 			continue; //list item seperator
 		}
 		
-		if ( (t->tok == PAIR) && !strcmp(t->str, ">>")){
+		if ( (t->tok == PAIR('>','>'))){
 			next = t;  // >> handler at top of loop will handle it
 			continue;
 		}
@@ -780,7 +815,7 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 	}
 
 	//reached end of a type list, guess should group them up
-	if (parent)
+	if (parent && parent->category != FUNCTION)
 		parent->size = offset;//total size of object (TODO:alignment)
 
 
@@ -824,58 +859,58 @@ tokenT*  parse(tokenT* t) {
 		if (t->tok==ENDFILE || t->tok== PASTENDFILE)
 			break;
 
-		if (t->tok == NAME){
+		if (t->tok == KVAR){
+			char* name=NULL;
+			typeT* type=NULL;
+			
+			t = parseVar( tnext(t), &name, &type); //parse variable; name is required
 
-			if (!strcmp(t->str, "var")){
-				char* name=NULL;
-				typeT* type=NULL;
-				
-				t = parseVar( tnext(t), &name, &type); //parse variable; name is required
+			
+			mkSymbol( &globals, name, type);
+			if (t->tok != ';')
+				printf(" missing ;\n");
 
-				
-				mkSymbol( &globals, name, type);
-				if (t->tok != ';')
-					printf(" missing ;\n");
+			continue;
+		}
+		
+		if (t->tok == KTYPE){
+			
+			char* name = NULL;
+			if (tnext(t)->tok == NAME) 
+				name = tnext(t)->str;
+			else {
+				ERR("expected type name\n");
 
+			}
+
+			typeT* ty = findType(NAMED, NULL, name, 0); //find a type by name
+
+			if (ty && ty->category != PENDING){
+				ERR("redefining type %s\n", name);
+			}
+
+			if (ty)
+				ty->category = STRUCT; //if it was pending, its a real struct now
+			else
+				ty = mkType( STRUCT, NULL, name, 0);  //create a struct type
+
+			t = parseTypeList(tnext(tnext(t)), ty);
+
+			if(t->tok == KEND) {
+				printf(" Defined type %s as %s\n", name, tprev(t)->str);
 				continue;
 			}
 
-			if (!strcmp (t->str, "type")){
-				char* name = NULL;
-				if (tnext(t)->tok == NAME) 
-					name = tnext(t)->str;
-				else {
-					ERR("expected type name\n");
+			ERR( " Expected 'end' for type\n");
 
-				}
-
-				typeT* ty = findType(NAMED, NULL, name, 0); //find a type by name
-
-				if (ty && ty->category != PENDING){
-					ERR("redefining type %s\n", name);
-				}
-
-				if (ty)
-					ty->category = STRUCT; //if it was pending, its a real struct now
-				else
-					ty = mkType( STRUCT, NULL, name, 0);  //create a struct type
-
-				t = parseTypeList(tnext(tnext(t)), ty);
-
-				if(t->tok == NAME && !strcmp(t->str, "end")) {
-					printf(" Defined type %s as %s\n", name, tprev(t)->str);
-					continue;
-				}
-
-
-
-				ERR( " Expected 'end' for type\n");
-
-			}
-			
-			
-			
 		}
+		if (t->tok == NUMBER){
+			zuint32 n = atoi(t->str);
+			printf(" push %d\n", n);
+			
+			//push number on stack
+		}
+			
 	}
 
 }
