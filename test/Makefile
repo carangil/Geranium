@@ -1,5 +1,6 @@
-RELEASEDIR=../build#debug 
-#RELEASEDIR=../release#release
+ZCORE?=../
+RELEASEDIR=$(ZCORE)/build#debug 
+#RELEASEDIR=$(ZCORE)/release#release
 INCLUDES=-I$(RELEASEDIR)/includes 
 OBJDIR=$(RELEASEDIR)/objs
 ZLIBS=-lzstructures -lzmemory -lzstructures -lzthread -lzmisc -lzblank
