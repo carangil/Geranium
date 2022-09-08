@@ -58,7 +58,7 @@ var z:Z32;
 //type point 
  //   x:Z32;
   //  y:N16;
-  //  z:foo*;
+  //  z:foo*;name = t->str;
 //end
 //type foo
  //   aa:Z8;
@@ -86,10 +86,41 @@ var z:Z32;
 
 //var f: ( y:int ; x:(float>>char)  >> (x ; t >>g)  );
 //
-//type point
-  //  x://int;
- //   ff;
- //   y:int
-//end
+type point
+    x:Z32;
+
+    y:Z32;
+end
+
+
+
+//var +:(a:Z32; b:Z32>>Z32);
+//var >>:(a:Z32; b:Z32>>Z32);
+
+var +:(a:Z32; b:Z32>>Z32);
+var >>:(a:Z32; b:Z32>>Z32);
+
+var pp:[5 point]*;
+
+//primitive +:(N32 N32 >> N32)
+//primitive +:(N32 N32 >> N32)
+
+z 10 +
+
+5 z=
+
+ z@
+
+z&
+
+z &
+
 
 10 20 +
+30 10 >>
+20 -10 11
+"test"
+
+
+
+
