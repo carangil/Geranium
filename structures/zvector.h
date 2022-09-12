@@ -67,7 +67,7 @@ void* zvec_remove_ordered(zvecT* v, zuint32 index);
 
 
 //disowns vectors contents (User will have to free things that were put in the vector)
-void zvec_disown(zvecT* v);
+zvecT* zvec_disown(zvecT* v);
 
 
 #endif

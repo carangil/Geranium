@@ -171,8 +171,11 @@ int zvec_find_idx(zvecT* v, void* item)
 }
 
 /* Tells vector not to free elements when vector is destroyed */
-void zvec_disown(zvecT* v) {
+/* returns the vector it modified so you can use syntax liek v = zvec_disown(zvec_mk(...)) ; */
+ 
+zvecT*  zvec_disown(zvecT* v) {
 	if (v) {
 		v->own_elements = 0;
 	}
+	return v;
 }
