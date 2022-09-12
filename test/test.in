@@ -1,8 +1,8 @@
-var f1:(b:N8 >>   (c:Z32 >> Z32)*   )*;  //pointer to a function that return pointer to a function
+//var f1:(b:N8 >>   (c:Z32 >> Z32)*   )*;  //pointer to a function that return pointer to a function
 //var f2:(b:Z16 >>   [5 (c:Z8 >> Z32)*]   )*;  //pointer to a function that returns array to  pointers to functions
 
 
-var z:Z32;
+//var z:Z32;
 
 //var sh:Z16;
 //var sh_array: [Z16];
@@ -51,7 +51,6 @@ var z:Z32;
 
 
 
-
 //var z:[12 Z16];
 //var y:point*;
 
@@ -86,41 +85,33 @@ var z:Z32;
 
 //var f: ( y:int ; x:(float>>char)  >> (x ; t >>g)  );
 //
-type point
-    x:Z32;
-
-    y:Z32;
-end
+//type point    x:Z32;    y:Z32; end
 
 
 
 //var +:(a:Z32; b:Z32>>Z32);
 //var >>:(a:Z32; b:Z32>>Z32);
 
-var +:(a:Z32; b:Z32>>Z32);
-var >>:(a:Z32; b:Z32>>Z32);
 
-var pp:[5 point]*;
+//var x:N32;
 
-//primitive +:(N32 N32 >> N32)
-//primitive +:(N32 N32 >> N32)
+primitive add32 +:(a:Z32; b:Z32>>Z32);
 
-z 10 +
-
-5 z=
-
- z@
-
-z&
-
-z &
-
-
-10 20 +
-30 10 >>
-20 -10 11
-"test"
+100
+10 20 + 3 + +
 
 
 
+//var x x:N32;
 
+//var >>:(a:Z32; b:Z32>>Z32);
+
+//var +:(a:Z32; b:Z32>>Z32);
+
+
+//var five:( >> N32);
+
+//var drop:( x:Z32 >> );
+
+//var n:N32;
+//var pp:[5 point];
