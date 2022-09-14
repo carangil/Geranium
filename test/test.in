@@ -95,23 +95,42 @@
 
 //var x:N32;
 
-primitive add32 +:(a:Z32; b:Z32>>Z32);
-
-100
-10 20 + 3 + +
-
+primitive add32		+:(a:Z32; b:Z32 >> Z32);
+primitive load32	@:(a:Z32* >> Z32);
+primitive store32	=:(v:Z32; a:Z32* >>);
 
 
-//var x x:N32;
+//primitive loadptr	@:(v:Z32**; >> a:Z32* );
+//primitive storeptr	=:(v:Z32*; a:Z32** >>);
 
-//var >>:(a:Z32; b:Z32>>Z32);
+var x:Z32;
+var y:Z32;
+var z:Z32*;
+var tz:Z32**;
 
-//var +:(a:Z32; b:Z32>>Z32);
+
+x@
+y@
+z@
+tz@
+10 y=
+y z=
+
+z tz=
+z
+tz@
+
+y@
+z@@
+tz@@@
 
 
-//var five:( >> N32);
+//10 y=
 
-//var drop:( x:Z32 >> );
+//y z=
 
-//var n:N32;
-//var pp:[5 point];
+
+//z tz =
+
+//z@@
+

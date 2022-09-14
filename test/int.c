@@ -7,18 +7,35 @@
 #include "zvector.h"
 
 #define ERR( ...) { fprintf(stderr,__VA_ARGS__); exit(1);}
+
+typedef struct vptrS{
+	zuint32 offset;
+	char* block;
+	
+}vptrT;
+
+
 typedef union valu {
-		zint32 z32;	//u32s are put here too
+		zint32 z32;
+		zint32 n32;
 		float f;
-		void* ptr;
+		vptrT ptr;
 	} valU;
 	
 typedef struct valueS{
 	valU as;
 }valueT;
 
-#define	ZZ		(valueT* v, zuint32* vp, struct tokenS* t )
-typedef struct tokenS* (*instruction) ZZ;
+
+typedef struct exectxS{
+	valueT* stack;
+	zuint32	sp;
+//	valueT* vars; 
+	char* globalvars; 
+}exectxT;
+
+
+typedef struct tokenS* (*instruction) (exectxT*,struct tokenS* ) ;
 
 /* Program is a linked list of tokens*/
 typedef struct tokenS{
@@ -46,7 +63,6 @@ typedef struct tokenS{
 #define KPRIMITIVE	0x8003
 
 char*  keywords[] = {"var", "type", "end", "primitive", NULL};
-
 zuint32 findKeyword(char* c){
 	if (c)
 		for (int i=0;keywords[i];i++) 
@@ -60,7 +76,7 @@ tokenT* mkToken(zuint32 tok, char* str, zuint32 len){
 	t->tok = tok;
 	if (str && len)
 		t->str = zstrndup(str, len);
-	else if (str) 
+	else if (str)
 		t->str = zstrndup(str, ZSTRING_ALL);
 	if ((t->tok == NAME) && t->str) {
 		zuint32 b  = findKeyword(t->str);
@@ -78,6 +94,7 @@ char* safestr(char* s){
 	return s ? s:""; 
 }
 
+/* TOKENIZER*/
 /* This first part parses an input string and returns a linked list of tokens
  * Very little is verified, things are broadly classified as pairs (such as ->, --, etc),
  * as single character tokens (+,-, etc), names (alpha_numeric_123), numbers (1.0E-4, 0x100, etc)
@@ -103,18 +120,14 @@ int acceptPatterns(char* s, char* startChars, char* continuePairs,  char* contin
 	
 	if (strchr(startChars, *(s++))){	//if input string 's' begins with any of the start chars
 		i++; //advance to next char
-
 		for(;*s;i++,s++){  //continue on
-
 			if (p=findPair(continuePairs,*s,*(s+1))){ //accept any pairs of characters
 				s++,i++; //loop does s++, i++ automatically; we need +=2, so increment here as well (to jump over whole pair)
 				continue;
 			}
-
 			if (strchr(continueChars, (*s))){ //accept any of the continue characters
 				continue;
 			}
-
 			break;
 		}
 	}
@@ -136,15 +149,12 @@ int acceptLiteral(char* in, char start, char escape){
 			i+=2;
 			continue;
 		}
-
 		if (*in==start){
 			return i+1;
 		}
-
 		in++;
 		i++;
 	}
-
 	return 0;
 }
 
@@ -153,7 +163,6 @@ zlistT* tokenize(zlistT* list, char* in){
 	int c,next;
 	tokenT* t=NULL;
 	char small[3];
-
 	int i;
 
 	if (!list) {
@@ -168,16 +177,14 @@ zlistT* tokenize(zlistT* list, char* in){
 		zuint32 p;
 
 		//find twochar patterns like ->,etc. including comment start/end markers
-		if (p=findPair("<<>>--++->==||&&+=-=/=*=&=|=^=/**///[]", c, next)){
-			
+		if (p=findPair("<<>>--++->==||&&/**///[]", c, next)){
 			if (  p == PAIR('/','/')  ) { //special handling for // comments
 				while(*in!= '\n')
 					in++;
 				continue;
 			}
-// 			
+	
 			t = mkToken( PAIR(c, next) , in, 2);
-
 			zlist_addtail(list, &t->zlistnode);
 			in+=2;
 			continue;
@@ -305,7 +312,7 @@ typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
 	if ((category == POINTER)|| (category == ARRAY) && (szlen == 0)){
 		if (ty->size)
 			ERR("Cannot specify size of pointer or indefinite array (it is automatically calculated)\n");
-		ty->size = sizeof (void*);
+		ty->size = sizeof (vptrT);
 	}
 
 	if (types == NULL)
@@ -563,30 +570,12 @@ void printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indent){
 
 }
 
-
-/* Need symbol table */
-#define GLOBAL		0
-#define LOCAL		1
-#define LOCALREL		2
-#define HEAP		3
-
-typedef struct addressS {
-	zuint32 space;
-	void* ptr;
-	zuint32 offset;
-	//todo:cached places
-} addressT;
-
-
-
 typedef struct symbolS{
 	char* name;
 	typeT* type;
-	addressT addr;
+	zuint32 offset;
 	instruction handler; 
 } symbolT;
-
-
 
 zbool cmpTypeListToFunc(zvecT* f, zvecT* b){
 	//iterates over a functions list of arguments and compares to a possible list of types
@@ -608,6 +597,14 @@ zbool cmpTypeListToFunc(zvecT* f, zvecT* b){
 		}
 		return ZTRUE;
 }
+
+typedef struct parsectxS{
+	struct parsectxS* up;
+	zvecT* symbols;
+	zuint32	size;	//size of variables in this table
+}parsectxT;
+
+
 
 symbolT* findSymbol(zvecT* table, char* name, zvecT* typelist){
 	
@@ -633,11 +630,11 @@ symbolT* findSymbol(zvecT* table, char* name, zvecT* typelist){
 }
 
 
-symbolT* mkSymbol(zvecT* table, char* name, typeT* type, instruction handler){
+symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction handler){
+	zvecT* table = pctx->symbols;
+	
 	symbolT* sym;
-	size_t size = sizeof(symbolT);
-	
-	
+		
 	if (type->category == FUNCTION){
 		//search for function of same name, same inputs
 	} else if (findSymbol(table, name, NULL)){
@@ -645,17 +642,22 @@ symbolT* mkSymbol(zvecT* table, char* name, typeT* type, instruction handler){
 	}	
 	
 	if ( (type->category != FUNCTION) && (type->category!= PRIMITIVE)){
-		size += type->size;  //add
+		
 		if (type->size == 0){
 // 			ERR(" type with size 0\n");
 		}
-		
+	
 	}
 	
-	sym = ram_alloc(size, NULL);
+	sym = ram_alloc(sizeof(symbolT), NULL);
 	sym->name = zstrdup(name);
 	sym->type = type;
 	sym->handler = handler;
+	sym->offset = pctx->size;
+	
+	pctx->size += type->size; //add context u
+	
+	printf(" SYMBOL %s at offset %d  , total symbols %d bytes\n", sym->name, sym->offset, pctx->size);
 	
 	return zvec_add_or_free(table, sym);
 }
@@ -666,7 +668,7 @@ void printSymbols(zvecT* table , char* label){
 	printf("\n\nSymbols for %s\n", label);
 	for (i=0;i<zvec_count(table);i++){
 		symbolT* sym = zvec_get_x_at(table, symbolT*, i);
-		printf("#%d\t%s\t", sym->type->tid, sym->name);
+		printf("#%x\t%s\t", sym->offset, sym->name);
 		printType(sym->type, ZTRUE,ZFALSE);
 		for (j=0;j<sym->type->size;j++){
 			printf("%02x ", * (j+(unsigned char*)(sym+1)));
@@ -682,7 +684,7 @@ void printSymbols(zvecT* table , char* label){
 #define tnext(ITEM) ((tokenT*)(ITEM)->zlistnode.next)
 #define tprev(ITEM)    ((ITEM)?((tokenT*)(ITEM)->zlistnode.prev):NULL)
 
-tokenT*  parseVar(tokenT*,  char** nameOut, typeT** typeOut) ;
+ tokenT*  parseVar(tokenT*,  char** nameOut, typeT** typeOut) ;
 tokenT*  parseTypeList(tokenT*, typeT* parent);
 
 void fold(tokenT* start, tokenT* under){
@@ -935,35 +937,65 @@ tokenT*  parseVar(tokenT* t,  char** nameOut, typeT** typeOut) {
 typeT *tPrimitive, *tZ32, *tN32, *tN8, *tR32;
 
 
-typedef struct parseContextS{
-	struct parseContextS* up;
-	zvecT* symbols;
-}parseContextT;
 
 
-parseContextT* mkcontext()
+parsectxT* mkcontext()
 {
-	parseContextT* c = ram_alloc(sizeof(parseContextT), NULL);
+	parsectxT* c = ram_alloc(sizeof(parsectxT), NULL);
 	c->symbols = zvec_mk(NULL, 10);
 	return c;
 }
 
-parseContextT* global = NULL;
+parsectxT* global = NULL;
 
 //parameters that get passed down
 
-struct tokenS* hconstant ZZ {
-	printf("hconstant\n");
-	v[(*vp)++]=t->val;
+struct tokenS* hconstant (exectxT* ex, tokenT* t) {
+	ex->stack[(ex->sp)++] = t->val;
 	return tnext(t);
 }
 
-struct tokenS* hnop ZZ{
+struct tokenS* hglobal (exectxT* ex, tokenT* t) {
+	
+	ex->stack[(ex->sp)].as.ptr.block = ex->globalvars;
+	ex->stack[(ex->sp)++].as.ptr.offset = t->val.as.ptr.offset;
+	printf(" Global block %p +%d\n", ex->globalvars  ,   t->val.as.ptr.offset);
+	return tnext(t);
+}
+
+
+
+struct tokenS* hnop (exectxT* ex, tokenT* t){
 	printf("hnop\n");
 	return tnext(t); //NOP handler (for declarations, which don't 'RUN')
 }
 
-tokenT*  parse(parseContextT* pc, tokenT* t) {
+#define DEREF(TYPE,BASE,OFFSET)      *((TYPE*)(((char*)(BASE))+(OFFSET)))
+
+struct tokenS* hstoreptr (exectxT* ex, tokenT* t) {
+	
+	exe(ex, t->subs.head);
+		
+	
+	DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.ptr;
+	
+	ex->sp-=2;
+	
+	return tnext(t);
+}
+
+struct tokenS* hloadptr (exectxT* ex, tokenT* t) {
+	
+	exe(ex, t->subs.head);
+		
+	ex->stack[ex->sp-1].as.ptr = DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
+	
+	return tnext(t);
+}
+
+
+
+tokenT*  parse(parsectxT* pc, tokenT* t) {
 	tokenT* ts=NULL;
 	symbolT* s= NULL;
 	zvecT* v=NULL;
@@ -1005,7 +1037,7 @@ tokenT*  parse(parseContextT* pc, tokenT* t) {
 				ERR("Expected name and ':'\n");
 			}
 			
-			mkSymbol( global->symbols, name, type, handler);
+			mkSymbol( global, name, type, handler);
 			if (t->tok != ';')
 				printf(" missing ;\n");
 			
@@ -1067,18 +1099,14 @@ tokenT*  parse(parseContextT* pc, tokenT* t) {
 				
 		case PAIR('[',']'):
 			//todo: check its an integer, and type is an array
-			//array access
+			//array accesshload32
 			ts = tprev(tprev(t));
 			fold(ts, t);
 			t->ty = ts->ty->ref;
 			t=tnext(t);
 			continue;
 		
-		case '!': //assign
-			//todo: check types are compatible
-			fold( tprev(tprev(t)), t);
-			t=tnext(t);
-			continue;
+		
 			
 		case ':': //typecast
 			
@@ -1090,102 +1118,141 @@ tokenT*  parse(parseContextT* pc, tokenT* t) {
 			
 			continue;
 			
-		case '&':  //reference previous element
-			t->ty = findType(POINTER, tprev(t)->ty, NULL, 0);
-			fold( tprev(t), t);
-			t=tnext(t);
-			continue;
 			
-		case '@':  //dereference previous element
-			t->ty = tprev(t)->ty->ref;
-			fold( tprev(t), t);
-			t=tnext(t);
-			continue;
-		
+		case '@':  //try to handle loading ptr to ptr.  Top of stack has a pointer to the pointer var
 			
-		default:
+			if (tnext(t)->tok=='=')
+				printf(" unread\n");
 			
-			if (t->str){
-				int j;
-				v = zvec_disown(zvec_mk(NULL,15));
-				ram_free(v);
-				tokenT* pos;
-				tokenT* startfold;
-				for(j=0;;j++){
-					int k;
-					pos = t;
-					printf(" DEPTH %d: \n", j);
-					zvec_setcount(v, 0);
-					for (k=0;k<j;k++){  //go back j spaces
-						pos = tprev(pos);
-						
-						if (!pos)
-							break;
-					}
-					if (!pos)
-							break;
-					startfold=pos;
-					for(k=0;k<j;k++){
+			
+			if ( tprev(t)->ty && (tprev(t)->ty->category == POINTER) && (tprev(t)->ty->ref->category == POINTER)){
+				printf("general pointer to pointer load\n");
+				t->ty = tprev(t)->ty->ref;
+				fold(tprev(t),t);
+				t->handler = hloadptr;
 				
-						printf("%d:%s ", k, pos->str);
-						printType(pos->ty, ZFALSE, ZTRUE);
-						if ( !pos->ty ){ //don't go past a nulltype
-							pos=NULL;
-							break;
-						}
-						zvec_add(v, pos->ty);
-						pos = tnext(pos);
-					}
-					printf("\n");
-					if (!pos)
-						break;
-					
-					s= findSymbol(global->symbols, t->str, v);
-					if (s)
-						break;
-										
-					//getc(stdin);
-										
-				}
+				t=tnext(t);
+				continue;	
+								
+			}
+			//other '@' cases that aren't handled will drop down later
+			
 				
-				v=NULL;
-								 
-				if (s){
-				//	printf(" Found symbol %s\n", t->str);
+		case '=':  //try to handle loading ptr to ptr.  Top of stack has a pointer to the pointer var
+			printf(" parse '='  prev is %c\n", tprev(t)->tok);
+			//handle     @= case.... if '@' a pointer to get a variable, and store to the variable...
+		//	if (tprev(t)->tok=='@'){
+		//		zlist_remove_mid(tprev(t));  //delete this 'load', as @= means 'store' 
+		//		continue; //try again
+		//		
+		//	}
+			
+			//  pointervar =         //writes a pointer to a pointer variable
+			// The pointer variable is represented by a pointer to some kind of pointer
+			if ( tprev(t)->ty && (tprev(t)->ty->category == POINTER) && (tprev(t)->ty->ref->category == POINTER)){
+				if (tprev(tprev(t))->ty && tprev(tprev(t))->ty->category == POINTER){
+					printf("general pointer to pointer store\n");
 					
-					if (s->type->category == FUNCTION){
-						printf(" IS FUNCTION\n");
-						fold(startfold, t);
-						t->ty = s->type->ref;
-						if (s->handler)
-							t->handler=s->handler;
-					}
-					else{
-						printf(" IS VARIABLE\n");
+					fold(tprev(tprev(t)),t);
+					t->handler = hstoreptr;
 					
-						
-						printf("VALUE\n ");
-							t->ty = s->type;
-						
-						
-					}
+
 					t=tnext(t);
 					continue;	
 				}
-				ERR("Undefined symbol:%s\n", t->str);
-				
 			}
 			
-			//anything else
 			
-			printf("?How to parse %x %c\n", t->tok, t->tok);
-			ERR("Unimplemented\n");
-		}	
-	}
+									
+			
+		}//end switch
+		
+		//if didn't match anything above, continue on
+		
+		
+		if (t->str){
+			int j;
+			v = zvec_disown(zvec_mk(NULL,15));
+			ram_free(v);
+			tokenT* pos;
+			tokenT* startfold;
+			for(j=0;;j++){
+				int k;
+				pos = t;
+				printf(" DEPTH %d: \n", j);
+				zvec_setcount(v, 0);
+				for (k=0;k<j;k++){  //go back j spaces
+					pos = tprev(pos);
+					
+					if (!pos)
+						break;
+				}
+				if (!pos)
+						break;
+				startfold=pos;
+				for(k=0;k<j;k++){
+			
+					printf("%d:%s ", k, pos->str);
+					printType(pos->ty, ZFALSE, ZTRUE);
+					if ( !pos->ty ){ //don't go past a nulltype
+						pos=NULL;
+						break;
+					}
+					zvec_add(v, pos->ty);
+					pos = tnext(pos);
+				}//end k
+				printf("\n");
+				if (!pos)
+					break;
+				
+				s= findSymbol(global->symbols, t->str, v);
+				if (s)
+					break;
+									
+				//getc(stdin);
+									
+			}//end j
+			
+			v=NULL;
+								
+			if (s){
+			//	printf(" Found symbol %s\n", t->str);
+				
+				if (s->type->category == FUNCTION){
+					printf(" IS FUNCTION\n");
+					fold(startfold, t);
+					t->ty = s->type->ref;
+					if (s->handler)
+						t->handler=s->handler;
+				}
+				else{
+					printf(" IS VARIABLE\n");
+											
+					t->ty = findType(POINTER, s->type, NULL, 0);  //pointer to the symbol's type
+					t->handler = hglobal;
+					t->val.as.ptr.block = 0;
+					t->val.as.ptr.offset= s->offset;
+										
+					
+										
+				}
+				t=tnext(t);
+				continue;	
+			}//end s
+			
+			
+			ERR("Undefined symbol:%s\n", t->str);
+			
+			//anything else
+		}//end str
+		printf("?How to parse %x %c\n", t->tok, t->tok);
+		ERR("Unimplemented\n");
+			
+	} //end while
 
 }
 
-void exe ZZ{
+void exe (exectxT* c, tokenT* t){
 	zuint32 i;
 	
 	while(t){
@@ -1193,44 +1260,96 @@ void exe ZZ{
 		
 		
 		instruction handler = t->handler;
-		printf("%x %s   Handler %p\n",t->tok, safestr(t->str), handler);
 		
+		char* str=  safestr(t->str);
+		printf("%x %s  (pre) handler %p\n",t->tok, safestr(t->str), handler);
 		
-		printf("\n");
 		
 		if (!handler)
 			ERR("null handler\n");
-		getc(stdin);
-		t = handler(v,vp,t);
-		printf("\nvp %x|", *vp);
+		//getc(stdin);
+		t = handler(c,t);
+		printf(">> %s\n",str);
+		printf("\nsp %x|", c->sp);
 		
 		
-		for (i=0;i<*vp;i++){
-			printf("%p:%d ", v[i].as.ptr, v[i].as.z32);
+		for (i=0;i<c->sp;i++){
+			printf("(%p+%x)/%d ", c->stack[i].as.ptr.block,c->stack[i].as.ptr.offset, c->stack[i].as.z32);
 			
 		}	
+		printf("\n");
+		for (i=0;i<32;i++){
+			printf("%02x ", c->globalvars[i]&0xff);
+			
+		}
 		printf("\n");
 		
 	}
 		
 }
 
-void start(tokenT* t){
-	valueT* vals = ram_alloc( sizeof(valueT)*100, NULL);
-	zuint32 vp = 0;
-	exe(vals, &vp, t);
+
+void start(parsectxT* pctx, tokenT* t){
+	exectxT* exectx = ram_alloc(sizeof(exectxT), NULL);
+	exectx->stack = ram_alloc( sizeof(valueT)*100, NULL);
+	exectx->sp = 0;
+	printf(" PCTX %d bytes\n", pctx->size);
+	exectx->globalvars = ram_alloc(pctx->size , NULL);
+	
+	printf(" start\n");
+	for (int i=0;i<32;i++){
+			printf(",%02x ",  exectx->globalvars[i]  );
+			
+	}
+	printf(" \n");
+	
+	exe(exectx, t);
+	
+	//exe(vals, &vp, t);
 }
 
 
-
-struct tokenS* hadd32 ZZ {
-	printf("add, eval args\n");
-	exe(v, vp, t->subs.head);
-	printf("add, aply\n");
-	v[(*vp)-2].as.z32+=v[(*vp)-1].as.z32;
-	(*vp)--;
+struct tokenS* hadd32 (exectxT* ex, tokenT* t) {
+	
+	exe(ex, t->subs.head);
+		
+	ex->stack[ex->sp-2].as.z32 += ex->stack[ex->sp-1].as.z32;
+	ex->sp--;
+	
+	
 	return tnext(t);
 }
+
+
+
+struct tokenS* hload32 (exectxT* ex, tokenT* t) {
+	
+	exe(ex, t->subs.head);
+
+	zint32 i = DEREF(zint32, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
+	printf(" Loaded 32 %d   from +%x\n", i,ex->stack[ex->sp-1].as.ptr.offset );
+	ex->stack[ex->sp-1].as.ptr.block=NULL;
+	ex->stack[ex->sp-1].as.z32 = i;
+	
+	
+	return tnext(t);
+}
+
+
+struct tokenS* hstore32 (exectxT* ex, tokenT* t) {
+	
+	exe(ex, t->subs.head);
+		
+	
+	
+	DEREF(zint32, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.z32;
+	
+	ex->sp-=2;
+	
+	return tnext(t);
+}
+
+
 
 
 
@@ -1257,11 +1376,17 @@ int main(int argc, char** args){
 		
 	zlistT* tokens = tokenize(NULL, x);
 
-	parseContextT pc;
-	memset(&pc, 0, sizeof(pc));
+	ram_free(x);
 	
-	mkSymbol(global->symbols, "add32", tPrimitive, hadd32);
-	parse( &pc, (tokenT*) tokens->head->next );
+	
+	mkSymbol(global, "add32", tPrimitive, hadd32);
+	mkSymbol(global, "load32", tPrimitive, hload32);
+	mkSymbol(global, "store32", tPrimitive, hstore32);
+	
+	mkSymbol(global, "storeptr", tPrimitive, hstoreptr);
+	mkSymbol(global, "loadptr", tPrimitive, hloadptr);
+	
+	parse( global, (tokenT*) tokens->head->next );
 
 	printf("Types:\n");
 	int i;
@@ -1271,7 +1396,7 @@ int main(int argc, char** args){
 	printSymbols(global->symbols, "globals");
 	printList((tokenT*) tokens->head,NULL,ENDFILE, 0);
 	
-	start((tokenT*)tokens->head->next);//run
+	start(global, (tokenT*)tokens->head->next);//run
 	
 	return 0;   
 }
