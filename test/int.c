@@ -1117,13 +1117,17 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t=tnext(t);
 			
 			continue;
-			
+		
+		
 			
 		case '@':  //try to handle loading ptr to ptr.  Top of stack has a pointer to the pointer var
 			
-			if (tnext(t)->tok=='=')
-				printf(" unread\n");
-			
+				
+			if (tnext(t)->tok=='='){
+				t=tnext(t);
+				zlist_remove_mid(ts);
+				continue;
+			}
 			
 			if ( tprev(t)->ty && (tprev(t)->ty->category == POINTER) && (tprev(t)->ty->ref->category == POINTER)){
 				printf("general pointer to pointer load\n");
@@ -1136,17 +1140,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 								
 			}
 			//other '@' cases that aren't handled will drop down later
-			
+			break;
 				
 		case '=':  //try to handle loading ptr to ptr.  Top of stack has a pointer to the pointer var
-			printf(" parse '='  prev is %c\n", tprev(t)->tok);
+		
 			//handle     @= case.... if '@' a pointer to get a variable, and store to the variable...
-		//	if (tprev(t)->tok=='@'){
-		//		zlist_remove_mid(tprev(t));  //delete this 'load', as @= means 'store' 
-		//		continue; //try again
-		//		
-		//	}
-			
 			//  pointervar =         //writes a pointer to a pointer variable
 			// The pointer variable is represented by a pointer to some kind of pointer
 			if ( tprev(t)->ty && (tprev(t)->ty->category == POINTER) && (tprev(t)->ty->ref->category == POINTER)){
@@ -1232,8 +1230,15 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					t->handler = hglobal;
 					t->val.as.ptr.block = 0;
 					t->val.as.ptr.offset= s->offset;
-										
 					
+					if (tnext(t)->tok=='&')   {
+						zlist_remove_mid(tnext(t));
+					} else if (tnext(t)){
+						tokenT* tn = mkToken('@', "@", 1);  //load the variable
+						zlist_insert_node_after(t, tn);
+					}
+					
+															
 										
 				}
 				t=tnext(t);

@@ -106,31 +106,39 @@ primitive store32	=:(v:Z32; a:Z32* >>);
 var x:Z32;
 var y:Z32;
 var z:Z32*;
-var tz:Z32**;
+var toz:Z32**;
 
-
-x@
-y@
-z@
-tz@
 10 y=
-y z=
 
-z tz=
-z
-tz@
+y
 
-y@
-z@@
-tz@@@
+20 y& =
+
+y
+
+30 y& @=
+
+y
+
+y& z=
+
+z@
+
+40 z@=
+
+y
+
+50 z& @ @=
+
+y
 
 
-//10 y=
+z& toz=
 
-//y z=
+60 toz@@=
+
+y
 
 
-//z tz =
 
-//z@@
 
