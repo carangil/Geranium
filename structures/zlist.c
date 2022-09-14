@@ -39,7 +39,7 @@ void* zlist_addtail(zlistT* list, zlistnodeT* node)
 	return  node;
 }
 
-void zlist_remove(zlistT* list, zlistnodeT* node)
+void* zlist_remove(zlistT* list, zlistnodeT* node)
 {
 	
 	if (list->head == node)
@@ -56,6 +56,7 @@ void zlist_remove(zlistT* list, zlistnodeT* node)
 
 	node->next = NULL;
 	node->prev = NULL;
+	return node;
 }
 
 
@@ -77,6 +78,29 @@ void* zlist_remove_mid( zlistnodeT* node){
 	
 	return node;
 }
+
+void* zlist_insert_node_after( zlistnodeT* node, zlistnodeT* newnode){
+	
+	if (!node || !node->next){
+	    fprintf(stdout, "Node %p: null or has null next.  To insert at end of list use addtail\n");
+	    exit(1);
+	}
+
+	if ( newnode->prev || newnode->next){
+		fprintf(stdout, "Can't add node that already has next/prev; its already in another list!\n");
+		exit(1);
+	}
+	
+	newnode->prev = node;
+	newnode->next = node->next;
+	
+	node->next->prev = newnode;
+	node->next = newnode;
+		
+	return newnode;
+}
+
+
 
 zbool zlist_cleanup(zlistT* list) {
 	zlistnodeT* node;

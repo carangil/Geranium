@@ -32,7 +32,7 @@ typedef struct zlist_s
 
 void* zlist_addhead(zlistT* list, zlistnodeT* node);
 void* zlist_addtail(zlistT* list, zlistnodeT* tail);
-void zlist_remove(zlistT* list, zlistnodeT* node);
+void* zlist_remove(zlistT* list, zlistnodeT* node);
 void* zlist_remove_mid( zlistnodeT* node);
-
+void* zlist_insert_node_after( zlistnodeT* node, zlistnodeT* newnode);
 zbool zlist_cleanup(zlistT* list);
