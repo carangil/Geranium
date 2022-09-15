@@ -30,9 +30,10 @@ typedef struct valueS{
 typedef struct exectxS{
 	valueT* stack;
 	zuint32	sp;
-//	valueT* vars; 
+	char* vars; 
 	char* globalvars; 
 }exectxT;
+
 
 
 typedef struct tokenS* (*instruction) (exectxT*,struct tokenS* ) ;
@@ -46,8 +47,9 @@ typedef struct tokenS{
 	valueT val;
 	zlistT subs;	//make a tree out of token list
 	instruction handler; 
+	struct symbolS* sym;  //for things like procs that have a bunch of context info
 }tokenT;
-
+void exe (exectxT* c, struct tokenS* t);
 //tokenT->tok values:
 #define PAIR(B1,B2)	((((unsigned int)(B1&0xff)) <<8) | ((unsigned int)(B2&0xff)))
 #define NAME		0x200
@@ -61,8 +63,11 @@ typedef struct tokenS{
 #define KTYPE		0x8001
 #define KEND		0x8002
 #define KPRIMITIVE	0x8003
+#define KPROC		0x8004
+#define KRETURN		0x8005
 
-char*  keywords[] = {"var", "type", "end", "primitive", NULL};
+
+char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", NULL};
 zuint32 findKeyword(char* c){
 	if (c)
 		for (int i=0;keywords[i];i++) 
@@ -574,7 +579,9 @@ typedef struct symbolS{
 	char* name;
 	typeT* type;
 	zuint32 offset;
-	instruction handler; 
+	instruction handler;
+	tokenT* t;
+	struct parsectxS* subctx; //procs have their own parsecontext for their local vars
 } symbolT;
 
 zbool cmpTypeListToFunc(zvecT* f, zvecT* b){
@@ -599,9 +606,9 @@ zbool cmpTypeListToFunc(zvecT* f, zvecT* b){
 }
 
 typedef struct parsectxS{
-	struct parsectxS* up;
 	zvecT* symbols;
 	zuint32	size;	//size of variables in this table
+	int endable;
 }parsectxT;
 
 
@@ -670,6 +677,12 @@ void printSymbols(zvecT* table , char* label){
 		symbolT* sym = zvec_get_x_at(table, symbolT*, i);
 		printf("#%x\t%s\t", sym->offset, sym->name);
 		printType(sym->type, ZTRUE,ZFALSE);
+		if (sym->t){
+			printList(sym->t, NULL, 0,0);
+			printf("--\n");
+		}
+		
+		
 		for (j=0;j<sym->type->size;j++){
 			printf("%02x ", * (j+(unsigned char*)(sym+1)));
 			if (j>=31)
@@ -963,12 +976,14 @@ struct tokenS* hglobal (exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
-
-
-struct tokenS* hnop (exectxT* ex, tokenT* t){
-	printf("hnop\n");
-	return tnext(t); //NOP handler (for declarations, which don't 'RUN')
+struct tokenS* hlocal (exectxT* ex, tokenT* t) {
+	
+	ex->stack[(ex->sp)].as.ptr.block = ex->vars;
+	ex->stack[(ex->sp)++].as.ptr.offset = t->val.as.ptr.offset;
+	printf(" local block %p +%d\n", ex->vars  ,   t->val.as.ptr.offset);
+	return tnext(t);
 }
+
 
 #define DEREF(TYPE,BASE,OFFSET)      *((TYPE*)(((char*)(BASE))+(OFFSET)))
 
@@ -984,6 +999,9 @@ struct tokenS* hstoreptr (exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
+struct tokenS* hcall (exectxT* ex, tokenT* t);
+struct tokenS* hbreak (exectxT* ex, tokenT* t);
+
 struct tokenS* hloadptr (exectxT* ex, tokenT* t) {
 	
 	exe(ex, t->subs.head);
@@ -996,10 +1014,13 @@ struct tokenS* hloadptr (exectxT* ex, tokenT* t) {
 
 
 tokenT*  parse(parsectxT* pc, tokenT* t) {
+	
 	tokenT* ts=NULL;
 	symbolT* s= NULL;
 	zvecT* v=NULL;
 	instruction handler = NULL;
+	int local=0;//true when a found symbol is from the local context
+	
 	while ( t) {
 
 		if (t->tok==ENDFILE || t->tok== PASTENDFILE)
@@ -1013,6 +1034,18 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		ts = t;
 			
 		switch (t->tok){
+			
+		case KEND:
+			
+			if (pc->endable){
+				printf(" exiting proc def\n");
+				return t;
+			}
+			
+			ERR(" Cannot 'end' in the global context\n");
+		
+		
+			
 			
 		case KPRIMITIVE:	//primitive declaration
 			
@@ -1028,24 +1061,45 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t = tnext(t);
 			//fall through to var decl
 		case KVAR:		//variable declaration
+		case KPROC:
 			name=NULL;
 			typeT* type=NULL;
 			
 			t = parseVar( tnext(t), &name, &type); //parse variable; name is required
-
+			printf( " KPROC ");
+			printType(type, 1,1);
 			if (!name){
 				ERR("Expected name and ':'\n");
 			}
 			
-			mkSymbol( global, name, type, handler);
-			if (t->tok != ';')
+			s=mkSymbol( pc, name, type, handler);
+			
+			if (ts->tok == KPROC){
+				//procedures go into a body of statements
+				s->subctx = mkcontext();
+				s->subctx->endable=1; //its a subcontext
+				t = parse(s->subctx, t);
+				s->handler = hcall;
+				
+			} else if (t->tok != ';') {
 				printf(" missing ;\n");
+			}
 			
 			t=tnext(t); //skip past semicolon
 			lfold(ts, t);  //everything up to an including semicolon folded
-			ts->handler = hnop;
+			s->t = ts; //symbol has this tokenstream
+			zlist_remove_mid(ts); //remove from the executable token list
 			continue;
+		case KRETURN:
 			
+			//todo: check return type
+			//allow return no value
+			t->handler = hbreak;
+			fold(tprev(t),t);
+			t=tnext(t);
+			
+			
+			continue;
 		case KTYPE:
 			if (tnext(t)->tok == NAME) 
 				name = tnext(t)->str;
@@ -1071,7 +1125,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				printf(" Defined type %s as %s\n", name, tprev(t)->str);
 				t=tnext(t);
 				lfold(ts,t); //includes 'end' in the fold
-				ts->handler = hnop;
+								
 				continue;
 			}
 
@@ -1203,9 +1257,19 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				if (!pos)
 					break;
 				
-				s= findSymbol(global->symbols, t->str, v);
+				if (pc != global){
+					local=1;
+					s= findSymbol(pc->symbols, t->str, v);
+				}
+				
 				if (s)
 					break;
+					
+				local=0;
+				s= findSymbol(global->symbols, t->str, v);
+				
+				if (s)
+ 					break;
 									
 				//getc(stdin);
 									
@@ -1214,20 +1278,29 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			v=NULL;
 								
 			if (s){
-			//	printf(" Found symbol %s\n", t->str);
+				printf(" Found symbol %s  local:%d \n", t->str, local);
+				printType(s->type,0,0);
+				printf("\n");
 				
 				if (s->type->category == FUNCTION){
 					printf(" IS FUNCTION\n");
 					fold(startfold, t);
 					t->ty = s->type->ref;
-					if (s->handler)
+					t->sym=s;
+					if (s->handler){
+						printf("using handler %s %p\n", s->name, s->handler);
 						t->handler=s->handler;
+						
+					}
 				}
 				else{
 					printf(" IS VARIABLE\n");
 											
 					t->ty = findType(POINTER, s->type, NULL, 0);  //pointer to the symbol's type
-					t->handler = hglobal;
+					if (local)
+						t->handler = hlocal;
+					else
+						t->handler = hglobal;
 					t->val.as.ptr.block = 0;
 					t->val.as.ptr.offset= s->offset;
 					
@@ -1257,7 +1330,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 }
 
-void exe (exectxT* c, tokenT* t){
+void exe (exectxT* c, struct tokenS* t){
 	zuint32 i;
 	
 	while(t){
@@ -1271,7 +1344,9 @@ void exe (exectxT* c, tokenT* t){
 		
 		
 		if (!handler)
-			ERR("null handler\n");
+			ERR("null handler for %s\n", str);
+			
+		
 		//getc(stdin);
 		t = handler(c,t);
 		printf(">> %s\n",str);
@@ -1292,7 +1367,6 @@ void exe (exectxT* c, tokenT* t){
 	}
 		
 }
-
 
 void start(parsectxT* pctx, tokenT* t){
 	exectxT* exectx = ram_alloc(sizeof(exectxT), NULL);
@@ -1321,6 +1395,7 @@ struct tokenS* hadd32 (exectxT* ex, tokenT* t) {
 	ex->stack[ex->sp-2].as.z32 += ex->stack[ex->sp-1].as.z32;
 	ex->sp--;
 	
+	printf(" add\n");
 	
 	return tnext(t);
 }
@@ -1355,9 +1430,30 @@ struct tokenS* hstore32 (exectxT* ex, tokenT* t) {
 }
 
 
+struct tokenS* hcall (exectxT* ex, tokenT* t) {
+	exe(ex, t->subs.head); //evaluate all the args (all after the head)
+	printf(" CALLING PROC %s\n", t->str);
+	
+	
+	void* oldlocal = ex->vars;   //take old local var data
+	
+
+	printf(" PROC has context size %d\n", t->sym->subctx->size);
+	
+	printList(t->sym->t, NULL, 0, 0);
+	
+	ex->vars =  ram_alloc(t->sym->subctx->size , NULL);
+	
+	exe(ex, t->sym->t->subs.head->next);
+	
+	//todo:handle return value, putting stack back together
+	return tnext(t);
+}
 
 
-
+struct tokenS* hbreak (exectxT* ex, tokenT* t){
+	return NULL; //stop instructions stream
+}
 
 int main(int argc, char** args){
 
