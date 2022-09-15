@@ -30,6 +30,7 @@ typedef struct valueS{
 typedef struct exectxS{
 	valueT* stack;
 	zuint32	sp;
+	zuint32 fp;
 	char* vars; 
 	char* globalvars; 
 }exectxT;
@@ -608,7 +609,8 @@ zbool cmpTypeListToFunc(zvecT* f, zvecT* b){
 typedef struct parsectxS{
 	zvecT* symbols;
 	zuint32	size;	//size of variables in this table
-	int endable;
+	typeT* type;  //if in a procedure, we need to know about its return type and args
+	int endable;// true if in a 'proc' or other executable block that can be 'ended' 
 }parsectxT;
 
 
@@ -984,6 +986,13 @@ struct tokenS* hlocal (exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
+struct tokenS* hstackread (exectxT* ex, tokenT* t) {
+	//grab from stack, relative to fp
+	ex->stack[(ex->sp)++] = ex->stack[ ex->fp + t->val.as.z32 ];
+	return tnext(t);
+}
+
+
 
 #define DEREF(TYPE,BASE,OFFSET)      *((TYPE*)(((char*)(BASE))+(OFFSET)))
 
@@ -1019,7 +1028,14 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 	symbolT* s= NULL;
 	zvecT* v=NULL;
 	instruction handler = NULL;
+
+	tokenT* top = t;
+	
 	int local=0;//true when a found symbol is from the local context
+	
+	printf(" PARSE IN SYM %s %p\n", t->sym? t->sym->name : "none", t->sym? t->sym->type : NULL);
+	if (t->sym)
+		printType(t->sym->type, 1,1);
 	
 	while ( t) {
 
@@ -1078,6 +1094,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				//procedures go into a body of statements
 				s->subctx = mkcontext();
 				s->subctx->endable=1; //its a subcontext
+				s->subctx->type = s->type;
+				t->sym=s;
 				t = parse(s->subctx, t);
 				s->handler = hcall;
 				
@@ -1094,6 +1112,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			//todo: check return type
 			//allow return no value
+						
 			t->handler = hbreak;
 			fold(tprev(t),t);
 			t=tnext(t);
@@ -1318,6 +1337,30 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				continue;	
 			}//end s
 			
+			//check stack variables
+			printf("Check this:\n");
+			
+			if (top->sym && top->sym->type && top->sym->type->members){
+				int k;
+				int count = zvec_count(top->sym->type->members);
+				int found=0;
+				for (k=0;k<count;k++){
+					typeT* ty= zvec_get_x_at( top->sym->type->members, typeT*, k);
+					if (!strcmp(ty->name, t->str)){
+						int so = -count+k;
+						printf("Found %s  stack pos fp+%d, of type ", ty->name, so);
+						printType(ty->ref,ZTRUE, ZFALSE);
+						t->ty = ty->ref;
+						t->handler = hstackread;
+						t->val.as.z32=so;
+						t=tnext(t);
+						found=1;
+						break;
+					}
+				}
+				if (found)
+					continue;
+			}
 			
 			ERR("Undefined symbol:%s\n", t->str);
 			
@@ -1432,27 +1475,61 @@ struct tokenS* hstore32 (exectxT* ex, tokenT* t) {
 
 struct tokenS* hcall (exectxT* ex, tokenT* t) {
 	exe(ex, t->subs.head); //evaluate all the args (all after the head)
+	
+	
+	
 	printf(" CALLING PROC %s\n", t->str);
 	
+	printf("pre call SP:%d  FP:%d\n", ex->sp, ex->fp); 
+	
+	zuint32 oldfp = ex->fp;  //save frame pointer
+	
+	ex->fp=ex->sp;
+		
+	printf(" enter call SP:%d  FP:%d\n", ex->sp, ex->fp); 
 	
 	void* oldlocal = ex->vars;   //take old local var data
 	
-
-	printf(" PROC has context size %d\n", t->sym->subctx->size);
 	
+	printf(" PROC has context size %d\n", t->sym->subctx->size);
 	printList(t->sym->t, NULL, 0, 0);
 	
+	;
 	ex->vars =  ram_alloc(t->sym->subctx->size , NULL);
-	
 	exe(ex, t->sym->t->subs.head->next);
+	printf(" exit call SP:%d  FP:%d\n", ex->sp, ex->fp); 
 	
+	
+	//todo:  manipulate frame pointer to get rid of passed values
+	
+	if (t->sym->type->members)
+		ex->fp -=  zvec_count(t->sym->type->members);  //subtract out all passed values
+	
+	
+	if (t->sym->type->ref) {
+		ex->stack[ex->fp++] = ex->stack[ex->sp-1];  //copy last value to the frame pointer  todo: make this conditional
+		printf(" Function returns ");printType(t->sym->type->ref,1,1);
+	} else {
+		printf(" Function returns nothing\n");
+	}
+
+	ram_free(oldlocal);
+	
+	ex->sp = ex->fp;//put stack back to repositioned fp
+	ex->fp=oldfp;  //put old frame pointer back
+	ex->vars = oldlocal;//put old vars back
+	
+		
+	printf(" return to  caller complete SP:%d  FP:%d\n", ex->sp, ex->fp); 		
+		
 	//todo:handle return value, putting stack back together
 	return tnext(t);
 }
 
 
 struct tokenS* hbreak (exectxT* ex, tokenT* t){
-	return NULL; //stop instructions stream
+	exe(ex, t->subs.head); //evaluate all the args (all after the head)
+	return NULL; //stop instructions stream (process subs first, as they might be return values or something)
 }
 
 int main(int argc, char** args){
