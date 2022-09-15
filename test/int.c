@@ -1256,7 +1256,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				printf("\n");
 				if (!pos)
 					break;
-				
+				s=NULL;
 				if (pc != global){
 					local=1;
 					s= findSymbol(pc->symbols, t->str, v);
