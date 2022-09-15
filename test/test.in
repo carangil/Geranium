@@ -175,4 +175,33 @@ rnv
 1000 1000 1000 500 add4
 
 
+type point
+	x:Z32;
+	y:Z32;
+end
+
+type line
+	a:point;
+	b:point
+end
+
+var li:line;
+
+
+5 li.a.x=
+6 li.a.y=
+7 li.b.x=
+8 li.b.y=
+
+
+li.a.x 
+li.b.x 
+li.a.y 
+li.b.y 
+
+li.b&
+
+.y&@
+
+
 

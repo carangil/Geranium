@@ -528,6 +528,23 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 	return NULL;
 }
 
+typeT* findTypeMember(typeT* type, char* name,  int* pos , int* count){
+	int k;
+	for (k=0;k<   zvec_count(type->members) ;k++){
+				
+		typeT* ty= zvec_get_x_at( type->members, typeT*, k);
+			if (!strcmp(ty->name, name) ){
+				if (pos)
+					*pos=k;
+				
+				if (count)
+					*count = zvec_count(type->members);
+				return ty;
+			}
+	}
+	return NULL;
+}
+
 /*debugging list printer*/
 void printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indent){
 
@@ -1021,6 +1038,16 @@ struct tokenS* hloadptr (exectxT* ex, tokenT* t) {
 }
 
 
+struct tokenS* hoffsetptr (exectxT* ex, tokenT* t) {
+	
+	exe(ex, t->subs.head);
+		
+	ex->stack[ex->sp-1].as.ptr.offset += t->val.as.n32;
+	
+	return tnext(t);
+}
+
+
 
 tokenT*  parse(parsectxT* pc, tokenT* t) {
 	
@@ -1144,6 +1171,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				printf(" Defined type %s as %s\n", name, tprev(t)->str);
 				t=tnext(t);
 				lfold(ts,t); //includes 'end' in the fold
+				zlist_remove_mid(ts);
 								
 				continue;
 			}
@@ -1195,12 +1223,16 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 		case '@':  //try to handle loading ptr to ptr.  Top of stack has a pointer to the pointer var
 			
-				
-			if (tnext(t)->tok=='='){
+			//if 'getting' a variable that is going to be assigned to, or have a sturct member taken, defer the 'dereference'
+			if (	(tnext(t)->tok=='=') ||
+				(tnext(t)->str && tnext(t)->str[0]=='.')
+			){
 				t=tnext(t);
 				zlist_remove_mid(ts);
 				continue;
 			}
+			
+			
 			
 			if ( tprev(t)->ty && (tprev(t)->ty->category == POINTER) && (tprev(t)->ty->ref->category == POINTER)){
 				printf("general pointer to pointer load\n");
@@ -1325,7 +1357,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					
 					if (tnext(t)->tok=='&')   {
 						zlist_remove_mid(tnext(t));
-					} else if (tnext(t)){
+					} else {  //else if (tnext(t)){
 						tokenT* tn = mkToken('@', "@", 1);  //load the variable
 						zlist_insert_node_after(t, tn);
 					}
@@ -1341,30 +1373,63 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			printf("Check this:\n");
 			
 			if (top->sym && top->sym->type && top->sym->type->members){
-				int k;
-				int count = zvec_count(top->sym->type->members);
-				int found=0;
-				for (k=0;k<count;k++){
-					typeT* ty= zvec_get_x_at( top->sym->type->members, typeT*, k);
-					if (!strcmp(ty->name, t->str)){
-						int so = -count+k;
-						printf("Found %s  stack pos fp+%d, of type ", ty->name, so);
-						printType(ty->ref,ZTRUE, ZFALSE);
-						t->ty = ty->ref;
-						t->handler = hstackread;
-						t->val.as.z32=so;
-						t=tnext(t);
-						found=1;
-						break;
-					}
-				}
-				if (found)
+				int count =0;
+				int pos=0;
+				
+				
+				typeT* m = findTypeMember( top->sym->type, t->str, &pos, &count);
+				
+				if (m){
+					int so = -count+pos;
+					printf("Found %s  stack pos fp+%d, of type   ", m->name, so);
+					printType(m->ref,ZTRUE, ZFALSE);
+					t->ty = m->ref;
+					t->handler = hstackread;
+					t->val.as.z32=so;
+					t=tnext(t);
 					continue;
+				}
+				
+			}
+			
+			//check if struct member
+			if (t->str && t->str[0]=='.'){
+				
+				if (tprev(t)->ty && (tprev(t)->ty->category == POINTER )&& (tprev(t)->ty->ref)){
+				
+					
+					
+					typeT* m = findTypeMember( tprev(t)->ty->ref, t->str+1, NULL, NULL);
+					printf(" OFFSET %d for %s in %s\n", m->offset,t->str+1, tprev(t)->ty->ref->name );
+					
+					t->handler = hoffsetptr;
+					t->val.as.n32 = m->offset;
+					t->ty = findType(POINTER, m->ref, NULL,0); //find pointer to the member type
+					
+					fold(tprev(t),t);
+					
+					
+					if (tnext(t)->tok=='&')   {
+						zlist_remove_mid(tnext(t));
+					} else {  //else if (tnext(t)){
+						tokenT* tn = mkToken('@', "@", 1);  //load the variable
+						zlist_insert_node_after(t, tn);
+					}
+					
+					
+					t=tnext(t);
+					
+					
+					
+					
+					continue;
+				}
+				
 			}
 			
 			ERR("Undefined symbol:%s\n", t->str);
 			
-			//anything else
+			
 		}//end str
 		printf("?How to parse %x %c\n", t->tok, t->tok);
 		ERR("Unimplemented\n");
