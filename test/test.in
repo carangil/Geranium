@@ -178,11 +178,14 @@ rnv
 type point
 	x:Z32;
 	y:Z32;
+	pi:Z32*;
 end
 
 type line
 	a:point;
-	b:point
+	b:point;
+	pp:point*;
+	ints:[10 Z32];
 end
 
 var li:line;
@@ -203,5 +206,43 @@ li.b&
 
 .y&@
 
+var ints:[5 Z32];
+10 ints 0[]=
+20 ints 1[]=
+30 ints 2[]=
 
 
+var points:[10 point];
+
+10 points 1 [] .x=
+20 points 1 [] .y=
+33 points 2 [] .x=
+44 points 2 [] .y=
+
+var p:point;
+77 p.y=
+
+y& points 1[].pi=
+33 y=
+y
+
+points 1[].pi@
+
+55 points 1[].pi@=
+
+y
+
+
+p& li.pp=
+
+p.y
+li.pp@.y
+
+//li.pp
+
+888 li.ints 2[]=
+
+//ppp & //li.pp=
+
+ints 2[]
+li.ints 2[]

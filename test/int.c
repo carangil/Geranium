@@ -6,7 +6,7 @@
 #include "zlist.h"
 #include "zvector.h"
 
-#define ERR( ...) { fprintf(stderr,__VA_ARGS__); exit(1);}
+#define ERR( ...) { fprintf(stderr,__VA_ARGS__);  exit(1);}
 
 typedef struct vptrS{
 	zuint32 offset;
@@ -1047,6 +1047,14 @@ struct tokenS* hoffsetptr (exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
+struct tokenS* hindex(exectxT* ex, tokenT* t) {
+	exe(ex, t->subs.head);
+	
+	ex->stack[ex->sp-2].as.ptr.offset +=    ex->stack[ex->sp-1].as.ptr.offset   * t->val.as.n32;
+	ex->sp--;
+	return tnext(t);
+}
+
 
 
 tokenT*  parse(parsectxT* pc, tokenT* t) {
@@ -1201,9 +1209,26 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		case PAIR('[',']'):
 			//todo: check its an integer, and type is an array
 			//array accesshload32
+						
 			ts = tprev(tprev(t));
 			fold(ts, t);
-			t->ty = ts->ty->ref;
+			//ts->ty is pointer to array  (sizeof ptr)
+			//ts->ty->ref is array of something (sizeof the array)
+			//ts->ty->ref->ref is the element type 
+			
+			printType( ts->ty->ref->ref, 0,0);
+			
+			t->ty = findType(POINTER, ts->ty->ref->ref, NULL,0);
+			
+			t->handler = hindex;
+			t->val.as.n32 = ts->ty->ref->ref->size;
+			printf(" array element size %d\n", t->val.as.n32);
+			
+			if (tnext(t)->tok=='&')
+				zlist_remove_mid(tnext(t)) ;
+			else
+				zlist_insert_node_after(t, &mkToken('@', "@", 1)->zlistnode );
+			
 			t=tnext(t);
 			continue;
 		
@@ -1357,7 +1382,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					
 					if (tnext(t)->tok=='&')   {
 						zlist_remove_mid(tnext(t));
-					} else {  //else if (tnext(t)){
+					} else if (s->type->category!=ARRAY) {  //else if (tnext(t)){
 						tokenT* tn = mkToken('@', "@", 1);  //load the variable
 						zlist_insert_node_after(t, tn);
 					}
@@ -1391,43 +1416,49 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				}
 				
 			}
+			printf(" check if struct member\n");
 			
 			//check if struct member
 			if (t->str && t->str[0]=='.'){
-				
+				printf(" dot\n");
 				if (tprev(t)->ty && (tprev(t)->ty->category == POINTER )&& (tprev(t)->ty->ref)){
 				
-					
+					printf(" look for member\n");
 					
 					typeT* m = findTypeMember( tprev(t)->ty->ref, t->str+1, NULL, NULL);
-					printf(" OFFSET %d for %s in %s\n", m->offset,t->str+1, tprev(t)->ty->ref->name );
+					if (m){
+						
 					
-					t->handler = hoffsetptr;
-					t->val.as.n32 = m->offset;
-					t->ty = findType(POINTER, m->ref, NULL,0); //find pointer to the member type
-					
-					fold(tprev(t),t);
-					
-					
-					if (tnext(t)->tok=='&')   {
-						zlist_remove_mid(tnext(t));
-					} else {  //else if (tnext(t)){
-						tokenT* tn = mkToken('@', "@", 1);  //load the variable
-						zlist_insert_node_after(t, tn);
-					}
-					
-					
-					t=tnext(t);
-					
-					
-					
-					
-					continue;
-				}
+						printf(" OFFSET %d for %s in %s\n", m->offset,t->str+1, tprev(t)->ty->ref->name );
+						
+						t->handler = hoffsetptr;
+						t->val.as.n32 = m->offset;
+						t->ty = findType(POINTER, m->ref, NULL,0); //find pointer to the member type
+						
+						fold(tprev(t),t);
+						
+						
+						if (tnext(t)->tok=='&')   {
+							zlist_remove_mid(tnext(t));
+						}  else if (  m->ref->category != ARRAY   ){ //don't insert a load if struct member is an array
+							tokenT* tn = mkToken('@', "@", 1);  //load the variable
+							zlist_insert_node_after(t, tn);
+						}
+						
+						
+						t=tnext(t);
+						
+						
+						
+						
+						continue;
+					} //end found matching member
+					printf(" no found\n");
+				}//end has ref type
 				
 			}
-			
-			ERR("Undefined symbol:%s\n", t->str);
+						
+			ERR("Undefined symbol:%s\n\n", t->str);
 			
 			
 		}//end str
