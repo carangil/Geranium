@@ -66,9 +66,10 @@ void exe (exectxT* c, struct tokenS* t);
 #define KPRIMITIVE	0x8003
 #define KPROC		0x8004
 #define KRETURN		0x8005
+#define KIF		0x8006
 
 
-char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", NULL};
+char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", NULL};
 zuint32 findKeyword(char* c){
 	if (c)
 		for (int i=0;keywords[i];i++) 
@@ -1055,6 +1056,19 @@ struct tokenS* hindex(exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
+struct tokenS* hif (exectxT* ex, tokenT* t) {
+
+	
+	if ( ex->stack[ex->sp-1].as.z32){
+		ex->sp--;//pop it off
+		
+		//if top of stack is true, run the subs
+		exe(ex, t->subs.head); //evaluate all the args (all after the head)	
+		
+	}
+	return tnext(t);
+}
+
 
 
 tokenT*  parse(parsectxT* pc, tokenT* t) {
@@ -1151,6 +1165,21 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t->handler = hbreak;
 			fold(tprev(t),t);
 			t=tnext(t);
+			
+			
+			continue;
+			
+		case KIF:
+			ts=t;
+			t->handler = hif;
+			pc->endable=1;
+			t=parse(pc, tnext(t));  //parse until 'end'
+			
+			printf(" parsed if until %s\n", t->str);
+			
+			t=tnext(t);
+			zlist_remove_mid(tprev(t));
+			lfold(ts, t); 
 			
 			
 			continue;
@@ -1569,6 +1598,15 @@ struct tokenS* hstore32 (exectxT* ex, tokenT* t) {
 }
 
 
+
+
+struct tokenS* hbreak (exectxT* ex, tokenT* t){
+	exe(ex, t->subs.head); //evaluate all the args (all after the head)
+	return NULL; //stop instructions stream (process subs first, as they might be return values or something)
+}
+
+
+
 struct tokenS* hcall (exectxT* ex, tokenT* t) {
 	exe(ex, t->subs.head); //evaluate all the args (all after the head)
 	
@@ -1622,11 +1660,6 @@ struct tokenS* hcall (exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
-
-struct tokenS* hbreak (exectxT* ex, tokenT* t){
-	exe(ex, t->subs.head); //evaluate all the args (all after the head)
-	return NULL; //stop instructions stream (process subs first, as they might be return values or something)
-}
 
 int main(int argc, char** args){
 

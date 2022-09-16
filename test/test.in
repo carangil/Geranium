@@ -246,3 +246,11 @@ li.pp@.y
 
 ints 2[]
 li.ints 2[]
+10
+
+66 x=
+1 if
+	55 x=
+end
+
+x
