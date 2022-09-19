@@ -18,7 +18,6 @@ typedef struct vptrS{
 typedef union valu {
 		zint32 z32;
 		zint32 n32;
-		float f;
 		vptrT ptr;
 	} valU;
 	
@@ -33,6 +32,7 @@ typedef struct exectxS{
 	zuint32 fp;
 	char* vars; 
 	char* globalvars; 
+	int ret;
 }exectxT;
 
 
@@ -47,6 +47,7 @@ typedef struct tokenS{
 	struct typeS* ty;	//type of this token
 	valueT val;
 	zlistT subs;	//make a tree out of token list
+	struct tokenS* alternative;	//makes else easier
 	instruction handler; 
 	struct symbolS* sym;  //for things like procs that have a bunch of context info
 }tokenT;
@@ -67,9 +68,12 @@ void exe (exectxT* c, struct tokenS* t);
 #define KPROC		0x8004
 #define KRETURN		0x8005
 #define KIF		0x8006
+#define KELSE		0x8007
+#define KBEGIN		0x8008
+#define KELSEIF		0x8009
 
 
-char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", NULL};
+char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "_begin", "elseif", NULL};
 zuint32 findKeyword(char* c){
 	if (c)
 		for (int i=0;keywords[i];i++) 
@@ -628,7 +632,7 @@ typedef struct parsectxS{
 	zvecT* symbols;
 	zuint32	size;	//size of variables in this table
 	typeT* type;  //if in a procedure, we need to know about its return type and args
-	int endable;// true if in a 'proc' or other executable block that can be 'ended' 
+	int endable;
 }parsectxT;
 
 
@@ -698,7 +702,7 @@ void printSymbols(zvecT* table , char* label){
 		printf("#%x\t%s\t", sym->offset, sym->name);
 		printType(sym->type, ZTRUE,ZFALSE);
 		if (sym->t){
-			printList(sym->t, NULL, 0,0);
+// 			printList(sym->t, NULL, 0,0);
 			printf("--\n");
 		}
 		
@@ -790,6 +794,8 @@ tokenT*  parseType(tokenT* t) {
 			continue;
 			
 		}
+		
+		
 
 		if (!named && t->tok == NAME){ //simple typename, but only 1 per 'type'
 					       //printf(" type %s\n", t->str);
@@ -967,7 +973,7 @@ tokenT*  parseVar(tokenT* t,  char** nameOut, typeT** typeOut) {
 
 }
 
-typeT *tPrimitive, *tZ32, *tN32, *tN8, *tR32;
+typeT *tPrimitive, *tZ32, *tN32, *tN8;
 
 
 
@@ -1027,7 +1033,8 @@ struct tokenS* hstoreptr (exectxT* ex, tokenT* t) {
 }
 
 struct tokenS* hcall (exectxT* ex, tokenT* t);
-struct tokenS* hbreak (exectxT* ex, tokenT* t);
+struct tokenS* hreturn (exectxT* ex, tokenT* t);
+struct tokenS* hgroup (exectxT* ex, tokenT* t);
 
 struct tokenS* hloadptr (exectxT* ex, tokenT* t) {
 	
@@ -1059,14 +1066,20 @@ struct tokenS* hindex(exectxT* ex, tokenT* t) {
 struct tokenS* hif (exectxT* ex, tokenT* t) {
 
 	
-	if ( ex->stack[ex->sp-1].as.z32){
-		ex->sp--;//pop it off
-		
+	if ( ex->stack[ex->sp-1].as.z32){		
 		//if top of stack is true, run the subs
 		exe(ex, t->subs.head); //evaluate all the args (all after the head)	
 		
+	} else if (t->alternative){
+		printf(" ELSE alternative\n");
+		exe(ex, t->alternative); //evaluate all the args (all after the head)
 	}
+		
 	return tnext(t);
+}
+
+struct tokenS* hbreakblock (exectxT* ex, tokenT* t) {
+	return NULL;//stop running this block of instructions
 }
 
 
@@ -1078,7 +1091,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 	zvecT* v=NULL;
 	instruction handler = NULL;
 
-	tokenT* top = t;
+	
 	
 	int local=0;//true when a found symbol is from the local context
 	
@@ -1099,17 +1112,46 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		ts = t;
 			
 		switch (t->tok){
+		
+			
+		case KELSEIF:
+			fold(tprev(t), t); //fold condition under elseif
+			t=tnext(t);
+			continue;
+			
+		case KELSE:
+			
+			t = tnext(t);
+			continue;
 			
 		case KEND:
 			
 			if (pc->endable){
-				printf(" exiting proc def\n");
+				pc->endable--;
+				printf(" 'end' block \n");
 				return t;
 			}
 			
 			ERR(" Cannot 'end' in the global context\n");
 		
-		
+		case KBEGIN:
+			
+			ts = t;
+			ts->handler = hgroup; //perform a group of statements
+			pc->endable++;
+			t = parse(pc, tnext(t)); //gather statements until an 'end'
+			
+			if (t->tok != KEND){
+				ERR("expected end\n");
+			
+			}
+			
+			t=tnext(t);
+			zlist_remove_mid(tprev(t)); //remove 'end' from tree
+			lfold(ts, t);
+			
+			
+			continue;
 			
 			
 		case KPRIMITIVE:	//primitive declaration
@@ -1142,12 +1184,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (ts->tok == KPROC){
 				//procedures go into a body of statements
 				s->subctx = mkcontext();
-				s->subctx->endable=1; //its a subcontext
+				s->subctx->endable++; //its a subcontext
 				s->subctx->type = s->type;
 				t->sym=s;
+				s->handler = hcall;  //need to set handler before parsing, in case of recursion
 				t = parse(s->subctx, t);
-				s->handler = hcall;
-				
 			} else if (t->tok != ';') {
 				printf(" missing ;\n");
 			}
@@ -1162,27 +1203,42 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//todo: check return type
 			//allow return no value
 						
-			t->handler = hbreak;
+			t->handler = hreturn;
 			fold(tprev(t),t);
 			t=tnext(t);
-			
-			
+						
 			continue;
-			
+						
 		case KIF:
+					
 			ts=t;
-			t->handler = hif;
-			pc->endable=1;
-			t=parse(pc, tnext(t));  //parse until 'end'
+			pc->endable++;
+			printf(" entering if: endable=%d\n", pc->endable);
+			t = parse(pc, tnext(t));  //continue parsing until end or else
 			
-			printf(" parsed if until %s\n", t->str);
+			tokenT* els;
+			for (els=ts;els!=t; els=tnext(els)){
+				if (els->tok==KELSE){
+					ts->alternative = tnext(els);  //point alternative here
+					els->handler = hbreakblock; //if when the 'true' cases hit the else, it will break the block
+					break;
+				}
+				//scan for the else
+			}
+									
 			
+			if (t->tok!=KEND)
+				ERR("Expected END\n");
+			
+						
 			t=tnext(t);
 			zlist_remove_mid(tprev(t));
-			lfold(ts, t); 
-			
-			
+			lfold(ts, t);
+			ts->handler=hif;
+						
 			continue;
+		
+					
 		case KTYPE:
 			if (tnext(t)->tok == NAME) 
 				name = tnext(t)->str;
@@ -1264,12 +1320,18 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		
 			
 		case ':': //typecast
-			
+			ts=t; //ts is colon
 			t = parseType(tnext(t));
-			t = tprev(t); //parsetype returns t for the next token
-			ts->ty = t->ty;
-			fold(tprev(ts), t);
-			t=tnext(t);
+			
+			lfold(ts, t);
+			fold( tprev(ts), ts);
+			
+			
+			//t = tprev(t); //parsetype returns t for the next token
+			//ts->ty = t->ty;
+			//fold(tprev(ts), t);
+			
+			//t=tnext(t);
 			
 			continue;
 		
@@ -1424,14 +1486,14 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}//end s
 			
 			//check stack variables
-			printf("Check this:\n");
+					
 			
-			if (top->sym && top->sym->type && top->sym->type->members){
+			if (pc->type){	 //set to function type if inside function
 				int count =0;
 				int pos=0;
 				
 				
-				typeT* m = findTypeMember( top->sym->type, t->str, &pos, &count);
+				typeT* m = findTypeMember( pc->type, t->str, &pos, &count);
 				
 				if (m){
 					int so = -count+pos;
@@ -1501,10 +1563,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 void exe (exectxT* c, struct tokenS* t){
 	zuint32 i;
 	
-	while(t){
-		
-		
-		
+	while(t && ! c->ret){  //until out of instructions, or a return is bubbling up
+						
 		instruction handler = t->handler;
 		
 		char* str=  safestr(t->str);
@@ -1533,6 +1593,7 @@ void exe (exectxT* c, struct tokenS* t){
 		printf("\n");
 		
 	}
+	
 		
 }
 
@@ -1543,7 +1604,7 @@ void start(parsectxT* pctx, tokenT* t){
 	printf(" PCTX %d bytes\n", pctx->size);
 	exectx->globalvars = ram_alloc(pctx->size , NULL);
 	
-	printf(" start\n");
+	printf("EXE\n");
 	for (int i=0;i<32;i++){
 			printf(",%02x ",  exectx->globalvars[i]  );
 			
@@ -1600,11 +1661,18 @@ struct tokenS* hstore32 (exectxT* ex, tokenT* t) {
 
 
 
-struct tokenS* hbreak (exectxT* ex, tokenT* t){
+struct tokenS* hreturn (exectxT* ex, tokenT* t){
 	exe(ex, t->subs.head); //evaluate all the args (all after the head)
+	ex->ret=1;  //returning from function
 	return NULL; //stop instructions stream (process subs first, as they might be return values or something)
 }
 
+struct tokenS* hgroup (exectxT* ex, tokenT* t){
+	exe(ex, t->subs.head); //evaluate all the args
+	
+	if (t->val.as.z32)
+		return tnext(t); //go on to the next step, if 
+}
 
 
 struct tokenS* hcall (exectxT* ex, tokenT* t) {
@@ -1631,6 +1699,13 @@ struct tokenS* hcall (exectxT* ex, tokenT* t) {
 	;
 	ex->vars =  ram_alloc(t->sym->subctx->size , NULL);
 	exe(ex, t->sym->t->subs.head->next);
+	
+	if (ex->ret){
+		printf(" Caught RET\n");
+	}
+	
+	ex->ret=0; //stop return bubble-up
+	
 	printf(" exit call SP:%d  FP:%d\n", ex->sp, ex->fp); 
 	
 	
@@ -1647,7 +1722,7 @@ struct tokenS* hcall (exectxT* ex, tokenT* t) {
 		printf(" Function returns nothing\n");
 	}
 
-	ram_free(oldlocal);
+	ram_free(ex->vars);
 	
 	ex->sp = ex->fp;//put stack back to repositioned fp
 	ex->fp=oldfp;  //put old frame pointer back

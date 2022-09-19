@@ -214,6 +214,7 @@ void ram_free(void* thing)
 		if (header->refcount<0)
 		{
 			fprintf(stderr,"ERROR: negative refcount on %p\n", thing);
+			*(char*)(0) = 1;  //Segfault to hit debugger
 		}
 
 		if (header->refcount ==0)
