@@ -249,8 +249,51 @@ li.ints 2[]
 10
 
 66 x=
+
+
+
+var a:Z32;
+100 a=
+200 x=
+
+0 if
+
+ 
+ 
+	1 if 
+		1111 x=
+	else
+		2222 x=
+	end
+ 
+	111 a=
+else 
+	
+ 222 a=
+end
+
+a x
+
+proc test:(a:Z32 ; b:Z32; c:Z32   >> Z32)
+
+a if
+	100 return
+  else
+	  200 return
+  end
+	8888
+
+end
+
+
+
+
+0 x=
+
 1 if
-	55 x=
+	100 x=
+
+	300 x=
 end
 
 x

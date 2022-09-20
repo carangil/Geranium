@@ -69,11 +69,11 @@ void exe (exectxT* c, struct tokenS* t);
 #define KRETURN		0x8005
 #define KIF		0x8006
 #define KELSE		0x8007
-#define KBEGIN		0x8008
+#define KTHEN		0x8008
 #define KELSEIF		0x8009
+#define KCOND		0x800a
 
-
-char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "_begin", "elseif", NULL};
+char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "_then", "elseif", "_cond", NULL};
 zuint32 findKeyword(char* c){
 	if (c)
 		for (int i=0;keywords[i];i++) 
@@ -95,6 +95,17 @@ tokenT* mkToken(zuint32 tok, char* str, zuint32 len){
 			t->tok = b;
 	}
 	return t;
+}
+
+tokenT* retoken(tokenT* t, zuint32 newtok, char* newstr){
+	if (t){
+		t->tok = newtok;
+		ram_free(t->str);
+		if (newstr)
+			t->str= zstrdup(newstr);
+		else
+			t->str = NULL;
+	}
 }
 
 tokenT* addSub( tokenT* token, tokenT* sub){
@@ -1065,16 +1076,19 @@ struct tokenS* hindex(exectxT* ex, tokenT* t) {
 
 struct tokenS* hif (exectxT* ex, tokenT* t) {
 
-	
-	if ( ex->stack[ex->sp-1].as.z32){		
+	exe(ex, t->subs.head); //eval condition
+	ex->sp--;
+	if ( ex->stack[ex->sp].as.z32){		
 		//if top of stack is true, run the subs
-		exe(ex, t->subs.head); //evaluate all the args (all after the head)	
+		exe(ex, t->subs.head->next); //evaluate true condition
 		
-	} else if (t->alternative){
-		printf(" ELSE alternative\n");
-		exe(ex, t->alternative); //evaluate all the args (all after the head)
-	}
+		return tnext(t); //done
 		
+	} 
+	
+	exe(ex, t->subs.head->next->next);
+	
+	
 	return tnext(t);
 }
 
@@ -1114,15 +1128,6 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		switch (t->tok){
 		
 			
-		case KELSEIF:
-			fold(tprev(t), t); //fold condition under elseif
-			t=tnext(t);
-			continue;
-			
-		case KELSE:
-			
-			t = tnext(t);
-			continue;
 			
 		case KEND:
 			
@@ -1134,24 +1139,6 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			ERR(" Cannot 'end' in the global context\n");
 		
-		case KBEGIN:
-			
-			ts = t;
-			ts->handler = hgroup; //perform a group of statements
-			pc->endable++;
-			t = parse(pc, tnext(t)); //gather statements until an 'end'
-			
-			if (t->tok != KEND){
-				ERR("expected end\n");
-			
-			}
-			
-			t=tnext(t);
-			zlist_remove_mid(tprev(t)); //remove 'end' from tree
-			lfold(ts, t);
-			
-			
-			continue;
 			
 			
 		case KPRIMITIVE:	//primitive declaration
@@ -1208,34 +1195,92 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t=tnext(t);
 						
 			continue;
-						
+	
+			
+		case KELSEIF:
+			//insert else for breakblock
+			//zlist_insert_node_after(tprev(tprev(t)), mkToken(KELSE, "els", 3));
+			//fold(tprev(t), t); //fold condition under elseif
+			//ts=t;
+			//t=parse(pc,tnext(t));
+			//lfold(ts, tprev(t));
+			//eturn t;
+			t=tnext(t);
+			continue;
+			
+		case KELSE:
+			
+			/*
+			ts = t;
+			t = parse(pc,tnext(t));  //t returned should be 'end'
+			
+			fold(ts, t); //fold all the false statrments under elseif
+			retoken(t, KELSE, "els");
+		
+			
+		*/
+			t=tnext(t);
+			continue;
 		case KIF:
-					
+			
 			ts=t;
+			tokenT* c;
+			int tok;
+			
+			zlist_insert_node_after(tprev(t),  c=mkToken(KCOND,"cond",4));
+			fold (tprev(tprev(t)), tprev(t)); 
+			fold (tprev(t), t);  //put condition node inside if
+			c->handler = hgroup;
+			
 			pc->endable++;
 			printf(" entering if: endable=%d\n", pc->endable);
-			t = parse(pc, tnext(t));  //continue parsing until end or else
+			t = parse(pc, tnext(t));  //continue parsing until end
+			printf(" exiting if\n");
+			tokenT* end = t;
 			
+			printf(" T pointing at %s\n", t->str);
+			//now break up into pieces
+			
+			//tok = t->tok; //grab this
+			
+			t=tnext(t);  //go past end
+			printf(" T pointing at %s\n", t->str);
+			lfold (ts, t); //fold all under this token
+			printf(" T pointing at %s\n", t->str);
+						
 			tokenT* els;
-			for (els=ts;els!=t; els=tnext(els)){
-				if (els->tok==KELSE){
-					ts->alternative = tnext(els);  //point alternative here
-					els->handler = hbreakblock; //if when the 'true' cases hit the else, it will break the block
+			tokenT* ls;
+			
+			
+			ls = tnext(c);
+			for (els=tnext(c);els; els=tnext(els)){
+				printf("INIF %s\n", els->str);
+				
+				if (els->tok == KELSE){
+					
+					//hit the else token, so everything up to here is the 'then'
+					zlist_insert_node_after(tprev(els), mkToken(KTHEN, "then",4));
+					fold(ls,tprev(els));
+					tprev(els)->handler=hgroup;
+					els->handler = hgroup;
+					//printf("to %s\n", t->str);
+					lfold(els, end);
 					break;
 				}
-				//scan for the else
+				
+				
 			}
 									
 			
-			if (t->tok!=KEND)
-				ERR("Expected END\n");
+			//if (t->tok!=KEND)
+			//	ERR("Expected END\n");
 			
 						
-			t=tnext(t);
-			zlist_remove_mid(tprev(t));
-			lfold(ts, t);
+			//t=tnext(t);
+			//zlist_remove_mid(tprev(t));
+		//	lfold(ts, t);
 			ts->handler=hif;
-						
+			printf(" T pointing at %s\n", t->str);
 			continue;
 		
 					
@@ -1572,25 +1617,21 @@ void exe (exectxT* c, struct tokenS* t){
 		
 		
 		if (!handler)
-			ERR("null handler for %s\n", str);
+			ERR("null handler for %c %s\n", t->tok, str);
 			
 		
 		//getc(stdin);
 		t = handler(c,t);
 		printf(">> %s\n",str);
-		printf("\nsp %x|", c->sp);
+		printf("sp %x|", c->sp);
 		
 		
 		for (i=0;i<c->sp;i++){
 			printf("(%p+%x)/%d ", c->stack[i].as.ptr.block,c->stack[i].as.ptr.offset, c->stack[i].as.z32);
 			
 		}	
-		printf("\n");
-		for (i=0;i<32;i++){
-			printf("%02x ", c->globalvars[i]&0xff);
-			
-		}
-		printf("\n");
+		printf("\n\n");
+		
 		
 	}
 	
@@ -1605,11 +1646,12 @@ void start(parsectxT* pctx, tokenT* t){
 	exectx->globalvars = ram_alloc(pctx->size , NULL);
 	
 	printf("EXE\n");
+	/*
 	for (int i=0;i<32;i++){
 			printf(",%02x ",  exectx->globalvars[i]  );
 			
 	}
-	printf(" \n");
+	printf(" \n");*/
 	
 	exe(exectx, t);
 	
@@ -1671,7 +1713,9 @@ struct tokenS* hgroup (exectxT* ex, tokenT* t){
 	exe(ex, t->subs.head); //evaluate all the args
 	
 	if (t->val.as.z32)
-		return tnext(t); //go on to the next step, if 
+		return tnext(t); //go on to the next step
+	printf("group finished, no continue\n");
+	return NULL;
 }
 
 
@@ -1777,7 +1821,7 @@ int main(int argc, char** args){
 			
 	printSymbols(global->symbols, "globals");
 	printList((tokenT*) tokens->head,NULL,ENDFILE, 0);
-	
+	getc(stdin);
 	start(global, (tokenT*)tokens->head->next);//run
 	
 	return 0;   
