@@ -1259,8 +1259,15 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				if (els->tok == KELSE){
 					
 					//hit the else token, so everything up to here is the 'then'
+					printf(" els prev is %p\n", tprev(els));
+						
 					zlist_insert_node_after(tprev(els), mkToken(KTHEN, "then",4));
-					fold(ls,tprev(els));
+				
+					printList(c, els, 0,0);
+					
+					if (ls != els)
+						fold(ls,tprev(els));
+					
 					tprev(els)->handler=hgroup;
 					els->handler = hgroup;
 					//printf("to %s\n", t->str);

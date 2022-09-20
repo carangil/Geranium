@@ -20,15 +20,16 @@ var a:Z32;
 	
 	
 else
-	1 if 
-		100
-		200
-	else
-		300
-		400
-	end
-		
-end
 	
-1111
+end
+
+555
+
+1 if
+
+	else
+	666
+end
+777
+
 
