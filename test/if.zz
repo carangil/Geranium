@@ -4,32 +4,75 @@ primitive load32	@:(a:Z32* 	>> Z32);
 primitive store32	=:(v:Z32; a:Z32*>> );
 
 
+proc sum:(a:Z32>>Z32)
+
+	var i:Z32;
+	var s:Z32;
+	
+	a i=
+	
+	loop
+		s i+s=
+		i -1+i=
+		i if else
+			break
+		end
+	
+	end
+	s return
+end
+
+
+
 var a:Z32;
 
 
+0 if
+100	
 
+0 elseif
+200
+0 elseif
+300
+else
 
-1 if
-	1 if
-		1000
-		2000
-	else
-		3000
-		4000
+1 if 33333 else 4000 end
+
+end
+
+500
+
+100 a=
+
+loop
+	a -1 + a=
+	
+	a if else
+		break
 	end
 	
-	
-else
-	
 end
 
-555
+10
 
-1 if
 
-	else
-	666
+100 sum
+
+var d:[10 Z32];
+var i:Z32;
+
+loop
+	i i + d i[]=
+	i 1+ i=
+	i -10 +  if else break end
 end
-777
-
+ 
+ 0 i=
+loop
+	d i[]
+	i 1+ i=
+	i -10 +  if else break end
+end
+ 
+ 
 

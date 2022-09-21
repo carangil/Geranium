@@ -32,10 +32,10 @@ typedef struct exectxS{
 	zuint32 fp;
 	char* vars; 
 	char* globalvars; 
-	int ret;
+	int stop;
 }exectxT;
-
-
+#define STOPFUNC 1
+#define STOPLOOP 2
 
 typedef struct tokenS* (*instruction) (exectxT*,struct tokenS* ) ;
 
@@ -60,6 +60,8 @@ void exe (exectxT* c, struct tokenS* t);
 #define ENDFILE		0x500
 #define PASTENDFILE	0x600
 #define STARTFILE	0x700
+#define COND		0x800a
+
 #define KWORDS		0x8000
 #define KVAR		0x8000
 #define KTYPE		0x8001
@@ -69,11 +71,11 @@ void exe (exectxT* c, struct tokenS* t);
 #define KRETURN		0x8005
 #define KIF		0x8006
 #define KELSE		0x8007
-#define KTHEN		0x8008
-#define KELSEIF		0x8009
-#define KCOND		0x800a
+#define KELSEIF		0x8008
+#define KLOOP		0x8009
+#define KBREAK		0x800a
 
-char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "_then", "elseif", "_cond", NULL};
+char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", NULL};
 zuint32 findKeyword(char* c){
 	if (c)
 		for (int i=0;keywords[i];i++) 
@@ -577,8 +579,6 @@ void printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indent){
 		printf("\n");
 		for (i=0;i<indent;i++) 
 			putc('\t', stdout);
-
-
 		
 		if ( (t->tok >20) && (t->tok < 0x7f))
 			printf("{%s %c  ",iscur, t->tok);
@@ -593,6 +593,7 @@ void printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indent){
 		if (t->ty) 
 			//printf("#%d# ",t->ty->tid);
 			printType(t->ty, ZFALSE, ZTRUE);
+
 		if (t->handler)
 			printf(" handler %p ", t->handler);
 
@@ -604,6 +605,9 @@ void printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indent){
 		printf("}");
 
 		if (t->tok == stop_tok)
+			break;
+		
+		if (t->tok == PASTENDFILE)
 			break;
 	}
 
@@ -1074,26 +1078,58 @@ struct tokenS* hindex(exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
-struct tokenS* hif (exectxT* ex, tokenT* t) {
 
-	exe(ex, t->subs.head); //eval condition
+struct tokenS* hcondblock (exectxT* ex, tokenT* t){
+	
+	
+	//run first instruction
+	tokenT* subs = t->subs.head;
+	
+	instruction handler =  subs->handler;
+	
+	if (!handler)
+		ERR(" Null handler on cond's first arg\n");
+	
+	subs = handler(ex, subs); 
+	
+	//check result;
+	
 	ex->sp--;
-	if ( ex->stack[ex->sp].as.z32){		
-		//if top of stack is true, run the subs
-		exe(ex, t->subs.head->next); //evaluate true condition
-		
-		return tnext(t); //done
-		
+	
+	if ( ex->stack[ex->sp].as.n32){
+			printf (" COND is true, execute body\n");
+			exe(ex, subs); //continue this  
+			printf(" EXIT CHAIN\n");
+			return NULL;
 	} 
+	printf(" COND was false, so call next in chain\n");
+	return tnext(t); //next one
+		
 	
-	exe(ex, t->subs.head->next->next);
 	
-	
-	return tnext(t);
+	exe(ex, t->subs.head); //evaluate all the args
 }
+
 
 struct tokenS* hbreakblock (exectxT* ex, tokenT* t) {
 	return NULL;//stop running this block of instructions
+}
+
+struct tokenS* hbreakloop (exectxT* ex, tokenT* t) {
+	ex->stop=STOPLOOP;
+	return NULL;//stop running this block of instructions
+}
+
+struct tokenS* hloop (exectxT* ex, tokenT* t) {
+	
+	while(!ex->stop){
+		exe(ex, t->subs.head);
+	}
+	if(ex->stop== STOPLOOP)
+		ex->stop=0;
+	
+	return tnext(t);
+	
 }
 
 
@@ -1116,8 +1152,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 	while ( t) {
 
 		if (t->tok==ENDFILE || t->tok== PASTENDFILE)
-			break;
-
+			return t;
+			
+		//printList( tprev(tprev(tprev(t))), t, PASTENDFILE,0);
+		printf(" parse token %s\n", t->str);
+		//getc(stdin);
 		char* name=NULL;
 		char* pname=NULL;
 		typeT* type=NULL;
@@ -1196,100 +1235,75 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						
 			continue;
 	
+		case KBREAK:
+			t->handler=hbreakloop;
+			t=tnext(t);
+			continue;
+		case KLOOP:
+			ts=t;
+			pc->endable++;
+			t = parse(pc, tnext(t));
+			t = tnext(t);
+			zlist_remove_mid(tprev(t));//remove 'end'
+			lfold(ts,t);
+			ts->handler=hloop;
 			
+			continue;
 		case KELSEIF:
-			//insert else for breakblock
-			//zlist_insert_node_after(tprev(tprev(t)), mkToken(KELSE, "els", 3));
-			//fold(tprev(t), t); //fold condition under elseif
-			//ts=t;
-			//t=parse(pc,tnext(t));
-			//lfold(ts, tprev(t));
-			//eturn t;
+			
+			//take previous node as the condition
+			fold (tprev(t), t);
+			t->handler = hcondblock;
 			t=tnext(t);
 			continue;
 			
 		case KELSE:
-			
-			/*
-			ts = t;
-			t = parse(pc,tnext(t));  //t returned should be 'end'
-			
-			fold(ts, t); //fold all the false statrments under elseif
-			retoken(t, KELSE, "els");
-		
-			
-		*/
+			t->handler = hgroup;
 			t=tnext(t);
 			continue;
+			
 		case KIF:
-			
 			ts=t;
-			tokenT* c;
-			int tok;
+			ts->handler = hgroup;
+			ts->val.as.n32=1;  //continue after group
 			
-			zlist_insert_node_after(tprev(t),  c=mkToken(KCOND,"cond",4));
-			fold (tprev(tprev(t)), tprev(t)); 
+			tokenT* cond;
+			zlist_insert_node_after(tprev(t),  cond=mkToken(COND,"cond",4));
+			fold (tprev(tprev(t)), tprev(t)); //condition statrment inside 'cond' wrapper
 			fold (tprev(t), t);  //put condition node inside if
-			c->handler = hgroup;
-			
+			cond->handler = hcondblock;
 			pc->endable++;
-			printf(" entering if: endable=%d\n", pc->endable);
-			t = parse(pc, tnext(t));  //continue parsing until end
-			printf(" exiting if\n");
+			printf(" START PARSE IF\n");
+			t = parse(pc, tnext(t));  //continue parsing until 'end'
+			printf(" PARSED TO END\n");
 			tokenT* end = t;
 			
-			printf(" T pointing at %s\n", t->str);
-			//now break up into pieces
 			
-			//tok = t->tok; //grab this
-			
-			t=tnext(t);  //go past end
-			printf(" T pointing at %s\n", t->str);
-			lfold (ts, t); //fold all under this token
-			printf(" T pointing at %s\n", t->str);
-						
-			tokenT* els;
-			tokenT* ls;
-			
-			
-			ls = tnext(c);
-			for (els=tnext(c);els; els=tnext(els)){
-				printf("INIF %s\n", els->str);
+		
+			t = tnext(t);
+		
+			lfold(ts, t); 
+
+			//scan
+			tokenT* cs=cond;
+			tokenT* ls=cs;
+			for (ls = cs;ls;ls=tnext(ls)){
 				
-				if (els->tok == KELSE){
+				printf("ls %p	%s\t",ls, ls->str);
+				printf("cs %p	%s\n",cs, cs->str);
+				if( (ls->tok==KEND)||(ls->tok==KELSEIF)||(ls->tok==KELSE)){
 					
-					//hit the else token, so everything up to here is the 'then'
-					printf(" els prev is %p\n", tprev(els));
-						
-					zlist_insert_node_after(tprev(els), mkToken(KTHEN, "then",4));
-				
-					printList(c, els, 0,0);
+					lfold(cs,ls);
 					
-					if (ls != els)
-						fold(ls,tprev(els));
-					
-					tprev(els)->handler=hgroup;
-					els->handler = hgroup;
-					//printf("to %s\n", t->str);
-					lfold(els, end);
-					break;
+					cs = ls;  
 				}
 				
-				
 			}
-									
+
 			
-			//if (t->tok!=KEND)
-			//	ERR("Expected END\n");
-			
-						
-			//t=tnext(t);
-			//zlist_remove_mid(tprev(t));
-		//	lfold(ts, t);
-			ts->handler=hif;
-			printf(" T pointing at %s\n", t->str);
 			continue;
-		
+			
+			
 					
 		case KTYPE:
 			if (tnext(t)->tok == NAME) 
@@ -1609,13 +1623,14 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		ERR("Unimplemented\n");
 			
 	} //end while
-
+	printf(" returning NULL token\n");
+	return NULL;
 }
 
 void exe (exectxT* c, struct tokenS* t){
 	zuint32 i;
 	
-	while(t && ! c->ret){  //until out of instructions, or a return is bubbling up
+	while(t && ! c->stop){  //until out of instructions, or a return is bubbling up
 						
 		instruction handler = t->handler;
 		
@@ -1712,7 +1727,7 @@ struct tokenS* hstore32 (exectxT* ex, tokenT* t) {
 
 struct tokenS* hreturn (exectxT* ex, tokenT* t){
 	exe(ex, t->subs.head); //evaluate all the args (all after the head)
-	ex->ret=1;  //returning from function
+	ex->stop=STOPFUNC;  //returning from function
 	return NULL; //stop instructions stream (process subs first, as they might be return values or something)
 }
 
@@ -1751,11 +1766,11 @@ struct tokenS* hcall (exectxT* ex, tokenT* t) {
 	ex->vars =  ram_alloc(t->sym->subctx->size , NULL);
 	exe(ex, t->sym->t->subs.head->next);
 	
-	if (ex->ret){
+	if (ex->stop==STOPFUNC){
 		printf(" Caught RET\n");
 	}
 	
-	ex->ret=0; //stop return bubble-up
+	ex->stop=0; //stop return bubble-up
 	
 	printf(" exit call SP:%d  FP:%d\n", ex->sp, ex->fp); 
 	
