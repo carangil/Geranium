@@ -1,7 +1,7 @@
 ZCORE?=../
 RELEASEDIR=$(ZCORE)/build#debug 
 #RELEASEDIR=$(ZCORE)/release#release
-INCLUDES=-I$(RELEASEDIR)/includes 
+INCLUDES=-I$(RELEASEDIR)/includes  -DRAM_DEBUG
 OBJDIR=$(RELEASEDIR)/objs
 ZLIBS=-lzstructures -lzmemory -lzstructures -lzthread -lzmisc -lzblank
 LIBS=-lpthread

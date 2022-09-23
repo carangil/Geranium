@@ -47,7 +47,6 @@ typedef struct tokenS{
 	struct typeS* ty;	//type of this token
 	valueT val;
 	zlistT subs;	//make a tree out of token list
-	struct tokenS* alternative;	//makes else easier
 	instruction handler; 
 	struct symbolS* sym;  //for things like procs that have a bunch of context info
 }tokenT;
@@ -84,8 +83,18 @@ zuint32 findKeyword(char* c){
 	return 0;
 }
 
+zbool token_cleanup(void* v){
+	tokenT* t = v;
+	//printf("FREEING %s\n", t->str);
+	ram_free(t->str);
+	//printf(" FREEING SUBS<\n");
+	zlist_cleanup(&t->subs);
+	//printf(">\n");
+	return ZTRUE;
+}
+
 tokenT* mkToken(zuint32 tok, char* str, zuint32 len){
-	tokenT* t = ram_alloc( sizeof(tokenT) , NULL );
+	tokenT* t = ram_alloc( sizeof(tokenT) , token_cleanup );
 	t->tok = tok;
 	if (str && len)
 		t->str = zstrndup(str, len);
@@ -99,20 +108,6 @@ tokenT* mkToken(zuint32 tok, char* str, zuint32 len){
 	return t;
 }
 
-tokenT* retoken(tokenT* t, zuint32 newtok, char* newstr){
-	if (t){
-		t->tok = newtok;
-		ram_free(t->str);
-		if (newstr)
-			t->str= zstrdup(newstr);
-		else
-			t->str = NULL;
-	}
-}
-
-tokenT* addSub( tokenT* token, tokenT* sub){
-	return zlist_addtail( &(token->subs), &(sub->zlistnode));
-}
 
 char* safestr(char* s){
 	return s ? s:""; 
@@ -190,7 +185,7 @@ zlistT* tokenize(zlistT* list, char* in){
 	int i;
 
 	if (!list) {
-		list = ram_alloc(sizeof(zlistT), NULL);
+		list = ram_alloc(sizeof(zlistT), zlist_cleanup);
 		t = mkToken(STARTFILE, NULL,0);
 		zlist_addhead(list,&t->zlistnode);
 		t->zlistnode.prev=&t->zlistnode;  //'trap' so ->prev->prev is always safe
@@ -279,7 +274,7 @@ zlistT* tokenize(zlistT* list, char* in){
 	//this is a trap so 'next->next->next' always is safe
 	end = mkToken(PASTENDFILE, "PASTENDFILE", 0);
 	zlist_addtail(list, &end->zlistnode);
-	end->zlistnode.next = (zlistnodeT*) end;
+	//end->zlistnode.next = (zlistnodeT*) end;
 
 	return list;
 }
@@ -315,8 +310,18 @@ typedef struct typeS{
 zvecT* types;
 int tid=0;
 
+zbool type_cleanup(void* v){
+	typeT* ty = v;
+//	printf(" free type/member %s\n", ty->name);
+	ram_free(ty->name);
+	ram_free(ty->members); //free the container (the contents are already disowned and freed elsewhere)
+	return ZTRUE;
+	
+}
+
+
 typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
-	typeT* ty= ram_alloc(sizeof(typeT), NULL); //todo: destructor
+	typeT* ty= ram_alloc(sizeof(typeT), type_cleanup); //todo: destructor
 	ty->tid = tid++;
 	ty->category = category;
 	ty->name = zstrdup(name);
@@ -622,6 +627,17 @@ typedef struct symbolS{
 	struct parsectxS* subctx; //procs have their own parsecontext for their local vars
 } symbolT;
 
+
+zbool symbol_cleanup(void* v){
+	symbolT* s = v;
+	
+	ram_free(s->name);
+	ram_free(s->subctx);
+	//types and token are freed elsewhere (they are managed by big arrays)
+	return ZTRUE;
+}
+	
+
 zbool cmpTypeListToFunc(zvecT* f, zvecT* b){
 	//iterates over a functions list of arguments and compares to a possible list of types
 	
@@ -676,6 +692,8 @@ symbolT* findSymbol(zvecT* table, char* name, zvecT* typelist){
 }
 
 
+
+
 symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction handler){
 	zvecT* table = pctx->symbols;
 	
@@ -695,7 +713,7 @@ symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction h
 	
 	}
 	
-	sym = ram_alloc(sizeof(symbolT), NULL);
+	sym = ram_alloc(sizeof(symbolT), symbol_cleanup);
 	sym->name = zstrdup(name);
 	sym->type = type;
 	sym->handler = handler;
@@ -733,8 +751,10 @@ void printSymbols(zvecT* table , char* label){
 
 /* Parse out stuff */
 
+#define tremove(ITEM)    zlist_remove_mid(  &(ITEM)->zlistnode)
 #define tnext(ITEM) ((tokenT*)(ITEM)->zlistnode.next)
 #define tprev(ITEM)    ((ITEM)?((tokenT*)(ITEM)->zlistnode.prev):NULL)
+#define insert_after(AFTER,NEW)    zlist_insert_node_after(  &(AFTER)->zlistnode,  &(NEW)->zlistnode);
 
  tokenT*  parseVar(tokenT*,  char** nameOut, typeT** typeOut) ;
 tokenT*  parseTypeList(tokenT*, typeT* parent);
@@ -748,7 +768,7 @@ void fold(tokenT* start, tokenT* under){
 	for (tokenT* t = start; t!= under; t = next) {
 		
 		next = zlist_next(t);
-		zlist_remove_mid( &(t->zlistnode) );
+		tremove(t);
 		zlist_addtail(&under->subs, &(t->zlistnode));
 				
 	}
@@ -768,7 +788,7 @@ void lfold(tokenT* under, tokenT* end){
 	for (tokenT* t = zlist_next(under) ; t!=end; t = next) {
 		
 		next = zlist_next(t);
-		zlist_remove_mid( &(t->zlistnode) );
+		tremove( t  );
 		zlist_addtail(&under->subs, &(t->zlistnode));
 	
 	}
@@ -861,6 +881,7 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 	tokenT* next=NULL;
 	if (parent && !parent->members){
 		parent->members = zvec_mk(NULL, 10);
+		zvec_disown(parent->members);  //don't free insides when freeing vector
 	}
 	size_t offset=0;
 
@@ -991,11 +1012,15 @@ tokenT*  parseVar(tokenT* t,  char** nameOut, typeT** typeOut) {
 typeT *tPrimitive, *tZ32, *tN32, *tN8;
 
 
-
+zbool parsectx_cleanup(void* v){
+	parsectxT* pc = v;
+	ram_free(pc->symbols);
+	return ZTRUE;
+}
 
 parsectxT* mkcontext()
 {
-	parsectxT* c = ram_alloc(sizeof(parsectxT), NULL);
+	parsectxT* c = ram_alloc(sizeof(parsectxT), parsectx_cleanup);
 	c->symbols = zvec_mk(NULL, 10);
 	return c;
 }
@@ -1003,6 +1028,10 @@ parsectxT* mkcontext()
 parsectxT* global = NULL;
 
 //parameters that get passed down
+
+struct tokenS* hnop(exectxT* ex, tokenT* t) {
+	return tnext(t);
+}
 
 struct tokenS* hconstant (exectxT* ex, tokenT* t) {
 	ex->stack[(ex->sp)++] = t->val;
@@ -1035,9 +1064,11 @@ struct tokenS* hstackread (exectxT* ex, tokenT* t) {
 
 #define DEREF(TYPE,BASE,OFFSET)      *((TYPE*)(((char*)(BASE))+(OFFSET)))
 
+#define tsub(TTT)  ((tokenT*)((TTT)->subs.head))
+
 struct tokenS* hstoreptr (exectxT* ex, tokenT* t) {
 	
-	exe(ex, t->subs.head);
+	exe(ex, tsub(t) );
 		
 	
 	DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.ptr;
@@ -1053,7 +1084,7 @@ struct tokenS* hgroup (exectxT* ex, tokenT* t);
 
 struct tokenS* hloadptr (exectxT* ex, tokenT* t) {
 	
-	exe(ex, t->subs.head);
+	exe(ex, tsub(t) );
 		
 	ex->stack[ex->sp-1].as.ptr = DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
 	
@@ -1063,7 +1094,7 @@ struct tokenS* hloadptr (exectxT* ex, tokenT* t) {
 
 struct tokenS* hoffsetptr (exectxT* ex, tokenT* t) {
 	
-	exe(ex, t->subs.head);
+	exe(ex, tsub(t) );
 		
 	ex->stack[ex->sp-1].as.ptr.offset += t->val.as.n32;
 	
@@ -1071,7 +1102,7 @@ struct tokenS* hoffsetptr (exectxT* ex, tokenT* t) {
 }
 
 struct tokenS* hindex(exectxT* ex, tokenT* t) {
-	exe(ex, t->subs.head);
+	exe(ex, tsub(t) );
 	
 	ex->stack[ex->sp-2].as.ptr.offset +=    ex->stack[ex->sp-1].as.ptr.offset   * t->val.as.n32;
 	ex->sp--;
@@ -1083,7 +1114,7 @@ struct tokenS* hcondblock (exectxT* ex, tokenT* t){
 	
 	
 	//run first instruction
-	tokenT* subs = t->subs.head;
+	tokenT* subs =tsub(t);
 	
 	instruction handler =  subs->handler;
 	
@@ -1107,7 +1138,7 @@ struct tokenS* hcondblock (exectxT* ex, tokenT* t){
 		
 	
 	
-	exe(ex, t->subs.head); //evaluate all the args
+	exe(ex, tsub(t) ); //evaluate all the args
 }
 
 
@@ -1123,7 +1154,7 @@ struct tokenS* hbreakloop (exectxT* ex, tokenT* t) {
 struct tokenS* hloop (exectxT* ex, tokenT* t) {
 	
 	while(!ex->stop){
-		exe(ex, t->subs.head);
+		exe(ex, tsub(t) );;
 	}
 	if(ex->stop== STOPLOOP)
 		ex->stop=0;
@@ -1150,6 +1181,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		printType(t->sym->type, 1,1);
 	
 	while ( t) {
+		if (t->tok==ENDFILE)
+			t->handler = hbreakblock; //don't really do anything
 
 		if (t->tok==ENDFILE || t->tok== PASTENDFILE)
 			return t;
@@ -1222,7 +1255,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t=tnext(t); //skip past semicolon
 			lfold(ts, t);  //everything up to an including semicolon folded
 			s->t = ts; //symbol has this tokenstream
-			zlist_remove_mid(ts); //remove from the executable token list
+			//tremove(ts); //remove from the executable token list 
+			ts->handler=hnop;
 			continue;
 		case KRETURN:
 			
@@ -1244,7 +1278,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			pc->endable++;
 			t = parse(pc, tnext(t));
 			t = tnext(t);
-			zlist_remove_mid(tprev(t));//remove 'end'
+			//todo: delete 
+			ram_free(tremove(tprev(t)));//remove 'end'
 			lfold(ts,t);
 			ts->handler=hloop;
 			
@@ -1268,7 +1303,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			ts->val.as.n32=1;  //continue after group
 			
 			tokenT* cond;
-			zlist_insert_node_after(tprev(t),  cond=mkToken(COND,"cond",4));
+			insert_after(tprev(t),  cond=mkToken(COND,"cond",4));
 			fold (tprev(tprev(t)), tprev(t)); //condition statrment inside 'cond' wrapper
 			fold (tprev(t), t);  //put condition node inside if
 			cond->handler = hcondblock;
@@ -1330,7 +1365,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				printf(" Defined type %s as %s\n", name, tprev(t)->str);
 				t=tnext(t);
 				lfold(ts,t); //includes 'end' in the fold
-				zlist_remove_mid(ts);
+				//tremove(ts);
 								
 				continue;
 			}
@@ -1376,9 +1411,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			printf(" array element size %d\n", t->val.as.n32);
 			
 			if (tnext(t)->tok=='&')
-				zlist_remove_mid(tnext(t)) ;
+				ram_free(tremove(tnext(t))) ;
 			else
-				zlist_insert_node_after(t, &mkToken('@', "@", 1)->zlistnode );
+				insert_after(t, mkToken('@', "@", 1) );
 			
 			t=tnext(t);
 			continue;
@@ -1410,7 +1445,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				(tnext(t)->str && tnext(t)->str[0]=='.')
 			){
 				t=tnext(t);
-				zlist_remove_mid(ts);
+				ram_free(tremove(ts));
 				continue;
 			}
 			
@@ -1458,7 +1493,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		if (t->str){
 			int j;
 			v = zvec_disown(zvec_mk(NULL,15));
-			ram_free(v);
+			
 			tokenT* pos;
 			tokenT* startfold;
 			for(j=0;;j++){
@@ -1507,7 +1542,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				//getc(stdin);
 									
 			}//end j
-			
+			ram_free(v);
 			v=NULL;
 								
 			if (s){
@@ -1538,10 +1573,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					t->val.as.ptr.offset= s->offset;
 					
 					if (tnext(t)->tok=='&')   {
-						zlist_remove_mid(tnext(t));
+						ram_free(tremove(tnext(t)));
 					} else if (s->type->category!=ARRAY) {  //else if (tnext(t)){
 						tokenT* tn = mkToken('@', "@", 1);  //load the variable
-						zlist_insert_node_after(t, tn);
+						insert_after(t, tn);
 					}
 					
 															
@@ -1596,10 +1631,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						
 						
 						if (tnext(t)->tok=='&')   {
-							zlist_remove_mid(tnext(t));
+							ram_free(tremove(tnext(t)));
 						}  else if (  m->ref->category != ARRAY   ){ //don't insert a load if struct member is an array
 							tokenT* tn = mkToken('@', "@", 1);  //load the variable
-							zlist_insert_node_after(t, tn);
+							insert_after(t, tn);
 						}
 						
 						
@@ -1677,14 +1712,16 @@ void start(parsectxT* pctx, tokenT* t){
 	
 	exe(exectx, t);
 	
-	//exe(vals, &vp, t);
+	ram_free(exectx->stack);
+	ram_free(exectx->globalvars);
+	ram_free(exectx);
 }
 
 
 struct tokenS* hadd32 (exectxT* ex, tokenT* t) {
 	
-	exe(ex, t->subs.head);
-		
+	exe(ex, tsub(t));
+	
 	ex->stack[ex->sp-2].as.z32 += ex->stack[ex->sp-1].as.z32;
 	ex->sp--;
 	
@@ -1697,7 +1734,7 @@ struct tokenS* hadd32 (exectxT* ex, tokenT* t) {
 
 struct tokenS* hload32 (exectxT* ex, tokenT* t) {
 	
-	exe(ex, t->subs.head);
+	exe(ex, tsub(t));
 
 	zint32 i = DEREF(zint32, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
 	printf(" Loaded 32 %d   from +%x\n", i,ex->stack[ex->sp-1].as.ptr.offset );
@@ -1711,7 +1748,7 @@ struct tokenS* hload32 (exectxT* ex, tokenT* t) {
 
 struct tokenS* hstore32 (exectxT* ex, tokenT* t) {
 	
-	exe(ex, t->subs.head);
+	exe(ex,tsub(t));
 		
 	
 	
@@ -1726,13 +1763,13 @@ struct tokenS* hstore32 (exectxT* ex, tokenT* t) {
 
 
 struct tokenS* hreturn (exectxT* ex, tokenT* t){
-	exe(ex, t->subs.head); //evaluate all the args (all after the head)
+	exe(ex, tsub(t)); //evaluate all the args (all after the head)
 	ex->stop=STOPFUNC;  //returning from function
 	return NULL; //stop instructions stream (process subs first, as they might be return values or something)
 }
 
 struct tokenS* hgroup (exectxT* ex, tokenT* t){
-	exe(ex, t->subs.head); //evaluate all the args
+	exe(ex, tsub(t)); //evaluate all the args
 	
 	if (t->val.as.z32)
 		return tnext(t); //go on to the next step
@@ -1742,7 +1779,7 @@ struct tokenS* hgroup (exectxT* ex, tokenT* t){
 
 
 struct tokenS* hcall (exectxT* ex, tokenT* t) {
-	exe(ex, t->subs.head); //evaluate all the args (all after the head)
+	exe(ex, tsub(t)); //evaluate all the args (all after the head)
 	
 	
 	
@@ -1762,9 +1799,14 @@ struct tokenS* hcall (exectxT* ex, tokenT* t) {
 	printf(" PROC has context size %d\n", t->sym->subctx->size);
 	printList(t->sym->t, NULL, 0, 0);
 	
-	;
+	
 	ex->vars =  ram_alloc(t->sym->subctx->size , NULL);
-	exe(ex, t->sym->t->subs.head->next);
+	//exe(ex, (tokenT*) t->sym->t->subs.head->next);
+	//t->sym->t points to the token describing that function
+	//head of that token's sub list is the tokens describing its data type (input parameters, etc)
+	//the 'next' of that head is the first statement
+	
+	exe(ex, (tokenT*)  tnext( tsub(t->sym->t))  );
 	
 	if (ex->stop==STOPFUNC){
 		printf(" Caught RET\n");
@@ -1811,6 +1853,7 @@ int main(int argc, char** args){
 	tN32 = mkType( SIMPLE, NULL, "N32", sizeof(zuint32));
 	tN8 = mkType( SIMPLE, NULL, "N8", sizeof(zbyte));
 	
+	
 	if (argc < 2)
 		exit(1);
 
@@ -1843,9 +1886,16 @@ int main(int argc, char** args){
 			
 	printSymbols(global->symbols, "globals");
 	printList((tokenT*) tokens->head,NULL,ENDFILE, 0);
-	getc(stdin);
+	//getc(stdin);
 	start(global, (tokenT*)tokens->head->next);//run
 	
+	ram_free(tokens);
+	ram_free(global);
+	ram_free(types);
+	
+	
+	printf(" done\n");
+	ram_allocs(); //dump memory leak list
 	return 0;   
 }
 
