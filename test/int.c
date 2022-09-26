@@ -7,16 +7,17 @@
 #include "zvector.h"
 
 #define ERR( ...) { fprintf(stderr,__VA_ARGS__);  exit(1);}
+//#define EXEDEBUG
 
+/**** Basic Values ****/
 
-typedef struct vptrS{
-	zuint32 offset;
+//Pointers
+typedef struct vptrS{	
 	char* block;
-	
+	zuint32 offset;
 }vptrT;
 
-
-typedef union valu {
+typedef union valu {	//Generic value (datatype is tracked through other means)
 		zint32 z32;
 		zint32 n32;
 		vptrT ptr;
@@ -27,6 +28,7 @@ typedef struct valueS{
 }valueT;
 
 
+/**** Execution Context ****/
 typedef struct exectxS{
 	valueT* stack;
 	zuint32	sp;
@@ -40,6 +42,18 @@ typedef struct exectxS{
 
 typedef struct tokenS* (*instruction) (exectxT*,struct tokenS* ) ;
 
+/* Parse Context */
+typedef struct parsectxS{
+	zvecT* symbols;
+	zuint32	size;	//size of variables in this table
+	struct typeS* type;  //if in a procedure, we need to know about its return type and args
+	int endable;
+}parsectxT;
+
+
+
+/**** Tokenizer ****/
+
 /* Program is a linked list of tokens*/
 typedef struct tokenS{
 	zlistnodeT zlistnode;
@@ -51,7 +65,21 @@ typedef struct tokenS{
 	instruction handler; 
 	struct symbolS* sym;  //for things like procs that have a bunch of context info
 }tokenT;
-void exe (exectxT* c, struct tokenS* t);
+
+
+/* Macros to make some things easier
+ * tremove: removes a token from the list (and returns it as a pointer to be assigned somewhere else or freed.  To remove requires a token is in front of or behind it
+ * tnext/tprev: Pointer to the next token
+ * insert_after: Inserts a token after another token.  Requires the place of insertion is not the head or tail of the list
+ * */
+
+#define tremove(ITEM)    zlist_remove_mid(  &(ITEM)->zlistnode)
+#define tnext(ITEM) ((tokenT*)(ITEM)->zlistnode.next)
+#define tprev(ITEM)    ((ITEM)?((tokenT*)(ITEM)->zlistnode.prev):NULL)
+#define insert_after(AFTER,NEW)    zlist_insert_node_after(  &(AFTER)->zlistnode,  &(NEW)->zlistnode);
+
+
+
 //tokenT->tok values:
 #define PAIR(B1,B2)	((((unsigned int)(B1&0xff)) <<8) | ((unsigned int)(B2&0xff)))
 #define NAME		0x200
@@ -62,6 +90,7 @@ void exe (exectxT* c, struct tokenS* t);
 #define STARTFILE	0x700
 #define COND		0x800a
 
+//Token values that are also user-accessible keywords:
 #define KWORDS		0x8000
 #define KVAR		0x8000
 #define KTYPE		0x8001
@@ -76,6 +105,7 @@ void exe (exectxT* c, struct tokenS* t);
 #define KBREAK		0x800a
 
 char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", NULL};
+
 zuint32 findKeyword(char* c){
 	if (c)
 		for (int i=0;keywords[i];i++) 
@@ -183,7 +213,7 @@ zlistT* tokenize(zlistT* list, char* in){
 	int i;
 
 	if (!list) {
-		list = ram_alloc(sizeof(zlistT), zlist_cleanup);
+		list = ram_alloc(sizeof(zlistT), (ram_destructor) zlist_cleanup);
 		t = mkToken(STARTFILE, NULL,0);
 		zlist_addhead(list,&t->zlistnode);
 		t->zlistnode.prev=&t->zlistnode;  //'trap' so ->prev->prev is always safe
@@ -277,14 +307,16 @@ zlistT* tokenize(zlistT* list, char* in){
 	return list;
 }
 
+/**** Data Types ****/
+
 /* Simple type system*/
-#define SIMPLE	0
-#define POINTER 1
-#define STRUCT 	2
-#define ARRAY 	3
-#define FUNCTION 4
-#define PRIMITIVE 5
-#define LAST_REAL_TYPE 5
+#define SIMPLE	1
+#define POINTER 2
+#define STRUCT 	3
+#define ARRAY 	4
+#define FUNCTION 5
+#define PRIMITIVE 6
+#define LAST_REAL_TYPE 7
 
 //MEMBER is not a type, but is used to mark members of a struct
 #define MEMBER	10
@@ -314,7 +346,6 @@ zbool type_cleanup(void* v){
 	ram_free(ty->members); //free the container (the contents are already disowned and freed elsewhere)
 	return ZTRUE;
 }
-
 
 typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
 	typeT* ty= ram_alloc(sizeof(typeT), type_cleanup); //todo: destructor
@@ -421,7 +452,6 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 	
 }
 
-
 //compare two types, return true if the same
 zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty){
 
@@ -479,8 +509,6 @@ zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty){
 
 	return ZTRUE;
 }
-
-
 
 //finds simple or struct types, OR creates composite types (arrays, pointers of existing types) as needed
 typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
@@ -614,6 +642,8 @@ void printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indent){
 
 }
 
+/**** Symbols ****/
+
 typedef struct symbolS{
 	char* name;
 	typeT* type;
@@ -633,7 +663,6 @@ zbool symbol_cleanup(void* v){
 	//types are freed elsewhere
 	return ZTRUE;
 }
-	
 
 zbool cmpTypeListToFunc(zvecT* f, zvecT* b){
 	//iterates over a functions list of arguments and compares to a possible list of types
@@ -656,12 +685,6 @@ zbool cmpTypeListToFunc(zvecT* f, zvecT* b){
 		return ZTRUE;
 }
 
-typedef struct parsectxS{
-	zvecT* symbols;
-	zuint32	size;	//size of variables in this table
-	typeT* type;  //if in a procedure, we need to know about its return type and args
-	int endable;
-}parsectxT;
 
 
 
@@ -718,7 +741,7 @@ symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction h
 	
 	pctx->size += type->size; //add context u
 	
-	//printf(" SYMBOL %s at offset %d  , total symbols %d bytes\n", sym->name, sym->offset, pctx->size);
+	printf(" SYMBOL %s at offset %d  , total symbols %d bytes\n", sym->name, sym->offset, pctx->size);
 	
 	return zvec_add_or_free(table, sym);
 }
@@ -743,18 +766,338 @@ void printSymbols(zvecT* table , char* label){
 	}
 }
 
-/* Parse out stuff */
 
-#define tremove(ITEM)    zlist_remove_mid(  &(ITEM)->zlistnode)
-#define tnext(ITEM) ((tokenT*)(ITEM)->zlistnode.next)
-#define tprev(ITEM)    ((ITEM)?((tokenT*)(ITEM)->zlistnode.prev):NULL)
-#define insert_after(AFTER,NEW)    zlist_insert_node_after(  &(AFTER)->zlistnode,  &(NEW)->zlistnode);
+/**** Execution ****/
 
- tokenT*  parseVar(tokenT*,  char** nameOut, typeT** typeOut) ;
+void exe (exectxT* c, struct tokenS* t){
+	zuint32 i;
+	
+	while(t && ! c->stop){  //until out of instructions, or a return is bubbling up
+						
+		instruction handler = t->handler;
+		
+		char* str=  safestr(t->str);
+#ifdef EXEDEBUG
+		printf("%x %s  (pre) handler %p\n",t->tok, safestr(t->str), handler);
+#endif
+				
+		if (!handler)
+			ERR("null handler for %c %s\n", t->tok, str);
+			
+		//getc(stdin);
+		t = handler(c,t);
+		
+#ifdef EXEDEBUG
+		printf(">> %s\n",str);
+		printf("sp %x|", c->sp);
+				
+		for (i=0;i<c->sp;i++){
+			printf("(%p+%x)/%d ", c->stack[i].as.ptr.block,c->stack[i].as.ptr.offset, c->stack[i].as.z32);
+			
+		}	
+		printf("\n\n");
+#endif
+	}
+}
+
+tokenT* hnop(exectxT* ex, tokenT* t) {	//do nothing
+	return tnext(t);
+}
+
+tokenT* hconstant (exectxT* ex, tokenT* t) {  //push constant on stack
+	ex->stack[(ex->sp)++] = t->val;
+	return tnext(t);
+}
+
+tokenT* hglobal (exectxT* ex, tokenT* t) {	//push pointer to global variable on stack
+ 	ex->stack[(ex->sp)].as.ptr.block = ex->globalvars;
+	ex->stack[(ex->sp)++].as.ptr.offset = t->val.as.ptr.offset;
+	//printf(" Global block %p +%d\n", ex->globalvars  ,   t->val.as.ptr.offset);
+	return tnext(t);
+}
+
+tokenT* hlocal (exectxT* ex, tokenT* t) {	//push pointer to local variable on stack
+	ex->stack[(ex->sp)].as.ptr.block = ex->vars;
+	ex->stack[(ex->sp)++].as.ptr.offset = t->val.as.ptr.offset;
+	//printf(" local block %p +%d\n", ex->vars  ,   t->val.as.ptr.offset);
+	return tnext(t);
+}
+
+tokenT* hstackread (exectxT* ex, tokenT* t) {	//read a stack variable (really function parameters)
+	//grab from stack, relative to fp
+	ex->stack[(ex->sp)++] = ex->stack[ ex->fp + t->val.as.z32 ];
+	return tnext(t);
+}
+
+#define DEREF(TYPE,BASE,OFFSET)      *((TYPE*)(((char*)(BASE))+(OFFSET)))
+
+#define tsub(TTT)  ((tokenT*)((TTT)->subs.head))
+
+tokenT* hstoreptr (exectxT* ex, tokenT* t) {  //store a pointer
+	exe(ex, tsub(t) );
+	DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.ptr;
+	ex->sp-=2;
+	return tnext(t);
+}
+
+//tokenT* hcall (exectxT* ex, tokenT* t);
+//tokenT* hreturn (exectxT* ex, tokenT* t);
+//tokenT* hgroup (exectxT* ex, tokenT* t);
+
+tokenT* hloadptr (exectxT* ex, tokenT* t) { //load a pointer
+	
+	exe(ex, tsub(t) );
+		
+	ex->stack[ex->sp-1].as.ptr = DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
+	
+	return tnext(t);
+}
+
+tokenT* hoffsetptr (exectxT* ex, tokenT* t) { //add constant offset to pointer
+	
+	exe(ex, tsub(t) );
+
+	ex->stack[ex->sp-1].as.ptr.offset += t->val.as.n32;
+	
+	return tnext(t);
+}
+
+tokenT* hindex(exectxT* ex, tokenT* t) {	//index into array
+	exe(ex, tsub(t) );
+	
+	ex->stack[ex->sp-2].as.ptr.offset +=    ex->stack[ex->sp-1].as.n32   * t->val.as.n32;
+	//printf(" index using multiplier %d\n", t->val.as.n32);
+	ex->sp--;
+	return tnext(t);
+}
+
+tokenT* hcondblock (exectxT* ex, tokenT* t){	//if first sub is true, execute the rest of the subs list
+	
+	//run first instruction
+	tokenT* subs =tsub(t);
+	
+	instruction handler =  subs->handler;
+	
+	if (!handler)
+		ERR(" Null handler on cond's first arg\n");
+	
+	subs = handler(ex, subs); 
+	
+	//check result;
+	
+	ex->sp--;
+	
+	if ( ex->stack[ex->sp].as.n32){
+			//printf (" COND is true, execute body\n");
+			exe(ex, subs); //continue this  
+			//printf(" EXIT CHAIN\n");
+			return NULL;
+	} 
+	//printf(" COND was false, so call next in chain\n");
+	return tnext(t); //next one
+		
+	exe(ex, tsub(t) ); //evaluate all the args
+}
+
+tokenT* hbreakblock (exectxT* ex, tokenT* t) { 
+	return NULL;//stop running this block of instructions
+}
+tokenT* hbreakloop (exectxT* ex, tokenT* t) {
+	ex->stop=STOPLOOP; //flag to signal loop breakage
+	return NULL;//stop running this block of instructions
+}
+
+tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP is set
+	
+	while(!ex->stop){
+		exe(ex, tsub(t) );;
+	}
+	if(ex->stop== STOPLOOP)
+		ex->stop=0;
+	
+	return tnext(t);
+	
+}
+
+tokenT* hadd32 (exectxT* ex, tokenT* t) {
+	
+	exe(ex, tsub(t));
+	
+	ex->stack[ex->sp-2].as.z32 += ex->stack[ex->sp-1].as.z32;
+	ex->sp--;
+	
+	//printf(" add\n");
+	
+	return tnext(t);
+}
+
+
+
+tokenT* hload32 (exectxT* ex, tokenT* t) {
+	
+	exe(ex, tsub(t));
+
+	zint32 i = DEREF(zint32, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
+	//printf(" Loaded 32 %d   from +%x\n", i,ex->stack[ex->sp-1].as.ptr.offset );
+	ex->stack[ex->sp-1].as.ptr.block=NULL;
+	ex->stack[ex->sp-1].as.z32 = i;
+	
+	
+	return tnext(t);
+}
+
+
+tokenT* hstore32 (exectxT* ex, tokenT* t) {
+	
+	exe(ex,tsub(t));
+		
+	
+	
+	DEREF(zint32, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.z32;
+	
+	ex->sp-=2;
+	
+	return tnext(t);
+}
+
+
+
+
+tokenT* hreturn (exectxT* ex, tokenT* t){
+	exe(ex, tsub(t)); //evaluate all the args (all after the head)
+	ex->stop=STOPFUNC;  //returning from function
+	return NULL; //stop instructions stream (process subs first, as they might be return values or something)
+}
+
+tokenT* hgroup (exectxT* ex, tokenT* t){
+	exe(ex, tsub(t)); //evaluate all the args
+	
+	if (t->val.as.z32)
+		return tnext(t); //go on to the next step
+	//printf("group finished, no continue\n");
+	return NULL;
+}
+
+
+tokenT* hcall (exectxT* ex, tokenT* t) {
+	exe(ex, tsub(t)); //evaluate all the args (all after the head)
+		
+	
+	//printf(" CALLING PROC %s\n", t->str);
+	
+	//printf("pre call SP:%d  FP:%d\n", ex->sp, ex->fp); 
+	
+	zuint32 oldfp = ex->fp;  //save frame pointer
+	
+	ex->fp=ex->sp;
+		
+	//printf(" enter call SP:%d  FP:%d\n", ex->sp, ex->fp); 
+	
+	void* oldlocal = ex->vars;   //take old local var data
+	
+	
+	//printf(" PROC has context size %d\n", t->sym->subctx->size);
+	//printList(t->sym->tokens, NULL, 0, 0);
+	
+	
+	ex->vars =  ram_alloc(t->sym->subctx->size , NULL);
+	//exe(ex, (tokenT*) t->sym->t->subs.head->next);
+	//t->sym->t points to the token describing that function
+	//head of that token's sub list is the tokens describing its data type (input parameters, etc)
+	//the 'next' of that head is the first statement
+	
+	exe(ex, (tokenT*)  tnext( tsub(t->sym->tokens))  );
+	
+	//if (ex->stop==STOPFUNC){
+	//	printf(" Caught RET\n");
+	//}
+	
+	ex->stop=0; //stop return bubble-up
+	
+	//printf(" exit call SP:%d  FP:%d\n", ex->sp, ex->fp); 
+	
+	
+	//todo:  manipulate frame pointer to get rid of passed values
+	
+	if (t->sym->type->members)
+		ex->fp -=  zvec_count(t->sym->type->members);  //subtract out all passed values
+	
+	
+	if (t->sym->type->ref) {
+		ex->stack[ex->fp++] = ex->stack[ex->sp-1];  //copy last value to the frame pointer  todo: make this conditional
+		//printf(" Function returns ");printType(t->sym->type->ref,1,1);
+	} else {
+		//printf(" Function returns nothing\n");
+	}
+
+	ram_free(ex->vars);
+	
+	ex->sp = ex->fp;//put stack back to repositioned fp
+	ex->fp=oldfp;  //put old frame pointer back
+	ex->vars = oldlocal;//put old vars back
+	
+		
+	//printf(" return to  caller complete SP:%d  FP:%d\n", ex->sp, ex->fp); 		
+		
+	//todo:handle return value, putting stack back together
+	return tnext(t);
+}
+
+tokenT* hprinti (exectxT* ex, tokenT* t) {
+	exe(ex, tsub(t)); //evaluate all the args (all after the head)
+	ex->sp--;
+	printf("%d", ex->stack[ex->sp].as.z32);
+	return tnext(t);
+}
+tokenT* hprintnl (exectxT* ex, tokenT* t) {
+	printf("\n");
+	return tnext(t);
+}
+tokenT* hprintchar (exectxT* ex, tokenT* t) {
+	exe(ex, tsub(t)); //evaluate all the args (all after the head)
+	ex->sp--;
+	printf("%c", ex->stack[ex->sp].as.z32);
+	return tnext(t);
+}
+
+void start(parsectxT* pctx, tokenT* t){
+	exectxT* exectx = ram_alloc(sizeof(exectxT), NULL);
+	exectx->stack = ram_alloc( sizeof(valueT)*100, NULL);
+	exectx->sp = 0;
+	printf(" PCTX %d bytes\n", pctx->size);
+	exectx->globalvars = ram_alloc(pctx->size , NULL);
+	
+	printf("EXE\n");
+	/*
+	for (int i=0;i<32;i++){
+			printf(",%02x ",  exectx->globalvars[i]  );
+			
+	}
+	printf(" \n");*/
+	
+	exe(exectx, t);
+	
+	ram_free(exectx->stack);
+	ram_free(exectx->globalvars);
+	ram_free(exectx);
+}
+
+
+
+/* Parser */
+
+/**** Parser ****/
+/* After tokenizing, the parser scans through the tokens.  Sublists of tokens are removed and 'folded' under other tokens to create a tree structure representing the program.  Tokens can be assigned a handler, which, currently, executes that step of the program.  In the future, the handlers might be swapped out for functions that compile to bytecode or machine code. */
+
+
+
+
+tokenT*  parseVar(tokenT*,  char** nameOut, typeT** typeOut) ;
 tokenT*  parseTypeList(tokenT*, typeT* parent);
 
 void fold(tokenT* start, tokenT* under){
 		//tokens from start to (but not including under) will be removed from the list and appended to 'under'
+		//fold of  1   (START)2 3   (UNDER)+    will become   1 (2 3)+
 
 	tokenT* next;
 	tokenT* prev = tprev(start);
@@ -768,16 +1111,10 @@ void fold(tokenT* start, tokenT* under){
 	}
 }
 
-
 void lfold(tokenT* under, tokenT* end){
 		//tokens from under->next to end (and not including end) are removed from the tree and made subs of under
-	
+		//fold of  1     (under)x	1	2	(end)3 		will become     1   x(1 2)  3
 	tokenT* next;
-//	printf(" LFOLD before (under is highlighted)\n");
-//	printList(under->zlistnode.prev->prev, under, ENDFILE,0);
-	
-//	printf(" LFOLD before (end not inclusive is highlighted)\n");
-//	printList(under->zlistnode.prev->prev, end, ENDFILE,0);
 		
 	for (tokenT* t = zlist_next(under) ; t!=end; t = next) {
 		
@@ -786,21 +1123,21 @@ void lfold(tokenT* under, tokenT* end){
 		zlist_addtail(&under->subs, &(t->zlistnode));
 	
 	}
-	
-//	printList(under->zlistnode.prev->prev, end, ENDFILE,0);
-//	printf("--\n");
 }
 
+/* Parses a datatype such as:
+ * Simple types:  Z32, etc
+ * Pointers  Z32*  [Z32]*
+ * Functions (a:Z32; b:Z32 >> Z32)
+ * Arrays [10 Z32]    */
 tokenT*  parseType(tokenT* t) {
 
 	char* count=NULL;
-
 	zbool named=ZFALSE;
 	tokenT* next=NULL;
-	
+
 	for ( ; t;  t = next ) {
-		
-		
+
 		if (t->tok == '['){ //array type
 			tokenT* S = t;
 			
@@ -823,8 +1160,6 @@ tokenT*  parseType(tokenT* t) {
 			continue;
 			
 		}
-		
-		
 
 		if (!named && t->tok == NAME){ //simple typename, but only 1 per 'type'
 					       //printf(" type %s\n", t->str);
@@ -862,15 +1197,13 @@ tokenT*  parseType(tokenT* t) {
 			next = tnext(t);
 			lfold(S,next);
 			continue;
-
 		}
-
 		break;
 	}
-
 	return t;
 }
 
+/*parseTypeList parses both function parameter lists  a:Z32; b:Z32;, etc or type structure definitions, which are intentionally the same syntax */
 tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 	tokenT* next=NULL;
 	if (parent && !parent->members){
@@ -882,7 +1215,6 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 	zbool reqname=ZTRUE; //parameters must be named
 
 	for(;t;t=next){
-
 		char* name = NULL;
 		typeT* type = NULL;
 		
@@ -946,27 +1278,8 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 
 	return t; //closing paren on func parm list OR 'end' in typedef
 }
-/*
-char* pairname(zuint32 pair){
-	
-	if (pair == 0)
-		return NULL;
-	
-	if (pair
-	
-	char* name = ram_alloc(3, NULL);
-	
-	if (pair&0xff00){
-		name[0] = (pair & 0xff00)>>8;
-		name[1] = pair&0xff;
-		name[2]=0;
-	} else{
-		name[0] = pair&0xff;
-		name[1]=0;
-	}
-	return name;
-}*/
 
+/* Parse a variable definition */
 tokenT*  parseVar(tokenT* t,  char** nameOut, typeT** typeOut) {
 	char* name=NULL;
 
@@ -981,7 +1294,6 @@ tokenT*  parseVar(tokenT* t,  char** nameOut, typeT** typeOut) {
 				
 		t=tnext(tnext(t));
 	} 
-	
 		
 	if (nameOut)
 		*nameOut = name;
@@ -991,8 +1303,8 @@ tokenT*  parseVar(tokenT* t,  char** nameOut, typeT** typeOut) {
 	if (typeOut)
 		*typeOut = tprev(t)->ty;  //get the type that was last parsed
 
-		/*
-	if (tprev(t)->ty){
+	
+	/*if (tprev(t)->ty){
 		printf(" parsetype returned type ");
 		printType(tprev(t)->ty, ZTRUE, ZFALSE);
 	}*/
@@ -1005,7 +1317,6 @@ tokenT*  parseVar(tokenT* t,  char** nameOut, typeT** typeOut) {
 }
 
 typeT *tPrimitive, *tZ32, *tN32, *tN8;
-
 
 zbool parsectx_cleanup(void* v){
 	parsectxT* pc = v;
@@ -1021,142 +1332,6 @@ parsectxT* mkcontext()
 }
 
 parsectxT* global = NULL;
-
-//parameters that get passed down
-
-struct tokenS* hnop(exectxT* ex, tokenT* t) {
-	return tnext(t);
-}
-
-struct tokenS* hconstant (exectxT* ex, tokenT* t) {
-	ex->stack[(ex->sp)++] = t->val;
-	return tnext(t);
-}
-
-struct tokenS* hglobal (exectxT* ex, tokenT* t) {
-	
-	ex->stack[(ex->sp)].as.ptr.block = ex->globalvars;
-	ex->stack[(ex->sp)++].as.ptr.offset = t->val.as.ptr.offset;
-	//printf(" Global block %p +%d\n", ex->globalvars  ,   t->val.as.ptr.offset);
-	return tnext(t);
-}
-
-struct tokenS* hlocal (exectxT* ex, tokenT* t) {
-	
-	ex->stack[(ex->sp)].as.ptr.block = ex->vars;
-	ex->stack[(ex->sp)++].as.ptr.offset = t->val.as.ptr.offset;
-	//printf(" local block %p +%d\n", ex->vars  ,   t->val.as.ptr.offset);
-	return tnext(t);
-}
-
-struct tokenS* hstackread (exectxT* ex, tokenT* t) {
-	//grab from stack, relative to fp
-	ex->stack[(ex->sp)++] = ex->stack[ ex->fp + t->val.as.z32 ];
-	return tnext(t);
-}
-
-
-
-#define DEREF(TYPE,BASE,OFFSET)      *((TYPE*)(((char*)(BASE))+(OFFSET)))
-
-#define tsub(TTT)  ((tokenT*)((TTT)->subs.head))
-
-struct tokenS* hstoreptr (exectxT* ex, tokenT* t) {
-	
-	exe(ex, tsub(t) );
-		
-	
-	DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.ptr;
-	
-	ex->sp-=2;
-	
-	return tnext(t);
-}
-
-struct tokenS* hcall (exectxT* ex, tokenT* t);
-struct tokenS* hreturn (exectxT* ex, tokenT* t);
-struct tokenS* hgroup (exectxT* ex, tokenT* t);
-
-struct tokenS* hloadptr (exectxT* ex, tokenT* t) {
-	
-	exe(ex, tsub(t) );
-		
-	ex->stack[ex->sp-1].as.ptr = DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
-	
-	return tnext(t);
-}
-
-
-struct tokenS* hoffsetptr (exectxT* ex, tokenT* t) {
-	
-	exe(ex, tsub(t) );
-		
-	ex->stack[ex->sp-1].as.ptr.offset += t->val.as.n32;
-	
-	return tnext(t);
-}
-
-struct tokenS* hindex(exectxT* ex, tokenT* t) {
-	exe(ex, tsub(t) );
-	
-	ex->stack[ex->sp-2].as.ptr.offset +=    ex->stack[ex->sp-1].as.ptr.offset   * t->val.as.n32;
-	ex->sp--;
-	return tnext(t);
-}
-
-
-struct tokenS* hcondblock (exectxT* ex, tokenT* t){
-	
-	
-	//run first instruction
-	tokenT* subs =tsub(t);
-	
-	instruction handler =  subs->handler;
-	
-	if (!handler)
-		ERR(" Null handler on cond's first arg\n");
-	
-	subs = handler(ex, subs); 
-	
-	//check result;
-	
-	ex->sp--;
-	
-	if ( ex->stack[ex->sp].as.n32){
-			//printf (" COND is true, execute body\n");
-			exe(ex, subs); //continue this  
-			//printf(" EXIT CHAIN\n");
-			return NULL;
-	} 
-	//printf(" COND was false, so call next in chain\n");
-	return tnext(t); //next one
-		
-	
-	
-	exe(ex, tsub(t) ); //evaluate all the args
-}
-
-
-struct tokenS* hbreakblock (exectxT* ex, tokenT* t) {
-	return NULL;//stop running this block of instructions
-}
-
-struct tokenS* hbreakloop (exectxT* ex, tokenT* t) {
-	ex->stop=STOPLOOP;
-	return NULL;//stop running this block of instructions
-}
-
-struct tokenS* hloop (exectxT* ex, tokenT* t) {
-	
-	while(!ex->stop){
-		exe(ex, tsub(t) );;
-	}
-	if(ex->stop== STOPLOOP)
-		ex->stop=0;
-	
-	return tnext(t);
-	
-}
 
 
 
@@ -1342,6 +1517,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				ERR("expected type name\n");
 
 			}
+			
+			ts->handler=hnop;
 
 			typeT* ty = findType(NAMED, NULL, name, 0); //find a type by name
 
@@ -1416,22 +1593,22 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		
 			
 		case ':': //typecast
+			
+			//for now this is dumb
+						
+			
 			ts=t; //ts is colon
 			t = parseType(tnext(t));
-			
+						
 			lfold(ts, t);
 			fold( tprev(ts), ts);
 			
-			
-			//t = tprev(t); //parsetype returns t for the next token
-			//ts->ty = t->ty;
-			//fold(tprev(ts), t);
-			
-			//t=tnext(t);
+			ts->ty = tsub(ts)->ty;
+			tsub(ts)->handler=hnop;
+			ts->handler = hgroup; //don't need to do anything for casts at the moment
 			
 			continue;
-		
-		
+				
 			
 		case '@':  //try to handle loading ptr to ptr.  Top of stack has a pointer to the pointer var
 			
@@ -1644,7 +1821,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				}//end has ref type
 				
 			}
-						
+			
+			printList(t,NULL,0,0);
 			ERR("Undefined symbol:%s\n\n", t->str);
 			
 			
@@ -1657,186 +1835,6 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 	return NULL;
 }
 
-void exe (exectxT* c, struct tokenS* t){
-	zuint32 i;
-	
-	while(t && ! c->stop){  //until out of instructions, or a return is bubbling up
-						
-		instruction handler = t->handler;
-		
-		char* str=  safestr(t->str);
-		printf("%x %s  (pre) handler %p\n",t->tok, safestr(t->str), handler);
-		
-		
-		if (!handler)
-			ERR("null handler for %c %s\n", t->tok, str);
-			
-		
-		//getc(stdin);
-		t = handler(c,t);
-		printf(">> %s\n",str);
-		printf("sp %x|", c->sp);
-		
-		
-		for (i=0;i<c->sp;i++){
-			printf("(%p+%x)/%d ", c->stack[i].as.ptr.block,c->stack[i].as.ptr.offset, c->stack[i].as.z32);
-			
-		}	
-		printf("\n\n");
-		
-		
-	}
-	
-		
-}
-
-void start(parsectxT* pctx, tokenT* t){
-	exectxT* exectx = ram_alloc(sizeof(exectxT), NULL);
-	exectx->stack = ram_alloc( sizeof(valueT)*100, NULL);
-	exectx->sp = 0;
-	printf(" PCTX %d bytes\n", pctx->size);
-	exectx->globalvars = ram_alloc(pctx->size , NULL);
-	
-	printf("EXE\n");
-	/*
-	for (int i=0;i<32;i++){
-			printf(",%02x ",  exectx->globalvars[i]  );
-			
-	}
-	printf(" \n");*/
-	
-	exe(exectx, t);
-	
-	ram_free(exectx->stack);
-	ram_free(exectx->globalvars);
-	ram_free(exectx);
-}
-
-
-struct tokenS* hadd32 (exectxT* ex, tokenT* t) {
-	
-	exe(ex, tsub(t));
-	
-	ex->stack[ex->sp-2].as.z32 += ex->stack[ex->sp-1].as.z32;
-	ex->sp--;
-	
-	//printf(" add\n");
-	
-	return tnext(t);
-}
-
-
-
-struct tokenS* hload32 (exectxT* ex, tokenT* t) {
-	
-	exe(ex, tsub(t));
-
-	zint32 i = DEREF(zint32, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
-	//printf(" Loaded 32 %d   from +%x\n", i,ex->stack[ex->sp-1].as.ptr.offset );
-	ex->stack[ex->sp-1].as.ptr.block=NULL;
-	ex->stack[ex->sp-1].as.z32 = i;
-	
-	
-	return tnext(t);
-}
-
-
-struct tokenS* hstore32 (exectxT* ex, tokenT* t) {
-	
-	exe(ex,tsub(t));
-		
-	
-	
-	DEREF(zint32, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.z32;
-	
-	ex->sp-=2;
-	
-	return tnext(t);
-}
-
-
-
-
-struct tokenS* hreturn (exectxT* ex, tokenT* t){
-	exe(ex, tsub(t)); //evaluate all the args (all after the head)
-	ex->stop=STOPFUNC;  //returning from function
-	return NULL; //stop instructions stream (process subs first, as they might be return values or something)
-}
-
-struct tokenS* hgroup (exectxT* ex, tokenT* t){
-	exe(ex, tsub(t)); //evaluate all the args
-	
-	if (t->val.as.z32)
-		return tnext(t); //go on to the next step
-	//printf("group finished, no continue\n");
-	return NULL;
-}
-
-
-struct tokenS* hcall (exectxT* ex, tokenT* t) {
-	exe(ex, tsub(t)); //evaluate all the args (all after the head)
-	
-	
-	
-	//printf(" CALLING PROC %s\n", t->str);
-	
-	//printf("pre call SP:%d  FP:%d\n", ex->sp, ex->fp); 
-	
-	zuint32 oldfp = ex->fp;  //save frame pointer
-	
-	ex->fp=ex->sp;
-		
-	//printf(" enter call SP:%d  FP:%d\n", ex->sp, ex->fp); 
-	
-	void* oldlocal = ex->vars;   //take old local var data
-	
-	
-	//printf(" PROC has context size %d\n", t->sym->subctx->size);
-	//printList(t->sym->tokens, NULL, 0, 0);
-	
-	
-	ex->vars =  ram_alloc(t->sym->subctx->size , NULL);
-	//exe(ex, (tokenT*) t->sym->t->subs.head->next);
-	//t->sym->t points to the token describing that function
-	//head of that token's sub list is the tokens describing its data type (input parameters, etc)
-	//the 'next' of that head is the first statement
-	
-	exe(ex, (tokenT*)  tnext( tsub(t->sym->tokens))  );
-	
-	//if (ex->stop==STOPFUNC){
-	//	printf(" Caught RET\n");
-	//}
-	
-	ex->stop=0; //stop return bubble-up
-	
-	//printf(" exit call SP:%d  FP:%d\n", ex->sp, ex->fp); 
-	
-	
-	//todo:  manipulate frame pointer to get rid of passed values
-	
-	if (t->sym->type->members)
-		ex->fp -=  zvec_count(t->sym->type->members);  //subtract out all passed values
-	
-	
-	if (t->sym->type->ref) {
-		ex->stack[ex->fp++] = ex->stack[ex->sp-1];  //copy last value to the frame pointer  todo: make this conditional
-		//printf(" Function returns ");printType(t->sym->type->ref,1,1);
-	} else {
-		//printf(" Function returns nothing\n");
-	}
-
-	ram_free(ex->vars);
-	
-	ex->sp = ex->fp;//put stack back to repositioned fp
-	ex->fp=oldfp;  //put old frame pointer back
-	ex->vars = oldlocal;//put old vars back
-	
-		
-	//printf(" return to  caller complete SP:%d  FP:%d\n", ex->sp, ex->fp); 		
-		
-	//todo:handle return value, putting stack back together
-	return tnext(t);
-}
 
 
 int main(int argc, char** args){
@@ -1858,7 +1856,6 @@ int main(int argc, char** args){
 
 	//add in primitive C function pointers
 	
-	
 		
 	zlistT* tokens = tokenize(NULL, x);
 
@@ -1871,6 +1868,10 @@ int main(int argc, char** args){
 	
 	mkSymbol(global, "storeptr", tPrimitive, hstoreptr);
 	mkSymbol(global, "loadptr", tPrimitive, hloadptr);
+	
+	mkSymbol(global, "print32", tPrimitive, hprinti);
+	mkSymbol(global, "printchar", tPrimitive, hprintchar);
+	mkSymbol(global, "printnewline", tPrimitive, hprintnl);	
 	
 	parse( global, (tokenT*) tokens->head->next );
 
