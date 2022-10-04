@@ -1,6 +1,15 @@
 primitive add32		+:(a:Z32; b:Z32	>> Z32);
-primitive load32	@:(a:Z32* 	>> Z32);
-primitive store32	=:(v:Z32; a:Z32*>> );
+primitive load32	@:(a:Z32& 	>> Z32);
+primitive store32	=:(v:Z32; a:Z32&>> );
+primitive printchar print:(a:N8 >>);
+primitive print32   print:(a:Z32 >>);
+
+
+
+proc newline:(>>)
+	10 :N8 print
+	return
+end
 
 //This tests recursion and nested if statements, without needing comparisons or iteration implemented
 
@@ -24,14 +33,15 @@ proc fib:(n:Z32 >> Z32)
 
 end
 
-1 fib
-2 fib
-3 fib
-4 fib
-5 fib
-6 fib
-7 fib
-8 fib
-9 fib
-10 fib
+1 fib print newline
+2 fib print newline
+3 fib print newline
+4 fib print newline
+5 fib print newline
+6 fib print newline
+7 fib print newline
+8 fib print newline
+9 fib print newline
+10 fib print newline
+
 

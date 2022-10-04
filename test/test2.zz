@@ -1,9 +1,11 @@
 
 primitive add32		+:(a:Z32; b:Z32	>> Z32);
-primitive load32	@:(a:Z32* 	>> Z32);
-primitive store32	=:(v:Z32; a:Z32*>> );
+primitive load32	@:(a:Z32& 	>> Z32);
+primitive store32	=:(v:Z32; a:Z32&>> );
 primitive printchar print:(a:N8 >>);
 primitive print32   print:(a:Z32 >>);
+
+
 
 proc newline:(>>)
 	10 :N8 print
@@ -76,16 +78,20 @@ end
 newline
 
 var x:Z32;
-var y:Z32*;
-var z:Z32**;
+var y:Z32&;
+var z:Z32&&;
 
 
 10 x=
 x print newline
 
+//y& z=
+x& y=
 
 x print newline
 
+//44 z@@=
+x print newline
 
 0 print newline
 0 i = 
@@ -94,5 +100,9 @@ loop
 	i -1000000+ if else break end
 end
 i print newline
+
+
+
+
 
 

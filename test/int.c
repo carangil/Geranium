@@ -64,6 +64,7 @@ typedef struct tokenS{
 	zlistT subs;	//make a tree out of token list
 	instruction handler; 
 	struct symbolS* sym;  //for things like procs that have a bunch of context info
+	int line;
 }tokenT;
 
 
@@ -211,6 +212,7 @@ zlistT* tokenize(zlistT* list, char* in){
 	tokenT* t=NULL;
 	char small[3];
 	int i;
+	int line=1;
 
 	if (!list) {
 		list = ram_alloc(sizeof(zlistT), (ram_destructor) zlist_cleanup);
@@ -222,9 +224,11 @@ zlistT* tokenize(zlistT* list, char* in){
 	while (c = *in){
 		next = *(in+1);
 		zuint32 p;
+		if (c == '\n')
+			line++;
 
 		//find twochar patterns like ->,etc. including comment start/end markers
-		if (p=findPair("<<>>--++->==||&&/**///[]", c, next)){
+		if (p=findPair("<<>>--++->==/**///[]", c, next)){
 			if (  p == PAIR('/','/')  ) { //special handling for // comments
 				while(*in!= '\n')
 					in++;
@@ -290,6 +294,7 @@ zlistT* tokenize(zlistT* list, char* in){
 
 		//just some char
 		t = mkToken( *in, in, 1);
+		t->line=line;
 		zlist_addtail(list, &t->zlistnode);
 		in++;
 	}
@@ -316,7 +321,10 @@ zlistT* tokenize(zlistT* list, char* in){
 #define ARRAY 	4
 #define FUNCTION 5
 #define PRIMITIVE 6
-#define LAST_REAL_TYPE 7
+#define LAST_REAL_TYPE 6
+
+//IDENTITY type refers to a type...  IDENTITY with ref pointing to Z32, is the actual type Z32
+#define IDENTITY	7
 
 //MEMBER is not a type, but is used to mark members of a struct
 #define MEMBER	10
@@ -386,7 +394,7 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 		printf("{nulltype}");
 	
 	if (ty){
-		printf("#%d#", ty->tid);
+		printf("%d~", ty->tid);
 		if (!skipmembers)
 			printf("<size%d>", ty->size);
 		
@@ -405,7 +413,7 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 			break;
 			
 		case POINTER:
-			end="*"; //fallthru
+			end="&"; //fallthru
 			break;
 			
 		case PENDING:
@@ -1173,7 +1181,7 @@ tokenT*  parseType(tokenT* t) {
 			next = zlist_next(t);
 			continue;
 		}
-		if (t->tok == '*'){ //pointer type
+		if (t->tok == '&'){ //pointer type
 			t->ty = findType( POINTER, tprev(t)->ty, NULL,0);
 			next = zlist_next(t);
 			fold(tprev(t),t);
@@ -1316,7 +1324,7 @@ tokenT*  parseVar(tokenT* t,  char** nameOut, typeT** typeOut) {
 
 }
 
-typeT *tPrimitive, *tZ32, *tN32, *tN8;
+typeT *tType, *tPrimitive, *tZ32, *tN32, *tN8;
 
 zbool parsectx_cleanup(void* v){
 	parsectxT* pc = v;
@@ -1402,8 +1410,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			typeT* type=NULL;
 			
 			t = parseVar( tnext(t), &name, &type); //parse variable; name is required
-			//printf( " KPROC ");
-			//printType(type, 1,1);
+			printf(" var  %s is type ", name);
+			printType(type, 1,1);
 			if (!name){
 				ERR("Expected name and ':'\n");
 			}
@@ -1822,6 +1830,17 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				
 			}
 			
+			//Check if it is a datatype
+			typeT* ty = findType(NAMED, NULL, t->str, 0);
+			if (ty){
+				printf("Found type %s\n", ty->name);
+				t->ty = tType;
+				t->val.as.ptr.block = ty;
+				t->val.as.ptr.offset = 0;
+				t=tnext(t);
+				continue;
+			}
+			
 			printList(t,NULL,0,0);
 			ERR("Undefined symbol:%s\n\n", t->str);
 			
@@ -1839,7 +1858,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 int main(int argc, char** args){
 
-	
+	tType = mkType( SIMPLE, NULL, "type", 0 ); //datatype about "types"
 	mkType( SIMPLE, NULL, "any", 0 ); //not really a type, but for plain pointers (any*)
 	tPrimitive = mkType( PRIMITIVE, NULL, "Primitive", 0 ); //allows lookup of C functions by name
 	tZ32 = mkType( SIMPLE, NULL, "Z32", sizeof(zint32));
