@@ -21,6 +21,7 @@ typedef union valu {	//Generic value (datatype is tracked through other means)
 		zint32 z32;
 		zint32 n32;
 		vptrT ptr;
+		struct typeS* type;
 	} valU;
 	
 typedef struct valueS{
@@ -104,8 +105,9 @@ typedef struct tokenS{
 #define KELSEIF		0x8008
 #define KLOOP		0x8009
 #define KBREAK		0x800a
+#define KNEW		0x800b
 
-char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", NULL};
+char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -318,19 +320,20 @@ zlistT* tokenize(zlistT* list, char* in){
 #define SIMPLE	1
 #define POINTER 2
 #define STRUCT 	3
-#define ARRAY 	4
-#define FUNCTION 5
-#define PRIMITIVE 6
-#define LAST_REAL_TYPE 6
+#define ARRAYSTATIC 	4
+#define ARRAYDYNAMIC 	5
+#define FUNCTION 6
+#define PRIMITIVE 7
+#define LAST_REAL_TYPE 7
 
-//IDENTITY type refers to a type...  IDENTITY with ref pointing to Z32, is the actual type Z32
-#define IDENTITY	7
+//ARRAYSTATIC have a fixed size.  To be embedded directly in structs, etc
+//ARRAYDYNAMIC are heap allocated
 
 //MEMBER is not a type, but is used to mark members of a struct
 #define MEMBER	10
 //NAMED is not a type, but when passed into findType looks for struct or simple  w/out knowing which it is yet
 #define NAMED	11
-//PENDING not a type, but is for when a type is mentioned in another declaration but not yet defined
+//PENDING not a type, but is for when a type is mentioned in another declaration but not yet defined.  You can't 'make' or size a PENDING type, but can have pointers to them
 #define PENDING 12
 
 typedef struct typeS{
@@ -362,7 +365,7 @@ typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
 	ty->name = zstrdup(name);
 	ty->ref = ref;
 
-	if (category == ARRAY){
+	if (category == ARRAYSTATIC || category == ARRAYDYNAMIC){
 		ty->len = szlen;
 		ty->size = szlen * ref->size;
 	}
@@ -373,10 +376,14 @@ typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
 	}
 
 	//pointer or indefinite array
-	if ((category == POINTER)|| (category == ARRAY) && (szlen == 0)){
+	if ((category == POINTER)|| (category == ARRAYDYNAMIC) ){
 		if (ty->size)
-			ERR("Cannot specify size of pointer or indefinite array (it is automatically calculated)\n");
-		ty->size = sizeof (vptrT);
+			ERR("Cannot specify size of pointer or dynamic array (it is automatically calculated)\n");
+		if (category == POINTER)
+			ty->size = sizeof (vptrT);
+		
+		if (category == ARRAYDYNAMIC) 
+			ty->size = ref->size; //size of 1 element
 	}
 
 	if (types == NULL)
@@ -407,13 +414,19 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 			skipmembers=ZFALSE;
 			break;
 		
-		case ARRAY:
-			printf("[%d ", ty->len);
+		case ARRAYSTATIC:
+		case ARRAYDYNAMIC:
+			if (ty->len)
+				printf("[%d ", ty->len);
+			else
+				printf("[");
+			
+			
 			end="]";
 			break;
 			
 		case POINTER:
-			end="&"; //fallthru
+			end="&"; 
 			break;
 			
 		case PENDING:
@@ -478,7 +491,7 @@ zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty){
 			return ZFALSE;
 	}
 
-	if ((ty->category == ARRAY) &&(ty->len != len)) //array of different sizes
+	if ((ty->category == ARRAYSTATIC) &&(ty->len != len)) //array of different sizes
 		return ZFALSE;
 
 	//check reference same type  (findType should not be returning equivalent duplicates)
@@ -551,7 +564,8 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 				break; //not it
 
 			case POINTER: 
-			case ARRAY:
+			case ARRAYSTATIC:
+			case ARRAYDYNAMIC:
 			case FUNCTION:
 
 				if (cmpType(category, ref, NULL, len, ty))
@@ -566,7 +580,7 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 
 	//did not find.
 
-	if (ref &&((category == ARRAY) || (category == POINTER))) {
+	if (ref &&((category == ARRAYDYNAMIC)||(category==ARRAYSTATIC) || (category == POINTER))) {
 
 		//If array or pointer, find the type 'underneath' and make it
 
@@ -1051,22 +1065,60 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
+tokenT* halloc(exectxT* ex, tokenT* t) {
+	
+	//TODO: allow destructors for alloced structs
+	size_t size =   t->ty->ref->size;
+	
+	printf(" ALLOC %d for ", size);
+	printType( t->ty->ref, ZTRUE, ZTRUE);
+	
+	ex->stack[ex->sp] .as.ptr.offset=0;
+	ex->stack[(ex->sp)++].as.ptr.block = ram_alloc( size ,NULL  );
+	
+	return tnext(t);
+}
+
+tokenT* hallocarray(exectxT* ex, tokenT* t) {
+	exe(ex,tnext(tnext(tsub(tsub(t)))));
+	//TODO: allow destructors for alloced structs
+	size_t size =   t->ty->ref->size;
+	
+	ex->sp--;
+	size *= ex->stack[ex->sp].as.z32;
+	
+	printf(" ALLOC %d for ", size);
+	
+	printType( t->ty->ref, ZTRUE, ZTRUE);
+	
+	ex->stack[ex->sp] .as.ptr.offset=0;
+	ex->stack[(ex->sp)++].as.ptr.block = ram_alloc( size ,NULL  );
+	//exit(1);
+	return tnext(t);
+}
+
+
 tokenT* hprinti (exectxT* ex, tokenT* t) {
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
 	ex->sp--;
 	printf("%d", ex->stack[ex->sp].as.z32);
 	return tnext(t);
 }
-tokenT* hprintnl (exectxT* ex, tokenT* t) {
-	printf("\n");
-	return tnext(t);
-}
+
 tokenT* hprintchar (exectxT* ex, tokenT* t) {
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
 	ex->sp--;
 	printf("%c", ex->stack[ex->sp].as.z32);
 	return tnext(t);
 }
+
+tokenT* hprintptr (exectxT* ex, tokenT* t) {
+	exe(ex, tsub(t)); //evaluate all the args (all after the head)
+	ex->sp--;
+	printf("{%p+%x} ", ex->stack[ex->sp].as.ptr.block,  ex->stack[ex->sp].as.ptr.offset  );
+	return tnext(t);
+}
+
 
 void start(parsectxT* pctx, tokenT* t){
 	exectxT* exectx = ram_alloc(sizeof(exectxT), NULL);
@@ -1161,7 +1213,13 @@ tokenT*  parseType(tokenT* t) {
 			}
 			
 			//attach array type to opening bracket
-			S->ty = findType(ARRAY, tprev(t)->ty, NULL, count? atoi(count):0);
+			int icount = count? atoi(count) : 0;
+			if (icount)
+				S->ty = findType(ARRAYSTATIC, tprev(t)->ty, NULL, icount);	
+			else
+				S->ty = findType(ARRAYDYNAMIC, tprev(t)->ty, NULL, 0);	
+			
+			
 			
 			next = tnext(t);
 			lfold(S,next); //everything after opening bracket to closing bracked is folded under the open
@@ -1433,8 +1491,24 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t=tnext(t); //skip past semicolon
 			lfold(ts, t);  //everything up to an including semicolon folded
 			s->tokens = ram_addref(ts); //symbol has this tokenstream
-			ram_free(tremove(ts)); //remove from the executable token list 
+			//ram_free(tremove(ts)); //remove from the executable token list 
 			ts->handler=hnop;
+			continue;
+			
+		case '#':	//create variable of whatever type is on the stack, and store 
+			t=tnext(t); //is variable name
+			
+			if (pc==global)
+				handler = hglobal;
+			else 
+				handler = hlocal;
+			printList(ts, t, ENDFILE, 1);
+			s=mkSymbol(pc, t->str, tprev(ts)->ty, handler);
+			//don't do t=tnext(t). This way t, which contains the name of the var,
+			//will be parsed again, and that will make a 'load' token.
+			//so insert a token after this so that it makes it a store
+			zlist_insert_node_after(t, mkToken('=',"=",0));
+			fold(ts,t);
 			continue;
 		case KRETURN:
 			
@@ -1534,12 +1608,12 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				ERR("redefining type %s\n", name);
 			}
 
-			if (ty)
-				ty->category = STRUCT; //if it was pending, its a real struct now
-			else
-				ty = mkType( STRUCT, NULL, name, 0);  //create a struct type
+			if (!ty)
+				ty = mkType( PENDING, NULL, name, 0);  //create a pending type (so it can be referenced by pointer, but not directly yet)
 
 			t = parseTypeList(tnext(tnext(t)), ty);
+
+			ty->category = STRUCT; //its a real struct now
 
 			if(t->tok == KEND) {
 				//printf(" Defined type %s as %s\n", name, tprev(t)->str);
@@ -1568,10 +1642,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		
 		
 		case LITERAL: //string literal (byte array)
-			t->ty = findType(ARRAY, tN8, NULL, 0);
+			t->ty = findType(ARRAYDYNAMIC, tN8, NULL, 0);
 			t=tnext(t);
 			continue;
-				
+			
+						
 		case PAIR('[',']'):
 			//todo: check its an integer, and type is an array
 			//array accesshload32
@@ -1620,10 +1695,25 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 		case '@':  //try to handle loading ptr to ptr.  Top of stack has a pointer to the pointer var
 			
-			//if 'getting' a variable that is going to be assigned to, or have a sturct member taken, defer the 'dereference'
-			if (	(tnext(t)->tok=='=') ||
-				(tnext(t)->str && tnext(t)->str[0]=='.')
-			){
+			int structskipderef=0;
+			
+			if (tnext(t)->str && tnext(t)->str[0]=='.') {	//if next token tries to take a struct member
+				
+				if ( 	tprev(t)->ty 					//has a type
+					&& (tprev(t)->ty->category == POINTER)		//that's a pointer
+					&& (tprev(t)->ty->ref)				//to a type
+					&& (tprev(t)->ty->ref->category ==POINTER)	//that's a pointer
+					&& (tprev(t)->ty->ref->ref)			//to a type
+					&& (tprev(t)->ty->ref->ref->category == STRUCT) //that's a struct
+				)
+					structskipderef=0; 	//don't skip the dereference
+				else
+					structskipderef=1;	//then skip the dereference
+			}
+				
+				
+			//if 'getting' a variable that is going to be assigned to, or is a ointer to struct to have a sturct member taken, defer the 'dereference'
+			if (	(tnext(t)->tok=='=') || structskipderef){
 				t=tnext(t);
 				ram_free(tremove(ts));
 				continue;
@@ -1641,6 +1731,20 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				continue;	
 								
 			}
+			
+			//pointer to array load
+			
+			if ( tprev(t)->ty && (tprev(t)->ty->category == POINTER) && (tprev(t)->ty->ref->category == ARRAYDYNAMIC)){
+				//printf("general pointer to pointer load\n");
+				t->ty = tprev(t)->ty->ref;
+				fold(tprev(t),t);
+				t->handler = hloadptr;
+				
+				t=tnext(t);
+				continue;	
+								
+			}
+			
 			//other '@' cases that aren't handled will drop down later
 			break;
 				
@@ -1662,8 +1766,35 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				}
 			}
 			
+			//handle dynamically allocated arrays in similar manner
 			
-									
+				
+			
+			break;
+			
+		case KNEW:  //item creation
+			int isArray=0;
+			if ( (tprev(t)->ty == tZ32) &&  (tprev(tprev(t))->ty == tType)){
+				
+				lfold(  tprev(tprev(t)), t);
+				isArray=1;
+				//exit(1);
+				//newcat = ARRAY;
+			}
+				
+			if (tprev(t)->ty == tType){
+				typeT* rt = (void*) tprev(t)->val.as.type;
+				
+				t->ty = findType(POINTER, rt, NULL, 0);
+				
+				fold(tprev(t), t);
+				t->handler = isArray? hallocarray: halloc;
+				t = tnext(t);
+				continue;
+			}
+					
+			
+			break;						
 			
 		}//end switch
 		
@@ -1753,8 +1884,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					t->val.as.ptr.offset= s->offset;
 					
 					if (tnext(t)->tok=='&')   {
-						ram_free(tremove(tnext(t)));
-					} else if (s->type->category!=ARRAY) {  //else if (tnext(t)){
+						ram_free(tremove(tnext(t)));  //remove the ampersand from token list
+					} else if (s->type->category!=ARRAYSTATIC) {  //else if (tnext(t)){
 						tokenT* tn = mkToken('@', "@", 1);  //load the variable
 						insert_after(t, tn);
 					}
@@ -1793,17 +1924,24 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//check if struct member
 			if (t->str && t->str[0]=='.'){
 				//printf(" dot\n");
-				if (tprev(t)->ty && (tprev(t)->ty->category == POINTER )&& (tprev(t)->ty->ref)){
+							
+				typeT* ptype = tprev(t)->ty;
+						
 				
+				//if we have a pointer to a struct..
+				if (ptype && (ptype->category == POINTER )&& (ptype->ref) && (ptype->ref->category==STRUCT)){
+				
+					//we can create pointer to type member
 					//printf(" look for member\n");
 					
-					typeT* m = findTypeMember( tprev(t)->ty->ref, t->str+1, NULL, NULL);
+					typeT* m = findTypeMember( ptype->ref, t->str+1, NULL, NULL);
 					if (m){
 						
 					
 						//printf(" OFFSET %d for %s in %s\n", m->offset,t->str+1, tprev(t)->ty->ref->name );
 						
 						t->handler = hoffsetptr;
+						
 						t->val.as.n32 = m->offset;
 						t->ty = findType(POINTER, m->ref, NULL,0); //find pointer to the member type
 						
@@ -1812,7 +1950,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						
 						if (tnext(t)->tok=='&')   {
 							ram_free(tremove(tnext(t)));
-						}  else if (  m->ref->category != ARRAY   ){ //don't insert a load if struct member is an array
+						}  else if (  m->ref->category != ARRAYSTATIC   ){ //don't insert a load if struct member is an array
 							tokenT* tn = mkToken('@', "@", 1);  //load the variable
 							insert_after(t, tn);
 						}
@@ -1831,17 +1969,26 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 			
 			//Check if it is a datatype
-			typeT* ty = findType(NAMED, NULL, t->str, 0);
+			typeT* ty = NULL;
+			tokenT* tn=NULL;
+			if (t->tok=='['){
+				t = parseType(t);
+				ty = tprev(t)->ty;
+				tn=t;
+			} else {
+				ty = findType(NAMED, NULL, t->str, 0);
+				tn = tnext(t);
+			}
+			
 			if (ty){
 				printf("Found type %s\n", ty->name);
-				t->ty = tType;
-				t->val.as.ptr.block = ty;
-				t->val.as.ptr.offset = 0;
-				t=tnext(t);
+				ts->ty = tType;
+				ts->val.as.type = ty;
+				t=tn;
 				continue;
 			}
 			
-			printList(t,NULL,0,0);
+			printList(tprev(ts),t,0,0);
 			ERR("Undefined symbol:%s\n\n", t->str);
 			
 			
@@ -1880,7 +2027,6 @@ int main(int argc, char** args){
 
 	ram_free(x);
 	
-	
 	mkSymbol(global, "add32", tPrimitive, hadd32);
 	mkSymbol(global, "load32", tPrimitive, hload32);
 	mkSymbol(global, "store32", tPrimitive, hstore32);
@@ -1890,7 +2036,8 @@ int main(int argc, char** args){
 	
 	mkSymbol(global, "print32", tPrimitive, hprinti);
 	mkSymbol(global, "printchar", tPrimitive, hprintchar);
-	mkSymbol(global, "printnewline", tPrimitive, hprintnl);	
+	mkSymbol(global, "printptr", tPrimitive, hprintptr);
+	
 	
 	parse( global, (tokenT*) tokens->head->next );
 
@@ -1913,6 +2060,4 @@ int main(int argc, char** args){
 	ram_allocs(); //dump memory leak list
 	return 0;   
 }
-
-
 
