@@ -1,0 +1,45 @@
+primitive add32		+:(a:Z32; b:Z32	>> Z32);
+primitive load32	@:(a:Z32& 	>> Z32);
+primitive store32	=:(v:Z32; a:Z32&>> );
+primitive printchar print:(a:N8 >>);
+primitive print32   print:(a:Z32 >>);
+
+
+proto newline:(>>);
+
+proc ff:( n:Z32 >>  )
+
+	
+	0 print n print  newline
+	
+	return
+end
+
+
+proc ff2:( n:Z32 >>  )
+
+	
+	n print 
+end
+
+
+proc ff3:( s:Z32 >>  )
+
+	
+	s print 
+end
+
+
+
+55 print newline
+
+10 ff
+
+
+
+proc newline:(>>)
+	10 :N8 print
+	return
+end
+
+

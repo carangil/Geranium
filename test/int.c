@@ -106,8 +106,9 @@ typedef struct tokenS{
 #define KLOOP		0x8009
 #define KBREAK		0x800a
 #define KNEW		0x800b
+#define KPROTO		0x800c
 
-char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", NULL};
+char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -520,6 +521,13 @@ zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty){
 			//	printf("arg %d to function is of different type\n", i);
 				return ZFALSE;
 			}
+			
+			//compare names of members too
+			if (strcmp(memberty->name, memberref->name)){
+				printf("arg %d to function is of different name\n", i);
+				return ZFALSE;
+			}
+			
 		}
 		return ZTRUE; //function type is the same
 	}
@@ -673,6 +681,7 @@ typedef struct symbolS{
 	instruction handler;
 	tokenT* tokens;
 	struct parsectxS* subctx; //procs have their own parsecontext for their local vars
+	int isPrototype;// true if this symbol is just a function prototype
 } symbolT;
 
 
@@ -1010,6 +1019,10 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	//printf("pre call SP:%d  FP:%d\n", ex->sp, ex->fp); 
 	
 	zuint32 oldfp = ex->fp;  //save frame pointer
+
+	if (t->sym->isPrototype){
+			ERR("Function body missing:%s\n", t->str );
+	}
 	
 	ex->fp=ex->sp;
 		
@@ -1463,18 +1476,54 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t = tnext(t);
 			//fall through to var decl
 		case KVAR:		//variable declaration
-		case KPROC:
+		case KPROC:		//function body definition
+		case KPROTO:		//function prototype
 			name=NULL;
 			typeT* type=NULL;
 			
 			t = parseVar( tnext(t), &name, &type); //parse variable; name is required
-			printf(" var  %s is type ", name);
+			printf("proc/var %s   %s is type ", ts->str,  name);
 			printType(type, 1,1);
 			if (!name){
 				ERR("Expected name and ':'\n");
 			}
 			
-			s=mkSymbol( pc, name, type, handler);
+			s = NULL;
+			
+			if (ts->tok == KPROC){
+				printf(" Try to find exact symbol\n");
+				int i;	
+				symbolT* ss;
+	
+				for (i=0;i<zvec_count(global->symbols);i++){
+					ss = zvec_get_x_at(global->symbols, symbolT*, i);
+					
+					if (!ss->isPrototype)
+						continue;
+					
+					if (!strcmp(name, ss->name)){
+						//same name
+						
+						//need to compare type with proto
+						if (ss->type == type){
+							printf(" Found type match\n");
+							ss->isPrototype=0;
+							s=ss;
+							break;
+						}
+						
+					}
+				}
+				
+			}
+			
+			if (!s)
+				s=mkSymbol( pc, name, type, handler);
+			
+			if(ts->tok == KPROTO){
+				s->isPrototype = 1;
+				s->handler = hcall;	//will eventually be a function call
+			}
 			
 			if (ts->tok == KPROC){
 				//procedures go into a body of statements
@@ -1490,7 +1539,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			t=tnext(t); //skip past semicolon
 			lfold(ts, t);  //everything up to an including semicolon folded
-			s->tokens = ram_addref(ts); //symbol has this tokenstream
+			if (!s->isPrototype)
+				s->tokens = ram_addref(ts); //symbol has this tokenstream
 			//ram_free(tremove(ts)); //remove from the executable token list 
 			ts->handler=hnop;
 			continue;
@@ -1904,13 +1954,14 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				int count =0;
 				int pos=0;
 				
-				
+				printf(" LOOKING IN ");
+				printType(pc->type, ZTRUE, ZFALSE);
 				typeT* m = findTypeMember( pc->type, t->str, &pos, &count);
 				
 				if (m){
 					int so = -count+pos;
-					//printf("Found %s  stack pos fp+%d, of type   ", m->name, so);
-					//printType(m->ref,ZTRUE, ZFALSE);
+					printf("Found %s  stack pos fp+%d, of type   ", m->name, so);
+					printType(m->ref,ZTRUE, ZFALSE);
 					t->ty = m->ref;
 					t->handler = hstackread;
 					t->val.as.z32=so;
