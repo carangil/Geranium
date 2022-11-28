@@ -159,6 +159,9 @@
     <ClCompile Include="..\..\misc\zbitmap.c" />
     <ClCompile Include="..\..\misc\zrand.c" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\misc\zwindow.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
