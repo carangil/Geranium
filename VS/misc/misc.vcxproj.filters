@@ -24,6 +24,9 @@
     <ClCompile Include="..\..\misc\zrand.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\misc\zwindow.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\misc\zwindow.h">

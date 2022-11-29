@@ -108,3 +108,14 @@ typedef struct zwindow_s {
 	int first;
 	int last;
 } zwindowT;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void zw_enqueue(zwindowT* zw, zuint32 type, zuint32 a, zuint32 b, void* ptr);
+zbool zw_event(zwindowT* zw, zeventT* ev);
+
+#ifdef __cplusplus
+}
+#endif

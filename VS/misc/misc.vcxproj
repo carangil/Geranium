@@ -158,6 +158,7 @@
     <ClCompile Include="..\..\misc\tm.c" />
     <ClCompile Include="..\..\misc\zbitmap.c" />
     <ClCompile Include="..\..\misc\zrand.c" />
+    <ClCompile Include="..\..\misc\zwindow.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\misc\zwindow.h" />
