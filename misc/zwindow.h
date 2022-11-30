@@ -23,7 +23,7 @@ typedef struct zevent_s {
 //subevent: DOWN/UP for keyboard and mouse clicks
 //(ev.type & ZEVENT_UP) means a key or mouse button was released
 #define ZEVENT_DOWN		0x00010000
-#define ZEVENT_UP		0x00020000
+#define ZEVENT_UP		0x00020000  
 #define ZEVENT_MOVE		0x00030000
 
 
@@ -52,7 +52,7 @@ typedef struct zevent_s {
 #define ZKEY_BACKSPACE	'\b'
 #define ZKEY_TAB	'\t'
 #define ZKEY_ENTER	'\n'
-#define ZKEY_EsCAPE	0x1b
+#define ZKEY_ESCAPE	0x1b
 
 #define ZKEY_LASTCHAR	0x7f
 
@@ -64,7 +64,7 @@ typedef struct zevent_s {
 #define ZKEY_CTRL	0x81
 #define ZKEY_SHIFT	0x82
 #define ZKEY_ALT	0x84
-#define ZKEY_MOD_FUTURE 0x88	//something other than ctrl,alt,shift... Some future special key
+#define ZKEY_MOD_FUTURE 0x88	/*something other than ctrl,alt,shift... Some future special key*/
 #define ZKEY_MODLAST	0x8f
 
 #define ZKEY_F1		0x91
@@ -92,7 +92,12 @@ typedef struct zevent_s {
 #define ZKEY_INS	0xb2
 #define ZKEY_DEL	0xb3
 
-
+/* On systems that can tell the difference between left and right control, alt, shift keys, then keyup/down events on the right keys will be RCTRL, RALT, RSHIFT*/
+/* The right ALT, SHIFT and CTRL keys will still produce ZKEY_CTRL  (aka 'left') codes when used as modifiers  CTRL-B doesn't care if its left or right CTRL*/
+/* On systems that can't tell between left and right, then RCTRL, etc will not be used at all */
+#define ZKEY_RCTRL	0xb4
+#define ZKEY_RSHIFT	0xb5
+#define ZKEY_RALT	0xb6
 
 
 

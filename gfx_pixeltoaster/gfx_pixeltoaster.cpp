@@ -185,7 +185,7 @@ protected:
 
 	if (c) {
 	//	printf(" Generate char %c with keystate %x\n",c,keystate);
-    		zw_enqueue(this->zwin, ZEVENT_KEY|ZEVENT_CHAR|keystate , c , 0, 0);
+    		zw_enqueue(this->zwin, ZEVENT_CHAR|keystate , c , 0, 0);
 	}
 
     }

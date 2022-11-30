@@ -59,7 +59,7 @@ void thread_test() {
 
 }
 
-#if 0
+
 void main() {
 
 	char* x = ram_strdup_cat("test1", "test2");
@@ -99,4 +99,4 @@ void main() {
 	}
 
 }
-#endif
+
