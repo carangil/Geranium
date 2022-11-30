@@ -23,6 +23,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\gfx_gl\gfx_window.c" />
+    <ClCompile Include="..\..\gfx_gl\glad\src\glad.c" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -86,12 +87,12 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>H:\projects\external\glfw-3.3.8.bin.WIN64\include\GLFW;H:\projects\external\glfw-3.3.8.bin.WIN64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)\..\gfx_gl;$(SolutionDir)\hcopy</IncludePath>
+    <IncludePath>H:\projects\Zcore\gfx_gl\glad\include;H:\projects\external\glfw-3.3.8.bin.WIN64\include\GLFW;H:\projects\external\glfw-3.3.8.bin.WIN64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)\..\gfx_gl;$(SolutionDir)\hcopy</IncludePath>
     <LibraryPath>H:\projects\external\glfw-3.3.8.bin.WIN64\lib-vc2019;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>H:\projects\external\glfw-3.3.8.bin.WIN64\include\GLFW;$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)\..\gfx_gl;$(SolutionDir)\hcopy</IncludePath>
+    <IncludePath>H:\projects\Zcore\gfx_gl\glad\include;H:\projects\external\glfw-3.3.8.bin.WIN64\include\GLFW;$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)\..\gfx_gl;$(SolutionDir)\hcopy</IncludePath>
     <LibraryPath>H:\projects\external\glfw-3.3.8.bin.WIN64\lib-vc2019;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
