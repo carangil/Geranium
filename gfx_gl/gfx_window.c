@@ -8,12 +8,26 @@
 #include "string.h"
 #include <stdio.h>
 
+/*opengl error checker*/
+char* last_file;
+int last_line;
+void checkGL(char* file, int line) {
+	int err;
+
+	for (err = glGetError(); err != GL_NO_ERROR; err = glGetError()) {
+		printf("OPENGL ERROR %x FROM %s:%d to %s:%d\n", err, last_file, last_line, file, line);
+	}
+
+	last_file = file;
+	last_line = line;
+
+}
+
+/*glfw windowing and zevent interface*/
 typedef struct gfx_windowS {
 	zwindowT iface;	//the zevent window interface
-
 	GLFWwindow* fwindow;
-
-}gfxWindowT;
+}gfx_windowT;
 
 void errorHandler(int error, const char* message) {
 
@@ -85,7 +99,7 @@ void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods)
 		//zevent doesn't care about if shift/alt/ctrl are held down while releasing a key
 	}
 
-	gfxWindowT* win= glfwGetWindowUserPointer(window);
+	gfx_windowT* win= glfwGetWindowUserPointer(window);
 	
 	if (win == NULL) {
 		printf(" not a zevent window! serious bug?\n");
@@ -98,17 +112,15 @@ void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods)
 void charHandler(GLFWwindow* window, int character) {
 	//glfw doesn't do modifiers with character callbacks
 	//todo: we could probably read or track keystate
-	gfxWindowT* win = (gfxWindowT*)glfwGetWindowUserPointer(window); ;
+	//also might want to generate characters for backspace, enter, tab, etc, as they do have character codes (they keydown/repeat event should do that)
+	gfx_windowT* win = (gfx_windowT*)glfwGetWindowUserPointer(window); ;
 	zw_enqueue(&win->iface, ZEVENT_CHAR, character, 0, 0);
 }
 
-
-
+/* one-time initialization */
 zbool gfxi_inited = ZFALSE;
 void gfxi_init() {
-
 	
-
 	if (!glfwInit()) {
 		printf(" Can't init glfw\n");
 		return;
@@ -118,7 +130,6 @@ void gfxi_init() {
 
 	gfxi_inited = ZTRUE;
 }
-
 
 //event interface
  zbool gfx_event(zwindowT * zw, zeventT * ev) {
@@ -130,7 +141,7 @@ void gfxi_init() {
 		return ZTRUE;
 	}
 
-	gfxWindowT* win = (gfxWindowT*)zw;
+	gfx_windowT* win = (gfx_windowT*)zw;
 
 	if (glfwWindowShouldClose(win->fwindow)) {
 		//glfw user is trying to close window
@@ -144,29 +155,41 @@ void gfxi_init() {
 }
 
 void gfx_pixels(zwindowT * zw, void* px) {
-	printf(" 'pixels' interface not supported in opengl\n");
-	//TODO: Just render the image to a texture, and be done with it
-	//TODO: the old pixeltoaster interface did not support resizing windows, BUT this does.  Not sure what to do... maybe add w/h/ fields here, not support pixels interface, or 
+	gfx_windowT* win = (gfx_windowT*)zw;
+
+	if (px == NULL)
+		glfwSwapBuffers(win->fwindow);
+	else {
+		printf(" non-framebuffer pixels not supported ");
+	}
+
+	//get the window size and fix the viewport
+	glfwGetWindowSize(win->fwindow, &win->iface.w, &win->iface.h);
+	glViewport(0, 0, win->iface.w, win->iface.h);
+	//the above is also updating the 'w' and 'h' coordinates, so the app can use them in drawing the next frame, if they are adapting to window size
+
+
+	checkGL(__FILE__, __LINE__); //check for errors
 }
 
 void gfx_close(zwindowT * zw) {
 	printf(" 'close' interface not supported in opengl.  click the 'x' manually\n");
 }
 
-
-
 //flags currently don't do anything
 //creation of first window will init glfw
 
 zwindowT* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) {
 
-	gfxWindowT* win = ram_alloc(sizeof(gfxWindowT), NULL); //no destructor key
+	gfx_windowT* win = ram_alloc(sizeof(gfx_windowT), NULL); //no destructor key
 
 	if (!gfxi_inited)
 		gfxi_init();
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+	glfwWindowHint(GLFW_SAMPLES, 4);  //enable antialiasing buffers
+
 
 	win->fwindow = glfwCreateWindow(w, h, title, NULL, NULL);
 	glfwSetWindowUserPointer(win->fwindow, win); //
@@ -177,37 +200,97 @@ zwindowT* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) {
 	glfwMakeContextCurrent(win->fwindow);
 
 
+
 	if (!gladLoadGLLoader(glfwGetProcAddress)) {
 		printf("Can't init glad\n");
 	}
 
+	glEnable(GL_MULTISAMPLE); //enable antialiasing
 
 
+	gfx_identity(); //clear the matrix
 
 	win->iface.close = gfx_close;
 	win->iface.pixels = gfx_pixels;
 	win->iface.event = gfx_event;
-	
+
+	//get the window size and fix the viewport
+	glfwGetWindowSize(win->fwindow, &win->iface.w, &win->iface.h);
+	glViewport(0, 0, win->iface.w, win->iface.h);
+	glClearColor(0, 0, 0, 1); //black window default
+
 	return &(win->iface);
 }
 
+/*frame clear functions */
 
-/* Vertex buffers */
+void gfx_clear_color(float r, float g, float b, float a)
+{
+	glClearColor(r, g, b, a);
+}
+
+void gfx_frame_clear(zbool color, zbool depth)
+{
+	glClear(
+		(color ? GL_COLOR_BUFFER_BIT : 0)
+		|
+		(depth ? GL_DEPTH_BUFFER_BIT : 0)
+	);
+}
+
+
+
+/* Some simple setup functions*/
+
+
+void gfx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist)
+{
+
+	//projection matrix
+	gfx_projection3d(fovy, aspect, neardist, fardist);
+
+	//by default, a full range depth buffer
+	glClearDepth(1.0); //when clearing depth buffer, set to infinity
+	glDepthRange(0, 1);  //set range for full depth bufer
+	glDepthFunc(GL_LEQUAL);  //draw things equally far or closer
+	glDepthMask(GL_TRUE); //write to depth bufer
+	glEnable(GL_DEPTH_TEST);  //enable depth testing
+
+
+	//glLightModelf(GL_LIGHT_MODEL_LOCAL_VIEWER, 1.0f);
+
+}
+
+
+void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom)
+{
+
+	//projection matrix (ortho 2d)
+	gfx_projection2d(left, right, top, bottom);
+
+	//depth buffer disabled
+	glDepthMask(GL_FALSE);		//don't write to depth bufer
+	glDisable(GL_DEPTH_TEST);	//don't enable depth testing
+
+	gfx_identity();  //modelview matrix is reset to identity
+}
+
+
+/* Vertex Buffer Objects */
 
 typedef struct gfxVertexAttributeS {
 	int		type;	// 1,2,3, or 4 are for float values
 	char*	name;
 	float*	data;
-} gfxVertexAttributeT;
+} gfx_vertex_attributeT;
 
 #define MAX_ATTRIBUTE 8
 
-typedef struct gfxVertexBufferS {
+typedef struct gfx_VertexBufferS {
 	float* combined_data;
 
-
-	gfxVertexAttributeT attributes[MAX_ATTRIBUTE];
-	int numAttributes;
+	gfx_vertex_attributeT attributes[MAX_ATTRIBUTE];
+	int num_attributes;
 
 	int capacity;
 	int count; //number of vertices to consider valid
@@ -220,19 +303,16 @@ typedef struct gfxVertexBufferS {
 	int fixed_color;
 	int fixed_texcoord;
 	int fixed_normal;
-} gfxVertexBufferT;
+} gfx_vertex_bufferT;
 
-
-gfxVertexBufferT* gfxVertexBuffer(int vcount, char* spec) {
+gfx_vertex_bufferT* gfx_vertex_buffer_mk(int vcount, char* spec) {
 
 	char* s = spec;
 
 	if (!s)
 		return NULL;
-
 	
-
-	gfxVertexBufferT* vb = ram_alloc(sizeof(gfxVertexBufferT), NULL); //no destructor yet
+	gfx_vertex_bufferT* vb = ram_alloc(sizeof(gfx_vertex_bufferT), NULL); //no destructor yet
 
 	while (*s) {
 
@@ -250,8 +330,8 @@ gfxVertexBufferT* gfxVertexBuffer(int vcount, char* spec) {
 		//add the attribute
 		printf(" name is [%s] size is [%d]", name, size);
 
-		vb->attributes[vb->numAttributes].name = name;
-		vb->attributes[vb->numAttributes++].type = size; //simple numbers 1 to 4 are just floats.  TODO: non-float attributes?
+		vb->attributes[vb->num_attributes].name = name;
+		vb->attributes[vb->num_attributes++].type = size; //simple numbers 1 to 4 are just floats.  TODO: non-float attributes?
 		vb->fcount += size;
 
 		if (!ne)
@@ -267,9 +347,12 @@ gfxVertexBufferT* gfxVertexBuffer(int vcount, char* spec) {
 
 	//set attribute data pointers
 	vb->fixed_position = -1; //not valid
+	vb->fixed_color = -1; //not valid
+	vb->fixed_normal = -1; //not valid
+	vb->fixed_texcoord = -1; //not valid
 	int i;
 	float* fp = vb->combined_data;
-	for (i = 0; i < vb->numAttributes; i++) {
+	for (i = 0; i < vb->num_attributes; i++) {
 		vb->attributes[i].data = fp;
 		printf(" Set ptr to %s  base+%d\n", vb->attributes[i].name, fp - vb->combined_data);
 		fp += vb->attributes[i].type * vcount;
@@ -295,7 +378,7 @@ gfxVertexBufferT* gfxVertexBuffer(int vcount, char* spec) {
 
 }
 
-void gfxVertexData(gfxVertexBufferT* vb, int attr, float a, float b, float c, float d) {
+void gfx_vertex_data(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d) {
 
 	int  pos = vb->count * vb->attributes[attr].type;
 	printf(" Setting to attribute %d at %d", attr, pos);
@@ -310,89 +393,129 @@ void gfxVertexData(gfxVertexBufferT* vb, int attr, float a, float b, float c, fl
 	printf("\n");
 }
 
-void gfxVertexDone(gfxVertexBufferT* vb, int attr, float a, float b, float c, float d) {
-	gfxVertexData(vb, attr, a, b, c, d);
+void gfx_vertex_done(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d) {
+	gfx_vertex_data(vb, attr, a, b, c, d);
 	vb->count++;
 }
 
-char* last_file;
-int last_line;
-void gx_error(char* file, int line) {
-	int err;
-	int ec = 0;
-	for (err = glGetError(); err != GL_NO_ERROR; err = glGetError()) {
-		ec++;
 
-	}
 
-	if (ec) {
-		printf(" %d OPENGL ERRORS FROM %s:%d to %s:%d\n", ec, last_file, last_line, file, line);
-		while (1);
 
-	}
+//track which vbo is active
+int gxi_current_vbo = 0;
 
-	last_file = file;
-	last_line = line;
 
-}
 
-void gfxDrawBuffer(gfxVertexBufferT* vb) {
+
+//Call after modifying vertex buffer data
+void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb) {
+	if (!vb)
+		return;
+
 
 	if (!vb->vbo) {
 		//create VBO
-	
+
 		glGenBuffers(1, &(vb->vbo));
 		printf(" Generated VBO %d\n", vb->vbo);
-		
-	
-		glBindBuffer(GL_ARRAY_BUFFER, vb->vbo);
-		
-		glBufferData(GL_ARRAY_BUFFER, sizeof(zfloat32) * vb->capacity * vb->fcount, vb->combined_data, GL_DYNAMIC_DRAW);
 	
 	}
 
-	//switch to the right vbo
+	//switch to buffer's vbo and send data
 	glBindBuffer(GL_ARRAY_BUFFER, vb->vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(zfloat32) * vb->capacity * vb->fcount, vb->combined_data, GL_DYNAMIC_DRAW);
+
+}
+
+
+//using fixed function or not
+zbool gxi_fixed_function = ZTRUE; //set to true 
+
+
+
+#define GFX_POINT	1
+#define GFX_LINE	2
+#define GFX_TRIANGLE	3
+zuint32 gl_prims[] = { 0, GL_POINTS, GL_LINES, GL_TRIANGLES };
+
+int max_attrs_active;
+
+void gfxDrawBuffer(gfx_vertex_bufferT* vb, int prim, int start, int end) {
+
+	zbool setup_arrays = ZFALSE;
+
+	if (!vb)
+		return;
+
+	if (!vb->vbo)
+		gfx_vertex_buffer_update(vb);	//update if a vbo was never made for this object
+
+
+	if (gxi_current_vbo != vb->vbo) {
+		glBindBuffer(GL_ARRAY_BUFFER, vb->vbo);
+		gxi_current_vbo = vb->vbo;
+		setup_arrays = ZTRUE;  //need to setup vertex arrays
+	}
+
+
+	//TODO: check if the shader changed, if so, setup arrays
+	gxi_refresh_matrix();
 	
+	if (setup_arrays) {
 
 
-
-	glVertexPointer(3, GL_FLOAT, 3 * sizeof(float), (void*)((vb->attributes[vb->fixed_position].data  - vb->combined_data) * sizeof(zfloat32)));
-	glEnableClientState(GL_VERTEX_ARRAY);
-	
-	
-	glColorPointer(4, GL_FLOAT, 4 * sizeof(float), (void*)((vb->attributes[vb->fixed_color].data - vb->combined_data) * sizeof(zfloat32)));
-	glEnableClientState(GL_COLOR_ARRAY);
-	
-
-	glDrawArrays(GL_TRIANGLES, 0, 3);
+		if (gxi_fixed_function) {
 
 
+			//set each attribute - fixed function
+			if (vb->fixed_position != -1) {
 
-	gx_error(__FILE__, __LINE__);
+				glVertexPointer(3, GL_FLOAT, 3 * sizeof(float), (void*)((vb->attributes[vb->fixed_position].data - vb->combined_data) * sizeof(zfloat32)));
+				glEnableClientState(GL_VERTEX_ARRAY);
+			}
+			
+			//check for other FF attributes
+			if (vb->fixed_color != -1) {
+				glColorPointer(4, GL_FLOAT, 4 * sizeof(float), (void*)((vb->attributes[vb->fixed_color].data - vb->combined_data) * sizeof(zfloat32)));
+				glEnableClientState(GL_COLOR_ARRAY);
+			}
+						
+
+		}
+		else {
+			//setup arrays for shader use
+
+		}
+
+
+	}
+
+	glDrawArrays(gl_prims[prim], start, end-start);
+
+	checkGL(__FILE__, __LINE__);
 }
 
 void gfx_gl_test() {
 		
 	zwindowT* zwin = gfx_mkwindow("internal test", 1024, 768, 0);
 
-	gfxWindowT* gfx_window = (gfxWindowT*)zwin; //cast to our own specific type
+	gfx_windowT* gfx_window = (gfx_windowT*)zwin; //cast to our own specific type
 	
 	GLFWwindow* window = gfx_window->fwindow;
 
-	gfxVertexBufferT* vb = gfxVertexBuffer(100, "color:4|position:3");
+	gfx_vertex_bufferT* vb = gfx_vertex_buffer_mk(100, "color:4|position:3");
 	
 	
-														gfxVertexData(vb, 0, 1.0, 0.0, 0.0, 0.5);
-	gfxVertexDone(vb, 1, 1.0, 0.0, 0.0, 0);
+	gfx_vertex_data(vb, 0, 1.0, 0.0, 0.0, 0.5);
+	gfx_vertex_done(vb, 1, 100.0, 0.0, 0.0, 0);
 
 
-														gfxVertexData(vb, 0, 0.0, 1.0, 0.0, 1.0);
-	gfxVertexDone(vb, 1, 0.0, 1.0, 0.0, 0);
+	gfx_vertex_data(vb, 0, 0.0, 1.0, 0.0, 1.0);
+	gfx_vertex_done(vb, 1, 0.0, 100.0, 0.0, 0);
 
 
-														gfxVertexData(vb, 0, 0.0, 1.0, 1.0, 1.0);
-	gfxVertexDone(vb, 1, 1.0, 1.0, 0.0, 0);
+	gfx_vertex_data(vb, 0, 0.0, 1.0, 1.0, 1.0);
+	gfx_vertex_done(vb, 1, 50.0, 300, 0.0, 0);
 	
 			
 
@@ -412,18 +535,22 @@ void gfx_gl_test() {
 			break;
 
 		int w, h;
-		glfwGetWindowSize(window, &w, &h);
+		
 		//printf(" Window size is %d %d\n", w, h);
-		glViewport(0, 0, w, h);
+		gfx_clear_color(.3, .2, .1, 0);
 		glClearColor(0, 1, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-		gfxDrawBuffer(vb);
+		gfx_setup_2d(0, zwin->w, 0, zwin->h);  //set to pixels
+		
 
-		glfwSwapBuffers(window);
+		gfxDrawBuffer(vb, GFX_TRIANGLE, 0,3);
+					
+		zwin->pixels(zwin, NULL);	//display the framebuffer
+				
 	}
 
 	printf(" window close button was pressed\n");
-	getc(stdin);
+	
 
 }

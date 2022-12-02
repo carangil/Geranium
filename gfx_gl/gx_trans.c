@@ -4,45 +4,31 @@
 
 // This contains a partial replacement for the legacy openGL matrix stack.
 
+#define GFXINTERNAL
+#include "gfx_gl.h"
 
-#include "../ztypes.h"
-#include "../vmath/zmath.h"
-
-#include "glheaders.h"
-
-#include "../memory/zmem.h"
-//#include "../structures/vector.h"
-
-
-#include "gx_sys.h"
-#include <math.h>
-#include <float.h>
-
-
-#include "../structures/zvector.h"
-#include "../structures/zlist.h"
-#include "gx_image.h"
-#include "gx_buffers.h"
-#include "gx_drawstyle.h"
-
-#include "gx_trans.h"
-//#include "gx_mesh.h"
-//#include "gx_light.h"
+#include "math.h"
 
 #include <stdio.h>
 
-int transmode= GX_TRANSFORM_INTERNAL_TO_GL;
+
+
 
 void printMatrix44(char* name, float* m);
 
 //spin crap
-//FLIP switches the order
+//is_camera FLIP switches the order
 // TRUE for camera matrices, FALSE for object matrices
 //
 // object matrices define the identity matrix as no rotation.
 // when using a matrix for a camera, the Z axis is taken to be the LOOK direction, which is along the -Z axis.  An initialized camera has the Z axis flipped
 
-void gx_spin(zbool flip, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gx_mat_3x3* rot)
+//when used on a camera, and yaw/pitch values are from mouse motion, and 'roll' is input from some other user control, 
+//this has the effect of the 'Descent' spaceship rotation system....  If forward, back, left, right, up, down strafe/slide controls are 
+//also then used to add weighted amounts of the 'forward' 'up' and 'right' vectors to the camera position, you get full 6DOF
+//there are not quaternions or other things used here, this is all just straight-up 3D vector math
+
+void gfx_spin_matrix(zbool is_camera, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gfx_mat_3x3* rot)
 {
 
 	vec3* up = &rot->y_axis;
@@ -53,7 +39,7 @@ void gx_spin(zbool flip, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gx_mat_3x3
 	
 	//roll
 
-	//if (roll != 0.0)
+	
 	{
 		//add a little bit of the right vector to the up vector:
 		
@@ -64,7 +50,7 @@ void gx_spin(zbool flip, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gx_mat_3x3
 		
 	//cross product to give new right vector
 
-		if (flip)
+		if (is_camera)
 		{
 			vec3cross( *right, *forward, *up  );
 		}
@@ -76,7 +62,7 @@ void gx_spin(zbool flip, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gx_mat_3x3
 	}
 
 	//yaw
-	//if (yaw != 0.0)
+	
 	{
 		//add some 'right' to 'forward'
 		vec3madd( *forward, yaw, *right);
@@ -85,7 +71,7 @@ void gx_spin(zbool flip, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gx_mat_3x3
 		vec3scale(  *forward,  1.0/  sqrt( vec3abs_sq( *forward ) ) ); 
 
 		//remake right vector;
-		if (flip)
+		if (is_camera)
 		{
 			vec3cross( *right, *forward, *up  );
 		}
@@ -95,7 +81,7 @@ void gx_spin(zbool flip, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gx_mat_3x3
 		}
 	}
 
-	//if (pitch != 0.0)
+	//pitch
 	{
 		//add some 'up' to the forward vector
 		vec3madd( *forward, pitch, *up);
@@ -104,7 +90,7 @@ void gx_spin(zbool flip, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gx_mat_3x3
 		vec3scale(  *forward,  1.0/  sqrt( vec3abs_sq( *forward ) ) ); 
 
 		//remake the up vector
-		if (flip)
+		if (is_camera)
 		{
 			vec3cross( *up, *right, *forward  );
 		}
@@ -117,28 +103,34 @@ void gx_spin(zbool flip, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gx_mat_3x3
 
 }
 
-void gx_camera_init(gx_camera_t* cam)
+void gfx_camera_init(gfx_cameraT* cam)
 {
 	if (cam)
 	{
 		vec3set( cam->rot.x_axis,		1.0f, 0.0f, 0.0f);
 		vec3set( cam->rot.y_axis,		0.0f, 1.0f, 0.0f);
-		vec3set( cam->rot.z_axis,		0.0f, 0.0f, -1.0f);
-		vec3set( cam->pos,			0.0f, 0.0f, 0.0f);
+		vec3set( cam->rot.z_axis,		0.0f, 0.0f, -1.0f);  // Z is -1.0, because Z looking forward is (0,0,-1)
+		vec3set( cam->pos,				0.0f, 0.0f, 0.0f);
 	}
 }
 
+void gfx_trans_init(gfx_transformT* t)
+{
+	if (t)
+	{
+		vec3set(t->rot.x_axis, 1.0f, 0.0f, 0.0f);
+		vec3set(t->rot.y_axis, 0.0f, 1.0f, 0.0f);
+		vec3set(t->rot.z_axis, 0.0f, 0.0f, 1.0f);
+		vec3set(t->pos, 0.0f, 0.0f, 0.0f);
+	}
+}
 
-//matrix replacement 
+//matrix replacement for opengl fixed function
+//originally there was some pass-thru to the opengl stack when fixed function is ued
+//because my old graphics library actually ran on old hardware too
 
-typedef struct gx_transform_s {
-	gx_mat_3x3 rot;		//contains rotation and possible scaling
-	vec3 pos;		
-} gx_transform_t;
-
-
-static gx_transform_t	modelview;
-static vec3			modelview_camera_pos;
+static gfx_transformT	modelview;
+static vec3				modelview_camera_pos;
 
 static zint32 matrix_version=0;  //incremeneted whenever changed
 static zint32 ff_matrix_version=-1;
@@ -148,7 +140,7 @@ static zint32 ff_matrix_version=-1;
 //projection matrix:
 static float proj_matrix[16];
 
-void gxi_trans_set_perspective_matrix (zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist) {
+void gfx_projection3d (zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist) {
 
 	float f = 1/tan( fovy/180.0*3.141 / 2);
 	
@@ -167,50 +159,66 @@ void gxi_trans_set_perspective_matrix (zfloat32 fovy, zfloat32 aspect, zfloat32 
 	matrix_version++;	
 }
 
+void gfx_projection2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom) {
 
+	//the x axis is scaled so that left to right is mapped to a range of '2', and is offset by the middle of that range. (which is right +left)/2 AKA average.  That the has to be scaled by 2/length of the range
+	//the y axis is scaled similar
+	//the z axis is not adjusted at all, and stays at 0
+	float matr[] =
+	{
+		2/(right-left),										0,									0,					0,
+		0,													2 / (top - bottom),					0,					0,
+		0,													0,									-1,					0,										
+		-(right + left) / (right - left),					-(top + bottom) / (top - bottom),	0,					1
+	};
+	
+
+	memcpy(proj_matrix, matr, sizeof(matr));
+
+
+	matrix_version++;
+
+}
 
 /* transfers the current matrix to opengl
  * Either through glLoadMatrix for fixed function
  * OR as a uniform when we are doing shaders in the future 
  */
 
-void gxi_refresh_matrix(gx_shader_t* shader) {
+void gxi_refresh_matrix(/*gfx_shader_t* shader*/) {
 
+	void* shader = NULL;
 	
 	/* load our 3x3 matrix and translation vector as a 4x4 matrix to opengl */
 	
+	/*
 	if (shader && shader->matrix_version == matrix_version)  {
 		gxdprintf(" Skip redundent matrix upload\n");
 		return;
 		
 	}
-	
-	
-	
-	
+	*/
+			
 	zfloat32 matr[]={
 	     modelview.rot.x_axis.VX,    modelview.rot.x_axis.VY,     modelview.rot.x_axis.VZ, 0,
 	     modelview.rot.y_axis.VX,    modelview.rot.y_axis.VY,     modelview.rot.y_axis.VZ, 0,
 	     modelview.rot.z_axis.VX,    modelview.rot.z_axis.VY,     modelview.rot.z_axis.VZ, 0,
 	     modelview.pos.VX,	      modelview.pos.VY,	modelview.pos.VZ,    1 
 	};
-	
-	
-	
+			
 	if (!shader) {
 		if (ff_matrix_version == matrix_version) {
-				gxdprintf("skip same ff matrix\n");
+				//gxdprintf("skip same ff matrix\n");
 				return ;
 				
 		}
-		gxdprintf(" upload FF matrix\n");
+		//gxdprintf(" upload FF matrix\n");
 		
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
 		glLoadMatrixf(proj_matrix);
 
 		glMatrixMode(GL_MODELVIEW);
-	
 		glLoadIdentity();
 		glLoadMatrixf(matr);
 		//printMatrix44("ff", matr);
@@ -219,6 +227,7 @@ void gxi_refresh_matrix(gx_shader_t* shader) {
 				
 	}
 	
+	/*
 	if (shader && shader->modelview_uloc != -1) {
 		//ff_matrix_version = -1; //if we turn shaders off, we will have to resend the fixed function matrix
 
@@ -237,6 +246,7 @@ void gxi_refresh_matrix(gx_shader_t* shader) {
 		
 		
 	}
+	*/
 	
 	
 }
@@ -250,8 +260,8 @@ void gxi_refresh_matrix(gx_shader_t* shader) {
  */
 
 
-void gx_camera_pos_rot(vec3* position, vec3* xaxis, vec3* yaxis, vec3* minus_zaxis) {
-	gx_mat_3x3 trans;
+void gfx_camera_view(vec3* position, vec3* xaxis, vec3* yaxis, vec3* minus_zaxis) {
+	gfx_mat_3x3 trans;
 	vec3 offset;
 
 	if (position && xaxis && yaxis && minus_zaxis) {
@@ -269,7 +279,7 @@ void gx_camera_pos_rot(vec3* position, vec3* xaxis, vec3* yaxis, vec3* minus_zax
 
 		modelview_camera_pos = *position;
 		
-		gx_load_transform(&trans,&offset);  /* replace the current matrix */
+		gfx_load_transform(&trans,&offset);  /* replace the current matrix */
 	} 
 }
 
@@ -277,28 +287,23 @@ void gx_camera_pos_rot(vec3* position, vec3* xaxis, vec3* yaxis, vec3* minus_zax
 int trans_debug = 1;
 #define debugf  if (trans_debug) printf
 
-void gx_identity(){
+
+void gfx_identity(){
 	
-	if (transmode == GX_TRANSFORM_GL) {
-		debugf("glLoadIdentity\n");
-		glLoadIdentity();
-	} else {
+	vec3set(modelview.rot.x_axis, 1, 0, 0);	// x axis inialized to 1,0,0
+	vec3set(modelview.rot.y_axis, 0, 1, 0); // y axis inialized to 0,1,0
+	vec3set(modelview.rot.z_axis, 0, 0, 1); // z axis inialized to 0,0,1
+	vec3set(modelview.pos,    0, 0, 0);			//no translation
 
-		vec3set(modelview.rot.x_axis, 1, 0, 0);
-		vec3set(modelview.rot.y_axis, 0, 1, 0);
-		vec3set(modelview.rot.z_axis, 0, 0, 1);
-		vec3set(modelview.pos,    0, 0, 0);
-
-		matrix_version++;
-		
-	}
+	matrix_version++;
+	
 }
 
 
-
-void transpose( gx_mat_3x3* dst, gx_mat_3x3* src) {
+void transpose( gfx_mat_3x3* dst, gfx_mat_3x3* src) {
 
 	/* transpose the 3x3 section of the transform */
+	
 
 	vec3set( dst->x_axis,  src->x_axis.VX, src->y_axis.VX, src->z_axis.VX);
 	vec3set( dst->y_axis,  src->x_axis.VY, src->y_axis.VY, src->z_axis.VY);
@@ -307,12 +312,15 @@ void transpose( gx_mat_3x3* dst, gx_mat_3x3* src) {
 }
 
 
- //transforms a point by the modelview matrix
-void gx_trans_vec3(vec3* po) {
-	gx_mat_3x3 t;
+//transforms a point by the modelview matrix
+//these functions are not particularly fast, and are here for convenience
+//sometimes we need to know what a point will be transformed to by the hardware
+
+void gfx_trans_vec3(vec3* po) {
+	gfx_mat_3x3 t;
 	vec3 p;
 	
-	transpose (&t, &modelview.rot);  //transpose the view matrix
+	transpose (&t, &modelview.rot);  //transpose the modelview matrix
 		
 	vec3set(p, vec3dot(t.x_axis, *po), vec3dot(t.y_axis, *po), vec3dot(t.z_axis, *po));
 	
@@ -321,50 +329,44 @@ void gx_trans_vec3(vec3* po) {
 	*po = p;
 }
 
-//transforms a direction by the modelview matrix
-void gx_trans_dir_vec3(vec3* po) {
-	gx_mat_3x3 t;
+//transforms a direction by the modelview matrix (no translation... for normals)
+void gfx_trans_dir_vec3(vec3* po) {
+	gfx_mat_3x3 t;
 	vec3 p;
 	
 	transpose (&t, &modelview.rot);  //transpose the view matrix
 		
 	vec3set(p, vec3dot(t.x_axis, *po), vec3dot(t.y_axis, *po), vec3dot(t.z_axis, *po));
-	
-	
-	
+		
 	*po = p;
 }
 
 
+void gfx_translate(vec3* delta) {
 
-void gx_translate(vec3* delta) {
-
-	gx_mat_3x3 t;
+	gfx_mat_3x3 t;
 	vec3 p;
 
-	if (transmode == GX_TRANSFORM_GL) {
-		debugf("glTranslatef");
-		glTranslatef(delta->VX, delta->VY, delta->VZ);
+	transpose (&t, &modelview.rot);  //transpose the view matrix
 
-	} else {
-		transpose (&t, &modelview.rot);  //transpose the view matrix
+	/* the amount we are translating by needs to be projected by the current rotation axes */
+	vec3set(p, vec3dot(t.x_axis, *delta), vec3dot(t.y_axis, *delta), vec3dot(t.z_axis, *delta));
 
-		/* the amount we are translating by needs to be projected by the current rotation axes */
-		vec3set(p, vec3dot(t.x_axis, *delta), vec3dot(t.y_axis, *delta), vec3dot(t.z_axis, *delta));
+	vec3add( modelview.pos, p);
 
-		vec3add( modelview.pos, p);
-
-		matrix_version++;
-	}
-}
-
-void gx_translate3(float x, float y, float z){
-	vec3 p;
-	vec3set(p, x, y, z);
-	gx_translate(&p);
+	matrix_version++;
 	
 }
 
+void gfx_translate3(float x, float y, float z){
+	vec3 p;
+	vec3set(p, x, y, z);
+	gfx_translate(&p);
+	
+}
+
+
+#if 0
 /* a function to help with debugging
  * If I suspect one of the transforms in this file is wrong, I can make opengl do the transform, and copy the result back into our modelview struct. */
 
@@ -381,6 +383,7 @@ void getmatrix(){
 }
 
 
+
 void printMatrix44(char* name, float* m){
 	int i;
 	gxdprintf("[ %s ", name);
@@ -392,19 +395,18 @@ void printMatrix44(char* name, float* m){
 	gxdprintf(" ]\n");
 }
 
+#endif
 
 
+void gfx_rotate_3x3 (gfx_mat_3x3* rot) {
 
-void gx_rotate_3x3 (gx_mat_3x3* rot) {
+	//float r[16];
+	//float m[16];
 
-	float r[16];
-	float m[16];
+	gfx_mat_3x3 n;
+	gfx_mat_3x3 t;
 
-	gx_mat_3x3 n;
-	gx_mat_3x3 t;
-
-	if (transmode == GX_TRANSFORM_GL) {
-
+	/*
 		debugf("glMultMatrix");
 		//glGetFloatv(GL_MODELVIEW_MATRIX, m);
 		//printMatrix44("before rot", m);
@@ -418,109 +420,87 @@ void gx_rotate_3x3 (gx_mat_3x3* rot) {
 		//glGetFloatv(GL_MODELVIEW_MATRIX, m);
 		//printMatrix44("after rot", m);
 		getmatrix();
+	*/
+	
 
-	} else {
+	transpose(&t, &modelview.rot); 
 
-		transpose(&t, &modelview.rot); 
+	vec3set(n.x_axis,  vec3dot(rot->x_axis, t.x_axis) , vec3dot(rot->x_axis, t.y_axis) , vec3dot(rot->x_axis, t.z_axis));
+	vec3set(n.y_axis,  vec3dot(rot->y_axis, t.x_axis) , vec3dot(rot->y_axis, t.y_axis) , vec3dot(rot->y_axis, t.z_axis));
+	vec3set(n.z_axis,  vec3dot(rot->z_axis, t.x_axis) , vec3dot(rot->z_axis, t.y_axis) , vec3dot(rot->z_axis, t.z_axis));
 
-		vec3set(n.x_axis,  vec3dot(rot->x_axis, t.x_axis) , vec3dot(rot->x_axis, t.y_axis) , vec3dot(rot->x_axis, t.z_axis));
-		vec3set(n.y_axis,  vec3dot(rot->y_axis, t.x_axis) , vec3dot(rot->y_axis, t.y_axis) , vec3dot(rot->y_axis, t.z_axis));
-		vec3set(n.z_axis,  vec3dot(rot->z_axis, t.x_axis) , vec3dot(rot->z_axis, t.y_axis) , vec3dot(rot->z_axis, t.z_axis));
-
-		modelview.rot = n;
+	modelview.rot = n;
 		
-	}
+	
 	matrix_version++;
 }
 
 
 
 
-void gx_load_transform(gx_mat_3x3* m, vec3* p){
+void gfx_load_transform(gfx_mat_3x3* m, vec3* p){
 	if (m)
 		modelview.rot = *m;
 	else
-		gx_identity();
-
+		gfx_identity();
 
 	if(p)
 		modelview.pos = *p;
 	else
 		vec3set(modelview.pos, 0,0,0);
 
-
 	matrix_version++;
 }
 
-void gx_rotate_y(float rad) {
+void gfx_rotate_y(float rad) {
 	float m[16];
-	gx_mat_3x3 rot;
+	gfx_mat_3x3 rot;
 
-	if (transmode == GX_TRANSFORM_GL) {
-		glRotatef(rad/DEGREE, 0, 1, 0);
-		debugf("glRotatef Y");
-		getmatrix();
-	} else {
-		vec3set(rot.x_axis, cos(rad), 0,-sin(rad));
-		vec3set(rot.y_axis, 0, 1, 0);
-		vec3set(rot.z_axis, sin(rad), 0,cos(rad));
+	
+	vec3set(rot.x_axis, cosf(rad), 0,-sinf(rad));
+	vec3set(rot.y_axis, 0, 1, 0);
+	vec3set(rot.z_axis, sinf(rad), 0,cosf(rad));
 
-		gx_rotate_3x3(&rot);
-	}
+	gfx_rotate_3x3(&rot);
+	
 	matrix_version++;
 }
 
-void gx_rotate_z(float rad) {
+void gfx_rotate_z(float rad) {
 	float m[16];
-	gx_mat_3x3 rot;
+	gfx_mat_3x3 rot;
 
-	if (transmode == GX_TRANSFORM_GL) {
-		glRotatef(rad/DEGREE, 0, 0, 1);
-		debugf("glRotatef Z");
-		getmatrix();
+	
+	vec3set(rot.x_axis, cosf(rad), sinf(rad),0);
+	vec3set(rot.y_axis, -sinf(rad), cosf(rad),0);
+	vec3set(rot.z_axis, 0, 0,1);
 
-	} else {
-		vec3set(rot.x_axis, cos(rad), sin(rad),0);
-		vec3set(rot.y_axis, -sin(rad), cos(rad),0);
-		vec3set(rot.z_axis, 0, 0,1);
-
-		gx_rotate_3x3(&rot);
-	}
+	gfx_rotate_3x3(&rot);
+	
 	matrix_version++;
 }
 
 
-void gx_rotate_x(float rad) {
+void gfx_rotate_x(float rad) {
 	float m[16];
-	gx_mat_3x3 rot;
+	gfx_mat_3x3 rot;
 
-	if (transmode == GX_TRANSFORM_GL) {
-		glRotatef(rad/DEGREE, 1,0,0);
-		debugf("glRotatef X");
-		getmatrix();
-	}
-	else {
-		vec3set(rot.x_axis, 1, 0,0);
-		vec3set(rot.y_axis, 0, cos(rad), sin(rad));
-		vec3set(rot.z_axis, 0, -sin(rad), cos(rad));
+	vec3set(rot.x_axis, 1, 0,0);
+	vec3set(rot.y_axis, 0, cosf(rad), sinf(rad));
+	vec3set(rot.z_axis, 0, -sinf(rad), cosf(rad));
 
-		gx_rotate_3x3(&rot);
-	}
+	gfx_rotate_3x3(&rot);
+	
 	matrix_version++;
 }
 
-void gx_scale3(float x, float y, float z) {
+void gfx_scale3(float x, float y, float z) {
 
-	if (transmode == GX_TRANSFORM_GL) {
-		glScalef(x,y,z);
-		debugf("glScalef Y");
-		getmatrix();
-	}
-	else {
-		vec3scale(modelview.rot.x_axis, x);
-		vec3scale(modelview.rot.y_axis, y);
-		vec3scale(modelview.rot.z_axis, z);
+	
+	vec3scale(modelview.rot.x_axis, x);
+	vec3scale(modelview.rot.y_axis, y);
+	vec3scale(modelview.rot.z_axis, z);
 		
-	}
+	
 	matrix_version++;
 }

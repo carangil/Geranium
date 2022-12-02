@@ -98,7 +98,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(SolutionDir)..\misc\*.h $(solutiondir)\hcopy</Command>
+      <Command>copy $(SolutionDir)..\misc\*.h $(solutiondir)\hcopy
+copy $(SolutionDir)..\vmath\*.h $(solutiondir)\hcopy</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -117,7 +118,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(SolutionDir)..\misc\*.h $(solutiondir)\hcopy</Command>
+      <Command>copy $(SolutionDir)..\misc\*.h $(solutiondir)\hcopy
+copy $(SolutionDir)..\vmath\*.h $(solutiondir)\hcopy</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -132,7 +134,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(SolutionDir)..\misc\*.h $(solutiondir)\hcopy</Command>
+      <Command>copy $(SolutionDir)..\misc\*.h $(solutiondir)\hcopy
+copy $(SolutionDir)..\vmath\*.h $(solutiondir)\hcopy</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -151,7 +154,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(SolutionDir)..\misc\*.h $(solutiondir)\hcopy</Command>
+      <Command>copy $(SolutionDir)..\misc\*.h $(solutiondir)\hcopy
+copy $(SolutionDir)..\vmath\*.h $(solutiondir)\hcopy</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -159,9 +163,11 @@
     <ClCompile Include="..\..\misc\zbitmap.c" />
     <ClCompile Include="..\..\misc\zrand.c" />
     <ClCompile Include="..\..\misc\zwindow.c" />
+    <ClCompile Include="..\..\vmath\vectormath.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\misc\zwindow.h" />
+    <ClInclude Include="..\..\vmath\zvectormath.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

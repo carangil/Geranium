@@ -27,9 +27,15 @@
     <ClCompile Include="..\..\misc\zwindow.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\vmath\vectormath.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\misc\zwindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\vmath\zvectormath.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

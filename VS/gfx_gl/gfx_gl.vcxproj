@@ -20,10 +20,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\gfx_gl\gfx_gl.h" />
+    <ClInclude Include="..\..\gfx_gl\gx_trans.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\gfx_gl\gfx_window.c" />
     <ClCompile Include="..\..\gfx_gl\glad\src\glad.c" />
+    <ClCompile Include="..\..\gfx_gl\gx_trans.c" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

@@ -18,12 +18,18 @@
     <ClInclude Include="..\..\gfx_gl\gfx_gl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\gfx_gl\gx_trans.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\gfx_gl\gfx_window.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\gfx_gl\glad\src\glad.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\gfx_gl\gx_trans.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

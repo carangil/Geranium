@@ -4,6 +4,7 @@
 //It is presented as macros to 1)remove overhead of function calls and 
 // 2)maybe a good (auto-vectorizing?) compiler can tweak the asm code to hell
 
+#include "ztypes.h"
 
 #define PI 3.14159
 
