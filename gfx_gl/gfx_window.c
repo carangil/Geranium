@@ -6,12 +6,16 @@
 #include "zvector.h"
 #include "zstring.h"
 #include "string.h"
+#include "zarray.h"
 #include <stdio.h>
 
 /*opengl error checker*/
 char* last_file;
 int last_line;
-void checkGL(char* file, int line) {
+
+#define checkGL()   checkGLfunc(__FILE__, __LINE__)
+
+void checkGLfunc(char* file, int line) {
 	int err;
 
 	for (err = glGetError(); err != GL_NO_ERROR; err = glGetError()) {
@@ -169,7 +173,7 @@ void gfx_pixels(zwindowT * zw, void* px) {
 	//the above is also updating the 'w' and 'h' coordinates, so the app can use them in drawing the next frame, if they are adapting to window size
 
 
-	checkGL(__FILE__, __LINE__); //check for errors
+	checkGL();//check for errors
 }
 
 void gfx_close(zwindowT * zw) {
@@ -292,11 +296,14 @@ typedef struct gfx_VertexBufferS {
 	gfx_vertex_attributeT attributes[MAX_ATTRIBUTE];
 	int num_attributes;
 
-	int capacity;
-	int count; //number of vertices to consider valid
+	zuint16 capacity;
+	zuint16 count; //number of vertices to consider valid
 	int vbo;
 	int fcount; //number of float fields
 
+	zuint16* index_buffer;	//zarray
+	int index_vbo;
+	
 	//positions for fixed/simple pipeline functionality
 	//only valid if fixed_position != -1
 	int fixed_position;
@@ -305,7 +312,25 @@ typedef struct gfx_VertexBufferS {
 	int fixed_normal;
 } gfx_vertex_bufferT;
 
-gfx_vertex_bufferT* gfx_vertex_buffer_mk(int vcount, char* spec) {
+zuint16* gfx_vertex_buffer_add_index(gfx_vertex_bufferT* vb, int num) {
+
+	if (vb) {
+		vb->index_buffer = zarray_alloc(zuint16, num);
+
+		return vb->index_buffer; //the index, or null
+	}
+	return 0;
+}
+
+zuint16 gfx_index_triangle(gfx_vertex_bufferT* vb,  zuint16 a, zuint16 b, zuint16 c) {
+
+	zarray_add(vb->index_buffer, a);
+	zarray_add(vb->index_buffer, b);
+	zarray_add(vb->index_buffer, c);
+	return zarray_count(vb->index_buffer);
+}
+
+gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount, char* spec) {
 
 	char* s = spec;
 
@@ -393,17 +418,18 @@ void gfx_vertex_data(gfx_vertex_bufferT* vb, int attr, float a, float b, float c
 	printf("\n");
 }
 
-void gfx_vertex_done(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d) {
+zuint16 gfx_vertex_done(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d) {
 	gfx_vertex_data(vb, attr, a, b, c, d);
-	vb->count++;
+	return vb->count++;
 }
 
 
 
 
 //track which vbo is active
+//only set to nonzery when the vertex attribs are set to this vbo as well
 int gxi_current_vbo = 0;
-
+int gxi_current_index_vbo = 0;
 
 
 
@@ -411,7 +437,7 @@ int gxi_current_vbo = 0;
 void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb) {
 	if (!vb)
 		return;
-
+	checkGL();
 
 	if (!vb->vbo) {
 		//create VBO
@@ -421,10 +447,25 @@ void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb) {
 	
 	}
 
+	if (vb->index_buffer && (zarray_count(vb->index_buffer) >0 )) {
+
+		if (!vb->index_vbo) {
+			glGenBuffers(1, &(vb->index_vbo));
+			printf(" Generated index VBO %d\n", vb->vbo);
+		}
+		//send index data, if we have it
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vb->index_vbo);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, zarray_count(vb->index_buffer) * sizeof(vb->index_buffer[0]), vb->index_buffer, GL_DYNAMIC_DRAW);
+		printf("send %d index values to vbo\n", zarray_count(vb->index_buffer));
+		gxi_current_index_vbo = vb->index_vbo;
+	}
+
+
+
 	//switch to buffer's vbo and send data
 	glBindBuffer(GL_ARRAY_BUFFER, vb->vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(zfloat32) * vb->capacity * vb->fcount, vb->combined_data, GL_DYNAMIC_DRAW);
-
+	gxi_current_vbo = 0; //set to zero, so first draw sets up the vertex arrays
 }
 
 
@@ -440,7 +481,7 @@ zuint32 gl_prims[] = { 0, GL_POINTS, GL_LINES, GL_TRIANGLES };
 
 int max_attrs_active;
 
-void gfxDrawBuffer(gfx_vertex_bufferT* vb, int prim, int start, int end) {
+void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end, zbool indexed) {
 
 	zbool setup_arrays = ZFALSE;
 
@@ -457,6 +498,10 @@ void gfxDrawBuffer(gfx_vertex_bufferT* vb, int prim, int start, int end) {
 		setup_arrays = ZTRUE;  //need to setup vertex arrays
 	}
 
+	if (gxi_current_index_vbo != vb->index_vbo) {
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vb->index_vbo);
+		gxi_current_index_vbo = vb->index_vbo;
+	}
 
 	//TODO: check if the shader changed, if so, setup arrays
 	gxi_refresh_matrix();
@@ -487,12 +532,16 @@ void gfxDrawBuffer(gfx_vertex_bufferT* vb, int prim, int start, int end) {
 
 		}
 
+		
 
 	}
 
-	glDrawArrays(gl_prims[prim], start, end-start);
+	if (indexed)
+		glDrawElements(gl_prims[prim], end - start, GL_UNSIGNED_SHORT, (void*) (sizeof(zuint16) * start));
+	else
+		glDrawArrays(gl_prims[prim], start, end - start);
 
-	checkGL(__FILE__, __LINE__);
+	checkGL();
 }
 
 void gfx_gl_test() {
@@ -505,20 +554,26 @@ void gfx_gl_test() {
 
 	gfx_vertex_bufferT* vb = gfx_vertex_buffer_mk(100, "color:4|position:3");
 	
+	gfx_vertex_buffer_add_index(vb, 60); //60 points
 	
 	gfx_vertex_data(vb, 0, 1.0, 0.0, 0.0, 0.5);
-	gfx_vertex_done(vb, 1, 100.0, 0.0, 0.0, 0);
+	int a = gfx_vertex_done(vb, 1, 5.0, 0.0, 0.0, 0);
 
 
 	gfx_vertex_data(vb, 0, 0.0, 1.0, 0.0, 1.0);
-	gfx_vertex_done(vb, 1, 0.0, 100.0, 0.0, 0);
+	int b = gfx_vertex_done(vb, 1, 0.0, 5.0, 0.0, 0);
 
 
 	gfx_vertex_data(vb, 0, 0.0, 1.0, 1.0, 1.0);
-	gfx_vertex_done(vb, 1, 50.0, 300, 0.0, 0);
+	int c = gfx_vertex_done(vb, 1, 5, 5, 0.0, 0);
 	
-			
 
+	gfx_vertex_data(vb, 0, 0.0, 1.0, 1.0, 1.0);
+	int d = gfx_vertex_done(vb, 1, 0.3, 0.3, 0.0, 0);
+
+			
+	gfx_index_triangle(vb, a, b, c);
+	gfx_index_triangle(vb, a, b, d);
 	
 
 	zeventT ev;
@@ -541,10 +596,10 @@ void gfx_gl_test() {
 		glClearColor(0, 1, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-		gfx_setup_2d(0, zwin->w, 0, zwin->h);  //set to pixels
+		gfx_setup_2d(0, (float)10, 0, (float)10);  //set to pixels
 		
 
-		gfxDrawBuffer(vb, GFX_TRIANGLE, 0,3);
+		gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0,6, ZTRUE);
 					
 		zwin->pixels(zwin, NULL);	//display the framebuffer
 				
