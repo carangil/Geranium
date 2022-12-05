@@ -524,11 +524,16 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 				glColorPointer(4, GL_FLOAT, 4 * sizeof(float), (void*)((vb->attributes[vb->fixed_color].data - vb->combined_data) * sizeof(zfloat32)));
 				glEnableClientState(GL_COLOR_ARRAY);
 			}
-						
+					
+			//check for other FF attributes
+			if (vb->fixed_texcoord != -1) {
+				glTexCoordPointer(2, GL_FLOAT, 2 * sizeof(float), (void*)((vb->attributes[vb->fixed_texcoord].data - vb->combined_data) * sizeof(zfloat32)));
+				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+			}
 
 		}
 		else {
-			//setup arrays for shader use
+			//setup arrays for shader use (all atribs)
 
 		}
 
@@ -546,37 +551,55 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 
 void gfx_gl_test() {
 		
+	zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/label.tga", ZTGA_TOP);
+
+	printf(" loaded %x %d %d %d\n", pic->format, pic->w, pic->h, pic->size);
+
 	zwindowT* zwin = gfx_mkwindow("internal test", 1024, 768, 0);
 
 	gfx_windowT* gfx_window = (gfx_windowT*)zwin; //cast to our own specific type
 	
+	
+	gfx_textureT* tex = gfx_texture_mk(pic);
+
+	
+	
 	GLFWwindow* window = gfx_window->fwindow;
 
-	gfx_vertex_bufferT* vb = gfx_vertex_buffer_mk(100, "color:4|position:3");
+	gfx_vertex_bufferT* vb = gfx_vertex_buffer_mk(100, "color:4|position:3|texcoord:2");
 	
 	gfx_vertex_buffer_add_index(vb, 60); //60 points
 	
 	gfx_vertex_data(vb, 0, 1.0, 0.0, 0.0, 0.5);
-	int a = gfx_vertex_done(vb, 1, 5.0, 0.0, 0.0, 0);
+	gfx_vertex_data(vb, 2, 1, 0, 0, 0);
+	int a = gfx_vertex_done(vb, 1, 5.0, 0.0, -5.0, 0);
 
 
 	gfx_vertex_data(vb, 0, 0.0, 1.0, 0.0, 1.0);
-	int b = gfx_vertex_done(vb, 1, 0.0, 5.0, 0.0, 0);
+	gfx_vertex_data(vb, 2, 0, 1, 0, 0);
+	int b = gfx_vertex_done(vb, 1, 0.0, 5.0, -5.0, 0);
 
 
 	gfx_vertex_data(vb, 0, 0.0, 1.0, 1.0, 1.0);
-	int c = gfx_vertex_done(vb, 1, 5, 5, 0.0, 0);
+	gfx_vertex_data(vb, 2, 1, 1, 0, 0);
+	int c = gfx_vertex_done(vb, 1, 5, 5, -5.0, 0);
 	
 
 	gfx_vertex_data(vb, 0, 0.0, 1.0, 1.0, 1.0);
-	int d = gfx_vertex_done(vb, 1, 0.3, 0.3, 0.0, 0);
+	gfx_vertex_data(vb, 2, 0, 0, 0, 0);
+	int d = gfx_vertex_done(vb, 1, 0.3, 0.3, -5, 0);
 
 			
 	gfx_index_triangle(vb, a, b, c);
 	gfx_index_triangle(vb, a, b, d);
 	
 
+
+	gxi_texture_enable(tex);
+
 	zeventT ev;
+
+	float ang = 0;
 
 	for (;;) {
 
@@ -596,13 +619,20 @@ void gfx_gl_test() {
 		glClearColor(0, 1, 0, 1);
 		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-		gfx_setup_2d(0, (float)10, 0, (float)10);  //set to pixels
+		//gfx_setup_2d(0, (float)10, 0, (float)10);  //set to pixels
+		gfx_setup_3d(100, 4.0 / 3.0, .1, 1000);
 		
 
 		gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0,6, ZTRUE);
 					
 		zwin->pixels(zwin, NULL);	//display the framebuffer
-				
+		gfx_identity();
+		
+		gfx_translate3(0, 0, -20);
+		gfx_rotate_y(ang);
+		
+		
+		ang += .01;
 	}
 
 	printf(" window close button was pressed\n");

@@ -20,9 +20,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\gfx_gl\gfx_gl.h" />
+    <ClInclude Include="..\..\gfx_gl\gfx_texture.h" />
     <ClInclude Include="..\..\gfx_gl\gx_trans.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\gfx_gl\gfx_texture.c" />
     <ClCompile Include="..\..\gfx_gl\gfx_window.c" />
     <ClCompile Include="..\..\gfx_gl\glad\src\glad.c" />
     <ClCompile Include="..\..\gfx_gl\gx_trans.c" />
@@ -146,7 +148,7 @@
       <Command>copy $(SolutionDir)..\gfx_gl\*.h $(solutiondir)\hcopy</Command>
     </PostBuildEvent>
     <Lib>
-      <AdditionalDependencies>opengl32.lib;glfw3.lib</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;glfw3.lib;glu32.lib</AdditionalDependencies>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

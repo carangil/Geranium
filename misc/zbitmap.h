@@ -1,9 +1,13 @@
+#pragma once
+
 #define ZBITMAP_GRAY	0x0001
-#define ZBITMAP_BGR	0x0003
+#define ZBITMAP_BGR		0x0003
 #define ZBITMAP_BGRX	0x0104
 #define ZBITMAP_BGRA	0x0004
 #define ZBITMAP_PXSIZE	0x00FF
 #define ZBITMAP_FAKEA	0x0100
+
+#define zbitmap_pxsize(ZZZ) ((ZZZ)->format & ZBITMAP_PXSIZE)
 
 typedef struct zbitmap_s{
 	zuint32 size;

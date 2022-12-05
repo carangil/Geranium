@@ -166,6 +166,7 @@ copy $(SolutionDir)..\vmath\*.h $(solutiondir)\hcopy</Command>
     <ClCompile Include="..\..\vmath\vectormath.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\misc\zbitmap.h" />
     <ClInclude Include="..\..\misc\zwindow.h" />
     <ClInclude Include="..\..\vmath\zvectormath.h" />
   </ItemGroup>

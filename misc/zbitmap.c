@@ -43,13 +43,10 @@ zbitmapT* zbitmap_mk(zuint32 w, zuint32 h, zuint16 format){
 	    bmp->h=h;
 	    bmp->size=w*h*  (format)   ;
 	    bmp->data = ram_alloc( bmp->size, NULL);  //format happens to be the number of bytes per pixel... for now
-	    
-
-	    
-	    
+		bmp->format = format;
 	    if (!bmp->data) {
-		ram_free(bmp);
-		return NULL;
+			ram_free(bmp);
+			return NULL;
 	    }
 	}
 	
@@ -160,6 +157,7 @@ void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, 
 		    continue;	//skip pixels where alpha is less than half
 	    
 		((zuint32*)bmp->data)[   bmp->w * (j+y) +i+x] = colormask & scolor;
+		
 		
 	}
     }
