@@ -25,7 +25,7 @@ typedef struct zevent_s {
 #define ZEVENT_DOWN		0x00010000
 #define ZEVENT_UP		0x00020000  
 #define ZEVENT_MOVE		0x00030000
-
+#define ZEVENT_DELTA	0x00040000
 
 //mouse events also give the *current* mouse state as bitmask
 // if (ev.type & ZEVENT_MOUSE_STATE_M ) means middle button is pressed

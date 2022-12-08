@@ -66,12 +66,12 @@ zbool gxi_texture_enable(gfx_textureT* image)
 		case 3:
 
 
-			gluBuild2DMipmaps(GL_TEXTURE_2D, 3, image->bitmap->w, image->bitmap->h, GL_RGB, GL_UNSIGNED_BYTE, image->bitmap->data);
+			gluBuild2DMipmaps(GL_TEXTURE_2D, 3, image->bitmap->w, image->bitmap->h, GL_BGR, GL_UNSIGNED_BYTE, image->bitmap->data);
 			break;
 
 		case 4:
 
-			gluBuild2DMipmaps(GL_TEXTURE_2D, 4, image->bitmap->w, image->bitmap->h, GL_RGBA, GL_UNSIGNED_BYTE, image->bitmap->data);
+			gluBuild2DMipmaps(GL_TEXTURE_2D, 4, image->bitmap->w, image->bitmap->h, GL_BGRA, GL_UNSIGNED_BYTE, image->bitmap->data);
 			break;
 
 		case 1:

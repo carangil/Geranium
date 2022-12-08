@@ -39,6 +39,8 @@ void errorHandler(int error, const char* message) {
 
 }
 
+zuint32 keymodstate = 0;
+
 void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods) {
 
 	int zkey = 0;
@@ -78,24 +80,23 @@ void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods)
 
 	}
 
+	keymodstate = 0;
+
+	if (mods & GLFW_MOD_SHIFT)
+		keymodstate |= ZKEY_SHIFT;
+
+	if (mods & GLFW_MOD_CONTROL)
+		keymodstate |= ZKEY_CTRL;
+
+	if (mods & GLFW_MOD_ALT)
+		keymodstate |= ZKEY_ALT;
+
 
 	//translate the modifiers
 	int keystate = ZEVENT_KEY;
 
-	if ((action == GLFW_PRESS) || (action == GLFW_REPEAT)) {
-		keystate |= ZEVENT_DOWN;
-		
-		//translate modifiers too
-
-		if (mods & GLFW_MOD_SHIFT)
-			keystate |= ZKEY_SHIFT;
-
-		if (mods & GLFW_MOD_CONTROL)
-			keystate |= ZKEY_CTRL;
-
-		if (mods & GLFW_MOD_ALT)
-			keystate |= ZKEY_ALT;
-
+	if ((action == GLFW_PRESS) || (action == GLFW_REPEAT) ) {
+		keystate |= ZEVENT_DOWN | keymodstate;
 	}
 
 	if (action == GLFW_RELEASE) {
@@ -114,12 +115,112 @@ void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods)
 }
 
 void charHandler(GLFWwindow* window, unsigned int character) {
-	printf(" in charhandler\n");
+
 	//glfw doesn't do modifiers with character callbacks
 	//todo: we could probably read or track keystate
 	//also might want to generate characters for backspace, enter, tab, etc, as they do have character codes (they keydown/repeat event should do that)
 	gfx_windowT* win = (gfx_windowT*)glfwGetWindowUserPointer(window); ;
 	zw_enqueue(&win->iface, ZEVENT_CHAR, character, 0, 0);
+}
+
+zint32 last_mouse_x=0;
+zint32 last_mouse_y=0;
+zuint32 mouse_button_state=0;
+
+zbool mouse_relative = ZFALSE;
+
+void gfx_mouse_relative(zwindowT* zw, zbool rel) {
+
+	if (rel) {
+		mouse_relative = 1;  //turn on relative mode  .throw away first value
+		glfwSetInputMode(((gfx_windowT*)zw)->fwindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+	}
+	else {
+		mouse_relative = 0;  //to disable
+		glfwSetInputMode(((gfx_windowT*)zw)->fwindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);		
+	}
+
+
+}
+
+
+
+
+
+void mousemoveHandler(GLFWwindow* window, double x, double y) {
+
+	int dx = 0;
+	int dy = 0;
+	gfx_windowT* win = (gfx_windowT*)glfwGetWindowUserPointer(window); ;
+	
+	if (mouse_relative) {
+		dx = ((zint32)x) - last_mouse_x;
+		dy = ((zint32)y) - last_mouse_y;
+		
+	}
+
+
+	last_mouse_x = (zuint32)x;
+	last_mouse_y = (zuint32)y;
+
+	if (mouse_relative) {
+		zw_enqueue(&win->iface, ZEVENT_MOUSE | ZEVENT_DELTA | mouse_button_state | keymodstate, (zuint32)dx, (zuint32)dy, NULL);
+		
+		return;
+	}
+
+	zw_enqueue(&win->iface, ZEVENT_MOUSE | ZEVENT_MOVE | mouse_button_state | keymodstate, (zuint32) last_mouse_x, (zuint32) last_mouse_y, NULL );
+}
+
+
+void mousebuttonHandler(GLFWwindow* window, int button, int action, int mods) {
+
+	gfx_windowT* win = (gfx_windowT*)glfwGetWindowUserPointer(window);
+	zuint32 event = ZEVENT_MOUSE;
+	zuint32 statebit = 0;
+	switch (button) {
+
+	case GLFW_MOUSE_BUTTON_LEFT:
+		event |= ZEVENT_MOUSE_L;	//for the event of pressing
+		statebit = ZEVENT_MOUSE_STATE_L; //for the continous state of being pressed
+		break;
+
+	case GLFW_MOUSE_BUTTON_RIGHT:
+		event |= ZEVENT_MOUSE_R;
+		statebit = ZEVENT_MOUSE_STATE_R;
+		break;
+
+	case GLFW_MOUSE_BUTTON_MIDDLE:
+		event |= ZEVENT_MOUSE_M;
+		statebit = ZEVENT_MOUSE_STATE_M;
+		break;
+
+	default:
+		return; //don't sent events for things we don't know
+
+	}
+
+	if (action == GLFW_PRESS) {
+
+		mouse_button_state |= statebit;  //set mouse button state bit
+
+		event |= ZEVENT_DOWN;  
+
+	}
+	else { //release
+
+		mouse_button_state &= (~statebit);  //set clear state bit
+
+		event |= ZEVENT_DOWN;
+
+	}
+
+	if (mouse_relative)
+		zw_enqueue(&win->iface, event | mouse_button_state | keymodstate, 0, 0, NULL);  //button clicks don't move mouse
+	else
+		zw_enqueue(&win->iface, event | mouse_button_state | keymodstate, (zuint32)last_mouse_x, (zuint32)last_mouse_y, NULL);
+	
 }
 
 /* one-time initialization */
@@ -204,7 +305,9 @@ zwindowT* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) {
 
 	glfwSetKeyCallback(win->fwindow, keyHandler);
 	glfwSetCharCallback(win->fwindow, charHandler);
-
+	glfwSetCursorPosCallback(win->fwindow, mousemoveHandler);
+	glfwSetMouseButtonCallback(win->fwindow, mousebuttonHandler);
+	
 	glfwMakeContextCurrent(win->fwindow);
 
 
@@ -251,6 +354,28 @@ void gfx_frame_clear(zbool color, zbool depth)
 
 /* Some simple setup functions*/
 
+void gfx_depth_buffer(zbool test, zbool write) {
+
+	if (test || write) {
+		glEnable(GL_DEPTH_TEST);
+
+		if (test)
+			glDepthFunc(GL_LEQUAL);
+		else
+			glDepthFunc(GL_ALWAYS);
+
+		if (write)
+			glDepthMask(GL_TRUE);
+		else
+			glDepthMask(GL_FALSE);
+
+	}
+	else {
+		glDisable(GL_DEPTH_TEST);
+	}
+	
+
+}
 
 void gfx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist)
 {
@@ -294,13 +419,11 @@ void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom)
 #define GFX_INT			0x50000000
 #define GXI_TYPEMASK	0xff000000
 
-
 #define GXI_BLEND_MODE	(GFX_INT  |  1)
 #define GFX_BLEND_OFF	 1
 #define GFX_BLEND_ALPHA	 2
 #define GFX_BLEND_ADD	 3
 #define GFX_BLEND_MUL	 4
-
 
 #define GXI_LIGHT_DIRECTION	(GFX_FLOAT3 | 2)
 #define GXI_LIGHT_COLOR		(GFX_FLOAT4 | 3)
@@ -515,6 +638,8 @@ void gfx_style(gfx_styleT* st) {
 		case GXI_LIGHT_COLOR:
 			glLightfv(GL_LIGHT0 + p->index, GL_DIFFUSE, &p->data.v4);
 			glLightfv(GL_LIGHT0 + p->index, GL_SPECULAR, &p->data.v4);
+			//vec4 zero = vec4const(0, 0, 0, 1);
+			//glLightfv(GL_LIGHT0 + p->index, GL_SPECULAR, &zero);
 			break;
 
 		case GXI_LIGHT_AMBIENT:
@@ -527,6 +652,7 @@ void gfx_style(gfx_styleT* st) {
 
 	if (ff_lights_used) {
 		glEnable(GL_LIGHTING);
+		glEnable(GL_NORMALIZE);
 		ambientsum.VALPHA = 1.0;
 		glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientsum.array);
 				
@@ -672,16 +798,16 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount, char* spec) {
 void gfx_vertex_data(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d) {
 
 	int  pos = vb->count * vb->attributes[attr].type;
-	printf(" Setting to attribute %d at %d", attr, pos);
+	//printf(" Setting to attribute %d at %d", attr, pos);
 
 	switch (vb->attributes[attr].type) {
-	case 4: vb->attributes[attr].data[pos + 3] = d;		//printf("@3");
+		case 4: vb->attributes[attr].data[pos + 3] = d;		//printf("@3");
 		case 3: vb->attributes[attr].data[pos + 2] = c; // printf("@2");
 		case 2: vb->attributes[attr].data[pos + 1] = b; // printf("@1");
 		case 1: vb->attributes[attr].data[pos + 0] = a;	// printf("@0");
 	}
 
-	printf("\n");
+//	printf("\n");
 }
 
 zuint16 gfx_vertex_done(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d) {
@@ -776,33 +902,37 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 
 		if (gxi_fixed_function) {
 
-
 			//set each attribute - fixed function
 			if (vb->fixed_position != -1) {
 
 				glVertexPointer(3, GL_FLOAT, 3 * sizeof(float), (void*)((vb->attributes[vb->fixed_position].data - vb->combined_data) * sizeof(zfloat32)));
 				glEnableClientState(GL_VERTEX_ARRAY);
-			}
-			
-			//check for other FF attributes
+			} else
+				glDisableClientState(GL_VERTEX_ARRAY);
+						
 			if (vb->fixed_color != -1) {
 				glColorPointer(4, GL_FLOAT, 4 * sizeof(float), (void*)((vb->attributes[vb->fixed_color].data - vb->combined_data) * sizeof(zfloat32)));
 				glEnableClientState(GL_COLOR_ARRAY);
-			}
-					
-			//check for other FF attributes
+			} else
+				glDisableClientState(GL_COLOR_ARRAY);
+							
+			if (vb->fixed_normal != -1) {
+				glNormalPointer(GL_FLOAT, 3 * sizeof(float), (void*)((vb->attributes[vb->fixed_normal].data - vb->combined_data) * sizeof(zfloat32)));
+				glEnableClientState(GL_NORMAL_ARRAY);
+			} else 
+				glDisableClientState(GL_NORMAL_ARRAY);
+			
 			if (vb->fixed_texcoord != -1) {
 				glTexCoordPointer(2, GL_FLOAT, 2 * sizeof(float), (void*)((vb->attributes[vb->fixed_texcoord].data - vb->combined_data) * sizeof(zfloat32)));
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-			}
+			} else
+				glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 
 		}
 		else {
 			//setup arrays for shader use (all atribs)
 
 		}
-
-		
 
 	}
 
@@ -816,16 +946,14 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 
 
 void gfx_gl_test() {
-		
-
-
 	
-
 	zwindowT* zwin = gfx_mkwindow("internal test", 1024, 768, 0);
 
-	zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/label.tga", ZTGA_TOP);
+	//zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/label.tga", ZTGA_TOP);
+	zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/earth-cylindrical-alpha-holes.tga", ZTGA_TOP);
+	
+	
 	printf(" loaded %x %d %d %d\n", pic->format, pic->w, pic->h, pic->size);
-
 
 	gfx_windowT* gfx_window = (gfx_windowT*)zwin; //cast to our own specific type
 		
@@ -833,13 +961,11 @@ void gfx_gl_test() {
 		
 	gfx_styleT* st = gfx_style_mk(NULL);
 	
-	gfx_style_set_property(st, 0, "blend", 0, GFX_BLEND_ALPHA, NULL, 0);
+	gfx_style_set_property(st, 0, "blend", 0, GFX_BLEND_ADD, NULL, 0);
 
-	vec3 lpcam = vec3const(1, 1, 0);
-	vec4 lcol = vec4const(1, 1, 1, 1.0);
-	vec4 lam = vec4const(.7, .7, .7, 1.0);
-
-
+	vec3 lpcam = vec3const(1, 1, 1);
+	vec4 lcol = vec4const(1, 1, .8, 1.0);
+	vec4 lam = vec4const(.2, .2, .2, 1.0);
 
 	gfx_style_set_property(st, GFX_FLOAT3, "light_direction", 0, 0, &lpcam, 0);
 	gfx_style_set_property(st, GFX_FLOAT4, "light_color", 0, 0, &lcol, 0);
@@ -852,49 +978,65 @@ void gfx_gl_test() {
 
  	gfx_style(st);
 
-	gfx_vertex_bufferT* vb = gfx_vertex_buffer_mk(100, "color:4|position:3|texcoord:2");
-	
-	gfx_vertex_buffer_add_index(vb, 60); //60 points
-	
-	gfx_vertex_data(vb, 0, 1.0, 0.0, 0.0, 0.5);
-	gfx_vertex_data(vb, 2, 1, 0, 0, 0);
-	int a = gfx_vertex_done(vb, 1, 5.0, 0.0, -5.0, 0);
+	gfx_vertex_bufferT* vb = gfx_vertex_buffer_mk(10000, "color:4|position:3|texcoord:2|normal:3");
+	gfx_vertex_buffer_add_index(vb, 10000);
 
 
-	gfx_vertex_data(vb, 0, 0.0, 1.0, 0.0, 1.0);
-	gfx_vertex_data(vb, 2, 0, 1, 0, 0);
-	int b = gfx_vertex_done(vb, 1, 0.0, 5.0, -5.0, 0);
+	//junky sphere
 
+	int j, k;
+	int v=0;
+	int vc = 0;
+	for (j = -10; j <= 10; j++) {
+		for (k = -10; k <= 10; k++) {
 
-	gfx_vertex_data(vb, 0, 0.0, 1.0, 1.0, 1.0);
-	gfx_vertex_data(vb, 2, 1, 1, 0, 0);
-	int c = gfx_vertex_done(vb, 1, 5, 5, -5.0, 0);
-	
+			float fy = j / 10.0;
 
-	gfx_vertex_data(vb, 0, 0.0, 1.0, 1.0, 1.0);
-	gfx_vertex_data(vb, 2, 0, 0, 0, 0);
-	int d = gfx_vertex_done(vb, 1, 0.3, 0.3, -5, 0);
+			float s = sqrtf(1- fy*fy);
 
+			float fx = s*sinf(k /10.0 *3.141);
+			float fz = s*cosf(k /10.0 * 3.141);
+
+			gfx_vertex_data(vb, 0, 1, 1, 1, 1);
+			gfx_vertex_data(vb, 2,  k/20.0  , -(j + 10) / 20.0, 0, 1);
+ 			gfx_vertex_data(vb, 3, fx, fy, fz, 1);
+			gfx_vertex_done(vb, 1, fx, fy, fz, 0);
 			
-	gfx_index_triangle(vb, a, b, c);
-	gfx_index_triangle(vb, a, b, d);
-	
 
-#define DD 
-	//printf(" %s %d\n", __FILE__, __LINE__);
-
+			if (k < 10 && j < 10) {
+				v=gfx_index_triangle(vb, vc, vc + 1, vc + 21);
+				v = gfx_index_triangle(vb, vc+1, vc + 21, vc + 22);
+			}
+			vc++;
+			
+		}
+	}
+		
 	zeventT ev;
 	
 	float ang = 0;
 	
 	for (;;) {
-		
-			  
+		 
 		while (zwin->event(zwin, &ev)) {
+
 			printf(" ZEVENT %x %x %x %c\n", ev.type, ev.a, ev.b, ev.a);
+
+			if (ev.type & ZEVENT_CHAR) {
+
+				
+
+				if (ev.a == 'm')
+					gfx_mouse_relative(zwin, ZTRUE);
+				
+				if (ev.a == 'M')
+					gfx_mouse_relative(zwin, ZFALSE);
+
+			}
+
 		}
-		
-		
+				
+
 		if (ev.type == ZEVENT_CLOSE)
 			break;
 			
@@ -902,15 +1044,17 @@ void gfx_gl_test() {
 		gfx_background_color(.3, .2, .1, 0);
 		gfx_frame_clear(ZTRUE, ZTRUE);
 		
-		gfx_setup_3d(100, 4.0 / 3.0, .1, 1000);
-		
+		gfx_setup_3d(100,  (float)zwin->w / (float) zwin->h , .1, 1000);
+		gfx_depth_buffer(ZFALSE, ZFALSE);
 		
 		gfx_identity();
 		
-		gfx_translate3(0, 0, -20);
+		gfx_translate3(0, 0, -2);
 		gfx_rotate_y(ang);
 		
-		gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0, 6, ZTRUE);
+		//gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0, v+1, ZFALSE);
+
+		gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0, v, ZTRUE);
 		
 		zwin->pixels(zwin, NULL);	//display the framebuffer
 		ang += .01;

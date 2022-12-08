@@ -6,6 +6,7 @@
 #include "zmem.h"
 #include "zvector.h"		//vector array (data structure)
 #include "zvectormath.h"	//3d math
+#include "math.h"
 
 #ifdef GFXINTERNAL
 #include <glad/glad.h>
