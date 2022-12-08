@@ -46,7 +46,7 @@ void gfx_spin_matrix(zbool is_camera, zfloat32 yaw, zfloat32 pitch, zfloat32 rol
 		vec3madd(*up, roll, *right);
 
 		//make the new up vector unit-length
-		vec3scale(  *up,  1.0/  sqrt( vec3abs_sq( *up ) ) ); 
+		vec3scale(  *up,  1.0f/  sqrtf( vec3abs_sq( *up ) ) ); 
 		
 	//cross product to give new right vector
 
@@ -68,7 +68,7 @@ void gfx_spin_matrix(zbool is_camera, zfloat32 yaw, zfloat32 pitch, zfloat32 rol
 		vec3madd( *forward, yaw, *right);
 
 		//make forward unit-length
-		vec3scale(  *forward,  1.0/  sqrt( vec3abs_sq( *forward ) ) ); 
+		vec3scale(  *forward,  1.0f/  sqrtf( vec3abs_sq( *forward ) ) ); 
 
 		//remake right vector;
 		if (is_camera)
@@ -87,7 +87,7 @@ void gfx_spin_matrix(zbool is_camera, zfloat32 yaw, zfloat32 pitch, zfloat32 rol
 		vec3madd( *forward, pitch, *up);
 
 		//normalize the new forward vector
-		vec3scale(  *forward,  1.0/  sqrt( vec3abs_sq( *forward ) ) ); 
+		vec3scale(  *forward,  1.0f/  sqrtf( vec3abs_sq( *forward ) ) ); 
 
 		//remake the up vector
 		if (is_camera)
@@ -142,7 +142,7 @@ static float proj_matrix[16];
 
 void gfx_projection3d (zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist) {
 
-	float f = 1/tan( fovy/180.0*3.141 / 2);
+	float f = 1/tanf( fovy/180.0f*3.141f / 2);
 	
 	float matr[] = 
 			{
@@ -268,9 +268,9 @@ void gfx_camera_view(vec3* position, vec3* xaxis, vec3* yaxis, vec3* minus_zaxis
 
 		/* top part of this matrix is 3x3 matrix.  It is transpose of the camera's matrix.  Sign is flipped on Z because the look direction is along -Z axis. */
 		
-		vec3set(trans.x_axis,	xaxis->vec3x, yaxis->vec3x, -minus_zaxis->vec3x);
-		vec3set(trans.y_axis,	xaxis->vec3y, yaxis->vec3y, -minus_zaxis->vec3y);
-		vec3set(trans.z_axis,	xaxis->vec3z, yaxis->vec3z, -minus_zaxis->vec3z);
+		vec3set(trans.x_axis,	xaxis->VX, yaxis->VX, -minus_zaxis->VX);
+		vec3set(trans.y_axis,	xaxis->VY, yaxis->VY, -minus_zaxis->VY);
+		vec3set(trans.z_axis,	xaxis->VZ, yaxis->VZ, -minus_zaxis->VZ);
 
 		/* bottom part is translation */
 		/* the dot products project the position into the camera space */
@@ -453,7 +453,7 @@ void gfx_load_transform(gfx_mat_3x3* m, vec3* p){
 }
 
 void gfx_rotate_y(float rad) {
-	float m[16];
+	
 	gfx_mat_3x3 rot;
 
 	
@@ -467,7 +467,7 @@ void gfx_rotate_y(float rad) {
 }
 
 void gfx_rotate_z(float rad) {
-	float m[16];
+	
 	gfx_mat_3x3 rot;
 
 	
@@ -482,7 +482,7 @@ void gfx_rotate_z(float rad) {
 
 
 void gfx_rotate_x(float rad) {
-	float m[16];
+
 	gfx_mat_3x3 rot;
 
 	vec3set(rot.x_axis, 1, 0,0);

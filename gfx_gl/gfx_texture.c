@@ -5,14 +5,13 @@
 
 
 
-#include "ztypes.h"
-#include "zmem.h"
+
 #include <stdio.h>
 
 #define GFXINTERNAL
 #include "gfx_gl.h"
 
-#include "zvector.h"
+
 
 
 gfx_textureT* gfx_texture_mk(zbitmapT* bmp) {
@@ -31,6 +30,8 @@ void gfx_texture_scaler(gfx_textureT* image, int scaler)
 	image->_scaler = scaler;
 	image->_sent_scaler = 0;
 }
+
+
 
 //enables an image for use in rendering (sends it to opengl for use in sprites or texture mapping)
 zbool gxi_texture_enable(gfx_textureT* image)
@@ -112,11 +113,12 @@ zbool gxi_texture_enable(gfx_textureT* image)
 }
 
 
+//offset is to 'stack' up multiple sets of textures
 int gxi_enabled_texture_units = 0;
 
-zbool gxi_texture_set_enable(zvecT* textures) {
+void gxi_texture_set_enable(zvecT* textures) {
 
-	int i;
+	zuint32 i;
 	int newcount = 0;
 
 	//enable and set each texture

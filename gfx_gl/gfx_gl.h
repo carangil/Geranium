@@ -1,10 +1,12 @@
 #pragma once
 
 
-#include "zvectormath.h"
 
+#include "ztypes.h"
+#include "zmem.h"
+#include "zvector.h"		//vector array (data structure)
+#include "zvectormath.h"	//3d math
 
-#include "Ztypes.h"
 #ifdef GFXINTERNAL
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>

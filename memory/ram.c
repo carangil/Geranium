@@ -67,8 +67,9 @@ void ram_init() {
 		
         /* This creates the lock that memory shares when */
         zlock_init(&ram_debug_lock); 
-        zmem_inited=ZTRUE;
+   
 #endif  
+		zmem_inited = ZTRUE;
        }      
 
 }

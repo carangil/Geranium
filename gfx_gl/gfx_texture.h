@@ -21,4 +21,4 @@ gfx_textureT* gfx_texture_mk(zbitmapT* bmp);
 
 void gfx_texture_scaler(gfx_textureT* image, int scaler);
 
-
+void gxi_texture_set_enable(zvecT* textures);

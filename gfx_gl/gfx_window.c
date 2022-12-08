@@ -34,7 +34,7 @@ typedef struct gfx_windowS {
 }gfx_windowT;
 
 void errorHandler(int error, const char* message) {
-
+	printf(" glfw e");
 	printf("GLFW ERROR:%d (0x%x) %s\n", error, error, message ? message : "null");
 
 }
@@ -113,7 +113,8 @@ void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods)
 
 }
 
-void charHandler(GLFWwindow* window, int character) {
+void charHandler(GLFWwindow* window, unsigned int character) {
+	printf(" in charhandler\n");
 	//glfw doesn't do modifiers with character callbacks
 	//todo: we could probably read or track keystate
 	//also might want to generate characters for backspace, enter, tab, etc, as they do have character codes (they keydown/repeat event should do that)
@@ -138,16 +139,19 @@ void gfxi_init() {
 //event interface
  zbool gfx_event(zwindowT * zw, zeventT * ev) {
 	
+	
 	glfwPollEvents(); //enqueue events
 
+
 	//read from queue first
-	if (zw_event(zw, ev)) {
+ 	if (zw_event(zw, ev)) {
+		printf(" RETURNING QUEUED EVENT\n");
 		return ZTRUE;
 	}
 
 	gfx_windowT* win = (gfx_windowT*)zw;
 
-	if (glfwWindowShouldClose(win->fwindow)) {
+	if (glfwWindowShouldClose(win->fwindow))  {
 		//glfw user is trying to close window
 		ev->type = ZEVENT_CLOSE;
 		return ZFALSE;
@@ -204,8 +208,7 @@ zwindowT* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) {
 	glfwMakeContextCurrent(win->fwindow);
 
 
-
-	if (!gladLoadGLLoader(glfwGetProcAddress)) {
+	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
 		printf("Can't init glad\n");
 	}
 
@@ -222,13 +225,15 @@ zwindowT* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) {
 	glfwGetWindowSize(win->fwindow, &win->iface.w, &win->iface.h);
 	glViewport(0, 0, win->iface.w, win->iface.h);
 	glClearColor(0, 0, 0, 1); //black window default
+	
+	checkGL();
 
 	return &(win->iface);
 }
 
 /*frame clear functions */
 
-void gfx_clear_color(float r, float g, float b, float a)
+void gfx_background_color(float r, float g, float b, float a)
 {
 	glClearColor(r, g, b, a);
 }
@@ -261,7 +266,7 @@ void gfx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fa
 	glEnable(GL_DEPTH_TEST);  //enable depth testing
 
 
-	//glLightModelf(GL_LIGHT_MODEL_LOCAL_VIEWER, 1.0f);
+	
 
 }
 
@@ -279,6 +284,267 @@ void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom)
 	gfx_identity();  //modelview matrix is reset to identity
 }
 
+/* Simple Shaders */
+
+//data types
+#define GFX_FLOAT		0x10000000
+#define GFX_FLOAT2		0x20000000
+#define GFX_FLOAT3		0x30000000
+#define GFX_FLOAT4		0x40000000
+#define GFX_INT			0x50000000
+#define GXI_TYPEMASK	0xff000000
+
+
+#define GXI_BLEND_MODE	(GFX_INT  |  1)
+#define GFX_BLEND_OFF	 1
+#define GFX_BLEND_ALPHA	 2
+#define GFX_BLEND_ADD	 3
+#define GFX_BLEND_MUL	 4
+
+
+#define GXI_LIGHT_DIRECTION	(GFX_FLOAT3 | 2)
+#define GXI_LIGHT_COLOR		(GFX_FLOAT4 | 3)
+#define GXI_LIGHT_AMBIENT	(GFX_FLOAT4 | 4)
+
+typedef struct gfx_propertyS {
+	char* name;//user can name custom properties
+	int id;
+	int index;  //support multiple values of same kind of data (texture 0, texture 1... etc)
+	int uloc;  //if using shaders, uniform location
+	union {
+		float f;	//single float  
+		float fa[4]; //up to 4, for color, etc
+		vec3 v; //3 component vector (position)
+		vec4 v4; //3 component vector (position)
+		int i;
+		//todo: pointer to larger data (if necessary)
+	} data;
+} gfx_propertyT;
+
+char*  gxi_builtin_properties[] = { "invalid" , "blend"        , "light_direction",   "light_color"   , "light_ambient",    NULL };
+zuint32 gxi_builtin_prop_id[] =	  { 0         , GXI_BLEND_MODE , GXI_LIGHT_DIRECTION,  GXI_LIGHT_COLOR, GXI_LIGHT_AMBIENT,  0    };
+
+zuint32 gxi_get_prop_id(char* name) {
+	zuint32 i;
+	for (i = 0; gxi_builtin_properties[i]; i++) {
+
+		if (!strcmp(name, gxi_builtin_properties[i])) {
+			//printf(" found builtin %x for %s\n", gxi_builtin_prop_id[i], name);
+			return gxi_builtin_prop_id[i];
+		}
+	}
+
+	return 0;
+}
+
+
+
+typedef struct gfxstyleS {
+	zvecT properties;
+	zvecT textures;
+} gfx_styleT;
+
+gfx_styleT* gfx_style_mk(gfx_styleT* env) {
+	gfx_styleT* st = ram_alloc(sizeof(gfx_styleT), NULL);
+
+	zvec_mk(&st->properties, 4);
+	zvec_mk(&st->textures, 4);
+
+	return st;
+}
+
+#define GFX_DELETE 1
+
+void gfx_style_set_property(gfx_styleT* st, int id, char* name_in , int index, int val, void* ptr, int action ) {
+
+	char* name = name_in;
+	int prop_id = gxi_get_prop_id(name);
+	if (prop_id){
+		id = prop_id;
+		name = NULL; //drop name, since we have an exact integer id now
+	}
+
+	zuint32 i;
+	zuint32 ifound=0xFFFF; //invalid
+	gfx_propertyT* p = NULL;
+
+	for (i = 0; i < zvec_count(&st->properties); i++) {
+
+		gfx_propertyT* psearch = zvec_get_at(&st->properties, i);  
+		
+		//if named check index matches
+		if (name && psearch->name) {
+			if ((psearch->index == index) && (!strcmp(psearch->name, name))) {
+				//found property
+				p = psearch;
+				ifound = i;
+				break;
+			}
+		}
+
+		//unnamed
+		if (!name && !(psearch->name)) {
+			if ((id == psearch->id) && (index == psearch->index)) {
+				p = psearch;
+				ifound = i ;
+				break;
+			}
+
+		}
+		
+		
+	}
+
+	if (p)
+		printf("Found existing property %x #%d for %s #%d\n", p->id, p->index, name_in, index);
+
+	if (action == GFX_DELETE) {
+		if (ifound != 0xFFFF)
+			zvec_remove_unordered(&st->properties, i);
+
+		printf(" delete property %x \n", ifound);
+		return;  
+	}
+
+	if (!p) {
+		p = ram_alloc(sizeof(gfx_propertyT), NULL);
+		if (name)
+			p->name = zstrdup(name);
+		p->uloc = -1;
+		p->id = id;
+		p->index = index;
+
+		printf("New property %x #%d for %s #%d\n", p->id, p->index, name_in, index);
+
+		zvec_add_or_free(&st->properties, p); 
+	}
+	
+	if (!p)
+		return;
+
+
+	switch (p->id & GXI_TYPEMASK) {
+
+	case GFX_INT:
+		p->data.i = val;
+		break;
+
+
+	case GFX_FLOAT3:
+		p->data.v = *(vec3*)ptr;
+		break;
+
+	case GFX_FLOAT4:
+		p->data.v4 = *(vec4*)ptr;
+		break;
+
+
+	default:
+		printf(" unknown property type\n");
+
+	}
+
+
+}
+
+
+void gxi_set_blend(int m) {
+
+
+	if (m == GFX_BLEND_OFF) {
+		glDisable(GL_BLEND);
+		return;
+	}
+
+
+	glEnable(GL_BLEND);
+
+	switch (m) {
+
+	case GFX_BLEND_ALPHA:
+
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		
+		break;
+	case GFX_BLEND_ADD:
+		glBlendFunc(GL_ONE, GL_ONE);
+		break;
+
+	case GFX_BLEND_MUL:
+		glBlendFunc(GL_DST_COLOR, GL_ZERO);
+		glBlendFunc(GL_DST_COLOR, GL_ZERO);
+
+
+	}
+
+}
+
+
+void gfx_style(gfx_styleT* st) {
+
+	zuint32 i;
+	gfx_propertyT* p;
+
+	int ff_lights_used = ZFALSE;
+
+	vec4 ambientsum = vec4const(0,0,0,1);
+
+	for (i = 0; i < zvec_count(&st->properties); i++) {
+
+		p = zvec_get_at(&st->properties, i);
+
+		//builtins
+
+		switch (p->id) {
+
+		case GXI_BLEND_MODE:
+
+			gxi_set_blend(p->data.i);
+
+			break;
+
+		case GXI_LIGHT_DIRECTION: //a directional light
+
+			ff_lights_used = ZTRUE;
+			glPushMatrix();
+			p->data.v4.named.w = 0.0; //direction light has position at w=0 'infinity' away
+			glLightfv(GL_LIGHT0 + p->index, GL_POSITION, &p->data.v4);
+			glEnable(GL_LIGHT0);
+			break;
+	
+		case GXI_LIGHT_COLOR:
+			glLightfv(GL_LIGHT0 + p->index, GL_DIFFUSE, &p->data.v4);
+			glLightfv(GL_LIGHT0 + p->index, GL_SPECULAR, &p->data.v4);
+			break;
+
+		case GXI_LIGHT_AMBIENT:
+			vec4add(ambientsum, p->data.v4);
+			
+			break;
+
+		}
+	}
+
+	if (ff_lights_used) {
+		glEnable(GL_LIGHTING);
+		ambientsum.VALPHA = 1.0;
+		glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientsum.array);
+				
+		//have color changes change the material settings
+		glColor4f(1, 1, 1, 1);  //if it happens there is no color vertex array data, use white as the color (which gets multiplied against the texture)
+		glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+		glEnable(GL_COLOR_MATERIAL);
+		
+	}
+	else {
+		glDisable(GL_LIGHTING);
+	}
+
+	
+
+	gxi_texture_set_enable(&st->textures);
+	
+}
 
 /* Vertex Buffer Objects */
 
@@ -345,7 +611,7 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount, char* spec) {
 		if (!ne)
 			break;
 		char* name = zstrndup(s, (ne - s));
-		int size = atoi(ne + 1);
+		int size = atoi(ne + 1);	//size if number of floats.  If we ever have integer vertex attributes, instead of :2, etc can do :i2 or whatever
 
 		ne = strchr(s, '|');
 
@@ -379,7 +645,7 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount, char* spec) {
 	float* fp = vb->combined_data;
 	for (i = 0; i < vb->num_attributes; i++) {
 		vb->attributes[i].data = fp;
-		printf(" Set ptr to %s  base+%d\n", vb->attributes[i].name, fp - vb->combined_data);
+		printf(" Set ptr to %s  base+%d\n", vb->attributes[i].name, (int) (fp - vb->combined_data) );
 		fp += vb->attributes[i].type * vcount;
 
 		//some vertex attributes are special (can be used with fixed function pipeline.  If ever target old computers, or if I want to implement some generic default behavior with a default shader)
@@ -422,7 +688,6 @@ zuint16 gfx_vertex_done(gfx_vertex_bufferT* vb, int attr, float a, float b, floa
 	gfx_vertex_data(vb, attr, a, b, c, d);
 	return vb->count++;
 }
-
 
 
 
@@ -549,22 +814,43 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 	checkGL();
 }
 
+
 void gfx_gl_test() {
 		
-	zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/label.tga", ZTGA_TOP);
 
-	printf(" loaded %x %d %d %d\n", pic->format, pic->w, pic->h, pic->size);
+
+	
 
 	zwindowT* zwin = gfx_mkwindow("internal test", 1024, 768, 0);
 
-	gfx_windowT* gfx_window = (gfx_windowT*)zwin; //cast to our own specific type
-	
-	
-	gfx_textureT* tex = gfx_texture_mk(pic);
+	zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/label.tga", ZTGA_TOP);
+	printf(" loaded %x %d %d %d\n", pic->format, pic->w, pic->h, pic->size);
 
+
+	gfx_windowT* gfx_window = (gfx_windowT*)zwin; //cast to our own specific type
+		
+	gfx_textureT* tex = gfx_texture_mk(pic);
+		
+	gfx_styleT* st = gfx_style_mk(NULL);
 	
-	
-	GLFWwindow* window = gfx_window->fwindow;
+	gfx_style_set_property(st, 0, "blend", 0, GFX_BLEND_ALPHA, NULL, 0);
+
+	vec3 lpcam = vec3const(1, 1, 0);
+	vec4 lcol = vec4const(1, 1, 1, 1.0);
+	vec4 lam = vec4const(.7, .7, .7, 1.0);
+
+
+
+	gfx_style_set_property(st, GFX_FLOAT3, "light_direction", 0, 0, &lpcam, 0);
+	gfx_style_set_property(st, GFX_FLOAT4, "light_color", 0, 0, &lcol, 0);
+	gfx_style_set_property(st, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
+
+	//GLFWwindow* window = gfx_window->fwindow;
+
+
+	zvec_add(&st->textures, tex);
+
+ 	gfx_style(st);
 
 	gfx_vertex_bufferT* vb = gfx_vertex_buffer_mk(100, "color:4|position:3|texcoord:2");
 	
@@ -594,44 +880,39 @@ void gfx_gl_test() {
 	gfx_index_triangle(vb, a, b, d);
 	
 
-
-	gxi_texture_enable(tex);
+#define DD 
+	//printf(" %s %d\n", __FILE__, __LINE__);
 
 	zeventT ev;
-
+	
 	float ang = 0;
-
+	
 	for (;;) {
-
-		//glfwPollEvents(); //do the event loop
-
+		
+			  
 		while (zwin->event(zwin, &ev)) {
 			printf(" ZEVENT %x %x %x %c\n", ev.type, ev.a, ev.b, ev.a);
 		}
-
+		
+		
 		if (ev.type == ZEVENT_CLOSE)
 			break;
-
-		int w, h;
-		
+			
 		//printf(" Window size is %d %d\n", w, h);
-		gfx_clear_color(.3, .2, .1, 0);
-		glClearColor(0, 1, 0, 1);
-		glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-
-		//gfx_setup_2d(0, (float)10, 0, (float)10);  //set to pixels
+		gfx_background_color(.3, .2, .1, 0);
+		gfx_frame_clear(ZTRUE, ZTRUE);
+		
 		gfx_setup_3d(100, 4.0 / 3.0, .1, 1000);
 		
-
-		gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0,6, ZTRUE);
-					
-		zwin->pixels(zwin, NULL);	//display the framebuffer
+		
 		gfx_identity();
 		
 		gfx_translate3(0, 0, -20);
 		gfx_rotate_y(ang);
 		
+		gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0, 6, ZTRUE);
 		
+		zwin->pixels(zwin, NULL);	//display the framebuffer
 		ang += .01;
 	}
 

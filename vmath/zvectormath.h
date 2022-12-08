@@ -53,18 +53,13 @@ typedef union
 
 typedef union 
 {
-	namedv3 v3;
 	namedv4 named;
 	zfloat32 array[VEC4LEN];
+	namedv3 v3;
 } vec4;
 
 
 
-/* for compatibility with my old-ass code */
-#define vec3x named.x
-#define vec3y named.y
-#define vec3z named.z
-#define vec3p array
 
 /* the preferred accessors */
 #define VX named.x
@@ -73,6 +68,11 @@ typedef union
 #define VW named.w
 #define VP array
 
+/* aliases for colors */
+#define VRED	named.x
+#define VGREEN	named.y
+#define VBLUE	named.z
+#define VALPHA	named.w
 
 
 //set a vec3 from 3 floats
@@ -151,7 +151,12 @@ typedef union
 
 #define vec4print(_v4_b) printf("<%f %f %f %f>", (_v4_b).named.x, (_v4_b).named.y, (_v4_b).named.z,(_v4_b).named.w );
 
-
+#define vec4add(_v4_a, _v4_b) {		\
+	(_v4_a).named.x += (_v4_b).named.x;	\
+	(_v4_a).named.y += (_v4_b).named.y;	\
+	(_v4_a).named.z += (_v4_b).named.z;	\
+	(_v4_a).named.w += (_v4_b).named.w;	\
+}
 
 //normalize a vec3 to unit length
 void vec3normalize( vec3* p);
@@ -164,3 +169,5 @@ void vec3normalize( vec3* p);
 zbool vec3_point_in_box( vec3* min, vec3* point, vec3* max, float border);
 
 
+#define vec3const(XX,YY,ZZ)  { .array={(float)XX,(float)YY,(float)ZZ}}
+#define vec4const(XX,YY,ZZ,WW)  { .array={(float)XX,(float)YY,(float)ZZ,(float)WW}}
