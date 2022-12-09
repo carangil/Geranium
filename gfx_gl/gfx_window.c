@@ -41,6 +41,17 @@ void errorHandler(int error, const char* message) {
 
 zuint32 keymodstate = 0;
 
+zbool keystatus[256];
+
+zbool gx_keystate(zuint32 key) {
+
+	if (key < 256)
+		return keystatus[key];
+
+	return ZFALSE;
+
+}
+
 void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods) {
 
 	int zkey = 0;
@@ -97,11 +108,18 @@ void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods)
 
 	if ((action == GLFW_PRESS) || (action == GLFW_REPEAT) ) {
 		keystate |= ZEVENT_DOWN | keymodstate;
+
+		if (key < 256)
+			keystatus[key] = 1;
+
 	}
 
 	if (action == GLFW_RELEASE) {
 		keystate |= ZEVENT_UP;
 		//zevent doesn't care about if shift/alt/ctrl are held down while releasing a key
+		if (key < 256)
+			keystatus[key] = 0;
+
 	}
 
 	gfx_windowT* win= glfwGetWindowUserPointer(window);
@@ -289,6 +307,8 @@ void gfx_close(zwindowT * zw) {
 //creation of first window will init glfw
 
 zwindowT* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) {
+
+	memset(keystatus, 0, sizeof(keystatus));
 
 	gfx_windowT* win = ram_alloc(sizeof(gfx_windowT), NULL); //no destructor key
 
@@ -982,6 +1002,10 @@ void gfx_gl_test() {
 	gfx_vertex_buffer_add_index(vb, 10000);
 
 
+	gfx_cameraT cam;
+ 	gfx_camera_init(&cam);
+
+
 	//junky sphere
 
 	int j, k;
@@ -1018,6 +1042,13 @@ void gfx_gl_test() {
 	
 	for (;;) {
 		 
+
+		float yaw = 0;
+		float pitch = 0;
+		float roll = 0;
+
+
+
 		while (zwin->event(zwin, &ev)) {
 
 			printf(" ZEVENT %x %x %x %c\n", ev.type, ev.a, ev.b, ev.a);
@@ -1034,12 +1065,68 @@ void gfx_gl_test() {
 
 			}
 
+			if (ev.type & ZEVENT_DELTA) {
+			
+				pitch += ((zint32)ev.b ) / 200.0;
+				yaw +=  ((zint32)ev.a ) / 200.0;
+
+			}
+
+
+			
+
+			/*
+			if ((ev.type & ZEVENT_KEY)&&(ev.type & ZEVENT_DOWN)) {
+
+			
+
+				switch (ev.a) {
+
+					case 'a': vec3madd(cam.pos, -.1, cam.rot.x_axis); break;//left
+					case 'd': vec3madd(cam.pos, .1, cam.rot.x_axis); break;//right
+					case 'w': vec3madd(cam.pos, .1, cam.rot.z_axis); break;//forward
+					case 's': vec3madd(cam.pos, -.1, cam.rot.z_axis); break;//back
+					case 'r': vec3madd(cam.pos, .1, cam.rot.y_axis); break;//up
+					case 'f': vec3madd(cam.pos, -.1, cam.rot.y_axis); break;//down
+
+					case 'q': yaw -= .1; break;
+					case 'e': yaw += .1; break;
+
+				}
+
+			
+				
+
+			}*/
+
+
+			
+
+
 		}
 				
+	
 
 		if (ev.type == ZEVENT_CLOSE)
 			break;
-			
+	
+		
+
+
+		if (gx_keystate('A')) vec3madd(cam.pos, -.01, cam.rot.x_axis);
+		if (gx_keystate('D')) vec3madd(cam.pos, .01, cam.rot.x_axis);
+		if (gx_keystate('W')) vec3madd(cam.pos,  .01, cam.rot.z_axis);
+		if (gx_keystate('S')) vec3madd(cam.pos, -.01, cam.rot.z_axis);
+		if (gx_keystate('R')) vec3madd(cam.pos,  .01, cam.rot.y_axis);
+		if (gx_keystate('F')) vec3madd(cam.pos, -.01, cam.rot.y_axis);
+
+
+		if (gx_keystate('Q'))  roll -= .01;
+		if (gx_keystate('E'))  roll += .01;
+
+		gfx_spin_matrix(ZTRUE, yaw, pitch, roll, &cam.rot);
+
+
 		//printf(" Window size is %d %d\n", w, h);
 		gfx_background_color(.3, .2, .1, 0);
 		gfx_frame_clear(ZTRUE, ZTRUE);
@@ -1047,8 +1134,12 @@ void gfx_gl_test() {
 		gfx_setup_3d(100,  (float)zwin->w / (float) zwin->h , .1, 1000);
 		gfx_depth_buffer(ZFALSE, ZFALSE);
 		
-		gfx_identity();
-		
+		gfx_camera_view(&cam);
+
+				
+
+
+
 		gfx_translate3(0, 0, -2);
 		gfx_rotate_y(ang);
 		

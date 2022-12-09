@@ -260,27 +260,32 @@ void gxi_refresh_matrix(/*gfx_shader_t* shader*/) {
  */
 
 
-void gfx_camera_view(vec3* position, vec3* xaxis, vec3* yaxis, vec3* minus_zaxis) {
-	gfx_mat_3x3 trans;
-	vec3 offset;
+void gfx_camera_view(  gfx_cameraT* cam) {
 
-	if (position && xaxis && yaxis && minus_zaxis) {
+	gfx_transformT trans;
+
+
+	if (cam) {
 
 		/* top part of this matrix is 3x3 matrix.  It is transpose of the camera's matrix.  Sign is flipped on Z because the look direction is along -Z axis. */
 		
-		vec3set(trans.x_axis,	xaxis->VX, yaxis->VX, -minus_zaxis->VX);
-		vec3set(trans.y_axis,	xaxis->VY, yaxis->VY, -minus_zaxis->VY);
-		vec3set(trans.z_axis,	xaxis->VZ, yaxis->VZ, -minus_zaxis->VZ);
+		vec3set(trans.rot.x_axis,  cam->rot.x_axis.VX, cam->rot.y_axis.VX, /*!!!NEGATIVE*/ -cam->rot.z_axis.VX);
+		vec3set(trans.rot.y_axis,  cam->rot.x_axis.VY, cam->rot.y_axis.VY, /*!!!NEGATIVE*/ -cam->rot.z_axis.VY);
+		vec3set(trans.rot.z_axis,  cam->rot.x_axis.VZ, cam->rot.y_axis.VZ, /*!!!NEGATIVE*/ -cam->rot.z_axis.VZ);
 
 		/* bottom part is translation */
 		/* the dot products project the position into the camera space */
 
-		vec3set (offset, -vec3dot(*position, *xaxis), -vec3dot(*position, *yaxis), vec3dot(*position, *minus_zaxis));
+		vec3set (trans.pos , -vec3dot(cam->pos, cam->rot.x_axis), -vec3dot(cam->pos, cam->rot.y_axis), /*DOUBLE NEGATIVE*/ vec3dot(cam->pos, cam->rot.z_axis));
 
-		modelview_camera_pos = *position;
+		modelview_camera_pos = cam->pos;  //track the camera position (will need it internally for lighting)
 		
-		gfx_load_transform(&trans,&offset);  /* replace the current matrix */
-	} 
+		gfx_load_transform(&trans);  /* replace the current matrix */
+	}
+	else {
+		gfx_identity();
+		vec3set(modelview_camera_pos, 0.0, 0.0, 0.0);
+	}
 }
 
 
@@ -438,16 +443,9 @@ void gfx_rotate_3x3 (gfx_mat_3x3* rot) {
 
 
 
-void gfx_load_transform(gfx_mat_3x3* m, vec3* p){
-	if (m)
-		modelview.rot = *m;
-	else
-		gfx_identity();
+void gfx_load_transform(gfx_transformT* trans){
 
-	if(p)
-		modelview.pos = *p;
-	else
-		vec3set(modelview.pos, 0,0,0);
+	modelview = *trans;
 
 	matrix_version++;
 }

@@ -43,7 +43,9 @@ typedef	gfx_transformT gfx_cameraT;
 void gfx_camera_init(gfx_cameraT* cam);
 void gfx_trans_init(gfx_transformT* cam);
 
-void gfx_load_transform(gfx_mat_3x3* m, vec3* p);
+void gfx_camera_view(gfx_cameraT* cam);
+
+void gfx_load_transform(gfx_transformT* trans);
 void gfx_translate(vec3* delta) ;
 void gfx_translate3(float x, float y, float z);
 void gfx_rotate(gfx_mat_3x3* rot); 
