@@ -35,3 +35,34 @@ zbool zw_event(zwindowT * zw, zeventT * ev) {
 	return ZFALSE;
 
 }
+
+zuint32 eventMasks[] = { ZEVENT_KEY, ZEVENT_CHAR, ZEVENT_MOUSE, ZEVENT_CLOSE, ZEVENT_DOWN, ZEVENT_UP, ZEVENT_MOVE, ZEVENT_DELTA, ZEVENT_MOUSE_STATE_L, ZEVENT_MOUSE_STATE_M,ZEVENT_MOUSE_STATE_R,ZEVENT_MOUSE_L,ZEVENT_MOUSE_M, ZEVENT_MOUSE_R,ZKEY_CTRL, ZKEY_SHIFT, ZKEY_ALT , 0 };
+char*   eventNames[] ={ "ZEVENT_KEY","ZEVENT_CHAR","ZEVENT_MOUSE","ZEVENT_CLOSE","ZEVENT_DOWN","ZEVENT_UP","ZEVENT_MOVE","ZEVENT_DELTA","ZEVENT_MOUSE_STATE_L","ZEVENT_MOUSE_STATE_M","ZEVENT_MOUSE_STATE_R","ZEVENT_MOUSE_L","ZEVENT_MOUSE_M","ZEVENT_MOUSE_R","ZKEY_CTRL","ZKEY_SHIFT","ZKEY_ALT", 0 };
+
+
+void zprintevent(zeventT* ev) {
+	if (ev) {
+
+		
+
+		int i;
+		
+		printf("a:%d\tb:%d\t", ev->a, ev->b);
+
+		if ((ev->type & ZEVENT_KEY) || (ev->type & ZEVENT_CHAR))
+			printf(" %c ", ev->a);
+		
+		for (i = 0; eventMasks[i]; i++)
+			if (ZEVENTIS(ev->type, eventMasks[i]))
+				printf("%s ", eventNames[i]);
+
+		
+		printf("\n");
+
+
+
+	}
+
+
+
+}

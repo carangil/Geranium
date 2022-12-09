@@ -9,9 +9,8 @@ typedef struct gfx_mat_3x3_s {
 } gfx_mat_3x3;
 
 
-//rotates 3 vectors around each other
-void gfx_spin_matrix(zbool is_camera, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gfx_mat_3x3* rot);
-
+//camera relative to itself
+void gfx_spin_matrix(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gfx_mat_3x3* rot);
 
 typedef struct gfx_transform_s {
 	vec3 pos;			//translation
@@ -20,30 +19,12 @@ typedef struct gfx_transform_s {
 
 typedef	gfx_transformT gfx_cameraT;
 
-	/* Note: camera rotation matrices are handled a little different than object matrices. 
-	 *
-	 *  A nonrotated object has an identity matrix of:
-	 *  1 0 0
-	 *  0 1 0
-	 *  0 0 1
-	 *
-	 *  A camera is defined by 3 vectors, the right vector (x_axis), up vector (y_axis), and the forward vector (-zaxis).
-	 *  Note the negative.  Opengl defines the camera is looking towards -Z.  So an unrotated camera is initialized as:
-	 *  1 0 0
-	 *  0 1 0
-	 *  0 0 -1
-	 *
-	 *  I thought about having an unrotated camera also be a proper identity matrix (all positive 1's), but 
-	 *  then that means the camera is defined by the vector the oposite direction it is looking. 
-	 *  It is the 'butt' vector.  I want to use the 'look' direction  vector, not the fart direction.
-	 *  operations that act on rotation matrices, ask for a boolean call 'is_camera' that takes the flipped 'z' 
-	 *  sign into account.
-	 */
 
 void gfx_camera_init(gfx_cameraT* cam);
 void gfx_trans_init(gfx_transformT* cam);
-
+void gfx_camera_motion_6dof(gfx_cameraT* cam, float forward, float right, float up, float yaw, float pitch, float roll);
 void gfx_camera_view(gfx_cameraT* cam);
+
 
 void gfx_load_transform(gfx_transformT* trans);
 void gfx_translate(vec3* delta) ;

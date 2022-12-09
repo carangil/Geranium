@@ -13,9 +13,8 @@ typedef struct zevent_s {
 //top 2 digits are the event type
 #define ZEVENT_KEY	0x01000000
 #define ZEVENT_CHAR	0x02000000
-#define ZEVENT_MOUSE	0x03000000
 #define ZEVENT_CLOSE	0x04000000
-
+#define ZEVENT_MOUSE	0x08000000
 
 //everything else is dependant on the type
 //for keyboard and mouse events:
@@ -24,8 +23,8 @@ typedef struct zevent_s {
 //(ev.type & ZEVENT_UP) means a key or mouse button was released
 #define ZEVENT_DOWN		0x00010000
 #define ZEVENT_UP		0x00020000  
-#define ZEVENT_MOVE		0x00030000
-#define ZEVENT_DELTA	0x00040000
+#define ZEVENT_MOVE		0x00040000
+#define ZEVENT_DELTA	0x00080000
 
 //mouse events also give the *current* mouse state as bitmask
 // if (ev.type & ZEVENT_MOUSE_STATE_M ) means middle button is pressed
@@ -47,6 +46,8 @@ typedef struct zevent_s {
 */
 
 
+#define ZEVENTIS(EVTYPE, EVMASK)      (((EVTYPE)&(EVMASK))==(EVMASK))
+
 
 //named keys that are also characters
 #define ZKEY_BACKSPACE	'\b'
@@ -60,10 +61,11 @@ typedef struct zevent_s {
 #define ZKEY_PAUSE	0x80
 
 //0x81 to 0x8f are for combinations of ctrl, shift, alt in modifier masks
+
 #define ZKEY_MODFIRST	0x81
-#define ZKEY_CTRL	0x81
-#define ZKEY_SHIFT	0x82
-#define ZKEY_ALT	0x84
+#define ZKEY_CTRL		0x81
+#define ZKEY_SHIFT		0x82
+#define ZKEY_ALT		0x84
 #define ZKEY_MOD_FUTURE 0x88	/*something other than ctrl,alt,shift... Some future special key*/
 #define ZKEY_MODLAST	0x8f
 
@@ -120,6 +122,9 @@ extern "C" {
 
 void zw_enqueue(zwindowT* zw, zuint32 type, zuint32 a, zuint32 b, void* ptr);
 zbool zw_event(zwindowT* zw, zeventT* ev);
+
+
+void zprintevent(zeventT* ev);  //debug function
 
 #ifdef __cplusplus
 }

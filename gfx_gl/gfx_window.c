@@ -9,6 +9,9 @@
 #include "zarray.h"
 #include <stdio.h>
 
+
+
+
 /*opengl error checker*/
 char* last_file;
 int last_line;
@@ -56,7 +59,7 @@ void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods)
 
 	int zkey = 0;
 
-	printf(" Key: %d %x %c\n", key, key, key);
+	//printf(" Key: %d %x %c\n", key, key, key);
 
 	//translate to ZEVENT keys
 
@@ -109,16 +112,16 @@ void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods)
 	if ((action == GLFW_PRESS) || (action == GLFW_REPEAT) ) {
 		keystate |= ZEVENT_DOWN | keymodstate;
 
-		if (key < 256)
-			keystatus[key] = 1;
+		if (zkey < 256)
+			keystatus[zkey] = 1;
 
 	}
 
 	if (action == GLFW_RELEASE) {
 		keystate |= ZEVENT_UP;
 		//zevent doesn't care about if shift/alt/ctrl are held down while releasing a key
-		if (key < 256)
-			keystatus[key] = 0;
+		if (zkey < 256)
+			keystatus[zkey] = 0;
 
 	}
 
@@ -230,7 +233,7 @@ void mousebuttonHandler(GLFWwindow* window, int button, int action, int mods) {
 
 		mouse_button_state &= (~statebit);  //set clear state bit
 
-		event |= ZEVENT_DOWN;
+		event |= ZEVENT_UP;
 
 	}
 
@@ -649,7 +652,7 @@ void gfx_style(gfx_styleT* st) {
 		case GXI_LIGHT_DIRECTION: //a directional light
 
 			ff_lights_used = ZTRUE;
-			glPushMatrix();
+			glLoadIdentity();
 			p->data.v4.named.w = 0.0; //direction light has position at w=0 'infinity' away
 			glLightfv(GL_LIGHT0 + p->index, GL_POSITION, &p->data.v4);
 			glEnable(GL_LIGHT0);
@@ -1039,93 +1042,63 @@ void gfx_gl_test() {
 	zeventT ev;
 	
 	float ang = 0;
-	
+	zbool mr = ZFALSE;
+
 	for (;;) {
 		 
-
 		float yaw = 0;
 		float pitch = 0;
 		float roll = 0;
 
-
-
 		while (zwin->event(zwin, &ev)) {
 
-			printf(" ZEVENT %x %x %x %c\n", ev.type, ev.a, ev.b, ev.a);
-
-			if (ev.type & ZEVENT_CHAR) {
-
-				
-
-				if (ev.a == 'm')
-					gfx_mouse_relative(zwin, ZTRUE);
-				
-				if (ev.a == 'M')
-					gfx_mouse_relative(zwin, ZFALSE);
-
-			}
-
-			if (ev.type & ZEVENT_DELTA) {
+			//printf(" ZEVENT %x %x %x %c     %x\n", ev.type, ev.a, ev.b, ev.a, ZKEY_CTRL);
+			zprintevent(&ev);
 			
-				pitch += ((zint32)ev.b ) / 200.0;
-				yaw +=  ((zint32)ev.a ) / 200.0;
 
+			if (ZEVENTIS(ev.type ,ZEVENT_CHAR)) {
+
+			//	printf(" ZEVENT CHAR %x %x %x %c     %x\n", ev.type, ev.a, ev.b, ev.a, ZKEY_CTRL);
+				
+				if (ev.a == 'm') 
+					gfx_mouse_relative(zwin, mr ^= 1);
+								
 			}
 
 
+			if (ZEVENTIS(ev.type,  ZEVENT_KEY|ZEVENT_DOWN|ZKEY_CTRL   ) &&(ev.a=='q') ) {
+				printf("CLOSE\n");
+				exit(1);
+				break;
+			}
+
+			if (ZEVENTIS(ev.type, ZEVENT_DELTA)) {
 			
+				pitch -= ((zint32)ev.b ) / 200.0;
+				yaw   -=  ((zint32)ev.a ) / 200.0;
 
-			/*
-			if ((ev.type & ZEVENT_KEY)&&(ev.type & ZEVENT_DOWN)) {
-
-			
-
-				switch (ev.a) {
-
-					case 'a': vec3madd(cam.pos, -.1, cam.rot.x_axis); break;//left
-					case 'd': vec3madd(cam.pos, .1, cam.rot.x_axis); break;//right
-					case 'w': vec3madd(cam.pos, .1, cam.rot.z_axis); break;//forward
-					case 's': vec3madd(cam.pos, -.1, cam.rot.z_axis); break;//back
-					case 'r': vec3madd(cam.pos, .1, cam.rot.y_axis); break;//up
-					case 'f': vec3madd(cam.pos, -.1, cam.rot.y_axis); break;//down
-
-					case 'q': yaw -= .1; break;
-					case 'e': yaw += .1; break;
-
-				}
-
-			
-				
-
-			}*/
-
-
-			
-
-
+			}
 		}
-				
-	
 
 		if (ev.type == ZEVENT_CLOSE)
 			break;
 	
-		
+		float forward = 0.0;
+		float right = 0.0;
+		float up = 0.0;
+		float speed = .01;
 
+		if (gx_keystate('a')) right -= speed;
+		if (gx_keystate('d')) right += speed;
+		if (gx_keystate('w')) forward += speed;
+		if (gx_keystate('s')) forward -= speed;
+		if (gx_keystate('r')) up += speed;
+		if (gx_keystate('f')) up -= speed;
 
-		if (gx_keystate('A')) vec3madd(cam.pos, -.01, cam.rot.x_axis);
-		if (gx_keystate('D')) vec3madd(cam.pos, .01, cam.rot.x_axis);
-		if (gx_keystate('W')) vec3madd(cam.pos,  .01, cam.rot.z_axis);
-		if (gx_keystate('S')) vec3madd(cam.pos, -.01, cam.rot.z_axis);
-		if (gx_keystate('R')) vec3madd(cam.pos,  .01, cam.rot.y_axis);
-		if (gx_keystate('F')) vec3madd(cam.pos, -.01, cam.rot.y_axis);
-
-
-		if (gx_keystate('Q'))  roll -= .01;
-		if (gx_keystate('E'))  roll += .01;
-
-		gfx_spin_matrix(ZTRUE, yaw, pitch, roll, &cam.rot);
-
+		if (gx_keystate('q'))  roll -= .01;
+		if (gx_keystate('e'))  roll += .01;
+				
+		gfx_camera_motion_6dof(&cam, forward, right, up, yaw, pitch, roll);
 
 		//printf(" Window size is %d %d\n", w, h);
 		gfx_background_color(.3, .2, .1, 0);
@@ -1136,15 +1109,10 @@ void gfx_gl_test() {
 		
 		gfx_camera_view(&cam);
 
-				
-
-
-
 		gfx_translate3(0, 0, -2);
 		gfx_rotate_y(ang);
 		
-		//gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0, v+1, ZFALSE);
-
+		
 		gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0, v, ZTRUE);
 		
 		zwin->pixels(zwin, NULL);	//display the framebuffer

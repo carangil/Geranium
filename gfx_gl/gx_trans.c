@@ -16,103 +16,68 @@
 
 void printMatrix44(char* name, float* m);
 
-//spin crap
-//is_camera FLIP switches the order
-// TRUE for camera matrices, FALSE for object matrices
+//rotate a matrix relative to itself
 //
 // object matrices define the identity matrix as no rotation.
-// when using a matrix for a camera, the Z axis is taken to be the LOOK direction, which is along the -Z axis.  An initialized camera has the Z axis flipped
+// when using a matrix for a camera, the Z axis is taken to be the opposite of the LOOK direction, because the camera points to -1 direction in opengl
 
 //when used on a camera, and yaw/pitch values are from mouse motion, and 'roll' is input from some other user control, 
 //this has the effect of the 'Descent' spaceship rotation system....  If forward, back, left, right, up, down strafe/slide controls are 
 //also then used to add weighted amounts of the 'forward' 'up' and 'right' vectors to the camera position, you get full 6DOF
 //there are not quaternions or other things used here, this is all just straight-up 3D vector math
 
-void gfx_spin_matrix(zbool is_camera, zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gfx_mat_3x3* rot)
+void gfx_spin_matrix(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gfx_mat_3x3* rot)
 {
 
-	vec3* up = &rot->y_axis;
+ 	vec3* up = &rot->y_axis;
 	vec3* right = &rot->x_axis;
 	vec3* forward = &rot->z_axis;
 
 	
 	
 	//roll
-
-	
-	{
-		//add a little bit of the right vector to the up vector:
+	//add a little bit of the right vector to the up vector:
 		
 		vec3madd(*up, roll, *right);
 
 		//make the new up vector unit-length
 		vec3scale(  *up,  1.0f/  sqrtf( vec3abs_sq( *up ) ) ); 
 		
-	//cross product to give new right vector
+		//cross product to give new right vector
 
-		if (is_camera)
-		{
-			vec3cross( *right, *forward, *up  );
-		}
-		else
-		{
-			vec3cross( *right, *up, *forward  );
-		}
 		
-	}
+		vec3cross( *right, *up, *forward  );
+		
+		
+
 
 	//yaw
-	
-	{
-		//add some 'right' to 'forward'
+	//add some 'right' to 'forward'
 		vec3madd( *forward, yaw, *right);
 
 		//make forward unit-length
 		vec3scale(  *forward,  1.0f/  sqrtf( vec3abs_sq( *forward ) ) ); 
 
 		//remake right vector;
-		if (is_camera)
-		{
-			vec3cross( *right, *forward, *up  );
-		}
-		else
-		{
-			vec3cross( *right, *up, *forward  );
-		}
-	}
-
+		
+		vec3cross( *right, *up, *forward  );
+		
+	
 	//pitch
-	{
-		//add some 'up' to the forward vector
+	//add some 'up' to the forward vector
 		vec3madd( *forward, pitch, *up);
 
 		//normalize the new forward vector
 		vec3scale(  *forward,  1.0f/  sqrtf( vec3abs_sq( *forward ) ) ); 
 
 		//remake the up vector
-		if (is_camera)
-		{
-			vec3cross( *up, *right, *forward  );
-		}
-		else 
-		{
-			vec3cross( *up, *forward, *right  );
-		}
-	}
-
-
+				
+		vec3cross( *up, *forward, *right  );
+			
 }
 
-void gfx_camera_init(gfx_cameraT* cam)
-{
-	if (cam)
-	{
-		vec3set( cam->rot.x_axis,		1.0f, 0.0f, 0.0f);
-		vec3set( cam->rot.y_axis,		0.0f, 1.0f, 0.0f);
-		vec3set( cam->rot.z_axis,		0.0f, 0.0f, -1.0f);  // Z is -1.0, because Z looking forward is (0,0,-1)
-		vec3set( cam->pos,				0.0f, 0.0f, 0.0f);
-	}
-}
+
+
 
 void gfx_trans_init(gfx_transformT* t)
 {
@@ -124,7 +89,9 @@ void gfx_trans_init(gfx_transformT* t)
 		vec3set(t->pos, 0.0f, 0.0f, 0.0f);
 	}
 }
-
+void gfx_camera_init(gfx_cameraT * t) { //will later add the ability to have a starting position and starting look angle
+	gfx_trans_init(t);
+}
 //matrix replacement for opengl fixed function
 //originally there was some pass-thru to the opengl stack when fixed function is ued
 //because my old graphics library actually ran on old hardware too
@@ -208,7 +175,7 @@ void gxi_refresh_matrix(/*gfx_shader_t* shader*/) {
 			
 	if (!shader) {
 		if (ff_matrix_version == matrix_version) {
-				//gxdprintf("skip same ff matrix\n");
+				gxdprintf("skip same ff matrix\n");
 				return ;
 				
 		}
@@ -267,16 +234,16 @@ void gfx_camera_view(  gfx_cameraT* cam) {
 
 	if (cam) {
 
-		/* top part of this matrix is 3x3 matrix.  It is transpose of the camera's matrix.  Sign is flipped on Z because the look direction is along -Z axis. */
+		/* top part of this matrix is 3x3 matrix.  It is transpose of the camera's matrix. */
 		
-		vec3set(trans.rot.x_axis,  cam->rot.x_axis.VX, cam->rot.y_axis.VX, /*!!!NEGATIVE*/ -cam->rot.z_axis.VX);
-		vec3set(trans.rot.y_axis,  cam->rot.x_axis.VY, cam->rot.y_axis.VY, /*!!!NEGATIVE*/ -cam->rot.z_axis.VY);
-		vec3set(trans.rot.z_axis,  cam->rot.x_axis.VZ, cam->rot.y_axis.VZ, /*!!!NEGATIVE*/ -cam->rot.z_axis.VZ);
+		vec3set(trans.rot.x_axis,  cam->rot.x_axis.VX, cam->rot.y_axis.VX, cam->rot.z_axis.VX);
+		vec3set(trans.rot.y_axis,  cam->rot.x_axis.VY, cam->rot.y_axis.VY, cam->rot.z_axis.VY);
+		vec3set(trans.rot.z_axis,  cam->rot.x_axis.VZ, cam->rot.y_axis.VZ, cam->rot.z_axis.VZ);
 
 		/* bottom part is translation */
 		/* the dot products project the position into the camera space */
 
-		vec3set (trans.pos , -vec3dot(cam->pos, cam->rot.x_axis), -vec3dot(cam->pos, cam->rot.y_axis), /*DOUBLE NEGATIVE*/ vec3dot(cam->pos, cam->rot.z_axis));
+		vec3set (trans.pos , -vec3dot(cam->pos, cam->rot.x_axis), -vec3dot(cam->pos, cam->rot.y_axis), -vec3dot(cam->pos, cam->rot.z_axis));
 
 		modelview_camera_pos = cam->pos;  //track the camera position (will need it internally for lighting)
 		
@@ -287,6 +254,22 @@ void gfx_camera_view(  gfx_cameraT* cam) {
 		vec3set(modelview_camera_pos, 0.0, 0.0, 0.0);
 	}
 }
+
+
+
+
+void gfx_camera_motion_6dof(gfx_cameraT* cam, float forward, float right, float up, float yaw, float pitch, float roll) {
+	
+		
+	vec3madd(cam->pos, right,	cam->rot.x_axis);
+	vec3madd(cam->pos, up,		cam->rot.y_axis);
+	vec3madd(cam->pos,-forward,	cam->rot.z_axis);  //negative because -z is the look direction
+
+	gfx_spin_matrix(yaw, pitch, roll, &cam->rot);
+
+}
+
+
 
 
 int trans_debug = 1;

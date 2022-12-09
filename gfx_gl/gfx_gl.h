@@ -1,6 +1,7 @@
 #pragma once
 
-
+#define GXDEBUG 1
+#define gxdprintf  if(GXDEBUG) printf
 
 #include "ztypes.h"
 #include "zmem.h"
@@ -16,5 +17,7 @@
 #include "gx_trans.h"
 #include "gfx_texture.h"
 #include "GL/glu.h"
+
+#include "zwindow.h"
 
 void gfx_gl_test();
