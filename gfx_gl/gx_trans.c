@@ -175,7 +175,7 @@ void gxi_refresh_matrix(/*gfx_shader_t* shader*/) {
 			
 	if (!shader) {
 		if (ff_matrix_version == matrix_version) {
-				gxdprintf("skip same ff matrix\n");
+			//	gxdprintf("skip same ff matrix\n");
 				return ;
 				
 		}

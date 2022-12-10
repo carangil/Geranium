@@ -695,37 +695,6 @@ void gfx_style(gfx_styleT* st) {
 	
 }
 
-/* Vertex Buffer Objects */
-
-typedef struct gfxVertexAttributeS {
-	int		type;	// 1,2,3, or 4 are for float values
-	char*	name;
-	float*	data;
-} gfx_vertex_attributeT;
-
-#define MAX_ATTRIBUTE 8
-
-typedef struct gfx_VertexBufferS {
-	float* combined_data;
-
-	gfx_vertex_attributeT attributes[MAX_ATTRIBUTE];
-	int num_attributes;
-
-	zuint16 capacity;
-	zuint16 count; //number of vertices to consider valid
-	int vbo;
-	int fcount; //number of float fields
-
-	zuint16* index_buffer;	//zarray
-	int index_vbo;
-	
-	//positions for fixed/simple pipeline functionality
-	//only valid if fixed_position != -1
-	int fixed_position;
-	int fixed_color;
-	int fixed_texcoord;
-	int fixed_normal;
-} gfx_vertex_bufferT;
 
 zuint16* gfx_vertex_buffer_add_index(gfx_vertex_bufferT* vb, int num) {
 
@@ -745,10 +714,10 @@ zuint16 gfx_index_triangle(gfx_vertex_bufferT* vb,  zuint16 a, zuint16 b, zuint1
 	return zarray_count(vb->index_buffer);
 }
 
-gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount, char* spec) {
+gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 
 	char* s = spec;
-
+	zuint32 vcount = vcount_in;
 	if (!s)
 		return NULL;
 	
@@ -822,6 +791,10 @@ void gfx_vertex_data(gfx_vertex_bufferT* vb, int attr, float a, float b, float c
 
 	int  pos = vb->count * vb->attributes[attr].type;
 	//printf(" Setting to attribute %d at %d", attr, pos);
+	if (vb->count > vb->capacity) {
+		printf("vertex buffer overflow\n");
+		exit(1);
+	}
 
 	switch (vb->attributes[attr].type) {
 		case 4: vb->attributes[attr].data[pos + 3] = d;		//printf("@3");
@@ -960,22 +933,40 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 	}
 
 	if (indexed)
-		glDrawElements(gl_prims[prim], end - start, GL_UNSIGNED_SHORT, (void*) (sizeof(zuint16) * start));
+ 		glDrawElements(gl_prims[prim], end - start, GL_UNSIGNED_SHORT, (void*) (sizeof(zuint16) * start));
 	else
 		glDrawArrays(gl_prims[prim], start, end - start);
 
 	checkGL();
 }
 
+/* higher level meshes*/
+
+typedef struct gfx_mesh_sectionS {
+	
+	gfx_styleT* style;
+	gfx_vertex_bufferT* buffer;
+	zbool indexed;
+	zuint32 startVertex;
+	zuint32 endVertex;
+
+} gfx_mesh_sectionT;
+
+
+/* test program */
 
 void gfx_gl_test() {
 	
 	zwindowT* zwin = gfx_mkwindow("internal test", 1024, 768, 0);
 
 	//zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/label.tga", ZTGA_TOP);
-	zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/earth-cylindrical-alpha-holes.tga", ZTGA_TOP);
+	//zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/earth-cylindrical-alpha-holes.tga", ZTGA_TOP);
+	zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/web/strawberry/Texture/Strawberry_basecolor.tga", 0*ZTGA_TOP);
 	
 	
+	gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/strawberry/Strawberry_obj.obj");
+	//gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/cube.obj");
+
 	printf(" loaded %x %d %d %d\n", pic->format, pic->w, pic->h, pic->size);
 
 	gfx_windowT* gfx_window = (gfx_windowT*)zwin; //cast to our own specific type
@@ -984,7 +975,7 @@ void gfx_gl_test() {
 		
 	gfx_styleT* st = gfx_style_mk(NULL);
 	
-	gfx_style_set_property(st, 0, "blend", 0, GFX_BLEND_ADD, NULL, 0);
+	gfx_style_set_property(st, 0, "blend", 0, GFX_BLEND_ALPHA, NULL, 0);
 
 	vec3 lpcam = vec3const(1, 1, 1);
 	vec4 lcol = vec4const(1, 1, .8, 1.0);
@@ -1104,16 +1095,24 @@ void gfx_gl_test() {
 		gfx_background_color(.3, .2, .1, 0);
 		gfx_frame_clear(ZTRUE, ZTRUE);
 		
-		gfx_setup_3d(100,  (float)zwin->w / (float) zwin->h , .1, 1000);
-		gfx_depth_buffer(ZFALSE, ZFALSE);
+		gfx_setup_3d(80,  (float)zwin->w / (float) zwin->h , .1, 1000);
+	//	gfx_depth_buffer(ZFALSE, ZFALSE);
 		
 		gfx_camera_view(&cam);
 
 		gfx_translate3(0, 0, -2);
-		gfx_rotate_y(ang);
+		//gfx_rotate_y(ang);
 		
 		
-		gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0, v, ZTRUE);
+	//	gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0, v, ZTRUE);
+	
+		gfx_meshT* m = strawberry_mesh;
+
+		while (m) {
+
+			gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
+			m = m->next_piece;
+		}
 		
 		zwin->pixels(zwin, NULL);	//display the framebuffer
 		ang += .01;
