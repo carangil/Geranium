@@ -81,6 +81,11 @@ zbool zvec_add(zvecT* v, void* item)
 	if (!v) 
 		return ZFALSE;
 
+	if (v->_size == 0) {  //uninitialied!  need to init.  this is experimental
+		printf(" warning: auto-init zvecT\n");
+		zvec_mk(v, 4);
+	}
+
 	if ( (v->count) >= (v->_size))
 	{
 		zbool ok = ZFALSE;

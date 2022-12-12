@@ -97,9 +97,10 @@ void gfx_camera_init(gfx_cameraT * t) { //will later add the ability to have a s
 //because my old graphics library actually ran on old hardware too
 
 static gfx_transformT	modelview;
-static vec3				modelview_camera_pos;
+static vec3				modelview_camera_pos;	//point, in world space, where the camera is.  updated on calls to the camera, but not 
 
 static zint32 matrix_version=0;  //incremeneted whenever changed
+
 static zint32 ff_matrix_version=-1;
 //each shader also tracks their own matrix version
 
@@ -276,6 +277,13 @@ int trans_debug = 1;
 #define debugf  if (trans_debug) printf
 
 
+void gfx_save_transform(gfx_transformT* s) {
+	*s = modelview;
+}
+
+
+
+
 void gfx_identity(){
 	
 	vec3set(modelview.rot.x_axis, 1, 0, 0);	// x axis inialized to 1,0,0
@@ -303,7 +311,7 @@ void transpose( gfx_mat_3x3* dst, gfx_mat_3x3* src) {
 //transforms a point by the modelview matrix
 //these functions are not particularly fast, and are here for convenience
 //sometimes we need to know what a point will be transformed to by the hardware
-
+//consider cacheing the transposed matrix if this is too slow for some reason
 void gfx_trans_vec3(vec3* po) {
 	gfx_mat_3x3 t;
 	vec3 p;

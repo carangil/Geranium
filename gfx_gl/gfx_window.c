@@ -106,7 +106,7 @@ void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods)
 		keymodstate |= ZKEY_ALT;
 
 
-	//translate the modifiers
+	// the modifiers
 	int keystate = ZEVENT_KEY;
 
 	if ((action == GLFW_PRESS) || (action == GLFW_REPEAT) ) {
@@ -333,7 +333,7 @@ zwindowT* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) {
 	
 	glfwMakeContextCurrent(win->fwindow);
 
-
+	
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
 		printf("Can't init glad\n");
 	}
@@ -372,7 +372,6 @@ void gfx_frame_clear(zbool color, zbool depth)
 		(depth ? GL_DEPTH_BUFFER_BIT : 0)
 	);
 }
-
 
 
 /* Some simple setup functions*/
@@ -448,9 +447,12 @@ void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom)
 #define GFX_BLEND_ADD	 3
 #define GFX_BLEND_MUL	 4
 
-#define GXI_LIGHT_DIRECTION	(GFX_FLOAT3 | 2)
-#define GXI_LIGHT_COLOR		(GFX_FLOAT4 | 3)
-#define GXI_LIGHT_AMBIENT	(GFX_FLOAT4 | 4)
+/* light DIRECTION and POSITION for the same 'n' are mutually exclusive! */
+#define GXI_LIGHT_DIRECTION	(GFX_FLOAT3 | 2)	
+#define GXI_LIGHT_POSITION	(GFX_FLOAT3 | 3)
+#define GXI_LIGHT_COLOR		(GFX_FLOAT4 | 4)
+#define GXI_LIGHT_AMBIENT	(GFX_FLOAT4 | 5)
+
 
 typedef struct gfx_propertyS {
 	char* name;//user can name custom properties
@@ -467,8 +469,8 @@ typedef struct gfx_propertyS {
 	} data;
 } gfx_propertyT;
 
-char*  gxi_builtin_properties[] = { "invalid" , "blend"        , "light_direction",   "light_color"   , "light_ambient",    NULL };
-zuint32 gxi_builtin_prop_id[] =	  { 0         , GXI_BLEND_MODE , GXI_LIGHT_DIRECTION,  GXI_LIGHT_COLOR, GXI_LIGHT_AMBIENT,  0    };
+char*  gxi_builtin_properties[] = { "invalid" , "blend"        , "light_direction",   "light_color"   , "light_ambient",   "light_position",  NULL };
+zuint32 gxi_builtin_prop_id[] =	  { 0         , GXI_BLEND_MODE , GXI_LIGHT_DIRECTION,  GXI_LIGHT_COLOR, GXI_LIGHT_AMBIENT,  GXI_LIGHT_POSITION, 0    };
 
 zuint32 gxi_get_prop_id(char* name) {
 	zuint32 i;
@@ -625,6 +627,8 @@ void gxi_set_blend(int m) {
 
 }
 
+#define MAX_FF_LIGHTS 4
+
 
 void gfx_style(gfx_styleT* st) {
 
@@ -632,6 +636,8 @@ void gfx_style(gfx_styleT* st) {
 	gfx_propertyT* p;
 
 	int ff_lights_used = ZFALSE;
+	zbool ff_lights_active[MAX_FF_LIGHTS];
+	memset(ff_lights_active, 0, sizeof(ff_lights_active));
 
 	vec4 ambientsum = vec4const(0,0,0,1);
 
@@ -651,14 +657,33 @@ void gfx_style(gfx_styleT* st) {
 
 		case GXI_LIGHT_DIRECTION: //a directional light
 
+ 			ff_lights_active[p->index] = ZTRUE;
+
 			ff_lights_used = ZTRUE;
 			glLoadIdentity();
 			p->data.v4.named.w = 0.0; //direction light has position at w=0 'infinity' away
 			glLightfv(GL_LIGHT0 + p->index, GL_POSITION, &p->data.v4);
-			glEnable(GL_LIGHT0);
+			glEnable(GL_LIGHT0 + p->index);
+			break;
+
+
+		case GXI_LIGHT_POSITION: //a positional light
+
+  			if (p->index >= MAX_FF_LIGHTS)
+				continue;
+			ff_lights_active[p->index] = ZTRUE;
+			ff_lights_used = ZTRUE;
+			glLoadIdentity();
+			p->data.v4.named.w = 1.0; //w=1 defines an exact point
+			glLightfv(GL_LIGHT0 + p->index, GL_POSITION, &p->data.v4);
+			glEnable(GL_LIGHT0 + p->index);
 			break;
 	
 		case GXI_LIGHT_COLOR:
+
+			if (p->index >= MAX_FF_LIGHTS)
+				continue;
+
 			glLightfv(GL_LIGHT0 + p->index, GL_DIFFUSE, &p->data.v4);
 			glLightfv(GL_LIGHT0 + p->index, GL_SPECULAR, &p->data.v4);
 			//vec4 zero = vec4const(0, 0, 0, 1);
@@ -684,6 +709,15 @@ void gfx_style(gfx_styleT* st) {
 		glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 		glEnable(GL_COLOR_MATERIAL);
 		
+		//disable and ff lights that are not being used anymore
+		for (i = 0; i < MAX_FF_LIGHTS; i++) {
+			if (!ff_lights_active[i]) {
+				printf(" dis light %d\n", i);
+				glDisable(GL_LIGHT0 + i);
+			}
+		
+		}
+
 	}
 	else {
 		glDisable(GL_LIGHTING);
@@ -940,51 +974,81 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 	checkGL();
 }
 
-/* higher level meshes*/
+void gfx_arrow(vec3* p1, vec3* p2) {
 
-typedef struct gfx_mesh_sectionS {
-	
-	gfx_styleT* style;
-	gfx_vertex_bufferT* buffer;
-	zbool indexed;
-	zuint32 startVertex;
-	zuint32 endVertex;
+	gxi_refresh_matrix();
+	glDisable(GL_BLEND);
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_LIGHTING);
+	glDisable(GL_TEXTURE_2D);
+	glColor3f(1, 1, 1, 1);
+	float s = .1;
+	glBegin(GL_TRIANGLES);
+		
+		glVertex3f(p1->VX-s,		p1->VY, p1->VZ-s);
+		glVertex3f(p1->VX+s,	p1->VY+s, p1->VZ+s);
+		glVertex3f(p2->VX,		p2->VY, p2->VZ);
+				
+	glEnd();
 
-} gfx_mesh_sectionT;
+
+}
 
 
 /* test program */
-
+extern int frame;
 void gfx_gl_test() {
 	
+	//void* skel = load_bvh("H:/projects/Zcore-data/web/Example1.bvh");
+	//void* skel = load_bvh("H:/projects/Zcore-data/web/realistickoreanwoman/skeleton.bvh");
+	void* skel = load_bvh("H:/projects/Zcore-data/web/metal_hands.bvh");
+
 	zwindowT* zwin = gfx_mkwindow("internal test", 1024, 768, 0);
 
 	//zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/label.tga", ZTGA_TOP);
+	zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/web/grid.tga", ZTGA_TOP);
 	//zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/earth-cylindrical-alpha-holes.tga", ZTGA_TOP);
-	zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/web/strawberry/Texture/Strawberry_basecolor.tga", 0*ZTGA_TOP);
+	//zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/web/strawberry/Texture/Strawberry_basecolor.tga", 0*ZTGA_TOP);
+
 	
 	
-	gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/strawberry/Strawberry_obj.obj");
+	//gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/strawberry/Strawberry_obj.obj", 1.0);
+	//gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/strawberry/Strawberry_obj.obj");
+	//gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/1950s_Upholstered_Lounge_Chair_OBJ/1950s Upholstered Lounge Chair_OBJ.obj", .005);
+	gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands.obj", .2);
+	//gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/metal_handspos.obj", .2);
+
+	//gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/realistickoreanwoman/obj_file/female.obj", //.05f);
+
 	//gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/cube.obj");
 
 	printf(" loaded %x %d %d %d\n", pic->format, pic->w, pic->h, pic->size);
 
 	gfx_windowT* gfx_window = (gfx_windowT*)zwin; //cast to our own specific type
-		
+	float speed = .01;
 	gfx_textureT* tex = gfx_texture_mk(pic);
 		
 	gfx_styleT* st = gfx_style_mk(NULL);
 	
 	gfx_style_set_property(st, 0, "blend", 0, GFX_BLEND_ALPHA, NULL, 0);
 
-	vec3 lpcam = vec3const(1, 1, 1);
-	vec4 lcol = vec4const(1, 1, .8, 1.0);
-	vec4 lam = vec4const(.2, .2, .2, 1.0);
+	vec3 lpcam = vec3const(0, -2, 0);
+	vec4 lcol = vec4const(1, 0, 0, 1.0);
+	vec4 lam = vec4const(0, 0, .5, 1.0);
 
-	gfx_style_set_property(st, GFX_FLOAT3, "light_direction", 0, 0, &lpcam, 0);
+//	gfx_style_set_property(st, GFX_FLOAT3, "light_position", 0, 0, &lpcam, 0);
 	gfx_style_set_property(st, GFX_FLOAT4, "light_color", 0, 0, &lcol, 0);
 	gfx_style_set_property(st, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
 
+	/*
+	
+	vec4set(lcol, 0, 1, 0, 1);
+	vec3set(lpcam, 0, 1, 0);
+		
+	gfx_style_set_property(st, GFX_FLOAT3, "light_direction",	1, 0, &lpcam, 0);
+	gfx_style_set_property(st, GFX_FLOAT4, "light_color",		1, 0, &lcol, 0);
+	gfx_style_set_property(st, GFX_FLOAT4, "light_ambient",		1, 0, &lam, 0);
+	*/
 	//GLFWwindow* window = gfx_window->fwindow;
 
 
@@ -999,6 +1063,7 @@ void gfx_gl_test() {
 	gfx_cameraT cam;
  	gfx_camera_init(&cam);
 
+	
 
 	//junky sphere
 
@@ -1033,7 +1098,13 @@ void gfx_gl_test() {
 	zeventT ev;
 	
 	float ang = 0;
+	float ang1 = 0;
+	float ang2 = 0;
 	zbool mr = ZFALSE;
+	
+	
+	vec3set(cam.pos, 0, 1, 20);
+
 
 	for (;;) {
 		 
@@ -1053,7 +1124,19 @@ void gfx_gl_test() {
 				
 				if (ev.a == 'm') 
 					gfx_mouse_relative(zwin, mr ^= 1);
-								
+
+				if (ev.a == '+')
+					speed *= 1.25;
+
+				if (ev.a == '-')
+					speed /= 1.25;
+
+				if (ev.a == '.')
+					frame++;
+
+				if (ev.a == ',')
+					frame--;
+
 			}
 
 
@@ -1072,12 +1155,13 @@ void gfx_gl_test() {
 		}
 
 		if (ev.type == ZEVENT_CLOSE)
+		if (ev.type == ZEVENT_CLOSE)
 			break;
 	
 		float forward = 0.0;
 		float right = 0.0;
 		float up = 0.0;
-		float speed = .01;
+		
 
 		if (gx_keystate('a')) right -= speed;
 		if (gx_keystate('d')) right += speed;
@@ -1088,7 +1172,16 @@ void gfx_gl_test() {
 
 		if (gx_keystate('q'))  roll -= .01;
 		if (gx_keystate('e'))  roll += .01;
-				
+
+		if (gx_keystate(ZKEY_LEFT))  yaw += .01;
+		if (gx_keystate(ZKEY_RIGHT))  yaw -= .01;
+
+
+		if (gx_keystate(ZKEY_UP))  pitch += .01;
+		if (gx_keystate(ZKEY_DOWN))  pitch -= .01;
+
+
+
 		gfx_camera_motion_6dof(&cam, forward, right, up, yaw, pitch, roll);
 
 		//printf(" Window size is %d %d\n", w, h);
@@ -1100,19 +1193,75 @@ void gfx_gl_test() {
 		
 		gfx_camera_view(&cam);
 
-		gfx_translate3(0, 0, -2);
+		vec3set(lpcam, 0, 20, 0);
+		gfx_trans_vec3(&lpcam); //transform point for light 
+		gfx_style_set_property(st, GFX_FLOAT3, "light_position", 0, 0, &lpcam, 0);
+		gfx_style(st);
+
+		//gfx_translate3(0, 0, -5);
 		//gfx_rotate_y(ang);
 		
 		
 	//	gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0, v, ZTRUE);
 	
-		gfx_meshT* m = strawberry_mesh;
 
+		
+
+		gfx_meshT* m = strawberry_mesh;
+		
+#if 1
 		while (m) {
 
 			gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
 			m = m->next_piece;
 		}
+		
+#endif
+
+#if 0
+		vec3 a, b;
+
+		vec3set(a, 0, 0, 0);		//root spot
+		
+
+
+		gfx_rotate_z(ang1);
+		vec3set(b, 0, 1, 0);
+		gfx_arrow(&a, &b);
+		gfx_translate(&b);
+
+
+		gfx_rotate_x(ang2);
+		gfx_arrow(&a, &b);
+		gfx_translate(&b);
+
+		gfx_style(st);
+		gfx_scale3(.5, .5, .5);
+		gfx_depth_buffer(ZTRUE, ZTRUE);
+		while (m) {
+
+			gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
+			m = m->next_piece;
+		}
+
+		vec3set(b, 0, 10, 0);
+		gfx_trans_vec3(&a);
+		gfx_trans_vec3(&b);  //transform to camera coords
+
+
+		gfx_identity();  //identity matrix (no camera motion either);
+		
+		gfx_arrow(&a, &b);
+
+		ang1 += .001;
+		ang2 += .003;
+
+#endif
+	//	gfx_translate3(2, 0, 0);
+		gfx_rotate_x(-90 * DEGREE);
+		gfx_scale3(.2, .2, .2);
+		debug_draw_skeleton(skel, 0);
+
 		
 		zwin->pixels(zwin, NULL);	//display the framebuffer
 		ang += .01;

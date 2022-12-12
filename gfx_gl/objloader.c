@@ -220,15 +220,14 @@ typedef struct face_s
 #define MESH_INDEX_COUNT  4*64436
 
 
-gfx_meshT* gfx_mesh_load_obj(zchar* filename)
+gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 {
 	//	gx_mesh_t* m = NULL;
 	FILE* f = fopen(filename, "rb");
 
 	char buffer[100];
 	int delim;
-	float x, y, z;
-	float s, t;
+
 
 	zvecT vertices;
 	zvecT normals;
@@ -240,8 +239,10 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename)
 	zuint32 unique_combos = 0;
 	int face_point_count = 0;
 
-	if (!f)
+	if (!f) {
+		printf(" Can't open %s\n", filename);
 		return NULL;
+	}
 
 
 	
@@ -271,10 +272,10 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename)
 			{
 				fscanf(f, "%f %f %f", &v3->x, &v3->y, &v3->z);
 
-				//remove this scaling later!
-			//	v3->x *=.05;
-			//	v3->y *=.05;
-			//	v3->z *=.05;
+		
+				v3->x *=scale;
+				v3->y *=scale;
+				v3->z *=scale;
 #ifdef DOPRINTFS
 				printf("v(%d)", vertices.count);
 #endif
@@ -615,3 +616,277 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename)
 
 /*end obj file*/
 
+void lcase(char* s) {
+
+	for (; *s; s++)
+		if (((*s) >= 'A') && ((*s) <= 'Z'))
+			*s = *s + 'a' - 'A';
+		
+}
+
+int next(FILE* f, char* buf) {
+	int e = fscanf(f, "%99s", buf);
+
+	lcase(buf);
+
+	 if (e == EOF)
+		return 0;
+
+	return 1;
+
+	
+}
+#define NEXT next(f, buf)
+#define EQ(AA)   (!strcmp(buf, AA))
+
+#define XROT 0
+#define YROT 1
+#define ZROT 2
+#define XPOS 3
+#define YPOS 4
+#define ZPOS 5
+
+
+
+
+gfx_jointT* tryparsejoint(FILE* f, char* buf) {
+
+	gfx_jointT* child = NULL;
+
+
+	if (EQ("joint") || EQ("root") ||EQ("end" )) {
+		printf(" parsing joint\n");
+
+		NEXT;	//name (or "site" in end site
+		printf("name is %s\n", buf);
+
+
+		NEXT;
+		if (!EQ("{")) {
+			printf(" expected{");
+			exit(1);
+		}
+
+		gfx_jointT* joint = ram_alloc(sizeof(gfx_jointT), NULL);
+
+
+		while (NEXT) {
+
+			if (EQ("}"))
+				return joint; //bubble up
+
+			child = tryparsejoint(f, buf); //see if there's a joint inside
+			if (child) {
+				zvec_add_or_free(&joint->children, child);
+				child = NULL;
+			}
+
+			if (EQ("offset")) {
+				
+				
+				fscanf(f, "%f %f %f", &joint->offset.VX, &joint->offset.VY, &joint->offset.VZ);
+				
+				
+				printf(" the offset is %f %f %f\n", joint->offset.VX, joint->offset.VY, joint->offset.VZ);
+				
+			}
+
+			if (EQ("channels")) {
+				int chnum = 0;
+				int ch;
+				int chname;
+				
+				fscanf(f, "%d", &chnum);
+				for (ch = 0; ch < chnum; ch++) {
+					NEXT;
+
+					chname = -1;
+					if      (!strcmp(buf, "xrotation")) chname = XROT;
+					else if (!strcmp(buf, "yrotation")) chname = YROT;
+					else if (!strcmp(buf, "zrotation")) chname = ZROT;
+					else if (!strcmp(buf, "xposition")) chname = XPOS;
+					else if (!strcmp(buf, "yposition")) chname = YPOS;
+					else if (!strcmp(buf, "zposition")) chname = ZPOS;
+
+
+					printf(" channel %d name is %s and name constant is %d\n", ch, buf, chname);
+					joint->channels[ch] = chname;
+				
+				}
+				joint->numchannels = chnum;
+			}
+
+		}
+	
+	}
+	return NULL;
+
+}
+
+
+#define INDENT {
+void debug_print_skeleton(gfx_jointT* joint, int indent) {
+	gfx_jointT* child;
+	int i;
+
+	printf("%*s  numchannels  %d\n", indent, "", joint->numchannels);
+
+	for (i = 0; i < zvec_count(&joint->children); i++) {
+		child = zvec_get_at(&joint->children, i);
+		debug_print_skeleton(child, indent + 4);
+	}
+
+}
+
+float aaa = 0;
+int frame = 100;
+
+void debug_draw_skeleton(gfx_jointT* joint, vec3* origin) {
+	gfx_jointT* child;
+	int i;
+
+	//printf("%*s  numchannels  %d\n", indent, "", joint->numchannels);
+	vec3 z;
+	vec3set(z, 0, 0, 0);
+
+
+	gfx_transformT tr;
+	
+	if(joint->numchannels == 3)
+		gfx_translate(&joint->offset);
+
+	int h;
+
+
+	
+
+
+	for (h = 0; h < joint->numchannels; h++) {
+
+		if (joint->channels[h] == XROT)			gfx_rotate_x(joint->framedata[joint->numchannels * frame + h] * DEGREE);
+		if (joint->channels[h] == YROT)			gfx_rotate_y(joint->framedata[joint->numchannels * frame + h] * DEGREE);
+		if (joint->channels[h] == ZROT)			gfx_rotate_z(joint->framedata[joint->numchannels * frame + h] * DEGREE);
+
+	
+		if (joint->channels[h] == XPOS)			gfx_translate3(joint->framedata[joint->numchannels * frame + h], 0, 0);
+		if (joint->channels[h] == YPOS)			gfx_translate3(0, joint->framedata[joint->numchannels * frame + h], 0);
+		if (joint->channels[h] == ZPOS)			gfx_translate3(0, 0, joint->framedata[joint->numchannels * frame + h]);
+		
+	}
+
+	gfx_save_transform(&tr);
+
+	for (i = 0; i < zvec_count(&joint->children); i++) {
+		vec3 p;
+
+		
+		//p=*origin;
+
+		child = zvec_get_at(&joint->children, i);
+		
+	//	vec3add(p, child->offset);
+
+//		gfx_rotate_z(aaa * DEGREE);
+	//	aaa += .0001;
+
+		
+
+		//gfx_rotate_z(aaa * DEGREE);
+		if (origin)
+			gfx_arrow(&z, &child->offset);
+
+		
+		
+
+		debug_draw_skeleton(child, &z);
+		gfx_load_transform(&tr);
+	}
+
+}
+
+
+
+void read_pose_frame(FILE* f, gfx_jointT* joint, int frame, int framecount) {
+	gfx_jointT* child;
+	int i;
+
+	
+
+	if (!joint->framedata) {
+		joint->framedata = ram_alloc(sizeof(float)* joint->numchannels * framecount, NULL);
+	}
+	int pos = frame * joint->numchannels;
+	for (i = 0; i < joint->numchannels; i++) {
+		float val;
+		fscanf(f, "%f", &val);
+
+		joint->framedata[pos++] = val;
+
+	}
+
+	for (i = 0; i < zvec_count(&joint->children); i++) {
+		child = zvec_get_at(&joint->children, i);
+		read_pose_frame(f, child, frame, framecount);
+	}
+
+}
+
+
+gfx_jointT* load_bvh(char* filename) {
+
+	FILE* f = fopen(filename, "rb");
+	
+	//FILE* f = fopen("H:/projects/Zcore-data/web/realistickoreanwoman/skeleton.bvh", "rb");
+	gfx_jointT* rootJoint = NULL;
+
+	char buf[100];
+	while (NEXT) {
+
+ 		if (EQ("hierarchy")) {
+			NEXT;
+			rootJoint = tryparsejoint(f, buf);
+		}
+		if (EQ("frames:")) { //not checking for 'motion' keyword, just ignore until frames
+			NEXT;
+			int framecount = atoi(buf);
+			printf("%d frames\n", framecount);
+
+			NEXT;
+
+
+			while (!isdigit(buf[0]) && (buf[0] != '.')) {
+				printf(" ignore string %s\n", buf);
+				if (EQ("time:")) {
+					NEXT;	//jump over frame time
+					break;
+				}
+				if (!NEXT)
+					break;
+			}
+
+			int i;
+			for (i = 0; i < framecount; i++) {
+				read_pose_frame(f, rootJoint, i, framecount);
+				
+
+			}
+
+
+		}
+				
+	}
+
+
+	//getc(stdin);
+
+	//print root joint
+	debug_print_skeleton(rootJoint, 0);
+
+
+
+	fclose(f);
+	//exit(0);
+	
+
+	return rootJoint;
+}

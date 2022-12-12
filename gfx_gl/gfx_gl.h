@@ -63,3 +63,8 @@ zuint16* gfx_vertex_buffer_add_index(gfx_vertex_bufferT* vb, int num);
 #include "zwindow.h"
 
 void gfx_gl_test();
+
+
+//garbage function, to redo later
+void gfx_arrow(vec3* p1, vec3* p2);
+
