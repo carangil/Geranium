@@ -646,7 +646,7 @@ int next(FILE* f, char* buf) {
 #define YPOS 4
 #define ZPOS 5
 
-
+#define Z_Y_SWAP 
 
 
 gfx_jointT* tryparsejoint(FILE* f, char* buf) {
@@ -683,12 +683,18 @@ gfx_jointT* tryparsejoint(FILE* f, char* buf) {
 
 			if (EQ("offset")) {
 				
-				
+			#ifdef Z_Y_SWAP
+
+				fscanf(f, "%f %f %f", &joint->offset.VX, &joint->offset.VZ, &joint->offset.VY);
+				joint->offset.VZ *= -1;
+#else
 				fscanf(f, "%f %f %f", &joint->offset.VX, &joint->offset.VY, &joint->offset.VZ);
 				
 				
-				printf(" the offset is %f %f %f\n", joint->offset.VX, joint->offset.VY, joint->offset.VZ);
-				
+			#endif
+
+			printf(" the offset is %f %f %f\n", joint->offset.VX, joint->offset.VY, joint->offset.VZ);
+
 			}
 
 			if (EQ("channels")) {
@@ -701,6 +707,19 @@ gfx_jointT* tryparsejoint(FILE* f, char* buf) {
 					NEXT;
 
 					chname = -1;
+
+				#ifdef Z_Y_SWAP
+
+					if (!strcmp(buf, "xrotation")) chname = XROT;
+					else if (!strcmp(buf, "yrotation")) chname = ZROT;
+					else if (!strcmp(buf, "zrotation")) chname = YROT;
+					else if (!strcmp(buf, "xposition")) chname = XPOS;
+					else if (!strcmp(buf, "yposition")) chname = ZPOS;
+					else if (!strcmp(buf, "zposition")) chname = YPOS;
+
+
+				#else
+
 					if      (!strcmp(buf, "xrotation")) chname = XROT;
 					else if (!strcmp(buf, "yrotation")) chname = YROT;
 					else if (!strcmp(buf, "zrotation")) chname = ZROT;
@@ -708,7 +727,7 @@ gfx_jointT* tryparsejoint(FILE* f, char* buf) {
 					else if (!strcmp(buf, "yposition")) chname = YPOS;
 					else if (!strcmp(buf, "zposition")) chname = ZPOS;
 
-
+			#endif
 					printf(" channel %d name is %s and name constant is %d\n", ch, buf, chname);
 					joint->channels[ch] = chname;
 				
@@ -752,26 +771,35 @@ void debug_draw_skeleton(gfx_jointT* joint, vec3* origin) {
 
 	gfx_transformT tr;
 	
-	if(joint->numchannels == 3)
-		gfx_translate(&joint->offset);
+	if ((joint->numchannels == 3) || frame ==-1)
+		gfx_translate(&joint->offset);				//use resf post offset translation IF we are in rest pose OR this joint doesn't have per-frame translation data
 
 	int h;
 
 
-	
+	if (frame >= 0) {
 
 
-	for (h = 0; h < joint->numchannels; h++) {
+		for (h = 0; h < joint->numchannels; h++) {
 
-		if (joint->channels[h] == XROT)			gfx_rotate_x(joint->framedata[joint->numchannels * frame + h] * DEGREE);
-		if (joint->channels[h] == YROT)			gfx_rotate_y(joint->framedata[joint->numchannels * frame + h] * DEGREE);
-		if (joint->channels[h] == ZROT)			gfx_rotate_z(joint->framedata[joint->numchannels * frame + h] * DEGREE);
+			if (joint->channels[h] == XROT)			gfx_rotate_x(joint->framedata[joint->numchannels * frame + h] * DEGREE);
+			if (joint->channels[h] == YROT)			gfx_rotate_y(joint->framedata[joint->numchannels * frame + h] * DEGREE);
+			if (joint->channels[h] == ZROT)			gfx_rotate_z(-joint->framedata[joint->numchannels * frame + h] * DEGREE);
 
-	
-		if (joint->channels[h] == XPOS)			gfx_translate3(joint->framedata[joint->numchannels * frame + h], 0, 0);
-		if (joint->channels[h] == YPOS)			gfx_translate3(0, joint->framedata[joint->numchannels * frame + h], 0);
-		if (joint->channels[h] == ZPOS)			gfx_translate3(0, 0, joint->framedata[joint->numchannels * frame + h]);
-		
+#ifdef Z_Y_SWAP
+
+			if (joint->channels[h] == XPOS)			gfx_translate3(joint->framedata[joint->numchannels * frame + h], 0, 0);
+			if (joint->channels[h] == YPOS)			gfx_translate3(0, joint->framedata[joint->numchannels * frame + h], 0);
+			if (joint->channels[h] == ZPOS)			gfx_translate3(0, 0, -joint->framedata[joint->numchannels * frame + h]);
+#else
+			if (joint->channels[h] == XPOS)			gfx_translate3(joint->framedata[joint->numchannels * frame + h], 0, 0);
+			if (joint->channels[h] == YPOS)			gfx_translate3(0, joint->framedata[joint->numchannels * frame + h], 0);
+			if (joint->channels[h] == ZPOS)			gfx_translate3(0, 0, joint->framedata[joint->numchannels * frame + h]);
+
+#endif
+
+		}
+
 	}
 
 	gfx_save_transform(&tr);

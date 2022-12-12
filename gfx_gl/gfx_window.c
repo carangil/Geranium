@@ -1025,7 +1025,7 @@ void gfx_gl_test() {
 	printf(" loaded %x %d %d %d\n", pic->format, pic->w, pic->h, pic->size);
 
 	gfx_windowT* gfx_window = (gfx_windowT*)zwin; //cast to our own specific type
-	float speed = .01;
+	float speed = .05;
 	gfx_textureT* tex = gfx_texture_mk(pic);
 		
 	gfx_styleT* st = gfx_style_mk(NULL);
@@ -1103,7 +1103,7 @@ void gfx_gl_test() {
 	zbool mr = ZFALSE;
 	
 	
-	vec3set(cam.pos, 0, 1, 20);
+	vec3set(cam.pos, 0, 1.5, 5);
 
 
 	for (;;) {
@@ -1126,10 +1126,10 @@ void gfx_gl_test() {
 					gfx_mouse_relative(zwin, mr ^= 1);
 
 				if (ev.a == '+')
-					speed *= 1.25;
+					speed *= 1.1;
 
 				if (ev.a == '-')
-					speed /= 1.25;
+					speed /= 1.1;
 
 				if (ev.a == '.')
 					frame++;
@@ -1137,6 +1137,8 @@ void gfx_gl_test() {
 				if (ev.a == ',')
 					frame--;
 
+				if (ev.a == '0')
+					frame = 0;
 			}
 
 
@@ -1258,8 +1260,10 @@ void gfx_gl_test() {
 
 #endif
 	//	gfx_translate3(2, 0, 0);
-		gfx_rotate_x(-90 * DEGREE);
-		gfx_scale3(.2, .2, .2);
+		//gfx_rotate_x(-90 * DEGREE);
+
+
+		gfx_scale3(.2, .2, .2);  //TODO: add scaling to the BVH import
 		debug_draw_skeleton(skel, 0);
 
 		

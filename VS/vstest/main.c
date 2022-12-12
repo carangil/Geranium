@@ -62,6 +62,8 @@ void thread_test() {
 
 void main() {
 
+	
+
 	char* x = ram_strdup_cat("test1", "test2");
 
 	printf("test %s\n", x);
