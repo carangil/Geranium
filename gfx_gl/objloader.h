@@ -32,15 +32,18 @@ typedef struct jointS {
 
 	//hierarchy
 	zvecT children;
+	char* name;
 
 	//from file:
-
 	vec3 offset; //offset relative to parent
 	int numchannels;
 	int channels[MAX_CHANNELS];
 	float* framedata;
+	
 } gfx_jointT;
 
-gfx_jointT* load_bvh(char* filename);
+gfx_jointT* load_bvh(char* filename, float scale);
 
 void debug_draw_skeleton(gfx_jointT* joint, vec3* origin);
+
+extern gfx_transformT test_trans;

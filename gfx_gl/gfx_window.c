@@ -976,6 +976,13 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 
 void gfx_arrow(vec3* p1, vec3* p2) {
 
+	vec3 zero = vec3const(0, 0, 0);
+	if (!p1)
+		p1 = &zero;
+
+	if (!p2)
+		p2 = &zero;
+
 	gxi_refresh_matrix();
 	glDisable(GL_BLEND);
 	glDisable(GL_DEPTH_TEST);
@@ -1001,7 +1008,7 @@ void gfx_gl_test() {
 	
 	//void* skel = load_bvh("H:/projects/Zcore-data/web/Example1.bvh");
 	//void* skel = load_bvh("H:/projects/Zcore-data/web/realistickoreanwoman/skeleton.bvh");
-	void* skel = load_bvh("H:/projects/Zcore-data/web/metal_hands.bvh");
+	void* skel = load_bvh("H:/projects/Zcore-data/web/metal_hands.bvh", .2);
 
 	zwindowT* zwin = gfx_mkwindow("internal test", 1024, 768, 0);
 
@@ -1212,12 +1219,13 @@ void gfx_gl_test() {
 		gfx_meshT* m = strawberry_mesh;
 		
 #if 1
+		/*
 		while (m) {
 
 			gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
 			m = m->next_piece;
 		}
-		
+		*/
 #endif
 
 #if 0
@@ -1263,10 +1271,19 @@ void gfx_gl_test() {
 		//gfx_rotate_x(-90 * DEGREE);
 
 
-		gfx_scale3(.2, .2, .2);  //TODO: add scaling to the BVH import
+		//gfx_scale3(.2, .2, .2);  //TODO: add scaling to the BVH import
 		debug_draw_skeleton(skel, 0);
 
-		
+
+		gfx_depth_buffer(ZTRUE, ZTRUE);
+		gfx_style(st);
+		gfx_load_transform(&test_trans);
+		while (m) {
+
+			gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
+			m = m->next_piece;
+		}
+
 		zwin->pixels(zwin, NULL);	//display the framebuffer
 		ang += .01;
 	}

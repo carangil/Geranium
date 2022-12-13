@@ -649,7 +649,7 @@ int next(FILE* f, char* buf) {
 #define Z_Y_SWAP 
 
 
-gfx_jointT* tryparsejoint(FILE* f, char* buf) {
+gfx_jointT* tryparsejoint(FILE* f, char* buf, float scale) {
 
 	gfx_jointT* child = NULL;
 
@@ -660,22 +660,23 @@ gfx_jointT* tryparsejoint(FILE* f, char* buf) {
 		NEXT;	//name (or "site" in end site
 		printf("name is %s\n", buf);
 
+		gfx_jointT* joint = ram_alloc(sizeof(gfx_jointT), NULL);
+		
+		joint->name = ram_strdup(buf);
 
 		NEXT;
 		if (!EQ("{")) {
 			printf(" expected{");
+			
 			exit(1);
 		}
-
-		gfx_jointT* joint = ram_alloc(sizeof(gfx_jointT), NULL);
-
-
+				
 		while (NEXT) {
 
 			if (EQ("}"))
 				return joint; //bubble up
 
-			child = tryparsejoint(f, buf); //see if there's a joint inside
+			child = tryparsejoint(f, buf, scale); //see if there's a joint inside
 			if (child) {
 				zvec_add_or_free(&joint->children, child);
 				child = NULL;
@@ -687,6 +688,7 @@ gfx_jointT* tryparsejoint(FILE* f, char* buf) {
 
 				fscanf(f, "%f %f %f", &joint->offset.VX, &joint->offset.VZ, &joint->offset.VY);
 				joint->offset.VZ *= -1;
+				vec3scale(joint->offset, scale);
 #else
 				fscanf(f, "%f %f %f", &joint->offset.VX, &joint->offset.VY, &joint->offset.VZ);
 				
@@ -760,13 +762,20 @@ void debug_print_skeleton(gfx_jointT* joint, int indent) {
 float aaa = 0;
 int frame = 100;
 
+gfx_transformT test_trans;
+
 void debug_draw_skeleton(gfx_jointT* joint, vec3* origin) {
 	gfx_jointT* child;
 	int i;
 
-	//printf("%*s  numchannels  %d\n", indent, "", joint->numchannels);
 	vec3 z;
 	vec3set(z, 0, 0, 0);
+
+	if (origin != NULL)  //origin tracks the rest post offet
+		z = *origin;
+	
+	vec3add(z, joint->offset); //track accumulated rest pose offset
+	
 
 
 	gfx_transformT tr;
@@ -801,8 +810,20 @@ void debug_draw_skeleton(gfx_jointT* joint, vec3* origin) {
 		}
 
 	}
+	
+
 
 	gfx_save_transform(&tr);
+
+	if (joint->name && !strcmp(joint->name, "lower.arm.l")) {
+		gfx_translate3(-z.VX, -z.VY, -z.VZ);  //undo rest pose offset
+		gfx_save_transform(&test_trans);  //save this as model transformation
+
+		gfx_load_transform(&tr); //put it back for skel drawing
+
+	}
+
+
 
 	for (i = 0; i < zvec_count(&joint->children); i++) {
 		vec3 p;
@@ -817,15 +838,11 @@ void debug_draw_skeleton(gfx_jointT* joint, vec3* origin) {
 //		gfx_rotate_z(aaa * DEGREE);
 	//	aaa += .0001;
 
-		
 
 		//gfx_rotate_z(aaa * DEGREE);
 		if (origin)
-			gfx_arrow(&z, &child->offset);
-
-		
-		
-
+			gfx_arrow(NULL, &child->offset);
+					
 		debug_draw_skeleton(child, &z);
 		gfx_load_transform(&tr);
 	}
@@ -834,7 +851,7 @@ void debug_draw_skeleton(gfx_jointT* joint, vec3* origin) {
 
 
 
-void read_pose_frame(FILE* f, gfx_jointT* joint, int frame, int framecount) {
+void read_pose_frame(FILE* f, gfx_jointT* joint, int frame, int framecount, float scale) {
 	gfx_jointT* child;
 	int i;
 
@@ -848,19 +865,24 @@ void read_pose_frame(FILE* f, gfx_jointT* joint, int frame, int framecount) {
 		float val;
 		fscanf(f, "%f", &val);
 
+		if ((joint->channels[i] == XPOS)||
+			(joint->channels[i] == YPOS)||
+			(joint->channels[i] == ZPOS))
+			val*= scale;
+
 		joint->framedata[pos++] = val;
 
 	}
 
 	for (i = 0; i < zvec_count(&joint->children); i++) {
 		child = zvec_get_at(&joint->children, i);
-		read_pose_frame(f, child, frame, framecount);
+		read_pose_frame(f, child, frame, framecount, scale);
 	}
 
 }
 
 
-gfx_jointT* load_bvh(char* filename) {
+gfx_jointT* load_bvh(char* filename, float scale) {
 
 	FILE* f = fopen(filename, "rb");
 	
@@ -872,7 +894,7 @@ gfx_jointT* load_bvh(char* filename) {
 
  		if (EQ("hierarchy")) {
 			NEXT;
-			rootJoint = tryparsejoint(f, buf);
+			rootJoint = tryparsejoint(f, buf, scale);
 		}
 		if (EQ("frames:")) { //not checking for 'motion' keyword, just ignore until frames
 			NEXT;
@@ -894,7 +916,7 @@ gfx_jointT* load_bvh(char* filename) {
 
 			int i;
 			for (i = 0; i < framecount; i++) {
-				read_pose_frame(f, rootJoint, i, framecount);
+				read_pose_frame(f, rootJoint, i, framecount, scale);
 				
 
 			}
