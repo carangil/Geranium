@@ -989,7 +989,7 @@ void gfx_arrow(vec3* p1, vec3* p2) {
 	glDisable(GL_LIGHTING);
 	glDisable(GL_TEXTURE_2D);
 	glColor3f(1, 1, 1, 1);
-	float s = .1;
+	float s = .02;
 	glBegin(GL_TRIANGLES);
 		
 		glVertex3f(p1->VX-s,		p1->VY, p1->VZ-s);
@@ -1008,8 +1008,8 @@ void gfx_gl_test() {
 	
 	//void* skel = load_bvh("H:/projects/Zcore-data/web/Example1.bvh");
 	//void* skel = load_bvh("H:/projects/Zcore-data/web/realistickoreanwoman/skeleton.bvh");
-	void* skel = load_bvh("H:/projects/Zcore-data/web/metal_hands.bvh", .2);
-
+	//void* skel = load_bvh("H:/projects/Zcore-data/web/metal_hands.bvh", .2);
+	void* skel = load_bvh("H:/projects/Zcore-data/web/metal_hands_mod.bvh", .2);
 	zwindowT* zwin = gfx_mkwindow("internal test", 1024, 768, 0);
 
 	//zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/label.tga", ZTGA_TOP);
@@ -1023,6 +1023,12 @@ void gfx_gl_test() {
 	//gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/strawberry/Strawberry_obj.obj");
 	//gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/1950s_Upholstered_Lounge_Chair_OBJ/1950s Upholstered Lounge Chair_OBJ.obj", .005);
 	gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands.obj", .2);
+	
+	gfx_meshT* mesh2 = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands.obj", .2);  //make the same mesh again (todo: proper cloning or whatever);
+
+
+
+
 	//gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/metal_handspos.obj", .2);
 
 	//gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/realistickoreanwoman/obj_file/female.obj", //.05f);
@@ -1272,17 +1278,45 @@ void gfx_gl_test() {
 
 
 		//gfx_scale3(.2, .2, .2);  //TODO: add scaling to the BVH import
+		gfx_transformT tmp;
+		gfx_save_transform(&tmp);
+		
+		gfx_identity();//no camera transform
+		
+		
+
 		debug_draw_skeleton(skel, 0);
 
 
+		gfx_load_transform(&tmp);
+
+
+		/*
+		gfx_translate(&tmp.pos);
+		gfx_rotate_3x3(&tmp.rot);
+		*/
+
 		gfx_depth_buffer(ZTRUE, ZTRUE);
 		gfx_style(st);
-		gfx_load_transform(&test_trans);
-		while (m) {
 
-			gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
-			m = m->next_piece;
-		}
+		//gfx_translate(&test_trans.pos);
+		//gfx_rotate_3x3(&test_trans.rot);
+
+		
+		//gfx_load_transform(&test_trans);
+	//	while (m) {
+
+		gfx_camera_view(&cam);
+
+		//saved bone transformation
+		gfx_translate(&test_trans.pos);
+		gfx_rotate_3x3(&test_trans.rot);
+		gfx_vertex_buffer_draw(strawberry_mesh->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
+
+		gfx_camera_view(&cam);
+		debug_draw_skeleton(skel, 0);
+		//	m = m->next_piece;
+		//}
 
 		zwin->pixels(zwin, NULL);	//display the framebuffer
 		ang += .01;

@@ -23,9 +23,6 @@ typedef struct gx_mesh_s
 gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale);
 
 
-
-
-
 #define MAX_CHANNELS 6
 
 typedef struct jointS {
@@ -40,6 +37,8 @@ typedef struct jointS {
 	int channels[MAX_CHANNELS];
 	float* framedata;
 	
+	gfx_transformT* transform; //accumulated transform of this joint's matrix
+
 } gfx_jointT;
 
 gfx_jointT* load_bvh(char* filename, float scale);

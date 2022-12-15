@@ -821,6 +821,7 @@ void debug_draw_skeleton(gfx_jointT* joint, vec3* origin) {
 
 		gfx_load_transform(&tr); //put it back for skel drawing
 
+
 	}
 
 

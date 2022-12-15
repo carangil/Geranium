@@ -38,6 +38,7 @@ void gfx_identity();
 void gfx_rotate_x(float rad);
 void gfx_rotate_y(float rad);
 void gfx_rotate_z(float rad);
+void gfx_rotate_3x3(gfx_mat_3x3* rot);
 void gfx_scale3(float x,float y, float z);
 
 void gxi_refresh_matrix( /*gfx_shader_t* shader*/);
