@@ -32,13 +32,13 @@ typedef struct valueS{
 
 /**** Execution Context ****/
 typedef struct exectxS{
-	valueT* stack;
+	valueT* stack;  //call/parameter stack
 	zuint32	sp;
 	zuint32 fp;
-	char* vars; 
-	char* globalvars; 
+	char* vars; 	//local data space
+	char* globalvars; //global data space
 	int stop;
-	int level;
+	int level;//stackframe level
 }exectxT;
 #define STOPFUNC 1
 #define STOPLOOP 2
@@ -47,12 +47,11 @@ typedef struct tokenS* (*instruction) (exectxT*,struct tokenS* ) ;
 
 /* Parse Context */
 typedef struct parsectxS{
-	zvecT* symbols;
+	zvecT* symbols;	//of type symbolT*
 	zuint32	size;	//size of variables in this table
 	struct typeS* type;  //if in a procedure, we need to know about its return type and args
 	int endable;
 }parsectxT;
-
 
 
 /**** Tokenizer ****/
@@ -62,12 +61,12 @@ typedef struct tokenS{
 	zlistnodeT zlistnode;
 	zuint32 tok;	//A constant defined below, a character, or a pair of characters
 	char* str;	//string representation of this token
-	struct typeS* ty;	//type of this token
-	valueT val;
+	struct typeS* ty;	//datatype of this token
+	valueT val;	//token's value
 	zlistT subs;	//make a tree out of token list
-	instruction handler; 
+	instruction handler; //function that does what this token represents
 	struct symbolS* sym;  //for things like procs that have a bunch of context info
-	int line;
+	int line;	//line number from source file
 }tokenT;
 
 
