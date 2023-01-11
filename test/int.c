@@ -15,6 +15,7 @@
 typedef struct vptrS{	
 	char* block;
 	zuint32 offset;
+	zuint16	level; 
 }vptrT;
 
 typedef union valu {	//Generic value (datatype is tracked through other means)
@@ -37,6 +38,7 @@ typedef struct exectxS{
 	char* vars; 
 	char* globalvars; 
 	int stop;
+	int level;
 }exectxT;
 #define STOPFUNC 1
 #define STOPLOOP 2
@@ -107,8 +109,10 @@ typedef struct tokenS{
 #define KBREAK		0x800a
 #define KNEW		0x800b
 #define KPROTO		0x800c
+#define KTRASH		0x800d
+#define KKEEP		0x800e
 
-char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", NULL};
+char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -461,7 +465,7 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 		}
 		
 		if (ty->category == FUNCTION)
-			printf(" >> ");
+			printf(" -> ");
 				
 		if (ty->ref)
 			printType(ty->ref, ZFALSE, ZTRUE);
@@ -819,7 +823,7 @@ void exe (exectxT* c, struct tokenS* t){
 		t = handler(c,t);
 		
 #ifdef EXEDEBUG
-		printf(">> %s\n",str);
+		printf("-> %s\n",str);
 		printf("sp %x|", c->sp);
 				
 		for (i=0;i<c->sp;i++){
@@ -842,6 +846,7 @@ tokenT* hconstant (exectxT* ex, tokenT* t) {  //push constant on stack
 
 tokenT* hglobal (exectxT* ex, tokenT* t) {	//push pointer to global variable on stack
  	ex->stack[(ex->sp)].as.ptr.block = ex->globalvars;
+	ex->stack[(ex->sp)].as.ptr.level = 0; 
 	ex->stack[(ex->sp)++].as.ptr.offset = t->val.as.ptr.offset;
 	//printf(" Global block %p +%d\n", ex->globalvars  ,   t->val.as.ptr.offset);
 	return tnext(t);
@@ -849,8 +854,10 @@ tokenT* hglobal (exectxT* ex, tokenT* t) {	//push pointer to global variable on 
 
 tokenT* hlocal (exectxT* ex, tokenT* t) {	//push pointer to local variable on stack
 	ex->stack[(ex->sp)].as.ptr.block = ex->vars;
+	ex->stack[(ex->sp)].as.ptr.level = ex->level;//pointer is in this stack frame
 	ex->stack[(ex->sp)++].as.ptr.offset = t->val.as.ptr.offset;
-	//printf(" local block %p +%d\n", ex->vars  ,   t->val.as.ptr.offset);
+	
+	//printf(" local block %p +%d   level %d\n", ex->vars  ,   t->val.as.ptr.offset, t>val.as.ptr.level);
 	return tnext(t);
 }
 
@@ -866,6 +873,9 @@ tokenT* hstackread (exectxT* ex, tokenT* t) {	//read a stack variable (really fu
 
 tokenT* hstoreptr (exectxT* ex, tokenT* t) {  //store a pointer
 	exe(ex, tsub(t) );
+	
+	printf(" DST LEVEL: %d  SRC LEVEL: %d\n", ex->stack[ex->sp-1].as.ptr.level, ex->stack[ex->sp-2].as.ptr.level);
+	
 	DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.ptr;
 	ex->sp-=2;
 	return tnext(t);
@@ -1031,16 +1041,14 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	void* oldlocal = ex->vars;   //take old local var data
 	
 	
-	//printf(" PROC has context size %d\n", t->sym->subctx->size);
+	printf(" PROC %s has context size %d\n",t->str, t->sym->subctx->size);
 	//printList(t->sym->tokens, NULL, 0, 0);
-	
-	
+	ex->level++;	//going up a call frame
 	ex->vars =  ram_alloc(t->sym->subctx->size , NULL);
 	//exe(ex, (tokenT*) t->sym->t->subs.head->next);
 	//t->sym->t points to the token describing that function
 	//head of that token's sub list is the tokens describing its data type (input parameters, etc)
 	//the 'next' of that head is the first statement
-	
 	exe(ex, (tokenT*)  tnext( tsub(t->sym->tokens))  );
 	
 	//if (ex->stop==STOPFUNC){
@@ -1059,8 +1067,19 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	
 	
 	if (t->sym->type->ref) {
-		ex->stack[ex->fp++] = ex->stack[ex->sp-1];  //copy last value to the frame pointer  todo: make this conditional
-		//printf(" Function returns ");printType(t->sym->type->ref,1,1);
+		
+				
+		ex->stack[ex->fp++] = ex->stack[ex->sp-1];  
+		
+		
+		if (t->sym->type->ref->category == POINTER){
+			if ( ex->stack[ex->sp-1].as.ptr.level >= ex->level)
+				printf(" RETURNING SUBFRAME POINTER!\n");
+			
+		}
+		
+		
+		printf(" Function returns ");printType(t->sym->type->ref,1,1);
 	} else {
 		//printf(" Function returns nothing\n");
 	}
@@ -1070,9 +1089,9 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	ex->sp = ex->fp;//put stack back to repositioned fp
 	ex->fp=oldfp;  //put old frame pointer back
 	ex->vars = oldlocal;//put old vars back
-	
-		
-	//printf(" return to  caller complete SP:%d  FP:%d\n", ex->sp, ex->fp); 		
+	ex->level--;
+			
+	printf(" return to  caller complete SP:%d  FP:%d\n", ex->sp, ex->fp); 		
 		
 	//todo:handle return value, putting stack back together
 	return tnext(t);
@@ -1088,6 +1107,7 @@ tokenT* halloc(exectxT* ex, tokenT* t) {
 	
 	ex->stack[ex->sp] .as.ptr.offset=0;
 	ex->stack[(ex->sp)++].as.ptr.block = ram_alloc( size ,NULL  );
+	
 	
 	return tnext(t);
 }
@@ -1107,6 +1127,27 @@ tokenT* hallocarray(exectxT* ex, tokenT* t) {
 	ex->stack[ex->sp] .as.ptr.offset=0;
 	ex->stack[(ex->sp)++].as.ptr.block = ram_alloc( size ,NULL  );
 	//exit(1);
+	return tnext(t);
+}
+
+tokenT* hfree(exectxT* ex, tokenT* t) {
+	exe(ex, tsub(t)); //evaluate all the args
+	ex->sp--;
+	printf(" TO TRASH %p\n", ex->stack[ex->sp].as.ptr.block );
+	ram_free(ex->stack[ex->sp].as.ptr.block);
+	ex->stack[ex->sp].as.ptr.block=0;
+	return tnext(t);
+}
+
+tokenT* haddref(exectxT* ex, tokenT* t) {
+	exe(ex, tsub(t)); //evaluate all the args
+	
+	
+	printf(" TO KEEP %p\n", ex->stack[ex->sp-1].as.ptr.block );
+	//this also does not pop off the stack, the value stays on
+	
+	ram_addref(ex->stack[ex->sp-1].as.ptr.block);  //retention is on the BLOCK.  Means you can addref PART of a block... the whole block will be kept and waste memory, but this is OK for now; it will eventually be freed.  
+	
 	return tnext(t);
 }
 
@@ -1304,7 +1345,7 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 			break;  
 
 		
-		if ( (t->tok == PAIR('>','>'))){
+		if ( (t->tok == PAIR('-','>'))){
 			//is a function
 			parent->category = FUNCTION;
 			reqname = ZFALSE; //no longer need names (returned values are anonymous)
@@ -1341,7 +1382,7 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 			continue; //list item seperator
 		}
 		
-		if ( (t->tok == PAIR('>','>'))){
+		if ( (t->tok == PAIR('-','>'))){
 			next = t;  // >> handler at top of loop will handle it
 			continue;
 		}
@@ -1822,6 +1863,29 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			break;
 			
+		case KTRASH: //item destruction
+			if (tprev(t)->ty->category == POINTER){
+							
+				fold(tprev(t), t);
+				t->handler = hfree;
+				t=tnext(t);
+				continue;
+			}
+			
+			break;
+		
+		case KKEEP: //item addref
+			if (tprev(t)->ty->category == POINTER){
+							
+				t->ty = tprev(t)->ty; //return the same type (does not pop the stack)
+				fold(tprev(t), t);
+				t->handler = haddref;
+				t=tnext(t);
+				continue;
+			}
+			
+			break;
+			
 		case KNEW:  //item creation
 			int isArray=0;
 			if ( (tprev(t)->ty == tZ32) &&  (tprev(tprev(t))->ty == tType)){
@@ -1889,6 +1953,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				if (pc != global){
 					local=1;
 					s= findSymbol(pc->symbols, t->str, v);
+					printf(" LOCAL SYMBOL %p  %s\n", s, t->str);
 				}
 				
 				if (s)
@@ -1896,6 +1961,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					
 				local=0;
 				s= findSymbol(global->symbols, t->str, v);
+				printf(" GLOBAL SYMBOL %p  %s\n", s, t->str);
 				
 				if (s)
  					break;
