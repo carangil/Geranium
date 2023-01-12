@@ -322,13 +322,14 @@ zlistT* tokenize(zlistT* list, char* in){
 
 /* Simple type system*/
 #define SIMPLE	1
-#define POINTER 2
+#define POINTERUSER 2
 #define STRUCT 	3
 #define ARRAYSTATIC 	4
 #define ARRAYDYNAMIC 	5
 #define FUNCTION 6
 #define PRIMITIVE 7
-#define LAST_REAL_TYPE 7
+#define POINTERPOSSESSIVE 8
+#define LAST_REAL_TYPE 8
 
 //ARRAYSTATIC have a fixed size.  To be embedded directly in structs, etc
 //ARRAYDYNAMIC are heap allocated
@@ -380,10 +381,10 @@ typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
 	}
 
 	//pointer or indefinite array
-	if ((category == POINTER)|| (category == ARRAYDYNAMIC) ){
+	if ((category == POINTERUSER)|| (category == ARRAYDYNAMIC)||(category == POINTERPOSSESSIVE) ){
 		if (ty->size)
 			ERR("Cannot specify size of pointer or dynamic array (it is automatically calculated)\n");
-		if (category == POINTER)
+		if ((category == POINTERUSER)||(category == POINTERPOSSESSIVE))
 			ty->size = sizeof (vptrT);
 		
 		if (category == ARRAYDYNAMIC) 
@@ -429,9 +430,14 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 			end="]";
 			break;
 			
-		case POINTER:
+		case POINTERUSER:
 			end="&"; 
 			break;
+			
+		case POINTERPOSSESSIVE:
+			end="%"; 
+			break;
+			
 			
 		case PENDING:
 			printf("<pending>");
@@ -574,7 +580,8 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 				}
 				break; //not it
 
-			case POINTER: 
+			case POINTERPOSSESSIVE: 
+			case POINTERUSER: 
 			case ARRAYSTATIC:
 			case ARRAYDYNAMIC:
 			case FUNCTION:
@@ -591,7 +598,7 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 
 	//did not find.
 
-	if (ref &&((category == ARRAYDYNAMIC)||(category==ARRAYSTATIC) || (category == POINTER))) {
+	if (ref &&((category == ARRAYDYNAMIC)||(category==ARRAYSTATIC) || (category == POINTERUSER)|| (category == POINTERPOSSESSIVE))) {
 
 		//If array or pointer, find the type 'underneath' and make it
 
@@ -1070,12 +1077,15 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 				
 		ex->stack[ex->fp++] = ex->stack[ex->sp-1];  
 		
-		
+		if (t->sym->type->ref->category == POINTERUSER){
+			printf("Can't return non-possessive pointer!\n");
+		}
+		/*
 		if (t->sym->type->ref->category == POINTER){
 			if ( ex->stack[ex->sp-1].as.ptr.level >= ex->level)
 				printf(" RETURNING SUBFRAME POINTER!\n");
 			
-		}
+		}*/
 		
 		
 		printf(" Function returns ");printType(t->sym->type->ref,1,1);
@@ -1293,11 +1303,26 @@ tokenT*  parseType(tokenT* t) {
 			continue;
 		}
 		if (t->tok == '&'){ //pointer type
-			t->ty = findType( POINTER, tprev(t)->ty, NULL,0);
+			t->ty = findType( POINTERUSER, tprev(t)->ty, NULL,0);
 			next = zlist_next(t);
 			fold(tprev(t),t);
 			continue;
 		}
+		if (t->tok == '%'){ //pointer type
+			t->ty = findType( POINTERPOSSESSIVE, tprev(t)->ty, NULL,0);
+			next = zlist_next(t);
+			fold(tprev(t),t);
+			continue;
+		}
+		
+		/*
+		if (t->tok == '%'){ //pointer type
+			t->ty = findType( POINTERPOSSESSIVE, tprev(t)->ty, NULL,0);
+			next = zlist_next(t);
+			fold(tprev(t),t);
+			continue;
+		}
+		*/
 		
 		if (t->tok =='('){ //type list for function parameters & return value
 			tokenT* S = t;
@@ -1749,7 +1774,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			//printType( ts->ty->ref->ref, 0,0);
 			
-			t->ty = findType(POINTER, ts->ty->ref->ref, NULL,0);
+			t->ty = findType(POINTERUSER, ts->ty->ref->ref, NULL,0);
 			
 			t->handler = hindex;
 			t->val.as.n32 = ts->ty->ref->ref->size;
@@ -1790,9 +1815,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (tnext(t)->str && tnext(t)->str[0]=='.') {	//if next token tries to take a struct member
 				
 				if ( 	tprev(t)->ty 					//has a type
-					&& (tprev(t)->ty->category == POINTER)		//that's a pointer
+					&& ((tprev(t)->ty->category == POINTERUSER)||(tprev(t)->ty->category == POINTERPOSSESSIVE))		//that's a pointer
 					&& (tprev(t)->ty->ref)				//to a type
-					&& (tprev(t)->ty->ref->category ==POINTER)	//that's a pointer
+					&& ((tprev(t)->ty->ref->category ==POINTERUSER)||(tprev(t)->ty->ref->category ==POINTERPOSSESSIVE))	//that's a pointer
 					&& (tprev(t)->ty->ref->ref)			//to a type
 					&& (tprev(t)->ty->ref->ref->category == STRUCT) //that's a struct
 				)
@@ -1811,7 +1836,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			
 			
-			if ( tprev(t)->ty && (tprev(t)->ty->category == POINTER) && (tprev(t)->ty->ref->category == POINTER)){
+			if ( tprev(t)->ty && ((tprev(t)->ty->category == POINTERUSER)||(tprev(t)->ty->category == POINTERPOSSESSIVE)) && (tprev(t)->ty->ref->category == POINTERUSER)){
 				//printf("general pointer to pointer load\n");
 				t->ty = tprev(t)->ty->ref;
 				fold(tprev(t),t);
@@ -1824,7 +1849,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			//pointer to array load
 			
-			if ( tprev(t)->ty && (tprev(t)->ty->category == POINTER) && (tprev(t)->ty->ref->category == ARRAYDYNAMIC)){
+			if ( tprev(t)->ty && ((tprev(t)->ty->category == POINTERPOSSESSIVE)||(tprev(t)->ty->category == POINTERUSER)) && (tprev(t)->ty->ref->category == ARRAYDYNAMIC)){
 				//printf("general pointer to pointer load\n");
 				t->ty = tprev(t)->ty->ref;
 				fold(tprev(t),t);
@@ -1838,32 +1863,46 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//other '@' cases that aren't handled will drop down later
 			break;
 				
-		case '=':  //try to handle loading ptr to ptr.  Top of stack has a pointer to the pointer var
+		case '=':  //try to handle storing ptr to ptr.  Top of stack has a pointer to the pointer var
 		
 			//handle     @= case.... if '@' a pointer to get a variable, and store to the variable...
 			//  pointervar =         //writes a pointer to a pointer variable
 			// The pointer variable is represented by a pointer to some kind of pointer
-			if ( tprev(t)->ty && (tprev(t)->ty->category == POINTER) && (tprev(t)->ty->ref->category == POINTER)){
-				if (tprev(tprev(t))->ty && tprev(tprev(t))->ty->category == POINTER){
+			if ( tprev(t)->ty && (tprev(t)->ty->category == POINTERUSER) && (tprev(t)->ty->ref->category == POINTERUSER)){
+				if (tprev(tprev(t))->ty && tprev(tprev(t))->ty->category == POINTERUSER){
 					//printf("general pointer to pointer store\n");
 					
 					fold(tprev(tprev(t)),t);
 					t->handler = hstoreptr;
-					
+					//TODO check level
 
 					t=tnext(t);
 					continue;	
 				}
 			}
 			
-			//handle dynamically allocated arrays in similar manner
 			
+			//stpre a possessive pointer in a possessive pointer variable (which is represented by a user pointer to a possessive pointer)
+			if ( tprev(t)->ty && (tprev(t)->ty->category == POINTERUSER) && (tprev(t)->ty->ref->category == POINTERPOSSESSIVE)){
+				if (tprev(tprev(t))->ty && tprev(tprev(t))->ty->category == POINTERPOSSESSIVE){
+					
+					printf("store poss pointer todo: check dest in emnpty\n");
+					
+					fold(tprev(tprev(t)),t);
+					t->handler = hstoreptr;
+					//TODO check level
+
+					t=tnext(t);
+					continue;	
+				}
+			}
+				
 				
 			
 			break;
 			
 		case KTRASH: //item destruction
-			if (tprev(t)->ty->category == POINTER){
+			if (tprev(t)->ty->category == POINTERPOSSESSIVE){
 							
 				fold(tprev(t), t);
 				t->handler = hfree;
@@ -1874,7 +1913,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			break;
 		
 		case KKEEP: //item addref
-			if (tprev(t)->ty->category == POINTER){
+			if (tprev(t)->ty->category == POINTERPOSSESSIVE){
 							
 				t->ty = tprev(t)->ty; //return the same type (does not pop the stack)
 				fold(tprev(t), t);
@@ -1898,7 +1937,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (tprev(t)->ty == tType){
 				typeT* rt = (void*) tprev(t)->val.as.type;
 				
-				t->ty = findType(POINTER, rt, NULL, 0);
+				t->ty = findType(POINTERPOSSESSIVE, rt, NULL, 0);
 				
 				fold(tprev(t), t);
 				t->handler = isArray? hallocarray: halloc;
@@ -1990,7 +2029,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				else{
 					//printf(" IS VARIABLE\n");
 											
-					t->ty = findType(POINTER, s->type, NULL, 0);  //pointer to the symbol's type
+					t->ty = findType(POINTERUSER, s->type, NULL, 0);  //pointer to the symbol's type
 					if (local)
 						t->handler = hlocal;
 					else
@@ -2045,7 +2084,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						
 				
 				//if we have a pointer to a struct..
-				if (ptype && (ptype->category == POINTER )&& (ptype->ref) && (ptype->ref->category==STRUCT)){
+				if (ptype && ((ptype->category == POINTERUSER)||(ptype->category == POINTERPOSSESSIVE))   && (ptype->ref) && (ptype->ref->category==STRUCT)){
 				
 					//we can create pointer to type member
 					//printf(" look for member\n");
@@ -2059,7 +2098,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						t->handler = hoffsetptr;
 						
 						t->val.as.n32 = m->offset;
-						t->ty = findType(POINTER, m->ref, NULL,0); //find pointer to the member type
+						t->ty = findType(POINTERUSER, m->ref, NULL,0); //find pointer to the member type
 						
 						fold(tprev(t),t);
 						
