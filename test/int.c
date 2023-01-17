@@ -22,7 +22,7 @@ typedef union valu {	//Generic value (datatype is tracked through other means)
 		zint32 z32;
 		zint32 n32;
 		vptrT ptr;
-		struct typeS* type;
+		struct typeS* type; //not datatype of valU, but represents a detatype itself (datatypes can be on the stack)
 	} valU;
 	
 typedef struct valueS{
@@ -91,7 +91,8 @@ typedef struct tokenS{
 #define ENDFILE		0x500
 #define PASTENDFILE	0x600
 #define STARTFILE	0x700
-#define COND		0x800a
+#define COND		0x9001
+#define STACKARG	0x9002
 
 //Token values that are also user-accessible keywords:
 #define KWORDS		0x8000
@@ -110,8 +111,9 @@ typedef struct tokenS{
 #define KPROTO		0x800c
 #define KTRASH		0x800d
 #define KKEEP		0x800e
+#define KTAKE		0x800f
 
-char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", NULL};
+char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", "take", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -633,13 +635,28 @@ typeT* findTypeMember(typeT* type, char* name,  int* pos , int* count){
 }
 
 /*debugging list printer*/
-void printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indent){
+int printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indentin){
 
 	char* iscur;
 	int i;
+	int indent=indentin;
 	
 	for ( ;t;  t = zlist_next(t)  ){
 
+		//print subs first
+		if (zlist_head(&t->subs)){ 
+			//indent = 
+			printf("\n");
+			for (i=0;i<indent;i++) 
+				putc('\t', stdout);
+			printf("{");
+			printList(  zlist_head(&t->subs), cur, stop_tok, indent+1);
+			
+		} 
+			
+		
+		
+		
 		if (t==cur)
 			iscur="CUR";
 		else 
@@ -649,10 +666,17 @@ void printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indent){
 		for (i=0;i<indent;i++) 
 			putc('\t', stdout);
 		
+		
+		if ( zlist_head(&t->subs)){ 
+			printf("} ");
+		} else {
+			printf("{");
+		}
+		
 		if ( (t->tok >20) && (t->tok < 0x7f))
-			printf("{%s %c  ",iscur, t->tok);
+			printf(" %s %c  ",iscur, t->tok);
 		else
-			printf("{%s%04x", iscur, t->tok);
+			printf(" %s%04x", iscur, t->tok);
 		
 		
 		if (t->str)
@@ -668,10 +692,10 @@ void printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indent){
 
 		int i;
 
-		if ( zlist_head(&t->subs)){ 
-			printList(  zlist_head(&t->subs), cur, stop_tok, indent+1);    
-		}
-		printf("}");
+		if (!zlist_head(&t->subs))
+			printf("}");
+	
+
 
 		if (t->tok == stop_tok)
 			break;
@@ -680,6 +704,7 @@ void printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indent){
 			break;
 	}
 
+	return indent;
 }
 
 /**** Symbols ****/
@@ -867,20 +892,50 @@ tokenT* hlocal (exectxT* ex, tokenT* t) {	//push pointer to local variable on st
 	return tnext(t);
 }
 
+#define tsub(TTT)  ((tokenT*)((TTT)->subs.head))
+
 tokenT* hstackread (exectxT* ex, tokenT* t) {	//read a stack variable (really function parameters)
-	//grab from stack, relative to fp
-	ex->stack[(ex->sp)++] = ex->stack[ ex->fp + t->val.as.z32 ];
+	
+	if (!tsub(t)){
+		ERR("hstackread needs sub for stack position offset\n");
+	}
+	
+	ex->stack[ex->sp] = ex->stack[ ex->fp + tsub(t)->val.as.z32 ];
+	
+	printf(" READ STACK POSITION + %d  option %d\n", tsub(t)->val.as.z32, t->val.as.n32);
+	
+	if (t->val.as.n32 == 1)
+		ex->stack[ ex->fp + tsub(t)->val.as.z32 ].as.ptr.block = 0;  //zero out the source ( KTAKE on possessive pointer)
+	
+	if (t->val.as.n32 == 2)
+		ex->stack[ex->sp].as.ptr.level = ex->level+1; //add level to source (so it must be used or passed but not locally stored or returned)
+	
+	(ex->sp)++;
+	
 	return tnext(t);
 }
 
-#define DEREF(TYPE,BASE,OFFSET)      *((TYPE*)(((char*)(BASE))+(OFFSET)))
+#define DEREF(TYPE,BASE,OFFSET)      (*((TYPE*)(((char*)(BASE))+(OFFSET))))
 
-#define tsub(TTT)  ((tokenT*)((TTT)->subs.head))
+
 
 tokenT* hstoreptr (exectxT* ex, tokenT* t) {  //store a pointer
 	exe(ex, tsub(t) );
 	
 	printf(" DST LEVEL: %d  SRC LEVEL: %d\n", ex->stack[ex->sp-1].as.ptr.level, ex->stack[ex->sp-2].as.ptr.level);
+	
+	if (  ex->stack[ex->sp-1].as.ptr.level < ex->stack[ex->sp-2].as.ptr.level){
+		printf("err-----------\n");
+		printList(tprev(t), t, 0 ,2);
+		ERR("Pointer level mismatch: attempt to escape scope\n");
+	}
+	
+	if (t->val.as.n32 == 1){
+		//flag to free the destination pointer if its non-null
+		printf(" storeptr: free block in destination address  %p\n", DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset).block);
+		ram_free(DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset).block);
+	}
+	
 	
 	DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.ptr;
 	ex->sp-=2;
@@ -897,8 +952,41 @@ tokenT* hloadptr (exectxT* ex, tokenT* t) { //load a pointer
 		
 	ex->stack[ex->sp-1].as.ptr = DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
 	
+	
+	if ( t->val.as.n32 == 1) {
+		//the pointer will be assigned ex level +1
+		//this makes it so a possessive pointer can be duplicated as a user pointer and passed as an arg to a function
+		//if it was allowed to make user pointers available at the same level(this function and not just as an arg to another function)
+		//then its possible for the possessive pointer we are copying to be freed
+		//and that would leave a dangling user pointer.
+		//the reason why we can pass a user pointer to a function without fear of dangling, is because this calling function holds a reference
+		//to it, so the pointer is guaranteed to be good until the callee returns, allowing it to be used by the callee as long as it needs
+		//and since its a user pointer, the callee can't store it anywhere in the heap, or return it
+		//and it can't write it to a lower level pointer variable
+		//and since it isn't possessive, it can't be freed either
+		ex->stack[(ex->sp-1)].as.ptr.level = ex->level+1;//pointer 'belongs' to deeper stack frames
+	}
+	
 	return tnext(t);
 }
+
+
+tokenT* htakeptr (exectxT* ex, tokenT* t) { //load a pointer, source is made null  (doesn't affect reference count)
+	
+	exe(ex, tsub(t) );
+
+	 
+ 	vptrT tmp = DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
+
+	//zero the source pointer
+	DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset).block = NULL;
+	
+	ex->stack[ex->sp-1].as.ptr = tmp;
+	
+
+	return tnext(t);
+}
+
 
 tokenT* hoffsetptr (exectxT* ex, tokenT* t) { //add constant offset to pointer
 	
@@ -1078,7 +1166,7 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 		ex->stack[ex->fp++] = ex->stack[ex->sp-1];  
 		
 		if (t->sym->type->ref->category == POINTERUSER){
-			printf("Can't return non-possessive pointer!\n");
+			ERR("Can't return non-possessive pointer!\n");
 		}
 		/*
 		if (t->sym->type->ref->category == POINTER){
@@ -1178,7 +1266,7 @@ tokenT* hprintchar (exectxT* ex, tokenT* t) {
 tokenT* hprintptr (exectxT* ex, tokenT* t) {
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
 	ex->sp--;
-	printf("{%p+%x} ", ex->stack[ex->sp].as.ptr.block,  ex->stack[ex->sp].as.ptr.offset  );
+	printf("{%p+%x lvl%d} ", ex->stack[ex->sp].as.ptr.block,  ex->stack[ex->sp].as.ptr.offset, ex->stack[ex->sp].as.ptr.level  );
 	return tnext(t);
 }
 
@@ -1250,8 +1338,8 @@ void lfold(tokenT* under, tokenT* end){
 
 /* Parses a datatype such as:
  * Simple types:  Z32, etc
- * Pointers  Z32*  [Z32]*
- * Functions (a:Z32; b:Z32 >> Z32)
+ * Pointers  Z32&  [Z32]&
+ * Functions (a:Z32; b:Z32 -> Z32)
  * Arrays [10 Z32]    */
 tokenT*  parseType(tokenT* t) {
 
@@ -1259,6 +1347,8 @@ tokenT*  parseType(tokenT* t) {
 	zbool named=ZFALSE;
 	tokenT* next=NULL;
 
+	
+	
 	for ( ; t;  t = next ) {
 
 		if (t->tok == '['){ //array type
@@ -1315,14 +1405,6 @@ tokenT*  parseType(tokenT* t) {
 			continue;
 		}
 		
-		/*
-		if (t->tok == '%'){ //pointer type
-			t->ty = findType( POINTERPOSSESSIVE, tprev(t)->ty, NULL,0);
-			next = zlist_next(t);
-			fold(tprev(t),t);
-			continue;
-		}
-		*/
 		
 		if (t->tok =='('){ //type list for function parameters & return value
 			tokenT* S = t;
@@ -1344,6 +1426,9 @@ tokenT*  parseType(tokenT* t) {
 		}
 		break;
 	}
+	
+	
+	
 	return t;
 }
 
@@ -1431,7 +1516,7 @@ tokenT*  parseVar(tokenT* t,  char** nameOut, typeT** typeOut) {
 	
 	if (tnext(t)->tok == ':'){
 		
-		if (t->str && t->tok != KWORDS)
+		if (t->str && t->tok != KWORDS)  //TODO: check this line, might be wrong... why KWORDS here?
 			name = t->str;	
 		else 
 			ERR(" Token %x not allowed here (var/parm name)\n", t->tok);
@@ -1547,6 +1632,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			typeT* type=NULL;
 			
 			t = parseVar( tnext(t), &name, &type); //parse variable; name is required
+
 			printf("proc/var %s   %s is type ", ts->str,  name);
 			printType(type, 1,1);
 			if (!name){
@@ -1598,11 +1684,12 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				t->sym=s;
 				s->handler = hcall;  //need to set handler before parsing, in case of recursion
 				t = parse(s->subctx, t);
+				//t should now be 'end' 
 			} else if (t->tok != ';') {
 				ERR(" missing ;\n");
 			}
 			
-			t=tnext(t); //skip past semicolon
+			t=tnext(t); //skip past semicolon (or 'end')
 			lfold(ts, t);  //everything up to an including semicolon folded
 			if (!s->isPrototype)
 				s->tokens = ram_addref(ts); //symbol has this tokenstream
@@ -1617,7 +1704,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				handler = hglobal;
 			else 
 				handler = hlocal;
-			printList(ts, t, ENDFILE, 1);
+			
 			s=mkSymbol(pc, t->str, tprev(ts)->ty, handler);
 			//don't do t=tnext(t). This way t, which contains the name of the var,
 			//will be parsed again, and that will make a 'load' token.
@@ -1631,7 +1718,26 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//allow return no value
 						
 			t->handler = hreturn;
-			fold(tprev(t),t);
+			if (pc->type&& pc->type->ref) {
+				printf(" RETURN a value\n");
+				printType(pc->type->ref, ZTRUE, ZFALSE);
+				
+				if ( tprev(t)->ty != pc->type->ref){
+				
+					printf("Type mismatch expected:\n");
+					printType(pc->type->ref, ZTRUE, ZTRUE);
+					printf("attempt to return: \n");
+					printType(tprev(t)->ty, ZTRUE, ZTRUE);
+					ERR("TYPE MISMATCH\n");
+					
+				}
+				
+				
+				fold(tprev(t),t);
+			} else {
+				printf(" RETURN no value\n");
+			}
+			getc(stdin);
 			t=tnext(t);
 						
 			continue;
@@ -1761,35 +1867,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t=tnext(t);
 			continue;
 			
-						
-		case PAIR('[',']'):
-			//todo: check its an integer, and type is an array
-			//array accesshload32
-						
-			ts = tprev(tprev(t));
-			fold(ts, t);
-			//ts->ty is pointer to array  (sizeof ptr)
-			//ts->ty->ref is array of something (sizeof the array)
-			//ts->ty->ref->ref is the element type 
-			
-			//printType( ts->ty->ref->ref, 0,0);
-			
-			t->ty = findType(POINTERUSER, ts->ty->ref->ref, NULL,0);
-			
-			t->handler = hindex;
-			t->val.as.n32 = ts->ty->ref->ref->size;
-			//printf(" array element size %d\n", t->val.as.n32);
-			
-			if (tnext(t)->tok=='&')
-				ram_free(tremove(tnext(t))) ;
-			else
-				insert_after(t, mkToken('@', "@", 1) );
-			
-			t=tnext(t);
-			continue;
-		
-		
-			
+					
 		case ':': //typecast
 			
 			//for now this is dumb
@@ -1807,8 +1885,147 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			continue;
 				
+				
+			
+		case PAIR('[',']'):
+			//array indexing
+			
+			//todo: check its an integer, and type is an array
+			//array accesshload32
+						
+			ts = tprev(tprev(t));
+			fold(ts, t);
+			//ts->ty is pointer to array  (sizeof ptr)
+			//ts->ty->ref is array of something (sizeof the array)
+			//ts->ty->ref->ref is the element type 
+			
+			//printType( ts->ty->ref->ref, 0,0);
+			
+			t->ty = findType(POINTERUSER, ts->ty->ref->ref, NULL,0);
+			
+			t->handler = hindex;
+			t->val.as.n32 = ts->ty->ref->ref->size;
+			//printf(" array element size %d\n", t->val.as.n32);
+			
+			/*
+			if (tnext(t)->tok=='&')
+				ram_free(tremove(tnext(t))) ;
+			else
+				*/
+			insert_after(t, mkToken('@', "@", 1) );
+			
+			t=tnext(t);
+			continue;
+		
+		
+	
 			
 		case '@':  //try to handle loading ptr to ptr.  Top of stack has a pointer to the pointer var
+			
+	
+			//if next token is &, remove both (cancels to just leave the pointer)
+			//varname  puts varname
+			if (tnext(t)->tok=='&' ){
+								
+				t=tnext(t);
+				ram_free(tremove(ts));
+				ts=t;
+				t=tnext(t);
+				ram_free(tremove(ts));
+				continue;
+			}
+			
+			
+			//if next token is assignment, remove the '@' token
+			//varname  puts varname
+			if (tnext(t)->tok=='=' ){
+								
+				t=tnext(t);
+				ram_free(tremove(ts));
+				continue;
+			}
+			
+			
+			//stack arguments
+			if (tprev(t)->tok == STACKARG){
+				
+				t->ty = tprev(t)->ty;
+				tprev(t)->ty=NULL;
+				
+				fold(tprev(t), t);
+				t->handler = hstackread;
+								
+				if (t->ty->category == POINTERPOSSESSIVE){
+				
+					if (tnext(t)->tok == KTAKE) {	
+						t->val.as.n32 = 1;	//flag 1 here means zero out the source pointer (taking) 
+						
+						ram_free(tremove(tnext(t)));
+						
+					} else if (tnext(t)->tok != KKEEP){
+						
+						t->val.as.n32 = 2;	//flag 2 here means make a level+1 pointer; meaning it can be used or passed, but not stored in the current frame or returned
+						
+						//return nonpossessive form of same pointer
+						t->ty = findType(POINTERUSER, t->ty->ref, NULL, 0);
+					}
+					
+				}
+					
+				
+				t = tnext(t);
+				continue;
+			}
+			
+			
+			//user pointer to user pointer
+			if ( tprev(t)->ty && (tprev(t)->ty->category == POINTERUSER) && (tprev(t)->ty->ref->category == POINTERUSER)){
+				//printf("general pointer to pointer load\n");
+				t->ty = tprev(t)->ty->ref;
+				fold(tprev(t),t);
+				t->handler = hloadptr;
+				
+				t=tnext(t);
+				continue;	
+								
+			}
+			
+			
+			
+			//user pointer to possessive pointer
+			if ( tprev(t)->ty && (tprev(t)->ty->category == POINTERUSER) && (tprev(t)->ty->ref->category == POINTERPOSSESSIVE)){
+				//printf("general pointer to pointer load\n");
+				
+				if ( (tnext(t)->tok == KKEEP)||( tnext(t)->tok == KTAKE)){				
+					t->ty = tprev(t)->ty->ref; //return possessive pointer (since it is being addreffed or trashed)
+					
+				} else {
+					//return nonpossessive form of same pointer
+					t->ty = findType(POINTERUSER, tprev(t)->ty->ref->ref, NULL, 0);
+				}
+				
+				fold(tprev(t),t);
+				
+				
+				if (tnext(t)->tok == KTAKE){
+					ram_free(tremove(tnext(t)));
+					t->handler = htakeptr;
+				} else {
+					t->handler = hloadptr;
+					
+					if(tnext(t)->tok != KKEEP)
+						t->val.as.n32 = 1; //flag that raises the pointer level so that this can't be stored locally... must be passed to a function
+				}
+				t=tnext(t);
+				continue;	
+								
+			}
+			
+			
+			
+			
+			
+			/*
 			
 			int structskipderef=0;
 			
@@ -1847,19 +2064,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 								
 			}
 			
-			//pointer to array load
 			
-			if ( tprev(t)->ty && ((tprev(t)->ty->category == POINTERPOSSESSIVE)||(tprev(t)->ty->category == POINTERUSER)) && (tprev(t)->ty->ref->category == ARRAYDYNAMIC)){
-				//printf("general pointer to pointer load\n");
-				t->ty = tprev(t)->ty->ref;
-				fold(tprev(t),t);
-				t->handler = hloadptr;
-				
-				t=tnext(t);
-				continue;	
-								
-			}
-			
+			*/
 			//other '@' cases that aren't handled will drop down later
 			break;
 				
@@ -1890,6 +2096,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					
 					fold(tprev(tprev(t)),t);
 					t->handler = hstoreptr;
+					t->val.as.n32 = 1; //flag to free the pointer being overwritten
 					//TODO check level
 
 					t=tnext(t);
@@ -1991,7 +2198,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				if (pc != global){
 					local=1;
 					s= findSymbol(pc->symbols, t->str, v);
-					printf(" LOCAL SYMBOL %p  %s\n", s, t->str);
+					//printf(" LOCAL SYMBOL %p  %s\n", s, t->str);
 				}
 				
 				if (s)
@@ -1999,7 +2206,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					
 				local=0;
 				s= findSymbol(global->symbols, t->str, v);
-				printf(" GLOBAL SYMBOL %p  %s\n", s, t->str);
+				//printf(" GLOBAL SYMBOL %p  %s\n", s, t->str);
 				
 				if (s)
  					break;
@@ -2027,7 +2234,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					}
 				}
 				else{
-					//printf(" IS VARIABLE\n");
+					
+					//for variables, put the variable's address on the stack for now 
+					//and then follow it with '@' to get it
+					//for static arrays, this is not needed
 											
 					t->ty = findType(POINTERUSER, s->type, NULL, 0);  //pointer to the symbol's type
 					if (local)
@@ -2037,14 +2247,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					t->val.as.ptr.block = 0;
 					t->val.as.ptr.offset= s->offset;
 					
-					if (tnext(t)->tok=='&')   {
-						ram_free(tremove(tnext(t)));  //remove the ampersand from token list
-					} else if (s->type->category!=ARRAYSTATIC) {  //else if (tnext(t)){
+					
+					if ((s->type->category!=ARRAYSTATIC)&&(s->type->category!=STRUCT)) {  
 						tokenT* tn = mkToken('@', "@", 1);  //load the variable
 						insert_after(t, tn);
 					}
-					
-															
+					//printList(ts, t, ENDFILE, 1);
+								
 										
 				}
 				t=tnext(t);
@@ -2067,7 +2276,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					printf("Found %s  stack pos fp+%d, of type   ", m->name, so);
 					printType(m->ref,ZTRUE, ZFALSE);
 					t->ty = m->ref;
-					t->handler = hstackread;
+					t->tok = STACKARG;
+					tokenT* tn = mkToken('@', "@", 1);  //load the variable
+					insert_after(t, tn);
+					
 					t->val.as.z32=so;
 					t=tnext(t);
 					continue;
@@ -2084,7 +2296,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						
 				
 				//if we have a pointer to a struct..
-				if (ptype && ((ptype->category == POINTERUSER)||(ptype->category == POINTERPOSSESSIVE))   && (ptype->ref) && (ptype->ref->category==STRUCT)){
+				if (ptype && (ptype->category == POINTERUSER)   && (ptype->ref) && (ptype->ref->category==STRUCT)){
 				
 					//we can create pointer to type member
 					//printf(" look for member\n");
@@ -2103,9 +2315,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						fold(tprev(t),t);
 						
 						
-						if (tnext(t)->tok=='&')   {
-							ram_free(tremove(tnext(t)));
-						}  else if (  m->ref->category != ARRAYSTATIC   ){ //don't insert a load if struct member is an array
+						if (( m->ref->category!=ARRAYSTATIC)&&( m->ref->category!=STRUCT)) {  
 							tokenT* tn = mkToken('@', "@", 1);  //load the variable
 							insert_after(t, tn);
 						}
@@ -2113,7 +2323,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						
 						t=tnext(t);
 						
-						
+						//printList(tprev(tprev(tprev(ts))), t, NULL, 3);
 						
 						
 						continue;
@@ -2143,7 +2353,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				continue;
 			}
 			
-			printList(tprev(ts),t,0,0);
+			printList(tprev(ts),t,0,1);
 			ERR("Undefined symbol:%s\n\n", t->str);
 			
 			
