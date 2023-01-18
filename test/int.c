@@ -33,7 +33,7 @@ typedef struct valueS{
 /**** Execution Context ****/
 typedef struct exectxS{
 	valueT* stack;  //call/parameter stack
-	zuint32	sp;
+	zuint32	sp;	//number of items on stack.  sp-1 is the top item
 	zuint32 fp;
 	char* vars; 	//local data space
 	char* globalvars; //global data space
@@ -292,7 +292,7 @@ zlistT* tokenize(zlistT* list, char* in){
 			if ((digits == 1) && (in[0] == '-'))
 				digits = 0;
 		}
-		
+						
 		if (digits || name){
 			t = mkToken( digits? NUMBER : NAME, in ,   digits|name);
 			in += digits|name;
@@ -954,7 +954,7 @@ tokenT* hloadptr (exectxT* ex, tokenT* t) { //load a pointer
 	
 	
 	if ( t->val.as.n32 == 1) {
-		//the pointer will be assigned ex level +1
+		//the pointer will be assigned ex->level + 1
 		//this makes it so a possessive pointer can be duplicated as a user pointer and passed as an arg to a function
 		//if it was allowed to make user pointers available at the same level(this function and not just as an arg to another function)
 		//then its possible for the possessive pointer we are copying to be freed
@@ -963,7 +963,7 @@ tokenT* hloadptr (exectxT* ex, tokenT* t) { //load a pointer
 		//to it, so the pointer is guaranteed to be good until the callee returns, allowing it to be used by the callee as long as it needs
 		//and since its a user pointer, the callee can't store it anywhere in the heap, or return it
 		//and it can't write it to a lower level pointer variable
-		//and since it isn't possessive, it can't be freed either
+		//and since it isn't possessive, it doesn't have to be freed either, do it can't leak
 		ex->stack[(ex->sp-1)].as.ptr.level = ex->level+1;//pointer 'belongs' to deeper stack frames
 	}
 	
@@ -1925,7 +1925,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 	
 			//if next token is &, remove both (cancels to just leave the pointer)
 			//varname  puts varname
-			if (tnext(t)->tok=='&' ){
+			if ( tnext(t)->tok=='&'   ){
 								
 				t=tnext(t);
 				ram_free(tremove(ts));
@@ -1938,12 +1938,21 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			//if next token is assignment, remove the '@' token
 			//varname  puts varname
-			if (tnext(t)->tok=='=' ){
+			if (tnext(t)->tok=='=') {
 								
 				t=tnext(t);
 				ram_free(tremove(ts));
 				continue;
 			}
+			
+			if (tnext(t)->str && tnext(t)->str[0]=='.'){
+				//struct member:  
+				//remove the @ token, since accessing the struct member is just pointer addition
+				t=tnext(t);
+				ram_free(tremove(ts));
+				continue;
+			}
+					
 			
 			
 			//stack arguments
