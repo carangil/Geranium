@@ -1054,17 +1054,47 @@ tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP i
 	
 }
 
+/*
 tokenT* hadd32 (exectxT* ex, tokenT* t) {
 	
 	exe(ex, tsub(t));
 	
 	ex->stack[ex->sp-2].as.z32 += ex->stack[ex->sp-1].as.z32;
 	ex->sp--;
-	
-	//printf(" add\n");
-	
+		
 	return tnext(t);
 }
+*/
+
+#define BINOP(NAME, AS, OPERATOR)\
+tokenT* NAME (exectxT* ex, tokenT* t) {						\
+	exe(ex, tsub(t));							\
+	ex->stack[ex->sp-2].as.AS  = ex->stack[ex->sp-2].as.AS  OPERATOR   ex->stack[ex->sp-1].as.AS;	\
+	ex->sp--;								\
+	return tnext(t);							\
+}
+
+
+
+BINOP(hadd32, z32, + )
+BINOP(hsub32, z32, - )
+BINOP(hequal32, z32, == )
+BINOP(hless32, z32, < )
+BINOP(hlesse32, z32, <= )
+BINOP(hgreater32, z32, > )
+BINOP(hgreatere32, z32, >= )
+
+
+
+#define UNOP(NAME, AS, OPERATOR)\
+tokenT* NAME (exectxT* ex, tokenT* t) {						\
+	exe(ex, tsub(t));							\
+	ex->stack[ex->sp-1].as.AS  =  OPERATOR (  ex->stack[ex->sp-1].as.AS );	\
+	return tnext(t);							\
+}
+
+UNOP(hboolnot, z32, !)
+UNOP(hbnot, z32, ~)
 
 
 
@@ -1545,7 +1575,7 @@ tokenT*  parseVar(tokenT* t,  char** nameOut, typeT** typeOut) {
 
 }
 
-typeT *tType, *tPrimitive, *tZ32, *tN32, *tN8;
+typeT *tType, *tPrimitive, *tZ32, *tN32, *tN8, *tBit;
 
 zbool parsectx_cleanup(void* v){
 	parsectxT* pc = v;
@@ -2385,7 +2415,7 @@ int main(int argc, char** args){
 	tZ32 = mkType( SIMPLE, NULL, "Z32", sizeof(zint32));
 	tN32 = mkType( SIMPLE, NULL, "N32", sizeof(zuint32));
 	tN8 = mkType( SIMPLE, NULL, "N8", sizeof(zbyte));
-	
+	tBit = mkType( SIMPLE, NULL, "Bit", sizeof(zbyte));
 	
 	if (argc < 2)
 		exit(1);
@@ -2402,16 +2432,16 @@ int main(int argc, char** args){
 	ram_free(x);
 	
 	mkSymbol(global, "add32", tPrimitive, hadd32);
+	mkSymbol(global, "less32", tPrimitive, hless32);
+	mkSymbol(global, "equal32", tPrimitive, hequal32);
 	mkSymbol(global, "load32", tPrimitive, hload32);
 	mkSymbol(global, "store32", tPrimitive, hstore32);
-	
+	mkSymbol(global, "boolnot", tPrimitive, hboolnot);
 	mkSymbol(global, "storeptr", tPrimitive, hstoreptr);
 	mkSymbol(global, "loadptr", tPrimitive, hloadptr);
-	
 	mkSymbol(global, "print32", tPrimitive, hprinti);
 	mkSymbol(global, "printchar", tPrimitive, hprintchar);
 	mkSymbol(global, "printptr", tPrimitive, hprintptr);
-	
 	
 	parse( global, (tokenT*) tokens->head->next );
 
