@@ -1,0 +1,125 @@
+primitive add32		+:(a:Z32; b:Z32	-> Z32);
+primitive load32	@:(a:Z32& 	-> Z32);
+primitive store32	=:(v:Z32; a:Z32&-> );
+primitive store32	=:(v:Z32; a:Z32%-> );
+primitive printchar print:(a:N8 ->);
+primitive print32   print:(a:Z32 ->);
+primitive print32   print:(a:Bit ->);
+primitive printptr  print:(a:any& ->);
+
+primitive less32	<:(a:Z32; b:Z32	-> Bit);
+primitive boolnot	not:(a:Bit -> Bit);
+primitive equal32	==:(a:Z32; b:Z32 -> Bit);
+
+
+primitive load8		@:(a:N8& -> N8);
+primitive store8	=:(v:N8; a:N8&-> );
+
+
+proc newline:(->)
+	10 :N8 print
+	return
+end
+
+proc space:(->)
+	32 :N8 print
+	return
+end
+
+
+[Z32] 20 new #a
+65534 a 0[]=
+123456 a 1[]=
+
+//a:[N8]& 0[]  :Z32 print newline
+//a:[N8]& 1[]  :Z32 print newline
+
+
+
+proc getByte:( ar:String&; n:Z32 ->N8)
+	
+	ar:[N8]&  n []  return
+	
+end
+
+
+"Boo" #s
+debug
+0 #i
+
+
+loop
+	s i getByte #b
+	
+	b:Z32 0 == if break end
+	
+	b print
+
+	i 1+i=
+end
+
+65:N8 s 1 []=
+
+s 0 [] print newline
+s 1 [] print newline
+s 2 [] print newline
+
+
+proc print:(s:String&->)
+
+	0 #i
+	loop
+		s i[] :Z32 0 == if
+			return
+		end
+		s i[] print
+		i 1+ i=
+	end
+
+end
+
+
+proc strlen:(s:String&->Z32)
+	0 #i
+	loop
+		s i[] :Z32 0 == if
+			i return
+		end
+		i 1+ i=
+	end
+end
+
+
+proc strcpy:(d:String&;  s:String&->)
+	0 #i
+	loop
+		s i[] d i[]=
+		s i[] :Z32 0 == if
+			return
+		end
+		i 1+ i=
+	end
+end
+
+proc strdup:(s:String&->String%)
+
+	s strlen #le
+	
+	[N8] le 1 + new :String% #ns
+	
+	
+	ns s strcpy
+	
+	
+	ns take return
+end
+
+"hello" #h
+
+h strdup #hc
+
+"Z" 0[]  h 3[]=
+h print 
+hc print
+
+
