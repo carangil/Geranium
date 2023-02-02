@@ -114,12 +114,28 @@ proc strdup:(s:String&->String%)
 	ns take return
 end
 
-"hello" #h
+"hello" #h 
 
 h strdup #hc
 
 "Z" 0[]  h 3[]=
 h print 
 hc print
+
+hc take trash
+
+primitive C_plus5	plus5:(a:Z32;-> Z32);
+
+20 plus5 print newline
+
+primitive C_ha ha:(->Z32);
+
+ha print newline
+
+primitive C_hello hello:(->String&);
+
+
+
+hello print newline
 
 

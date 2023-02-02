@@ -6,6 +6,8 @@
 #include "zlist.h"
 #include "zvector.h"
 
+
+
 #define ERR( ...) { fprintf(stderr,__VA_ARGS__);  exit(1);}
 //#define EXEDEBUG
 
@@ -50,6 +52,7 @@ typedef struct parsectxS{
 	zvecT* symbols;	//of type symbolT*
 	zuint32	size;	//size of variables in this table
 	struct typeS* type;  //if in a procedure, we need to know about its return type and args
+
 	int endable;
 }parsectxT;
 
@@ -115,6 +118,7 @@ typedef struct tokenS{
 #define KTAKE		0x800f
 #define KDEBUG		0x8010
 
+
 char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", "take", "debug", NULL};
 
 zuint32 findKeyword(char* c){
@@ -132,9 +136,12 @@ zbool token_cleanup(void* v){
 	return ZTRUE;
 }
 
+
+
 tokenT* mkToken(zuint32 tok, char* str, zuint32 len){
 	tokenT* t = ram_alloc( sizeof(tokenT) , token_cleanup );
 	t->tok = tok;
+	
 	if (str && len)
 		t->str = zstrndup(str, len);
 	else if (str)
@@ -215,6 +222,7 @@ int acceptLiteral(char* in, char start, char escape){
 	}
 	return 0;
 }
+
 
 zlistT* tokenize(zlistT* list, char* in){
 
@@ -393,6 +401,9 @@ typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
 		
 		if (category == ARRAYDYNAMIC) 
 			ty->size = ref->size; //size of 1 element
+			
+			
+		
 	}
 
 	if (types == NULL)
@@ -1077,6 +1088,8 @@ tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP i
 	
 }
 
+
+
 /*
 tokenT* hadd32 (exectxT* ex, tokenT* t) {
 	
@@ -1101,11 +1114,23 @@ tokenT* NAME (exectxT* ex, tokenT* t) {						\
 
 BINOP(hadd32, z32, + )
 BINOP(hsub32, z32, - )
+BINOP(mul32,  z32, * )
+BINOP(divs32, z32, / )
+BINOP(divu32, n32, / )
+BINOP(modu32, n32, % )
+BINOP(and32,  z32, & )
+BINOP(or32,   z32, | )
+
 BINOP(hequal32, z32, == )
 BINOP(hless32, z32, < )
 BINOP(hlesse32, z32, <= )
 BINOP(hgreater32, z32, > )
 BINOP(hgreatere32, z32, >= )
+
+BINOP(hlessu32, n32, < )
+BINOP(hlesseu32, n32, <= )
+BINOP(hgreateru32, n32, > )
+BINOP(hgreatereu32, n32, >= )
 
 
 
@@ -1552,6 +1577,7 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 		}
 		
 		
+		
 		t = parseVar(t, &name, &type  );
 		//printList((tokenT*)t->zlistnode.prev->prev->prev, t, ENDFILE,0);
 		if ( (reqname && !name) || !type){
@@ -1725,6 +1751,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		case KVAR:		//variable declaration
 		case KPROC:		//function body definition
 		case KPROTO:		//function prototype
+		
 			name=NULL;
 			typeT* type=NULL;
 			
@@ -1772,6 +1799,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				s->isPrototype = 1;
 				s->handler = hcall;	//will eventually be a function call
 			}
+			
+			
 			
 			if (ts->tok == KPROC){
 				//procedures go into a body of statements
@@ -2492,6 +2521,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				continue;
 			}
 			
+			t->zlistnode.next=NULL;//end it
 			printList(tprev(ts),t,0,1);
 			ERR("Undefined symbol:%s\n\n", t->str);
 			
@@ -2505,6 +2535,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 	return NULL;
 }
 
+#ifdef EXTENSION_H
+#include "gen_extension.h"
+#endif
+
 int main(int argc, char** args){
 
 	tType = mkType( SIMPLE, NULL, "Type", 0 ); //datatype about "types"
@@ -2515,6 +2549,7 @@ int main(int argc, char** args){
 	tN8 = mkType( SIMPLE, NULL, "N8", sizeof(zbyte));
 	tBit = mkType( SIMPLE, NULL, "Bit", sizeof(zbyte));
 	tString = mkType(SIMPLE, NULL, "String", sizeof(char*));
+	
 	
 	if (argc < 2)
 		exit(1);
@@ -2542,6 +2577,10 @@ int main(int argc, char** args){
 	mkSymbol(global, "printptr", tPrimitive, hprintptr);
 	mkSymbol(global, "load8", tPrimitive, hload8);
 	mkSymbol(global, "store8", tPrimitive, hstore8);
+	
+#ifdef SET_EXTENSIONS
+	SET_EXTENSIONS();
+#endif
 	
 	parse( global, (tokenT*) tokens->head->next );
 
