@@ -22,7 +22,7 @@ typedef struct vptrS{
 
 typedef union valu {	//Generic value (datatype is tracked through other means)
 		zint32 z32;
-		zint32 n32;
+		zuint32 n32;
 		vptrT ptr;
 		struct typeS* type; //not datatype of valU, but represents a detatype itself (datatypes can be on the stack)
 	} valU;
@@ -246,7 +246,7 @@ zlistT* tokenize(zlistT* list, char* in){
 			line++;
 
 		//find twochar patterns like ->,etc. including comment start/end markers
-		if (p=findPair("<<>>--++->==/**///[]", c, next)){
+		if (p=findPair("<<>>--++->==/**///[]>=<=!=", c, next)){
 			if (  p == PAIR('/','/')  ) { //special handling for // comments
 				while(*in!= '\n')
 					in++;
@@ -1089,60 +1089,7 @@ tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP i
 }
 
 
-
-/*
-tokenT* hadd32 (exectxT* ex, tokenT* t) {
-	
-	exe(ex, tsub(t));
-	
-	ex->stack[ex->sp-2].as.z32 += ex->stack[ex->sp-1].as.z32;
-	ex->sp--;
-		
-	return tnext(t);
-}
-*/
-
-#define BINOP(NAME, AS, OPERATOR)\
-tokenT* NAME (exectxT* ex, tokenT* t) {						\
-	exe(ex, tsub(t));							\
-	ex->stack[ex->sp-2].as.AS  = ex->stack[ex->sp-2].as.AS  OPERATOR   ex->stack[ex->sp-1].as.AS;	\
-	ex->sp--;								\
-	return tnext(t);							\
-}
-
-
-
-BINOP(hadd32, z32, + )
-BINOP(hsub32, z32, - )
-BINOP(mul32,  z32, * )
-BINOP(divs32, z32, / )
-BINOP(divu32, n32, / )
-BINOP(modu32, n32, % )
-BINOP(and32,  z32, & )
-BINOP(or32,   z32, | )
-
-BINOP(hequal32, z32, == )
-BINOP(hless32, z32, < )
-BINOP(hlesse32, z32, <= )
-BINOP(hgreater32, z32, > )
-BINOP(hgreatere32, z32, >= )
-
-BINOP(hlessu32, n32, < )
-BINOP(hlesseu32, n32, <= )
-BINOP(hgreateru32, n32, > )
-BINOP(hgreatereu32, n32, >= )
-
-
-
-#define UNOP(NAME, AS, OPERATOR)\
-tokenT* NAME (exectxT* ex, tokenT* t) {						\
-	exe(ex, tsub(t));							\
-	ex->stack[ex->sp-1].as.AS  =  OPERATOR (  ex->stack[ex->sp-1].as.AS );	\
-	return tnext(t);							\
-}
-
-UNOP(hboolnot, z32, !)
-UNOP(hbnot, z32, ~)
+typeT *tType, *tPrimitive, *tZ32, *tN32, *tN8, *tBit, *tString, *tX32;
 
 
 
@@ -1202,6 +1149,132 @@ tokenT* hstore8 (exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
+tokenT* hprint32 (exectxT* ex, tokenT* t) {
+	exe(ex, tsub(t)); //evaluate all the args (all after the head)
+	ex->sp--;
+	printf("%d (%u)", 
+		ex->stack[ex->sp].as.z32,
+		ex->stack[ex->sp].as.n32);
+	return tnext(t);
+}
+
+tokenT* hprintchar (exectxT* ex, tokenT* t) {
+	exe(ex, tsub(t)); //evaluate all the args (all after the head)
+	ex->sp--;
+	printf("%c", ex->stack[ex->sp].as.z32);
+	return tnext(t);
+}
+
+tokenT* hprintptr (exectxT* ex, tokenT* t) {
+	exe(ex, tsub(t)); //evaluate all the args (all after the head)
+	ex->sp--;
+	printf("{%p+%x lvl%d} ", ex->stack[ex->sp].as.ptr.block,  ex->stack[ex->sp].as.ptr.offset, ex->stack[ex->sp].as.ptr.level  );
+	return tnext(t);
+}
+
+
+/*
+tokenT* hadd32 (exectxT* ex, tokenT* t) {
+	
+	exe(ex, tsub(t));
+	
+	ex->stack[ex->sp-2].as.z32 += ex->stack[ex->sp-1].as.z32;
+	ex->sp--;
+		
+	return tnext(t);
+}
+*/
+
+#define BINOP(NAME, AS, OPERATOR)\
+tokenT* NAME (exectxT* ex, tokenT* t) {						\
+	exe(ex, tsub(t));							\
+	ex->stack[ex->sp-2].as.AS  = ex->stack[ex->sp-2].as.AS  OPERATOR   ex->stack[ex->sp-1].as.AS;	\
+	ex->sp--;								\
+	return tnext(t);							\
+}
+
+
+//integer arithmetic
+BINOP(hadd32, z32, + )
+BINOP(hsub32, z32, - )
+BINOP(hmul32,  z32, * )
+BINOP(hdivz32, z32, / )
+BINOP(hand32,  z32, & )
+BINOP(hor32,   z32, | )
+BINOP(hxor32,   z32, ^ )
+BINOP(hequal32, z32, == )
+BINOP(hnotequal32, z32, != )
+
+//unsigned division
+BINOP(hmodu32, n32, % )
+BINOP(hdivu32, n32, / )
+
+//signed compares
+BINOP(hless32, z32, < )
+BINOP(hlesse32, z32, <= )
+BINOP(hgreater32, z32, > )
+BINOP(hgreatere32, z32, >= )
+
+//unsigned compares
+BINOP(hlessu32, n32, < )
+BINOP(hlesseu32, n32, <= )
+BINOP(hgreateru32, n32, > )
+BINOP(hgreatereu32, n32, >= )
+
+
+#define UNOP(NAME, AS, OPERATOR)\
+tokenT* NAME (exectxT* ex, tokenT* t) {						\
+	exe(ex, tsub(t));							\
+	ex->stack[ex->sp-1].as.AS  =  OPERATOR (  ex->stack[ex->sp-1].as.AS );	\
+	return tnext(t);							\
+}
+
+UNOP(hboolnot, z32, !)
+UNOP(hinvert32, z32, ~)
+UNOP(hneg32, z32, -)
+
+
+#define HANDLER(CONTEXT, NAME)	mkSymbol( CONTEXT, #NAME, tPrimitive, h ## NAME)
+
+void addhandlers(struct parsectxS* pctx){
+
+	//binop
+	HANDLER(pctx, add32);
+	HANDLER(pctx, sub32);
+	HANDLER(pctx, mul32);
+	HANDLER(pctx, divz32);
+	HANDLER(pctx, and32);
+	HANDLER(pctx, or32);
+	HANDLER(pctx, xor32);
+	HANDLER(pctx, equal32);
+	HANDLER(pctx, notequal32);
+	HANDLER(pctx, modu32);
+	HANDLER(pctx, divu32);
+	HANDLER(pctx, less32);
+	HANDLER(pctx, lesse32);
+	HANDLER(pctx, greater32);
+	HANDLER(pctx, greatere32);
+	HANDLER(pctx, lessu32);
+	HANDLER(pctx, lesseu32);
+	HANDLER(pctx, greateru32);
+	HANDLER(pctx, greatereu32);
+	
+	//unop
+	HANDLER(pctx, boolnot);
+	HANDLER(pctx, invert32);
+	HANDLER(pctx, neg32);
+
+
+	//special
+	HANDLER(pctx, load32);
+	HANDLER(pctx, store32);
+	HANDLER(pctx, load8);
+	HANDLER(pctx, store8);
+	HANDLER(pctx, print32);
+	HANDLER(pctx, printchar);
+	HANDLER(pctx, printptr);
+	
+}
 
 
 
@@ -1359,26 +1432,6 @@ tokenT* haddref(exectxT* ex, tokenT* t) {
 }
 
 
-tokenT* hprinti (exectxT* ex, tokenT* t) {
-	exe(ex, tsub(t)); //evaluate all the args (all after the head)
-	ex->sp--;
-	printf("%d", ex->stack[ex->sp].as.z32);
-	return tnext(t);
-}
-
-tokenT* hprintchar (exectxT* ex, tokenT* t) {
-	exe(ex, tsub(t)); //evaluate all the args (all after the head)
-	ex->sp--;
-	printf("%c", ex->stack[ex->sp].as.z32);
-	return tnext(t);
-}
-
-tokenT* hprintptr (exectxT* ex, tokenT* t) {
-	exe(ex, tsub(t)); //evaluate all the args (all after the head)
-	ex->sp--;
-	printf("{%p+%x lvl%d} ", ex->stack[ex->sp].as.ptr.block,  ex->stack[ex->sp].as.ptr.offset, ex->stack[ex->sp].as.ptr.level  );
-	return tnext(t);
-}
 
 
 void start(parsectxT* pctx, tokenT* t){
@@ -1659,7 +1712,7 @@ tokenT*  parseVar(tokenT* t,  char** nameOut, typeT** typeOut) {
 
 }
 
-typeT *tType, *tPrimitive, *tZ32, *tN32, *tN8, *tBit, *tString;
+
 
 zbool parsectx_cleanup(void* v){
 	parsectxT* pc = v;
@@ -2564,20 +2617,12 @@ int main(int argc, char** args){
 
 	ram_free(x);
 	
-	mkSymbol(global, "add32", tPrimitive, hadd32);
-	mkSymbol(global, "less32", tPrimitive, hless32);
-	mkSymbol(global, "equal32", tPrimitive, hequal32);
-	mkSymbol(global, "load32", tPrimitive, hload32);
-	mkSymbol(global, "store32", tPrimitive, hstore32);
-	mkSymbol(global, "boolnot", tPrimitive, hboolnot);
-	mkSymbol(global, "storeptr", tPrimitive, hstoreptr);
-	mkSymbol(global, "loadptr", tPrimitive, hloadptr);
-	mkSymbol(global, "print32", tPrimitive, hprinti);
-	mkSymbol(global, "printchar", tPrimitive, hprintchar);
-	mkSymbol(global, "printptr", tPrimitive, hprintptr);
-	mkSymbol(global, "load8", tPrimitive, hload8);
-	mkSymbol(global, "store8", tPrimitive, hstore8);
+	//add all the binary and unary operator handlers
+	addhandlers(global);
+
 	
+	
+
 #ifdef SET_EXTENSIONS
 	SET_EXTENSIONS();
 #endif
