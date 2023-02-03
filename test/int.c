@@ -180,7 +180,7 @@ zuint32 findPair(char* patterns, char a, char b){
 //used to either recognize names or numbers. Primitive, not regex-fancy or anything
 int acceptPatterns(char* s, char* startChars, char* continuePairs,  char* continueChars){
 	int i=0;
-	char* st =s;
+// 	char* st =s;
 	zuint32 p=0;
 	
 	if (strchr(startChars, *(s++))){	//if input string 's' begins with any of the start chars
@@ -224,20 +224,13 @@ int acceptLiteral(char* in, char start, char escape){
 }
 
 
-zlistT* tokenize(zlistT* list, char* in){
+zbool tokenize(tokenT* insert, char* in){
 
 	int c,next;
 	tokenT* t=NULL;
 	char small[3];
 	int i;
 	int line=1;
-
-	if (!list) {
-		list = ram_alloc(sizeof(zlistT), (ram_destructor) zlist_cleanup);
-		t = mkToken(STARTFILE, NULL,0);
-		zlist_addhead(list,&t->zlistnode);
-		t->zlistnode.prev=&t->zlistnode;  //'trap' so ->prev->prev is always safe
-	}
 
 	while (c = *in){
 		next = *(in+1);
@@ -254,7 +247,9 @@ zlistT* tokenize(zlistT* list, char* in){
 			}
 	
 			t = mkToken( PAIR(c, next) , in, 2);
-			zlist_addtail(list, &t->zlistnode);
+			zlist_insert_node_after(&insert->zlistnode,&t->zlistnode);
+			insert = t;
+			
 			in+=2;
 			continue;
 		}
@@ -266,7 +261,8 @@ zlistT* tokenize(zlistT* list, char* in){
 
 		if (lit) {
 			t = mkToken(LITERAL, in, lit);
-			zlist_addtail(list, &t->zlistnode);
+			zlist_insert_node_after(&insert->zlistnode,&t->zlistnode);
+			insert = t;
 			in+=lit;
 			continue;
 		}
@@ -306,28 +302,22 @@ zlistT* tokenize(zlistT* list, char* in){
 		if (digits || name){
 			t = mkToken( digits? NUMBER : NAME, in ,   digits|name);
 			in += digits|name;
-			zlist_addtail(list, &t->zlistnode);
+			zlist_insert_node_after(&insert->zlistnode,&t->zlistnode);
+			insert = t;
 			continue;
 		}
 
 		//just some char
 		t = mkToken( *in, in, 1);
 		t->line=line;
-		zlist_addtail(list, &t->zlistnode);
+		zlist_insert_node_after(&insert->zlistnode,&t->zlistnode);
+		insert = t;
 		in++;
 	}
 	
-	//something should stop reading at endfile
-	tokenT* end = mkToken(ENDFILE, "ENDFILE", 0);
-	zlist_addtail(list, &end->zlistnode);
+	
 
-	//if program ever advances reads PASTENDFILE, its an error
-	//this is a trap so 'next->next->next' always is safe
-	end = mkToken(PASTENDFILE, "PASTENDFILE", 0);
-	zlist_addtail(list, &end->zlistnode);
-	//end->zlistnode.next = (zlistnodeT*) end;
-
-	return list;
+	
 }
 
 /**** Data Types ****/
@@ -2611,10 +2601,25 @@ int main(int argc, char** args){
 
 	global = mkcontext();
 
-	//add in primitive C function pointers
 	
-	zlistT* tokens = tokenize(NULL, x);
+	
+	
+	zlistT* tokens = ram_alloc(sizeof(zlistT), (ram_destructor) zlist_cleanup);
+	tokenT* t = mkToken(STARTFILE, NULL,0);
+	zlist_addhead(tokens,&t->zlistnode);
+	t->zlistnode.prev=&t->zlistnode;  //'trap' so ->prev->prev is always safe
+				
+	//something should stop reading at endfile
+	tokenT* end = mkToken(ENDFILE, "ENDFILE", 0);
+	zlist_addtail(tokens, &end->zlistnode);
 
+	//if program ever advances reads PASTENDFILE, its an error
+	//this is a trap so 'next->next->next' always is safe
+	end = mkToken(PASTENDFILE, "PASTENDFILE", 0);
+	zlist_addtail(tokens, &end->zlistnode);
+	
+	tokenize(t, x);
+	
 	ram_free(x);
 	
 	//add all the binary and unary operator handlers
