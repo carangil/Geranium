@@ -1,53 +1,4 @@
-//signed integers
-primitive add32		+:(a:Z32; b:Z32	-> Z32);
-primitive sub32		-:(a:Z32; b:Z32	-> Z32);
-primitive mul32		*:(a:Z32; b:Z32	-> Z32);
-primitive divz32	/:(a:Z32; b:Z32	-> Z32);
-primitive and32		and:(a:Z32; b:Z32	-> Z32);
-primitive or32		or :(a:Z32; b:Z32	-> Z32);
-primitive xor32		xor:(a:Z32; b:Z32	-> Z32);
-primitive less32	<:(a:Z32; b:Z32	-> Bit);
-primitive lesse32	<=:(a:Z32; b:Z32	-> Bit);
-primitive greater32	>:(a:Z32; b:Z32	-> Bit);
-primitive greatere32	>=:(a:Z32; b:Z32	-> Bit);
-primitive equal32	==:(a:Z32; b:Z32 -> Bit);
-primitive notequal32	!=:(a:Z32; b:Z32 -> Bit);
-primitive load32	@:(a:Z32& 	-> Z32);
-primitive store32	=:(v:Z32; a:Z32&-> );
-primitive neg32		negative:(v:Z32 -> Z32 );
-primitive invert32	invert:(v:Z32 -> Z32 );
-
-
-primitive boolnot	not:(v:Bit -> Bit );
-
-
-
-
-//primitive store32	=:(v:Z32; a:Z32%-> );
-
-
-
-
-primitive printchar print:(a:N8 ->);
-primitive print32   print:(a:Z32 ->);
-primitive print32   print:(a:N32 ->);
-primitive print32   print:(a:Bit ->);
-primitive printptr  print:(a:any& ->);
-
-primitive boolnot	not:(a:Bit -> Bit);
-primitive load8		@:(a:N8& -> N8);
-primitive store8	=:(v:N8; a:N8&-> );
-
-
-proc newline:(->)
-	10 :N8 print
-	return
-end
-
-proc space:(->)
-	32 :N8 print
-	return
-end
+"base/base.zz" include
 
 
 [Z32] 20 new #a
@@ -179,15 +130,24 @@ hello print newline
 4 4 == print newline
 4 4 == not print newline
 
-
-
 primitive divu32/:(a:N32; b:N32	-> N32);
 
 100:N32 -25:N32 /:Z32 print newline
 
 -100:N32 5:N32 / print newline
 
-
 4 3 or print newline
 5 3 xor print newline
 4 7 and print newline
+
+"testf.zz" include 
+
+10 20 4 testf print newline
+
+
+"ABC" 2[] print newline
+
+
+
+
+

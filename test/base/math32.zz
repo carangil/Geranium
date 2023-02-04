@@ -1,0 +1,22 @@
+//signed integers
+primitive boolnot	not:(v:Bit -> Bit );
+primitive add32		+:(a:Z32; b:Z32	-> Z32);
+primitive sub32		-:(a:Z32; b:Z32	-> Z32);
+primitive mul32		*:(a:Z32; b:Z32	-> Z32);
+primitive divz32	/:(a:Z32; b:Z32	-> Z32);
+primitive and32		and:(a:Z32; b:Z32	-> Z32);
+primitive or32		or :(a:Z32; b:Z32	-> Z32);
+primitive xor32		xor:(a:Z32; b:Z32	-> Z32);
+primitive less32	<:(a:Z32; b:Z32	-> Bit);
+primitive lesse32	<=:(a:Z32; b:Z32	-> Bit);
+primitive greater32	>:(a:Z32; b:Z32	-> Bit);
+primitive greatere32	>=:(a:Z32; b:Z32	-> Bit);
+primitive equal32	==:(a:Z32; b:Z32 -> Bit);
+primitive notequal32	!=:(a:Z32; b:Z32 -> Bit);
+primitive load32	@:(a:Z32& 	-> Z32);
+primitive store32	=:(v:Z32; a:Z32&-> );
+primitive neg32		negative:(v:Z32 -> Z32 );
+primitive invert32	invert:(v:Z32 -> Z32 );
+primitive boolnot	not:(a:Bit -> Bit);
+primitive load8		@:(a:N8& -> N8);
+primitive store8	=:(v:N8; a:N8&-> );

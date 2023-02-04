@@ -117,9 +117,10 @@ typedef struct tokenS{
 #define KKEEP		0x800e
 #define KTAKE		0x800f
 #define KDEBUG		0x8010
+#define KINCLUDE	0x8011
 
 
-char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", "take", "debug", NULL};
+char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", "take", "debug", "include" , NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -2043,7 +2044,26 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t=tnext(t);
 			continue;
 			
+		case KINCLUDE:
+			printf( "lit? %x %x\n", tprev(t)->tok, LITERAL);
+			if (tprev(t)->tok == LITERAL){
+				char* strfile = ram_loadstr(tprev(t)->val.as.ptr.block);
+				if (strfile){
 					
+					tokenize(t, strfile);
+					ram_free(strfile);
+					t=tnext(t);
+					ram_free(tremove(tprev(ts)));  //remove 'include'
+					ram_free(tremove(ts)); //remove string literal
+					continue;
+				} else{
+						ERR("cannot open %s\n", tprev(t)->val.as.ptr.block);
+				}
+			}
+			
+			
+			
+			break;
 		case ':': //typecast
 			
 			//for now this is dumb

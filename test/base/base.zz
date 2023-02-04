@@ -1,0 +1,21 @@
+"base/math32.zz" include
+
+
+//basic console io
+
+primitive printchar print:(a:N8 ->);
+primitive print32   print:(a:Z32 ->);
+primitive print32   print:(a:N32 ->);
+primitive print32   print:(a:Bit ->);
+primitive printptr  print:(a:any& ->);
+
+proc newline:(->)
+	10 :N8 print
+	return
+end
+
+proc space:(->)
+	32 :N8 print
+	return
+end
+
