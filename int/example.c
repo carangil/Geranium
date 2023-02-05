@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 int plus5(int a){
 	return a+5;
 }
