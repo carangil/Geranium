@@ -1,0 +1,40 @@
+"base/base.zz" include
+
+0 #count
+
+proc fib:(n:Z32->Z32)
+	count& ++
+
+	n 2 <= if
+		1 return
+	end
+	
+	n 2 - fib
+	n 1 - fib + return
+
+end
+
+newline
+
+0 #i loop
+	i 25 == if  break end
+	i fib print newline
+	i& ++
+end
+
+
+"Fib has been called " print count print " times." print newline
+
+"Type something>" print
+readline #s
+
+"You typed " print 
+s print newline
+
+s take trash
+
+2.23 print newline
+
+
+
+

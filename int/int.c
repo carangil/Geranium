@@ -6,7 +6,8 @@
 #include "zlist.h"
 #include "zvector.h"
 
-
+//make adjustable precision
+#define FLOAT float
 
 #define ERR( ...) { fprintf(stderr,__VA_ARGS__);  exit(1);}
 //#define EXEDEBUG
@@ -24,6 +25,9 @@ typedef union valu {	//Generic value (datatype is tracked through other means)
 		zint32 z32;
 		zuint32 n32;
 		vptrT ptr;
+#ifdef FLOAT
+		FLOAT f;
+#endif
 		struct typeS* type; //not datatype of valU, but represents a detatype itself (datatypes can be on the stack)
 	} valU;
 	
@@ -159,7 +163,7 @@ tokenT* mkToken(zuint32 tok, char* str, zuint32 len){
 
 
 char* safestr(char* s){
-	return s ? s:""; 
+	return s ? s:"<nullstring>"; 
 }
 
 /* TOKENIZER*/
@@ -868,7 +872,7 @@ void exe (exectxT* c, struct tokenS* t){
 		
 		char* str=  safestr(t->str);
 #ifdef EXEDEBUG
-		printf("%x %s  (pre) handler %p\n",t->tok, safestr(t->str), handler);
+		printf("%x %s  (pre) handler %p\n",t->tok, str, handler);
 #endif
 				
 		if (!handler){
@@ -1085,7 +1089,7 @@ tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP i
 }
 
 
-typeT *tType, *tPrimitive, *tZ32, *tN32, *tN8, *tBit, *tString, *tX32;
+typeT *tType, *tPrimitive, *tZ32, *tN32, *tN8, *tBit, *tString, *tFloat;
 
 
 
@@ -1155,6 +1159,17 @@ tokenT* hprint32 (exectxT* ex, tokenT* t) {
 
 	return tnext(t);
 }
+
+#ifdef FLOAT
+tokenT* hprintfloat (exectxT* ex, tokenT* t) {
+	exe(ex, tsub(t)); //evaluate all the args (all after the head)
+	ex->sp--;
+
+	printf("%f", ex->stack[ex->sp].as.f);
+
+	return tnext(t);
+}
+#endif
 
 tokenT* hprintchar (exectxT* ex, tokenT* t) {
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
@@ -1281,6 +1296,11 @@ void addhandlers(struct parsectxS* pctx){
 	HANDLER(pctx, printchar);
 	HANDLER(pctx, printptr);
 	HANDLER(pctx, readchar);
+	
+#ifdef FLOAT
+	HANDLER(pctx, printfloat);
+	
+#endif
 	
 }
 
@@ -1539,14 +1559,13 @@ tokenT*  parseType(tokenT* t) {
 	char* count=NULL;
 	zbool named=ZFALSE;
 	tokenT* next=NULL;
-	zbool didparen=ZFALSE;
 	
 	printf("PTstart\n");
 	for ( ; t;  t = next ) {
 
 		printf("PT %s\n", t->str);
 		
-		if (t->tok == '[' && !didparen){ //array type
+		if (t->tok == '[' && !named){ //array type
 			tokenT* S = t;
 			
 			if (tnext(t)->tok == NUMBER){
@@ -1602,7 +1621,7 @@ tokenT*  parseType(tokenT* t) {
 		}
 		
 		
-		if (t->tok =='(' && !didparen){ //type list for function parameters & return value
+		if (t->tok =='(' && !named){ //type list for function parameters & return value
 			tokenT* S = t;
 
 			typeT* ty = mkType( PENDING, NULL, NULL, 0); 
@@ -1612,9 +1631,7 @@ tokenT*  parseType(tokenT* t) {
 			if (t->tok !=')'){
 				ERR("Expected )\n");
 			}
-					
-			didparen = ZTRUE;
-			
+
 			S->ty = findType( FUNCTION, ty, NULL, 0); //either adds this function to the type list, or returns the version already existing
 
 			named=ZTRUE;
@@ -2068,13 +2085,30 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			//for now, assume integers
 			
+
+			if (strchr(t->str, '.')) {
+#ifdef FLOAT
+				zuint32 n = atof(t->str);
+				t->val.as.f=n;
+				t->ty = tFloat;
+				t->handler = hconstant;
+				//printf(" set handler for %s to %p\n", t->str, t->handler);
+				t=tnext(t);
+				continue;
+#else
+				ERR("Floating point not enabled\n");
+#endif
+			} 
+			
+			
 			zuint32 n = atoi(t->str);
 			t->val.as.z32=n;
 			t->ty = tZ32;
 			t->handler = hconstant;
 			//printf(" set handler for %s to %p\n", t->str, t->handler);
 			t=tnext(t);
-			continue;
+					continue;
+			
 		
 		
 		case LITERAL: //string literal (byte array)
@@ -2672,7 +2706,9 @@ int main(int argc, char** args){
 	tN8 = mkType( SIMPLE, NULL, "N8", sizeof(zbyte));
 	tBit = mkType( SIMPLE, NULL, "Bit", sizeof(zbyte));
 	tString = mkType(SIMPLE, NULL, "String", sizeof(char*));
-	
+#ifdef FLOAT
+	tFloat = mkType(SIMPLE, NULL, "Float", sizeof(FLOAT));
+#endif
 	
 	if (argc < 2)
 		exit(1);
@@ -2705,8 +2741,6 @@ int main(int argc, char** args){
 	//add all the binary and unary operator handlers
 	addhandlers(global);
 
-	
-	
 
 #ifdef SET_EXTENSIONS
 	SET_EXTENSIONS();

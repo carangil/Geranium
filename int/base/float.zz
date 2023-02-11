@@ -1,0 +1,5 @@
+//float
+
+
+primitive printfloat	print:(f:Float->);
+
