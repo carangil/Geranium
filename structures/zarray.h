@@ -2,14 +2,14 @@
 #ifndef ZARRAY
 #define ZARRAY
 
-void* zarray_allocf( zsize elemsize, zuint32 elemnum);
+void* zarray_allocf( zsize elemsize, zuint32 elemnum, char* file, int line);
 
 
 
 
 void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok);
 
-#define zarray_alloc(ARRAYTYPE, len)  	zarray_allocf( sizeof(ARRAYTYPE), len)
+#define zarray_alloc(ARRAYTYPE, len)  	zarray_allocf( sizeof(ARRAYTYPE), len, __FILE__, __LINE__)
 #define zarray_resize(ARRAYNAME, NEWSIZE, ISOK)  zarray_resizef(ARRAYNAME, sizeof(ARRAYNAME[0]), NEWSIZE, ISOK)
 
 

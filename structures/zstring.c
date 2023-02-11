@@ -11,7 +11,7 @@ char* zstr_mk(zsize ns)
 	char* x;
 	zuint32 n = (zuint32)ns;
 
-	x = zarray_alloc(char , n+2 );
+	x = zarray_allocf(char , n+2 , file, line);
 	x[0]=0;
 	zarray_use(x, 1); //terminator is here
 	x[n+1]='$';  //'canary' for debugging

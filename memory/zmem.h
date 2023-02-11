@@ -14,16 +14,27 @@ typedef zbool (*ram_destructor)(void* block);
 #ifdef RAM_DEBUG
 
 #ifndef RAM_C
+//If debugging memory, all source files that are not ram.c, all calls to allocate have line numbers passed thru automatically
+//Calls to ram_alloc_debug and ram_alloc_shadow_debug can specify alternate file/line info (like zstring might wanna pass thru where zstring was called from... knowing it was zstring that did the allocation isn't too useful)
 #define ram_alloc(SSS,DDD) ram_alloc_debug (SSS,DDD,__FILE__, __LINE__)
-#define ram_alloc_shadow(SSS,DDD,SHSH) ram_alloc_shadow_debug (SSS,DDD,SHSH,__FILE__, __LINE__)
-#endif 
+#define ram_alloc_shadow(SSS,DDD,SHSH) ram_alloc_shadow_debug (SSS,DDD,SHSH, __FILE__ , __LINE__)
 
+#endif 
 
 void* ram_alloc_debug(zsize size, ram_destructor destructor, char* file, int line);
 void* ram_alloc_shadow_debug(zsize size, ram_destructor destructor, zuint32 shadowsize, char* file, int line);
-#else
+
+#else  //NON-DEBUGGING MEMORY
+
+//Just call the allocator directly (no line numbers)
 void* ram_alloc(zsize size, ram_destructor destructor);
 void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadowsize);
+
+//when 'debug' ram call is done explicitly (to pass thru line numbers), strip it off and call the non-debug version
+#define ram_alloc_debug(SSS,DDD, FFF, LLL)  ram_alloc(SSS,DDD);
+#define ram_alloc_shadow_debug(SSS,DDD, SHSH, FFF, LLL)  ram_alloc(SSS,DDD, SHSH);
+
+
 #endif
 
 /* If multiple threads will be allocating memory, ram_init must be called before creating those threads to prevent a race condition. */

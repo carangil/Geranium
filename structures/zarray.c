@@ -25,19 +25,20 @@ int zarray_countf(void* array) {
 	return 0;
 }
 
-void* zarray_allocf( zsize elemsize, zuint32 elemnum){
+void* zarray_allocf( zsize elemsize, zuint32 elemnum, char* file, int line){
 	size_t size = elemsize * elemnum;
 
 #ifdef STRUCT_DEBUG
 	printf(" array needs %d\n", (int)size);
 #endif
 
+	
 	//if array is byte array (elements are size one), allocate an extra byte
 	if (elemsize==1)
 	    size++;
 	
 	
-	void * array = ram_alloc_shadow(size, NULL, sizeof(array_shadowT));
+	void * array = ram_alloc_shadow_debug(size, NULL, sizeof(array_shadowT)  , file, line);
 
 	if (array&&(elemsize==1)){
 		    //if array is bytearray, keep a zero after all the elements
@@ -61,7 +62,7 @@ void* zarray_allocf( zsize elemsize, zuint32 elemnum){
 void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok){
 	size_t newsize = elemsize * elemnum;
 #ifdef STRUCT_DEBUG
-	printf(" array resize needs %d for %d * %d\n", (int)newsize, (int)elemsize, (int)elemnum);
+	printf(" array resize needs %d /*for*/ %d * %d\n", (int)newsize, (int)elemsize, (int)elemnum);
 #endif
 
 	//allocate extra byte for byte arrays null terminator (in case we want C strings out of here)
