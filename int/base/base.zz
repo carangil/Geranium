@@ -8,6 +8,8 @@ primitive print32   print:(a:Z32 ->);
 primitive print32   print:(a:N32 ->);
 primitive print32   print:(a:Bit ->);
 primitive printptr  print:(a:any& ->);
+primitive readchar  getch:(->N8);
+
 
 proc newline:(->)
 	10 :N8 print
@@ -17,5 +19,73 @@ end
 proc space:(->)
 	32 :N8 print
 	return
+end
+
+proc print:(s:String&->)
+
+	0 #i
+	loop
+		s i[] :Z32 0 == if
+			return
+		end
+		s i[] print
+		i 1+ i=
+	end
+
+end
+
+
+
+
+proc ++:(a:Z32&->)
+
+	a@ 1+ a@=
+	return
+end
+
+proc --:(a:Z32&->)
+	a@ 1- a@=
+	return
+end
+
+proc readline:(->String%)
+
+	10 #size		
+	0 #i
+	
+	[N8] size new #s	//allocate initial small array (alreayd zerod out, no need to null terminate)
+	
+	loop
+		getch #c			//read a character
+		c:Z32 10 == if break end	//if newline, exit loop
+		
+		c s i[]=		//set s[i] to c
+		
+		i& ++
+	
+		i size 1- == if		//if reached the size -1
+			//need to grow
+			size 2* #newsize		//newsize is double
+			[N8] newsize new #ns		//allocate new array
+			
+			0 #j loop
+				s j[] ns j[]=		//copy byte 
+				j& ++			//increment j
+				j size == if break end	//break when done copying
+			end
+			
+			ns take s =	//s takes ownership of ns
+			newsize size=
+		end
+	
+	
+		//todo:check size and grow
+	
+	end
+		
+
+
+	s take:String% return  //take ownership of s, cast to a string pointer, return ownership of s
+	
 end
 

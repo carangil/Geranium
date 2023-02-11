@@ -71,6 +71,7 @@ typedef struct tokenS{
 	instruction handler; //function that does what this token represents
 	struct symbolS* sym;  //for things like procs that have a bunch of context info
 	int line;	//line number from source file
+	void* garbage;
 }tokenT;
 
 
@@ -134,6 +135,7 @@ zbool token_cleanup(void* v){
 	tokenT* t = v;
 	ram_free(t->str);
 	zlist_cleanup(&t->subs);
+	ram_free(t->garbage);
 	return ZTRUE;
 }
 
@@ -927,8 +929,9 @@ tokenT* hstackread (exectxT* ex, tokenT* t) {	//read a stack variable (really fu
 	
 	ex->stack[ex->sp] = ex->stack[ ex->fp + tsub(t)->val.as.z32 ];
 	
+#ifdef EXEDEBUG
 	printf(" READ STACK POSITION + %d  option %d\n", tsub(t)->val.as.z32, t->val.as.n32);
-	
+#endif
 	if (t->val.as.n32 == 1)
 		ex->stack[ ex->fp + tsub(t)->val.as.z32 ].as.ptr.block = 0;  //zero out the source ( KTAKE on possessive pointer)
 	
@@ -946,9 +949,9 @@ tokenT* hstackread (exectxT* ex, tokenT* t) {	//read a stack variable (really fu
 
 tokenT* hstoreptr (exectxT* ex, tokenT* t) {  //store a pointer
 	exe(ex, tsub(t) );
-	
+#ifdef EXEDEBUG
 	printf(" DST LEVEL: %d  SRC LEVEL: %d\n", ex->stack[ex->sp-1].as.ptr.level, ex->stack[ex->sp-2].as.ptr.level);
-	
+#endif
 	if (  ex->stack[ex->sp-1].as.ptr.level < ex->stack[ex->sp-2].as.ptr.level){
 		printf("err-----------\n");
 		printList(tprev(t), t, 0 ,2);
@@ -957,7 +960,9 @@ tokenT* hstoreptr (exectxT* ex, tokenT* t) {  //store a pointer
 	
 	if (t->val.as.n32 == 1){
 		//flag to free the destination pointer if its non-null
+#ifdef EXEDEBUG
 		printf(" storeptr: free block in destination address  %p\n", DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset).block);
+#endif
 		ram_free(DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset).block);
 	}
 	
@@ -1116,8 +1121,9 @@ tokenT* hstore32 (exectxT* ex, tokenT* t) {
 tokenT* hload8 (exectxT* ex, tokenT* t) {
 	
 	exe(ex, tsub(t));
-
+#ifdef EXEDEBUG
 	printf(" Load byte at %p+%d\n",  ex->stack[ex->sp-1].as.ptr.block,  ex->stack[ex->sp-1].as.ptr.block);
+#endif	
 	zbyte i = DEREF(zbyte, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
 	ex->stack[ex->sp-1].as.ptr.block=NULL;
 	ex->stack[ex->sp-1].as.n32 = i;
@@ -1131,8 +1137,9 @@ tokenT* hstore8 (exectxT* ex, tokenT* t) {
 	
 	exe(ex,tsub(t));
 		
-	
+#ifdef EXEDEBUG
 	printf(" Store byte at %p+%d\n",  ex->stack[ex->sp-1].as.ptr.block,  ex->stack[ex->sp-1].as.ptr.offset);
+#endif
 	DEREF(zbyte, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset) = (zbyte) ex->stack[ex->sp-2].as.n32;
 	
 	ex->sp-=2;
@@ -1143,23 +1150,32 @@ tokenT* hstore8 (exectxT* ex, tokenT* t) {
 tokenT* hprint32 (exectxT* ex, tokenT* t) {
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
 	ex->sp--;
-	printf("%d (%u)", 
-		ex->stack[ex->sp].as.z32,
-		ex->stack[ex->sp].as.n32);
+
+	printf("%d", ex->stack[ex->sp].as.z32);
+
 	return tnext(t);
 }
 
 tokenT* hprintchar (exectxT* ex, tokenT* t) {
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
 	ex->sp--;
+
 	printf("%c", ex->stack[ex->sp].as.z32);
+	
 	return tnext(t);
 }
 
 tokenT* hprintptr (exectxT* ex, tokenT* t) {
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
 	ex->sp--;
+
 	printf("{%p+%x lvl%d} ", ex->stack[ex->sp].as.ptr.block,  ex->stack[ex->sp].as.ptr.offset, ex->stack[ex->sp].as.ptr.level  );
+
+	return tnext(t);
+}
+
+tokenT* hreadchar (exectxT* ex, tokenT* t) {
+	ex->stack[(ex->sp)++].as.z32 = fgetc(stdin);
 	return tnext(t);
 }
 
@@ -1264,6 +1280,7 @@ void addhandlers(struct parsectxS* pctx){
 	HANDLER(pctx, print32);
 	HANDLER(pctx, printchar);
 	HANDLER(pctx, printptr);
+	HANDLER(pctx, readchar);
 	
 }
 
@@ -1306,8 +1323,9 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	
 	void* oldlocal = ex->vars;   //take old local var data
 	
-	
+#ifdef EXEDEBUG
 	printf(" PROC %s has context size %d\n",t->str, t->sym->subctx->size);
+#endif
 	//printList(t->sym->tokens, NULL, 0, 0);
 	ex->level++;	//going up a call frame
 	ex->vars =  ram_alloc(t->sym->subctx->size , NULL);
@@ -1347,8 +1365,9 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 			
 		}*/
 		
-		
+#ifdef EXEDEBUG
 		printf(" Function returns ");printType(t->sym->type->ref,1,1);
+#endif
 	} else {
 		//printf(" Function returns nothing\n");
 	}
@@ -1359,8 +1378,9 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	ex->fp=oldfp;  //put old frame pointer back
 	ex->vars = oldlocal;//put old vars back
 	ex->level--;
-			
+#ifdef EXEDEBUG		
 	printf(" return to  caller complete SP:%d  FP:%d\n", ex->sp, ex->fp); 		
+#endif
 		
 	//todo:handle return value, putting stack back together
 	return tnext(t);
@@ -1370,10 +1390,12 @@ tokenT* halloc(exectxT* ex, tokenT* t) {
 	
 	//TODO: allow destructors for alloced structs
 	size_t size =   t->ty->ref->size;
-	
+#ifdef EXEDEBUG
 	printf(" ALLOC %d for ", size);
+
 	printType( t->ty->ref, ZTRUE, ZTRUE);
 	
+#endif
 	ex->stack[ex->sp] .as.ptr.level=0;
 	ex->stack[ex->sp] .as.ptr.offset=0;
 	ex->stack[(ex->sp)++].as.ptr.block = ram_alloc( size ,NULL  );
@@ -1383,16 +1405,27 @@ tokenT* halloc(exectxT* ex, tokenT* t) {
 }
 
 tokenT* hallocarray(exectxT* ex, tokenT* t) {
-	exe(ex,tnext(tnext(tsub(tsub(t)))));
+	
+	
+	//printf("  exe to alloc \n");
+	//printList(tsub(t), t, 0,0);
+	
+	exe(ex, tsub(t));
+	
+		
+	
+	
 	//TODO: allow destructors for alloced structs
 	size_t size =   t->ty->ref->size;
 	
 	ex->sp--;
 	size *= ex->stack[ex->sp].as.z32;
-	
+#ifdef EXEDEBUG
 	printf(" ALLOC %d for ", size);
-	
 	printType( t->ty->ref, ZTRUE, ZTRUE);
+
+#endif
+	
 	
 	ex->stack[ex->sp] .as.ptr.level=0;
 	ex->stack[ex->sp] .as.ptr.offset=0;
@@ -1404,7 +1437,9 @@ tokenT* hallocarray(exectxT* ex, tokenT* t) {
 tokenT* hfree(exectxT* ex, tokenT* t) {
 	exe(ex, tsub(t)); //evaluate all the args
 	ex->sp--;
+#ifdef EXEDEBUG	
 	printf(" TO TRASH %p\n", ex->stack[ex->sp].as.ptr.block );
+#endif
 	ram_free(ex->stack[ex->sp].as.ptr.block);
 	ex->stack[ex->sp].as.ptr.block=0;
 	return tnext(t);
@@ -1413,8 +1448,9 @@ tokenT* hfree(exectxT* ex, tokenT* t) {
 tokenT* haddref(exectxT* ex, tokenT* t) {
 	exe(ex, tsub(t)); //evaluate all the args
 	
-	
+#ifdef EXEDEBUG
 	printf(" TO KEEP %p\n", ex->stack[ex->sp-1].as.ptr.block );
+#endif
 	//this also does not pop off the stack, the value stays on
 	
 	ram_addref(ex->stack[ex->sp-1].as.ptr.block);  //retention is on the BLOCK.  Means you can addref PART of a block... the whole block will be kept and waste memory, but this is OK for now; it will eventually be freed.  
@@ -1429,10 +1465,13 @@ void start(parsectxT* pctx, tokenT* t){
 	exectxT* exectx = ram_alloc(sizeof(exectxT), NULL);
 	exectx->stack = ram_alloc( sizeof(valueT)*100, NULL);
 	exectx->sp = 0;
+#ifdef EXEDEBUG	
 	printf(" PCTX %d bytes\n", pctx->size);
+#endif	
 	exectx->globalvars = ram_alloc(pctx->size , NULL);
-	
+#ifdef EXEDEBUG	
 	printf("EXE\n");
+#endif	
 	/*
 	for (int i=0;i<32;i++){
 			printf(",%02x ",  exectx->globalvars[i]  );
@@ -1500,14 +1539,14 @@ tokenT*  parseType(tokenT* t) {
 	char* count=NULL;
 	zbool named=ZFALSE;
 	tokenT* next=NULL;
-
+	zbool didparen=ZFALSE;
 	
 	printf("PTstart\n");
 	for ( ; t;  t = next ) {
 
 		printf("PT %s\n", t->str);
 		
-		if (t->tok == '['){ //array type
+		if (t->tok == '[' && !didparen){ //array type
 			tokenT* S = t;
 			
 			if (tnext(t)->tok == NUMBER){
@@ -1563,7 +1602,7 @@ tokenT*  parseType(tokenT* t) {
 		}
 		
 		
-		if (t->tok =='('){ //type list for function parameters & return value
+		if (t->tok =='(' && !didparen){ //type list for function parameters & return value
 			tokenT* S = t;
 
 			typeT* ty = mkType( PENDING, NULL, NULL, 0); 
@@ -1574,6 +1613,8 @@ tokenT*  parseType(tokenT* t) {
 				ERR("Expected )\n");
 			}
 					
+			didparen = ZTRUE;
+			
 			S->ty = findType( FUNCTION, ty, NULL, 0); //either adds this function to the type list, or returns the version already existing
 
 			named=ZTRUE;
@@ -2041,6 +2082,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t->handler = hconstant;
 			t->val.as.ptr.block = zstrndup( t->str+1,  strlen(t->str)-2); //t->str already a zstring
 			t->val.as.ptr.offset = 0;
+			t->garbage = t->val.as.ptr.block; // to free when node is freed
 			t=tnext(t);
 			continue;
 			
@@ -2365,26 +2407,44 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			break;
 			
 		case KNEW:  //item creation
-			int isArray=0;
+			
 			if ( (tprev(t)->ty == tZ32) &&  (tprev(tprev(t))->ty == tType)){
 				
-				lfold(  tprev(tprev(t)), t);
-				isArray=1;
-				//exit(1);
-				//newcat = ARRAY;
+				
+				printList(tprev(tprev(t)), t , KNEW , 3);						printf(" FOLDING %s %s under %s\n", tprev(tprev(t))->str, tprev(t)->str, t->str); 
+				
+				fold(  tprev(t), t); //put array size as sub
+					
+				typeT* rt = (void*) tprev(t)->val.as.type;  //value of item
+				
+				ram_free(tremove(tprev(t))); //remove array type token
+				
+				t->ty = findType(POINTERPOSSESSIVE, rt, NULL, 0);//get possessive pointer to
+				
+							
+				t->handler =   hallocarray;
+				t = tnext(t);
+				
+				printf(" FOLDed %s %s under %s\n", tprev(tprev(t))->str, tprev(t)->str, t->str); 
+				
+				printList(tprev(tprev(t)), t , KNEW , 2);						
+				
+				//getc(stdin);
+				continue;
 			}
 				
 			if (tprev(t)->ty == tType){
 				typeT* rt = (void*) tprev(t)->val.as.type;
 				
 				t->ty = findType(POINTERPOSSESSIVE, rt, NULL, 0);
-				
+				printf(" new will return \n");
+				printType( rt, 1, 1);
 				fold(tprev(t), t);
-				t->handler = isArray? hallocarray: halloc;
+				t->handler =   halloc;
 				t = tnext(t);
 				continue;
 			}
-					
+			ERR(" WHAT %x %s?\n", t->tok, t->str);
 			
 			break;						
 			
