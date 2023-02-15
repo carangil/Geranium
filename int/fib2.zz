@@ -33,7 +33,26 @@ s print newline
 
 s take trash
 
-2.23 print newline
+2.1 1.1 + print newline
+
+2.0 3.0 ^ 0.01+print newline
+
+1.0 sin  print newline
+
+
+3.0 negative print newline newline
+
+var f:Real;
+
+2.0 print newline
+
+2.0 f=
+3.3 #g
+
+
+f g * print newline
+
+
 
 
 
