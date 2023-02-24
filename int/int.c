@@ -90,8 +90,11 @@ typedef struct tokenS{
  * */
 
 #define tremove(ITEM)    zlist_remove_mid(  &(ITEM)->zlistnode)
-#define tnext(ITEM) ((tokenT*)(ITEM)->zlistnode.next)
-#define tprev(ITEM)    ((ITEM)?((tokenT*)(ITEM)->zlistnode.prev):NULL)
+//#define tnext(ITEM) ((tokenT*)(ITEM)->zlistnode.next)
+#define tnext(ITEM)    ((tokenT*)zlist_next(ITEM))
+#define tprev(ITEM)    ((tokenT*)zlist_prev(ITEM))
+
+//#define tprev(ITEM)    ((ITEM)?((tokenT*)(ITEM)->zlistnode.prev):NULL)
 #define insert_after(AFTER,NEW)    zlist_insert_node_after(  &(AFTER)->zlistnode,  &(NEW)->zlistnode);
 
 //tokenT->tok values:
@@ -141,6 +144,8 @@ zbool token_cleanup(void* v){
 	ram_free(t->str);
 	if (t->val_to_free)
 		ram_free(t->val.as.ptr.block);
+	//printf(" cleaning subs\n");
+	//printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indentin){
 	zlist_cleanup(&t->subs);
 	return ZTRUE;
 }
@@ -901,7 +906,11 @@ tokenT* hlocal (exectxT* ex, tokenT* t) {	//push pointer to local variable on st
 	return tnext(t);
 }
 
-#define tsub(TTT)  ((tokenT*)((TTT)->subs.head))
+//#define tsub(TTT)  ((tokenT*)((TTT)->subs.head))
+
+#define tsub(TTT)  ((tokenT*)zlist_head(&(TTT)->subs))
+
+
 
 tokenT* hstackread (exectxT* ex, tokenT* t) {	//read a stack variable (really function parameters)
 	
@@ -2655,6 +2664,7 @@ int main(int argc, char** args){
 	global = mkcontext();
 	
 	zlistT* tokens = ram_alloc(sizeof(zlistT), (ram_destructor) zlist_cleanup);
+	
 	tokenT* t = mkToken(STARTFILE, NULL,0);
 	zlist_addhead(tokens,&t->zlistnode);
 	t->zlistnode.prev=&t->zlistnode;  //'trap' so ->prev->prev is always safe
@@ -2679,7 +2689,11 @@ int main(int argc, char** args){
 	SET_EXTENSIONS();
 #endif
 	
-	parse( global, (tokenT*) tokens->head->next );
+	//delete the STARTFILE token
+	
+	
+	parse( global, tnext((tokenT*)zlist_head(tokens)) );
+	
 
 	printf("Types:\n");
 	int i;
@@ -2687,9 +2701,10 @@ int main(int argc, char** args){
 		printType(zvec_get_at(types,i),ZTRUE, ZFALSE);
 			
 	printSymbols(global->symbols, "globals");
-	printList((tokenT*) tokens->head,NULL,ENDFILE, 0);
+	printList(zlist_head(tokens),NULL,ENDFILE, 0);
 	//getc(stdin);
-	start(global, (tokenT*)tokens->head->next);//run
+	//start(global, (tokenT*)tokens->head->next   );//run
+	start(global, tnext((tokenT*)zlist_head(tokens))   );//run
 	
 	ram_free(tokens);
 	ram_free(global);

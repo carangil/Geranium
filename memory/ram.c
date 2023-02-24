@@ -53,7 +53,7 @@ typedef struct mem_header_s
 } mem_headerT;
 
 #ifdef RAM_DEBUG
-zlistT _ram_debuglist = {NULL,NULL};
+zlistT _ram_debuglist = {0};
 #endif
 
 void ram_init() {
@@ -64,7 +64,7 @@ void ram_init() {
 	
 #ifdef RAM_DEBUG
         fprintf(stderr,"Creating ram debug lock\n");
-		
+	zlist_init(&_ram_debuglist);
         /* This creates the lock that memory shares when */
         zlock_init(&ram_debug_lock); 
         zmem_inited=ZTRUE;
@@ -134,7 +134,8 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_siz
 		
 		x->file = file;
 		x->line = line;
-		zlist_addhead(&_ram_debuglist, &x->zlistnode);
+		
+		zlist_addhead_nocheck(&_ram_debuglist, &x->zlistnode);
                 
                 zunlock(&ram_debug_lock);
 #endif
@@ -234,7 +235,7 @@ void ram_free(void* thing)
 								
                                 zlock(&ram_debug_lock);
                                 
-                                zlist_remove(&_ram_debuglist, &header->zlistnode);
+                                zlist_remove_mid(&header->zlistnode);
 
                                 zunlock(&ram_debug_lock);
 #endif
@@ -306,7 +307,7 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 		}
 #ifdef RAM_DEBUG
                 zlock(&ram_debug_lock);
-		zlist_remove(&_ram_debuglist, &header->zlistnode);
+		zlist_remove_mid(&header->zlistnode);
                 oldheader = header;
 #endif
 				
@@ -341,10 +342,12 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 		
 
 #ifdef RAM_DEBUG
+		
 		if (header)          /*Put new one on */
-			zlist_addhead(&_ram_debuglist, &header->zlistnode);
-                else                    /*Put old one back on list */
-                       	zlist_addhead(&_ram_debuglist, &oldheader->zlistnode);
+			zlist_addhead_nocheck(&_ram_debuglist, &header->zlistnode);
+		else                    /*Put old one back on list */
+                       	zlist_addhead_nocheck(&_ram_debuglist, &oldheader->zlistnode);
+		
                 
                 zunlock(&ram_debug_lock);
 #endif

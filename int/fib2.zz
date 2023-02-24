@@ -52,6 +52,155 @@ var f:Real;
 
 f g * print newline
 
+3 .Real 2.0 / print newline
+
+3 .Real 2.0 /.Z32 print newline
+
+3.36 10.0 * print newline
+3.36 10 .Real*.Z32 print newline
+
+
+type testMethods
+
+	x:Real;
+	y:Real;
+		
+end
+
+
+var tmstatic:testMethods;
+
+10.0 tmstatic.x =
+20.2 tmstatic.y =
+
+tmstatic.x print "  " print tmstatic.y print newline
+
+
+testMethods new #tm
+
+"tm& " print    tm& :any& print newline
+"tm " print    tm :any& print newline
+"tm.x " print    tm.x& :any& print newline
+"tm.y " print    tm.y& :any& print newline
+
+[testMethods] 10 new #tma
+
+
+"tma& " print    tma& :any& print newline
+"tma   " print    tma :any& print newline
+
+"tma 0[]&" print    tma  0 []& :any& print newline
+"tma 1[]&" print    tma  1 []& :any& print newline
+
+
+"tma 0[].x&" print    tma  0 [].x& :any& print newline
+"tma 1[].y&" print    tma  1 [].y& :any& print newline
+
+1.1 tma 0[].x=
+1.2 tma 0[].y=
+
+2.1 tma 1[].x=
+2.2 tma 1[].y=
+
+
+tma 0[].x print " " print
+tma 0[].y print " " print
+tma 1[].x print " " print
+tma 1[].y print " " print
+newline
+
+
+
+11.1 tm .x =
+33.66 tm .y =
+
+
+proc boo:(a:Z32& -> Z32)
+	
+	a
+	
+	a@ 10+ return
+
+end
+
+5 #tt
+tt& boo print newline
+
+
+proc .sum:(a:testMethods& -> Real)
+	a.x a.y + return
+end
+
+
+
+proc .x2:(-> x2Type%)
+	0 :x2Type% return
+end
+
+proc  =:(f:Real; s:testMethods&; t:x2Type% ->)
+	f s.x=
+	return
+end
+
+
+tm.x print  newline		// x is a field
+tm.y print  newline		// y is a field
+tm.sum print  newline		// .sum is a function  (but syntactically looks like a field)  (can be used for dynamically calculated, read-only values)
+
+1.0 tm.x=
+
+//2.0 tm.sum =			//not allowed, because you can't write to .sum 
+2.0 tm.x2 = 	// .x2 is a method that returns a dummy 
+
+tm .x print newline
+tm .y print newline
+
+tm take trash
+tma take trash
+
+3.0 :Z32 print newline  //cast without conversion
+
+1077936128 #c
+
+c&:Real&@ print newline
+
+c:[N8]&
+
+
+
+type A
+	a:Z32;
+end
+
+type B
+	s:String%;
+end
+
+proc toString:(x:A&->String%)
+	"AAA" :String% keep return
+
+end
+
+proc toString:(x:B&->String%)
+	"BBB" :String% keep return
+end
+
+A new #aa
+B new #bb
+
+aa toString #sss
+sss print newline
+
+
+
+bb toString sss=
+sss print newline
+
+sss take trash
+
+
+aa take trash
+bb take trash
 
 
 

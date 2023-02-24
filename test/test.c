@@ -4,7 +4,9 @@
 #include "zstring.h"
 #include "ztime.h"
 #include "zrand.h"
+#include "zlist.h"
 #include "blank.h"
+
 
 void compare(char* s, int a, int b){
 	if (a==b) 
@@ -248,6 +250,132 @@ void outbuffer(){
 
 }
 
+
+
+
+typedef struct intList{
+	zlistnodeT zlistnode;
+	int v;
+}intListT;
+
+zbool intListCleanup(void* v){
+	printf(" destructor for listnode %p\n", v);
+	return ZTRUE;
+}
+
+intListT* mkIntNode(int a){
+	intListT* ln = ram_alloc(sizeof(intListT), intListCleanup);
+	ln->v=a;
+	return ln;
+}
+
+#define zclear(BOO) memset(&(BOO), 0, sizeof(BOO))
+
+
+
+int vp(void* v){
+	return 0xFFFFFF & ((int)(v));
+}
+
+void printList(zlistT* list){
+
+	
+	intListT* ln = zlist_head(list);
+	intListT* lno =&list->sentinal_head;
+	
+	printf("[HEAD]");
+	//printf("[(%x<%x>%x)-", vp(list->sentinal_head.prev), vp(&list->sentinal_head),  vp(list->sentinal_head.next) );
+	while(ln){
+		printf(" %d ", ln->v);
+		//printf("%d (%p<%p>%p)-", (int)ln->v, vp(ln->zlistnode.prev), vp(ln), vp(ln->zlistnode.next) );
+		lno=ln;
+		ln = zlist_next(ln);
+		
+	}
+	
+	if (lno->zlistnode.next && !lno->zlistnode.next->next){
+		printf(" [TAIL]");
+		//printf("(%x<%x>%x)", vp(list->sentinal_tail.prev), vp(&list->sentinal_tail),  vp(list->sentinal_tail.next) );
+		
+	}
+	printf("\n ");
+	
+	
+	
+	lno =&list->sentinal_tail;
+	ln = zlist_tail(list);
+	
+	
+	//printf("(%x<%x>%x) ", vp(list->sentinal_tail.prev), vp(&list->sentinal_tail),  vp(list->sentinal_tail.next) );
+	printf("[TAIL]");
+	
+	while(ln){
+		
+		printf(" %d ", ln->v);
+		//printf("%d (%p<%p>%p)-", (int)ln->v, vp(ln->zlistnode.prev), vp(ln), vp(ln->zlistnode.next) );
+		lno=ln;
+		ln = zlist_prev(ln);
+		
+	}
+	
+	if (lno->zlistnode.prev && !lno->zlistnode.prev->prev){
+		printf("[HEAD]");
+		//printf("[(%x<%x>%x)", vp(list->sentinal_head.prev), vp(&list->sentinal_head),  vp(list->sentinal_head.next) );		
+		
+		
+	}
+	printf("\n ");
+	
+}
+
+void list_test(){
+	
+	zlistT list ={0};
+	
+	
+	printList(&list);
+		
+	zlist_addhead(&list, mkIntNode(3) );
+	zlist_addhead(&list, mkIntNode(2) );
+	zlist_addhead(&list, mkIntNode(1) );
+	zlist_addtail(&list, mkIntNode(4) );
+	zlist_addtail(&list, mkIntNode(5) );
+	
+	printList(&list);
+	
+	//remove the head node
+	ram_free(zlist_remove_mid( zlist_head(&list)));
+	ram_free(zlist_remove_mid( zlist_head(&list)));
+	printList(&list);
+	
+	
+	//remove the tail node
+	ram_free(zlist_remove_mid( zlist_tail(&list)));
+	ram_free(zlist_remove_mid( zlist_tail(&list)));
+	printList(&list);
+	
+	printf(" head %p    tail %p\n", zlist_head(&list), zlist_tail(&list));
+	
+	//remove the last node
+	
+	ram_free(zlist_remove_mid( zlist_tail(&list)));
+	printList(&list);
+	printf(" head %p    tail %p\n", zlist_head(&list), zlist_tail(&list));
+	
+	zlist_addtail(&list, mkIntNode(100) );
+	zlist_addhead(&list, mkIntNode(10) );
+	zlist_addhead(&list, mkIntNode(1) );
+	zlist_addtail(&list, mkIntNode(200) );
+	printList(&list);
+
+	zlist_cleanup(&list);
+	ram_allocs();
+}
+
+
+	
+	
+
 int main(int argc, char** args){
 
 	int i;
@@ -284,6 +412,8 @@ int main(int argc, char** args){
 	for (i=0;i<10;i++)
 		printf(" %x  %f\n", zrand(), zrandf(-2,5));
 
+	list_test();
+	
 }
 
 

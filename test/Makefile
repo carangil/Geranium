@@ -12,9 +12,9 @@ CC=gcc
 ex:
 	#nothing
 
-%:	%.c  
+%:	%.c  ../.achange
 	$(CC) -g -o $@ $<  $(INCLUDES) -L$(OBJDIR)  $(LIBS) $(ZLIBS)
 
 
-int:	int.c  example.h example.c gen_extension.h
+int:	int.c  example.h example.c gen_extension.h ../.achange
 	$(CC) -g -o $@ $<  $(INCLUDES) -L$(OBJDIR)  $(LIBS) $(ZLIBS) -DEXTENSION_H example.c
