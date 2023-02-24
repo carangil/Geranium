@@ -1200,19 +1200,6 @@ tokenT* hreadchar (exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
-
-/*
-tokenT* hadd32 (exectxT* ex, tokenT* t) {
-	
-	exe(ex, tsub(t));
-	
-	ex->stack[ex->sp-2].as.z32 += ex->stack[ex->sp-1].as.z32;
-	ex->sp--;
-		
-	return tnext(t);
-}
-*/
-
 #define BINOP(NAME, RESULTAS, AS, OPERATOR)\
 tokenT* NAME (exectxT* ex, tokenT* t) {						\
 	exe(ex, tsub(t));							\
@@ -1220,8 +1207,6 @@ tokenT* NAME (exectxT* ex, tokenT* t) {						\
 	ex->sp--;								\
 	return tnext(t);							\
 }
-
-
 
 //integer arithmetic
 BINOP(hadd32, z32, z32, + )
@@ -1250,7 +1235,6 @@ BINOP(hlesseu32, n32, n32, <= )
 BINOP(hgreateru32, n32, n32, > )
 BINOP(hgreatereu32, n32, n32, >= )
 
-
 #define UNOP(NAME, RESULTAS, AS, OPERATOR)\
 tokenT* NAME (exectxT* ex, tokenT* t) {						\
 	exe(ex, tsub(t));							\
@@ -1262,7 +1246,6 @@ UNOP(hboolnot, z32, z32, !)
 UNOP(hinvert32, z32, z32, ~)
 UNOP(hneg32, z32, z32, -)
 
-
 #define BINOPFUNC(NAME, AS, FUNC)\
 tokenT* NAME (exectxT* ex, tokenT* t) {						\
 	exe(ex, tsub(t));							\
@@ -1270,8 +1253,6 @@ tokenT* NAME (exectxT* ex, tokenT* t) {						\
 	ex->sp--;								\
 	return tnext(t);							\
 }
-
-
 
 //float arithmetic
 #ifdef FLOAT
@@ -1284,8 +1265,6 @@ BINOP(hfdiv, f,f, / )
 UNOP(hfneg, f,f, -)
 
 BINOP(hflesse, z32, f, <= )
-
-
 
 //functions, but easily called 'like' a unary op
 UNOP(hfabs, f,f, MATH_FUNC_SUFFIX(fabs))
@@ -1301,8 +1280,8 @@ UNOP(hfatan, f,f, MATH_FUNC_SUFFIX(atan))
 BINOPFUNC(hfpow,  f, MATH_FUNC_SUFFIX(pow))
 BINOPFUNC(hfatan2,  f, MATH_FUNC_SUFFIX(atan2))
 
-
-
+UNOP(hint2real, f,z32, (FLOAT)  )
+UNOP(hreal2int, z32,f, (zint32) )
 
 #endif
 
@@ -1336,7 +1315,6 @@ void addhandlers(struct parsectxS* pctx){
 	HANDLER(pctx, invert32);
 	HANDLER(pctx, neg32);
 
-
 	//special
 	HANDLER(pctx, load32);
 	HANDLER(pctx, store32);
@@ -1362,7 +1340,6 @@ void addhandlers(struct parsectxS* pctx){
 	
 	HANDLER(pctx, flesse);	
 	
-	
 	HANDLER(pctx, fsin);
 	HANDLER(pctx, fcos);
 	HANDLER(pctx, ftan);
@@ -1371,12 +1348,12 @@ void addhandlers(struct parsectxS* pctx){
 	HANDLER(pctx, fatan);
 	HANDLER(pctx, fatan2);
 	
+	HANDLER(pctx, int2real);
+	HANDLER(pctx, real2int);
+	
 #endif
 	
 }
-
-
-
 
 tokenT* hreturn (exectxT* ex, tokenT* t){
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
@@ -1392,7 +1369,6 @@ tokenT* hgroup (exectxT* ex, tokenT* t){
 	//printf("group finished, no continue\n");
 	return NULL;
 }
-
 
 tokenT* hcall (exectxT* ex, tokenT* t) {
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
@@ -2273,7 +2249,12 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				continue;
 			}
 			
-			if (tnext(t)->str && tnext(t)->str[0]=='.'){
+			if (tnext(t)->str && tnext(t)->str[0]== '.' 
+				&&tprev(t)->ty 
+				&&tprev(t)->ty->ref
+				&&tprev(t)->ty->ref->category == STRUCT	
+				&&tprev(t)->tok != STACKARG 
+			){
 				//access struct member:  
 				//remove the @ token, since accessing the struct member is just pointer addition
 				t=tnext(t);
@@ -2672,9 +2653,6 @@ int main(int argc, char** args){
 	char* x = ram_loadstr(args[1]);
 
 	global = mkcontext();
-
-	
-	
 	
 	zlistT* tokens = ram_alloc(sizeof(zlistT), (ram_destructor) zlist_cleanup);
 	tokenT* t = mkToken(STARTFILE, NULL,0);
@@ -2696,7 +2674,6 @@ int main(int argc, char** args){
 	
 	//add all the binary and unary operator handlers
 	addhandlers(global);
-
 
 #ifdef SET_EXTENSIONS
 	SET_EXTENSIONS();
@@ -2723,3 +2700,4 @@ int main(int argc, char** args){
 	ram_allocs(); //dump memory leak list
 	return 0;   
 }
+
