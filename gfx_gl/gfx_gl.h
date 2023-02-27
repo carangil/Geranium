@@ -29,7 +29,7 @@ typedef struct gfxVertexAttributeS {
 
 typedef struct gfx_VertexBufferS {
 	float* combined_data;
-
+	
 	gfx_vertex_attributeT attributes[MAX_ATTRIBUTE];
 	int num_attributes;
 
@@ -47,6 +47,7 @@ typedef struct gfx_VertexBufferS {
 	int fixed_color;
 	int fixed_texcoord;
 	int fixed_normal;
+	
 } gfx_vertex_bufferT;
 
 

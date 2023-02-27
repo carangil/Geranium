@@ -9,9 +9,6 @@
 #include "zarray.h"
 #include <stdio.h>
 
-
-
-
 /*opengl error checker*/
 char* last_file;
 int last_line;
@@ -43,7 +40,6 @@ void errorHandler(int error, const char* message) {
 }
 
 zuint32 keymodstate = 0;
-
 zbool keystatus[256];
 
 zbool gx_keystate(zuint32 key) {
@@ -62,7 +58,6 @@ void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods)
 	//printf(" Key: %d %x %c\n", key, key, key);
 
 	//translate to ZEVENT keys
-
 
 	switch (key) {
 	case GLFW_KEY_ENTER:		zkey = ZKEY_ENTER;		break;
@@ -105,7 +100,6 @@ void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods)
 	if (mods & GLFW_MOD_ALT)
 		keymodstate |= ZKEY_ALT;
 
-
 	// the modifiers
 	int keystate = ZEVENT_KEY;
 
@@ -122,7 +116,6 @@ void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods)
 		//zevent doesn't care about if shift/alt/ctrl are held down while releasing a key
 		if (zkey < 256)
 			keystatus[zkey] = 0;
-
 	}
 
 	gfx_windowT* win= glfwGetWindowUserPointer(window);
@@ -132,7 +125,6 @@ void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods)
 	}
 
 	zw_enqueue(&win->iface, keystate, zkey, 0, 0);
-
 }
 
 void charHandler(GLFWwindow* window, unsigned int character) {
@@ -162,12 +154,7 @@ void gfx_mouse_relative(zwindowT* zw, zbool rel) {
 		glfwSetInputMode(((gfx_windowT*)zw)->fwindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);		
 	}
 
-
 }
-
-
-
-
 
 void mousemoveHandler(GLFWwindow* window, double x, double y) {
 
@@ -260,10 +247,8 @@ void gfxi_init() {
 
 //event interface
  zbool gfx_event(zwindowT * zw, zeventT * ev) {
-	
-	
+		
 	glfwPollEvents(); //enqueue events
-
 
 	//read from queue first
  	if (zw_event(zw, ev)) {
@@ -279,7 +264,6 @@ void gfxi_init() {
 		return ZFALSE;
 	}
 		
-
 	ev->type = ZEVENT_NONE;
 	return ZFALSE;
 }
@@ -297,7 +281,6 @@ void gfx_pixels(zwindowT * zw, void* px) {
 	glfwGetWindowSize(win->fwindow, &win->iface.w, &win->iface.h);
 	glViewport(0, 0, win->iface.w, win->iface.h);
 	//the above is also updating the 'w' and 'h' coordinates, so the app can use them in drawing the next frame, if they are adapting to window size
-
 
 	checkGL();//check for errors
 }
@@ -322,27 +305,26 @@ zwindowT* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 	glfwWindowHint(GLFW_SAMPLES, 4);  //enable antialiasing buffers
 
-
 	win->fwindow = glfwCreateWindow(w, h, title, NULL, NULL);
-	glfwSetWindowUserPointer(win->fwindow, win); //
+	glfwSetWindowUserPointer(win->fwindow, win); //so glfw can give us back our own struct
 
+	//set callbacks
 	glfwSetKeyCallback(win->fwindow, keyHandler);
 	glfwSetCharCallback(win->fwindow, charHandler);
 	glfwSetCursorPosCallback(win->fwindow, mousemoveHandler);
 	glfwSetMouseButtonCallback(win->fwindow, mousebuttonHandler);
 	
 	glfwMakeContextCurrent(win->fwindow);
-
-	
+		
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
 		printf("Can't init glad\n");
 	}
 
 	glEnable(GL_MULTISAMPLE); //enable antialiasing
 
-
 	gfx_identity(); //clear the matrix
 
+	//set interface functions
 	win->iface.close = gfx_close;
 	win->iface.pixels = gfx_pixels;
 	win->iface.event = gfx_event;
@@ -357,7 +339,7 @@ zwindowT* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) {
 	return &(win->iface);
 }
 
-/*frame clear functions */
+/* Frame clear Function */
 
 void gfx_background_color(float r, float g, float b, float a)
 {
@@ -411,10 +393,6 @@ void gfx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fa
 	glDepthFunc(GL_LEQUAL);  //draw things equally far or closer
 	glDepthMask(GL_TRUE); //write to depth bufer
 	glEnable(GL_DEPTH_TEST);  //enable depth testing
-
-
-	
-
 }
 
 
@@ -662,7 +640,7 @@ void gfx_style(gfx_styleT* st) {
 			ff_lights_used = ZTRUE;
 			glLoadIdentity();
 			p->data.v4.named.w = 0.0; //direction light has position at w=0 'infinity' away
-			glLightfv(GL_LIGHT0 + p->index, GL_POSITION, &p->data.v4);
+			glLightfv(GL_LIGHT0 + p->index, GL_POSITION, p->data.fa);
 			glEnable(GL_LIGHT0 + p->index);
 			break;
 
@@ -675,7 +653,7 @@ void gfx_style(gfx_styleT* st) {
 			ff_lights_used = ZTRUE;
 			glLoadIdentity();
 			p->data.v4.named.w = 1.0; //w=1 defines an exact point
-			glLightfv(GL_LIGHT0 + p->index, GL_POSITION, &p->data.v4);
+			glLightfv(GL_LIGHT0 + p->index, GL_POSITION, p->data.fa);
 			glEnable(GL_LIGHT0 + p->index);
 			break;
 	
@@ -684,8 +662,8 @@ void gfx_style(gfx_styleT* st) {
 			if (p->index >= MAX_FF_LIGHTS)
 				continue;
 
-			glLightfv(GL_LIGHT0 + p->index, GL_DIFFUSE, &p->data.v4);
-			glLightfv(GL_LIGHT0 + p->index, GL_SPECULAR, &p->data.v4);
+			glLightfv(GL_LIGHT0 + p->index, GL_DIFFUSE, p->data.fa);
+			glLightfv(GL_LIGHT0 + p->index, GL_SPECULAR,p->data.fa);
 			//vec4 zero = vec4const(0, 0, 0, 1);
 			//glLightfv(GL_LIGHT0 + p->index, GL_SPECULAR, &zero);
 			break;
@@ -988,8 +966,8 @@ void gfx_arrow(vec3* p1, vec3* p2) {
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_LIGHTING);
 	glDisable(GL_TEXTURE_2D);
-	glColor3f(1, 1, 1, 1);
-	float s = .02;
+	glColor4f(1, 1, 1, 1);
+	float s = .02f;
 	glBegin(GL_TRIANGLES);
 		
 		glVertex3f(p1->VX-s,		p1->VY, p1->VZ-s);
@@ -1004,6 +982,8 @@ void gfx_arrow(vec3* p1, vec3* p2) {
 
 /* test program */
 extern int frame;
+
+
 void gfx_gl_test() {
 	
 	//void* skel = load_bvh("H:/projects/Zcore-data/web/Example1.bvh");
@@ -1015,14 +995,14 @@ void gfx_gl_test() {
 	//zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/label.tga", ZTGA_TOP);
 	zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/web/grid.tga", ZTGA_TOP);
 	//zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/earth-cylindrical-alpha-holes.tga", ZTGA_TOP);
-	//zbitmapT* pic = zbitmap_load_tga("../../Zcore-data/web/strawberry/Texture/Strawberry_basecolor.tga", 0*ZTGA_TOP);
+	zbitmapT* strawpic = zbitmap_load_tga("../../Zcore-data/web/strawberry/Texture/Strawberry_basecolor.tga", 0*ZTGA_TOP);
 
 	
 	
-	//gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/strawberry/Strawberry_obj.obj", 1.0);
+	gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/strawberry/Strawberry_obj.obj", 1.0);
 	//gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/strawberry/Strawberry_obj.obj");
 	//gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/1950s_Upholstered_Lounge_Chair_OBJ/1950s Upholstered Lounge Chair_OBJ.obj", .005);
-	gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands.obj", .2);
+	//gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands.obj", .2);
 	
 	gfx_meshT* mesh2 = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands.obj", .2);  //make the same mesh again (todo: proper cloning or whatever);
 
@@ -1040,7 +1020,7 @@ void gfx_gl_test() {
 	gfx_windowT* gfx_window = (gfx_windowT*)zwin; //cast to our own specific type
 	float speed = .05;
 	gfx_textureT* tex = gfx_texture_mk(pic);
-		
+	gfx_textureT* strawtex = gfx_texture_mk(strawpic);
 	gfx_styleT* st = gfx_style_mk(NULL);
 	
 	gfx_style_set_property(st, 0, "blend", 0, GFX_BLEND_ALPHA, NULL, 0);
@@ -1049,7 +1029,7 @@ void gfx_gl_test() {
 	vec4 lcol = vec4const(1, 0, 0, 1.0);
 	vec4 lam = vec4const(0, 0, .5, 1.0);
 
-//	gfx_style_set_property(st, GFX_FLOAT3, "light_position", 0, 0, &lpcam, 0);
+	gfx_style_set_property(st, GFX_FLOAT3, "light_position", 0, 0, &lpcam, 0);
 	gfx_style_set_property(st, GFX_FLOAT4, "light_color", 0, 0, &lcol, 0);
 	gfx_style_set_property(st, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
 
@@ -1086,7 +1066,7 @@ void gfx_gl_test() {
 	for (j = -10; j <= 10; j++) {
 		for (k = -10; k <= 10; k++) {
 
-			float fy = j / 10.0;
+			float fy = j / 10.0f;
 
 			float s = sqrtf(1- fy*fy);
 
@@ -1222,7 +1202,6 @@ void gfx_gl_test() {
 
 		
 
-		gfx_meshT* m = strawberry_mesh;
 		
 #if 1
 		/*
@@ -1276,6 +1255,10 @@ void gfx_gl_test() {
 	//	gfx_translate3(2, 0, 0);
 		//gfx_rotate_x(-90 * DEGREE);
 
+		gfx_meshT* m;
+		for (m = strawberry_mesh; m; m = m->next_piece) {
+			gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
+		}
 
 		//gfx_scale3(.2, .2, .2);  //TODO: add scaling to the BVH import
 		gfx_transformT tmp;
@@ -1311,7 +1294,7 @@ void gfx_gl_test() {
 		//saved bone transformation
 		gfx_translate(&test_trans.pos);
 		gfx_rotate_3x3(&test_trans.rot);
-		gfx_vertex_buffer_draw(strawberry_mesh->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
+		gfx_vertex_buffer_draw(mesh2->vb, GFX_TRIANGLE, 0, zarray_count(mesh2->vb->index_buffer), ZTRUE);
 
 		gfx_camera_view(&cam);
 		debug_draw_skeleton(skel, 0);

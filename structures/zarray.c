@@ -144,7 +144,7 @@ void* zarray_appendf(void* dest, void* src, zbool grow2x, zbool* ok, zsize elems
 	
 	//if using a doubleing (amortized O(1) growth performance like a vector)
 	if (needed > zarray_size(dest)){
-	    int size2x = zarray_size(dest) * 2;
+		zuint32 size2x = zarray_size(dest) * 2;
 	    if (grow2x && (size2x > needed)) {
 		needed = size2x;
 	    }
