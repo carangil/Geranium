@@ -12,10 +12,59 @@
 #ifdef GFXINTERNAL
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+
+#define checkGL()   checkGLfunc(__FILE__, __LINE__)
+void checkGLfunc(char* file, int line);
+
+
 #endif
 
 #include "gx_trans.h"
 #include "gfx_texture.h"
+
+
+//creates a zwindowT object that gives UI zevents
+//creates an opengl context, and makes it current
+struct zwindowS* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags);
+
+
+/* Basic framebuffer and setup functions */
+void gfx_background_color(float r, float g, float b, float a);
+void gfx_frame_clear(zbool color, zbool depth);
+void gfx_depth_buffer(zbool test, zbool write);
+void gfx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist);
+void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom);
+
+/*datatypes for attributes and properties*/
+
+#define GFX_FLOAT		0x10000000
+#define GFX_FLOAT2		0x20000000
+#define GFX_FLOAT3		0x30000000
+#define GFX_FLOAT4		0x40000000
+#define GFX_INT			0x50000000
+
+/* graphics styles (high level wrapper for shaders and their parameters) */
+
+#define GFX_BLEND_OFF	 1
+#define GFX_BLEND_ALPHA	 2
+#define GFX_BLEND_ADD	 3
+#define GFX_BLEND_MUL	 4
+
+typedef struct gfxstyleS {
+	zvecT properties;
+	zvecT textures;
+} gfx_styleT;
+
+gfx_styleT* gfx_style_mk();
+
+
+//set properties.  Pass GFX_DELETE if need to remove a value
+#define GFX_DELETE 1
+void gfx_style_set_property(gfx_styleT* st, int id, char* name_in, int index, int val, void* ptr, int action);
+
+//selects a style to use for rendering
+void gfx_style(gfx_styleT* st);
+
 
 /* Vertex Buffer Objects */
 
@@ -51,11 +100,20 @@ typedef struct gfx_VertexBufferS {
 } gfx_vertex_bufferT;
 
 
+/*draw primitives*/
+
+#define GFX_POINT	1
+#define GFX_LINE	2
+#define GFX_TRIANGLE	3
+
 gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount, char* spec);
 zuint16 gfx_index_triangle(gfx_vertex_bufferT* vb, zuint16 a, zuint16 b, zuint16 c);
 void gfx_vertex_data(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d);
 zuint16 gfx_vertex_done(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d);
 zuint16* gfx_vertex_buffer_add_index(gfx_vertex_bufferT* vb, int num);
+void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb);
+void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end, zbool indexed);
+
 
 #include "objloader.h"
 

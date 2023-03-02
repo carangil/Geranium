@@ -270,19 +270,12 @@ void gfx_camera_motion_6dof(gfx_cameraT* cam, float forward, float right, float 
 
 }
 
-
-
-
 int trans_debug = 1;
 #define debugf  if (trans_debug) printf
-
 
 void gfx_save_transform(gfx_transformT* s) {
 	*s = modelview;
 }
-
-
-
 
 void gfx_identity(){
 	
@@ -295,16 +288,13 @@ void gfx_identity(){
 	
 }
 
-
 void transpose( gfx_mat_3x3* dst, gfx_mat_3x3* src) {
 
 	/* transpose the 3x3 section of the transform */
 	
-
 	vec3set( dst->x_axis,  src->x_axis.VX, src->y_axis.VX, src->z_axis.VX);
 	vec3set( dst->y_axis,  src->x_axis.VY, src->y_axis.VY, src->z_axis.VY);
 	vec3set( dst->z_axis,  src->x_axis.VZ, src->y_axis.VZ, src->z_axis.VZ);
-
 }
 
 

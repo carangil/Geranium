@@ -30,6 +30,7 @@
     <ClCompile Include="..\..\gfx_gl\glad\src\glad.c" />
     <ClCompile Include="..\..\gfx_gl\gx_trans.c" />
     <ClCompile Include="..\..\gfx_gl\objloader.c" />
+    <ClCompile Include="gfx_gl.c" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
