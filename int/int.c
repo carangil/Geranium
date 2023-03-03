@@ -80,6 +80,7 @@ typedef struct tokenS{
 	struct symbolS* sym;  //for things like procs that have a bunch of context info
 	int line;	//line number from source file
 	zbool val_to_free; //if true, free val's ptr block when destroying token
+	
 }tokenT;
 
 
@@ -654,9 +655,10 @@ int printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indentin){
 	
 	for ( ;t;  t = zlist_next(t)  ){
 		
-		count--;
+		
 		if (  ( (zint32)stop_tok < 0) && (count == stop_tok))
 			break;
+		count--;
 		
 		//print subs first
 		if (zlist_head(&t->subs)){ 
@@ -665,7 +667,7 @@ int printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indentin){
 			for (i=0;i<indent;i++) 
 				putc('\t', stdout);
 			printf("{");
-			printList(  zlist_head(&t->subs), cur, stop_tok, indent+1);
+			printList(  zlist_head(&t->subs), cur, 0, indent+1);
 			
 		} 
 		
@@ -844,6 +846,18 @@ void printSymbols(zvecT* table , char* label){
 
 
 /**** Execution ****/
+
+void clean_context_pointers( zvecT* table, char* vars){
+	
+	int i;
+	for (i=0;i<zvec_count(table);i++){
+		symbolT* sym = zvec_get_x_at(table, symbolT*, i);
+		if (sym->type->category == POINTERPOSSESSIVE){
+			ram_free( * (void**)  (vars+  sym->offset)  ); //free the possessive pointer
+		}
+	}	
+}
+
 
 void exe (exectxT* c, struct tokenS* t){
 	zuint32 i;
@@ -1420,10 +1434,26 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	//printf(" exit call SP:%d  FP:%d\n", ex->sp, ex->fp); 
 	
 	
-	//todo:  manipulate frame pointer to get rid of passed values
-	
+
+	/*
 	if (t->sym->type->members)
 		ex->fp -=  zvec_count(t->sym->type->members);  //subtract out all passed values
+	*/
+	
+	//free any passed pointers that didn't get taken
+	if (t->sym->type->members) {
+		int i;
+		int count = zvec_count(t->sym->type->members);
+		for (i=0;i<  count; i++) {
+			typeT* m = zvec_get_at(t->sym->type->members, i);
+			printf(" ARG %d is ", i);
+			printType(m->ref, ZTRUE, ZFALSE);
+			if (m->ref->category == POINTERPOSSESSIVE)
+				ram_free( ex->stack[ex->fp-count+i].as.ptr.block );
+			
+		}
+		ex->fp -= count;
+	}
 	
 	
 	if (t->sym->type->ref) {
@@ -1434,12 +1464,7 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 		if (t->sym->type->ref->category == POINTERUSER){
 			ERR("Can't return non-possessive pointer!\n");
 		}
-		/*
-		if (t->sym->type->ref->category == POINTER){
-			if ( ex->stack[ex->sp-1].as.ptr.level >= ex->level)
-				printf(" RETURNING SUBFRAME POINTER!\n");
-			
-		}*/
+		
 		
 #ifdef EXEDEBUG
 		printf(" Function returns ");printType(t->sym->type->ref,1,1);
@@ -1447,7 +1472,11 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	} else {
 		//printf(" Function returns nothing\n");
 	}
-
+	
+	//print symbol table of call frame
+	//free any possessive pointers still in variables
+	
+	clean_context_pointers(t->sym->subctx->symbols, ex->vars);
 	ram_free(ex->vars);
 	
 	ex->sp = ex->fp;//put stack back to repositioned fp
@@ -1558,6 +1587,7 @@ void start(parsectxT* pctx, tokenT* t){
 	exe(exectx, t);
 	
 	ram_free(exectx->stack);
+	clean_context_pointers(pctx->symbols, exectx->globalvars);
 	ram_free(exectx->globalvars);
 	ram_free(exectx);
 }
@@ -1834,16 +1864,38 @@ parsectxT* mkcontext()
 
 parsectxT* global = NULL;
 
-
+void checkUsage(tokenT* start, tokenT* end){
+	
+	tokenT* t = start;
+				
+	while (t && t != end){
+	
+		if (t->ty){
+			
+			printList(t, t, -1,1);
+			
+			printType(t->ty, ZFALSE, ZFALSE);
+			printf(" not used  press any key...\n");
+			getc(stdin);
+		}
+		t = tnext(t);
+		
+	}
+	
+	
+}
 
 tokenT*  parse(parsectxT* pc, tokenT* t) {
 	
 	tokenT* ts=NULL;
 	symbolT* s= NULL;
-	zvecT* v=NULL;
+	zvecT* v=NULL;printf(" Token %s ", t->str);
 	instruction handler = NULL;
 
+	tokenT* tfirst = t;
 	
+	printf(" START PARSE:\n");
+	printList( t, t, 0,0);
 	
 	int local=0;//true when a found symbol is from the local context
 	
@@ -1858,7 +1910,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		if (t->tok==ENDFILE || t->tok== PASTENDFILE)
 			return t;
 			
-		//printList( tprev(tprev(tprev(t))), t, PASTENDFILE,0);
+		//printList( tprev(tprprintf(" Token %s ", t->str);ev(tprev(t))), t, PASTENDFILE,0);
 		//printf(" parse token %s\n", t->str);
 		//getc(stdin);
 		char* name=NULL;
@@ -1968,6 +2020,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				t->sym=s;
 				s->handler = hcall;  //need to set handler before parsing, in case of recursion
 				t = parse(s->subctx, t);
+				
+				checkUsage(ts,t);//check all values are used up
 				//t should now be 'end' 
 			} else if (t->tok != ';') {
 				ERR(" missing ;\n");
@@ -2034,6 +2088,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t = tnext(t);
 			
 			ram_free(tremove(tprev(t)));//remove 'end'
+			
+			checkUsage(ts,t);//check all values are used up
+			
 			lfold(ts,t);
 			ts->handler=hloop;
 			
@@ -2066,9 +2123,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//printf(" PARSED TO END\n");
 			tokenT* end = t;
 				
+			checkUsage(ts,t);//check all values are used up
 		
 			t = tnext(t);
-		
 			lfold(ts, t); 
 
 			//scan
@@ -2173,7 +2230,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					ram_free(tremove(ts)); //remove string literal
 					continue;
 				} else{
-						ERR("cannot open %s\n", tprev(t)->val.as.ptr.block);
+					ERR("cannot open %s\n", tprev(t)->val.as.ptr.block);
 				}
 			}
 			break;
@@ -2634,7 +2691,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		ERR("Unimplemented\n");
 			
 	} //end while
-	//printf(" returning NULL token\n");
+	printf(" returning NULL token\n"); getc(stdin);
 	return NULL;
 }
 
