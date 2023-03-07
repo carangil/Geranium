@@ -90,3 +90,33 @@ proc readline:(->String%)
 	
 end
 
+primitive equal32	==:(a:N8; b:N8 -> Bit);
+proc strlen:(s:String& -> Z32)
+
+
+	0 #i
+	loop
+		s i[] 0:N8 == if
+			i return
+		end
+		i&++
+	end
+end
+
+proc strdup:(s:String& -> String%)
+	s strlen #le
+	
+	[N8] le 1+  new #news
+	
+	0 #i loop
+		s i[] news i[]=
+		s i[] 0:N8 == if
+			
+			news take :String%  return
+		end
+		i&++
+	end
+
+end
+
+

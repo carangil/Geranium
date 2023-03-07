@@ -25,7 +25,32 @@ int zarray_countf(void* array) {
 	return 0;
 }
 
-void* zarray_allocf( zsize elemsize, zuint32 elemnum, char* file, int line){
+void* zarray_set_meta(void* array, void* ptr){
+	
+	array_shadowT* sh = ram_shadow(array);
+	if (sh)
+		return (sh->userptr = ptr);
+		
+	fprintf(stderr, "No shadow on array %p\n", array);
+	exit(1);
+	return 0;
+	
+}
+
+void* zarray_get_meta(void* array){
+	
+	array_shadowT* sh = ram_shadow(array);
+	if (sh)
+		return sh->userptr;
+		
+	fprintf(stderr, "No shadow on array %p\n", array);
+	exit(1);
+	return 0;
+	
+}
+
+
+void* zarray_allocf( zsize elemsize, zuint32 elemnum, ram_destructor custom_destructor, char* file, int line){
 	size_t size = elemsize * elemnum;
 
 #ifdef STRUCT_DEBUG
@@ -38,7 +63,7 @@ void* zarray_allocf( zsize elemsize, zuint32 elemnum, char* file, int line){
 	    size++;
 	
 	
-	void * array = ram_alloc_shadow_debug(size, NULL, sizeof(array_shadowT)  , file, line);
+	void * array = ram_alloc_shadow_debug(size, custom_destructor, sizeof(array_shadowT), file, line);
 
 	if (array&&(elemsize==1)){
 		    //if array is bytearray, keep a zero after all the elements
@@ -50,11 +75,9 @@ void* zarray_allocf( zsize elemsize, zuint32 elemnum, char* file, int line){
 	
 	array_shadowT * sh = ram_shadow(array);
 	if (sh){
+		printf("setting array shadow\n");
 		sh->used = 0;
 		sh->capacity = (zuint32) elemnum;
-		
-	
-		
 	}
 	return array;
 }

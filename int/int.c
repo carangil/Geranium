@@ -1491,22 +1491,108 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
+zbool struct_clean(void* v, typeT* ty){
+	
+	printf(" Clean for %s\n", (ty)->name);
+	
+	int i;
+	for (i=0; i < zvec_count( (ty)->members); i++){
+		typeT* member = zvec_get_at((ty)->members , i);
+		printf(" fields: %s  %d n", member->name, member->offset);
+		if (member->ref->category == POINTERPOSSESSIVE){
+			vptrT* vp = member->offset  +  (char*)(v);
+			ram_free( vp->block);
+		}
+	}
+		
+	return ZTRUE;
+}
+
+
+
+zbool struct_destructor(void* v){
+	typeT** ty = ram_shadow(v); //get the type
+		
+	if (!ty)
+		printf("Runtime issue: No Shadow on block %p\n", v);
+	else if (*ty){
+		printf(" Destruct for %s\n", (*ty)->name);
+		return struct_clean( v, *ty);
+	}
+	else
+		printf(" NULL type on struct shadow %p\n", v);
+		
+	return ZTRUE;
+}
+
 tokenT* halloc(exectxT* ex, tokenT* t) {
 	
 	//TODO: allow destructors for alloced structs
 	size_t size =   t->ty->ref->size;
 #ifdef EXEDEBUG
 	printf(" ALLOC %d for ", size);
-
 	printType( t->ty->ref, ZTRUE, ZTRUE);
-	
 #endif
-	ex->stack[ex->sp] .as.ptr.level=0;
-	ex->stack[ex->sp] .as.ptr.offset=0;
-	ex->stack[(ex->sp)++].as.ptr.block = ram_alloc( size ,NULL  );
+	ex->stack[ex->sp].as.ptr.level=0;
+	ex->stack[ex->sp].as.ptr.offset=0;
+	
+	if ( t->ty->ref->members){  //structs need destructors optimization TODO: structures that don't have possessive pointer don't actually need destructirs
+		ex->stack[ex->sp].as.ptr.block = ram_alloc_shadow( size ,struct_destructor, sizeof(typeT*)  ); //struct needs type pointer
+		typeT** typtr = ram_shadow(ex->stack[ex->sp].as.ptr.block); //get the shadow
+		if (typtr)
+			*typtr = t->ty->ref;
+	} else {
+		ex->stack[ex->sp].as.ptr.block = ram_alloc(size, NULL  ); //simple types with no members need no destructor
+	}
 	
 	
+	(ex->sp)++;
+		
 	return tnext(t);
+}
+
+zbool ptr_array_destructor(void* va){
+	//If va is a zarray of pointers, it is iterated and freed
+	typeT* ty = zarray_get_meta(va);
+	if (ty && ty->category != ARRAYDYNAMIC){
+		ERR(" attempt to array destruct something that isn't a dynamic array\n");
+		
+	}
+	
+	ty = ty->ref;  //get the base type of the array
+		
+	printf(" THIS ARRAY IS %d out of %d of type (cat %x) \n", zarray_count(va), zarray_size(va), ty->category );
+	printType( ty, ZTRUE,ZTRUE);
+	printf("\n");
+	
+	if (ty->category == POINTERPOSSESSIVE){
+		int i;
+		vptrT* pv = va;
+		printf("To free each pointer.  size of an array element is %d\n", ty->size);
+		for (i=0;i<zarray_size(va);i++){  //for now whole array, not just using 'count'
+			ram_free(pv[i].block);
+		}
+		
+		
+	} else if (ty->category == STRUCT){
+		
+		int i;
+		char* vc = va;
+		printf(" To clean each struct element, size of each is %d\n", ty->size);
+		
+		
+		for (i=0;i<zarray_size(va);i++){  //for now whole array, not just using 'count'
+			struct_clean(  (void*) vc, ty); //clean one of these
+			vc += ty->size;
+		}
+		
+		
+		
+		
+	}
+	
+	
+	return ZTRUE;
 }
 
 tokenT* hallocarray(exectxT* ex, tokenT* t) {
@@ -1524,17 +1610,20 @@ tokenT* hallocarray(exectxT* ex, tokenT* t) {
 	size_t size =   t->ty->ref->size;
 	
 	ex->sp--;
-	size *= ex->stack[ex->sp].as.z32;
-#ifdef EXEDEBUG
+	//size *= ex->stack[ex->sp].as.z32;
+//#ifdef EXEDEBUG
 	printf(" ALLOC %d for ", size);
 	printType( t->ty->ref, ZTRUE, ZTRUE);
 
-#endif
+//#endif
 	
 	
 	ex->stack[ex->sp] .as.ptr.level=0;
 	ex->stack[ex->sp] .as.ptr.offset=0;
-	ex->stack[(ex->sp)++].as.ptr.block = ram_alloc( size ,NULL  );
+	//ex->stack[(ex->sp)++].as.ptr.block = ram_alloc( size ,NULL  );
+	ex->stack[ex->sp].as.ptr.block = zarray_allocf(size, ex->stack[ex->sp].as.z32, ptr_array_destructor, __FILE__, __LINE__ );
+	zarray_set_meta( ex->stack[ex->sp].as.ptr.block, t->ty->ref);
+	(ex->sp)++;
 	//exit(1);
 	return tnext(t);
 }
