@@ -27,6 +27,9 @@
     <ClInclude Include="..\..\gfx_gl\objloader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\gfx_gl\ff.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\gfx_gl\gfx_window.c">
@@ -44,7 +47,10 @@
     <ClCompile Include="..\..\gfx_gl\objloader.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="gfx_gl.c">
+    <ClCompile Include="..\..\gfx_gl\ff.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\gfx_gl\gfx_gl.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -8,6 +8,7 @@
 #include "string.h"
 #include "zarray.h"
 #include <stdio.h>
+#include "ff.h"
 
 /* Frame clear Function */
 
@@ -81,45 +82,10 @@ void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom)
 
 /* Simple Shaders */
 
-//data types
-/*
-these are defined in gfx_gl.h
-#define GFX_FLOAT		0x10000000
-#define GFX_FLOAT2		0x20000000
-#define GFX_FLOAT3		0x30000000
-#define GFX_FLOAT4		0x40000000
-#define GFX_INT			0x50000000
-
-*/
-#define GXI_TYPEMASK	0xff000000
-
-#define GXI_BLEND_MODE	(GFX_INT  |  1)
 
 
-/* light DIRECTION and POSITION for the same 'n' are mutually exclusive! */
-#define GXI_LIGHT_DIRECTION	(GFX_FLOAT3 | 2)	
-#define GXI_LIGHT_POSITION	(GFX_FLOAT3 | 3)
-#define GXI_LIGHT_COLOR		(GFX_FLOAT4 | 4)
-#define GXI_LIGHT_AMBIENT	(GFX_FLOAT4 | 5)
-
-
-typedef struct gfx_propertyS {
-	char* name;//user can name custom properties
-	int id;
-	int index;  //support multiple values of same kind of data (texture 0, texture 1... etc)
-	int uloc;  //if using shaders, uniform location
-	union {
-		float f;	//single float  
-		float fa[4]; //up to 4, for color, etc
-		vec3 v; //3 component vector (position)
-		vec4 v4; //3 component vector (position)
-		int i;
-		//todo: pointer to larger data (if necessary)
-	} data;
-} gfx_propertyT;
-
-char* gxi_builtin_properties[] = { "invalid" , "blend"        , "light_direction",   "light_color"   , "light_ambient",   "light_position",  NULL };
-zuint32 gxi_builtin_prop_id[] = { 0         , GXI_BLEND_MODE , GXI_LIGHT_DIRECTION,  GXI_LIGHT_COLOR, GXI_LIGHT_AMBIENT,  GXI_LIGHT_POSITION, 0 };
+char* gxi_builtin_properties[] = { "invalid" , "blend"        , "light_direction",   "light_color"   , "light_ambient",   "light_position", "texture_diffuse", NULL };
+zuint32 gxi_builtin_prop_id[] = { 0         , GXI_BLEND_MODE , GXI_LIGHT_DIRECTION,  GXI_LIGHT_COLOR, GXI_LIGHT_AMBIENT,  GXI_LIGHT_POSITION, GXI_TEXTURE_DIFFUSE, 0 };
 
 zuint32 gxi_get_prop_id(char* name) {
 	zuint32 i;
@@ -141,7 +107,7 @@ gfx_styleT* gfx_style_mk() {
 	gfx_styleT* st = ram_alloc(sizeof(gfx_styleT), NULL);
 
 	zvec_mk(&st->properties, 4);
-	zvec_mk(&st->textures, 4);
+
 
 	return st;
 }
@@ -231,6 +197,9 @@ void gfx_style_set_property(gfx_styleT* st, int id, char* name_in, int index, in
 		p->data.v4 = *(vec4*)ptr;
 		break;
 
+	case GFX_TEXTURE:
+		p->data.tex = ptr;
+		break;
 
 	default:
 		printf(" unknown property type\n");
@@ -272,7 +241,6 @@ void gxi_set_blend(int m) {
 
 }
 
-#define MAX_FF_LIGHTS 4
 
 
 void gfx_style(gfx_styleT* st) {
@@ -280,17 +248,23 @@ void gfx_style(gfx_styleT* st) {
 	zuint32 i;
 	gfx_propertyT* p;
 
-	int ff_lights_used = ZFALSE;
-	zbool ff_lights_active[MAX_FF_LIGHTS];
-	memset(ff_lights_active, 0, sizeof(ff_lights_active));
+
+
 
 	vec4 ambientsum = vec4const(0, 0, 0, 1);
+
+	gxi_new_texture_set();
+	ff_new_light_set();
 
 	for (i = 0; i < zvec_count(&st->properties); i++) {
 
 		p = zvec_get_at(&st->properties, i);
 
 		//builtins
+
+		if (ff_light_parm(p))  //if ff lighting can accept the value, let it take it
+			continue;
+
 
 		switch (p->id) {
 
@@ -302,41 +276,18 @@ void gfx_style(gfx_styleT* st) {
 
 		case GXI_LIGHT_DIRECTION: //a directional light
 
-			ff_lights_active[p->index] = ZTRUE;
-
-			ff_lights_used = ZTRUE;
-			glPushMatrix();
-			glLoadIdentity();
-			p->data.v4.named.w = 0.0; //direction light has position at w=0 'infinity' away
-			glLightfv(GL_LIGHT0 + p->index, GL_POSITION, p->data.fa);
-			glEnable(GL_LIGHT0 + p->index);
-			glPopMatrix();
+			printf(" shadercase direction\n");
 			break;
 
 
 		case GXI_LIGHT_POSITION: //a positional light
-
-			if (p->index >= MAX_FF_LIGHTS)
-				continue;
-			ff_lights_active[p->index] = ZTRUE;
-			ff_lights_used = ZTRUE;
-			glPushMatrix();
-			glLoadIdentity();
-			p->data.v4.named.w = 1.0; //w=1 defines an exact point
-			glLightfv(GL_LIGHT0 + p->index, GL_POSITION, p->data.fa);
-			glEnable(GL_LIGHT0 + p->index);
-			glPopMatrix();
+			printf(" shadercase position\n");
+			
 			break;
 
 		case GXI_LIGHT_COLOR:
-
-			if (p->index >= MAX_FF_LIGHTS)
-				continue;
-
-			glLightfv(GL_LIGHT0 + p->index, GL_DIFFUSE, p->data.fa);
-			glLightfv(GL_LIGHT0 + p->index, GL_SPECULAR, p->data.fa);
-			//vec4 zero = vec4const(0, 0, 0, 1);
-			//glLightfv(GL_LIGHT0 + p->index, GL_SPECULAR, &zero);
+			printf(" shadercase color\n");
+			
 			break;
 
 		case GXI_LIGHT_AMBIENT:
@@ -344,37 +295,18 @@ void gfx_style(gfx_styleT* st) {
 
 			break;
 
-		}
-	}
-
-	if (ff_lights_used) {
-		glEnable(GL_LIGHTING);
-		glEnable(GL_NORMALIZE);
-		ambientsum.VALPHA = 1.0;
-		glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambientsum.array);
-
-		//have color changes change the material settings
-		glColor4f(1, 1, 1, 1);  //if it happens there is no color vertex array data, use white as the color (which gets multiplied against the texture)
-		glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-		glEnable(GL_COLOR_MATERIAL);
-
-		//disable and ff lights that are not being used anymore
-		for (i = 0; i < MAX_FF_LIGHTS; i++) {
-			if (!ff_lights_active[i]) {
-				printf(" dis light %d\n", i);
-				glDisable(GL_LIGHT0 + i);
-			}
+		case GXI_TEXTURE_DIFFUSE:
+			gxi_add_texture(p->data.tex);
+			break;
 
 		}
-
-	}
-	else {
-		glDisable(GL_LIGHTING);
 	}
 
+	
 
-
-	gxi_texture_set_enable(&st->textures);
+	gxi_texture_complete();
+	ff_light_complete(&ambientsum);
+	
 
 }
 

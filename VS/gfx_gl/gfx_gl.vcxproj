@@ -19,18 +19,20 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\gfx_gl\ff.h" />
     <ClInclude Include="..\..\gfx_gl\gfx_gl.h" />
     <ClInclude Include="..\..\gfx_gl\gfx_texture.h" />
     <ClInclude Include="..\..\gfx_gl\gx_trans.h" />
     <ClInclude Include="..\..\gfx_gl\objloader.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\gfx_gl\ff.c" />
+    <ClCompile Include="..\..\gfx_gl\gfx_gl.c" />
     <ClCompile Include="..\..\gfx_gl\gfx_texture.c" />
     <ClCompile Include="..\..\gfx_gl\gfx_window.c" />
     <ClCompile Include="..\..\gfx_gl\glad\src\glad.c" />
     <ClCompile Include="..\..\gfx_gl\gx_trans.c" />
     <ClCompile Include="..\..\gfx_gl\objloader.c" />
-    <ClCompile Include="gfx_gl.c" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

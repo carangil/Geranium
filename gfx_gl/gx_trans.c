@@ -99,9 +99,8 @@ void gfx_camera_init(gfx_cameraT * t) { //will later add the ability to have a s
 static gfx_transformT	modelview;
 static vec3				modelview_camera_pos;	//point, in world space, where the camera is.  updated on calls to the camera, but not 
 
-static zint32 matrix_version=0;  //incremeneted whenever changed
+zint32 matrix_version=0;  //incremeneted whenever changed
 
-static zint32 ff_matrix_version=-1;
 //each shader also tracks their own matrix version
 
 
@@ -175,23 +174,10 @@ void gxi_refresh_matrix(/*gfx_shader_t* shader*/) {
 	};
 			
 	if (!shader) {
-		if (ff_matrix_version == matrix_version) {
-			//	gxdprintf("skip same ff matrix\n");
-				return ;
-				
-		}
-		//gxdprintf(" upload FF matrix\n");
 		
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glLoadMatrixf(proj_matrix);
+		ff_update_matrix(proj_matrix, &matr);
 
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-		glLoadMatrixf(matr);
-		//printMatrix44("ff", matr);
 		
-		ff_matrix_version= matrix_version;
 				
 	}
 	

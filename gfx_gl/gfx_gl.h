@@ -23,6 +23,7 @@ void checkGLfunc(char* file, int line);
 #include "gfx_texture.h"
 
 
+
 //creates a zwindowT object that gives UI zevents
 //creates an opengl context, and makes it current
 struct zwindowS* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags);
@@ -35,13 +36,7 @@ void gfx_depth_buffer(zbool test, zbool write);
 void gfx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist);
 void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom);
 
-/*datatypes for attributes and properties*/
 
-#define GFX_FLOAT		0x10000000
-#define GFX_FLOAT2		0x20000000
-#define GFX_FLOAT3		0x30000000
-#define GFX_FLOAT4		0x40000000
-#define GFX_INT			0x50000000
 
 /* graphics styles (high level wrapper for shaders and their parameters) */
 
@@ -52,7 +47,7 @@ void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom);
 
 typedef struct gfxstyleS {
 	zvecT properties;
-	zvecT textures;
+
 } gfx_styleT;
 
 gfx_styleT* gfx_style_mk();
@@ -127,3 +122,52 @@ void gfx_gl_test();
 //garbage function, to redo later
 void gfx_arrow(vec3* p1, vec3* p2);
 
+
+/*datatypes for attributes and properties*/
+
+#define GFX_FLOAT		0x10000000
+#define GFX_FLOAT2		0x20000000
+#define GFX_FLOAT3		0x30000000
+#define GFX_FLOAT4		0x40000000
+#define GFX_INT			0x50000000
+#define GFX_TEXTURE		0x60000000
+
+
+#ifdef GFXINTERNAL
+
+/* More internal things */
+
+
+#define GXI_TYPEMASK	0xff000000
+
+#define GXI_BLEND_MODE	(GFX_INT  |  1)
+
+/* light DIRECTION and POSITION for the same 'n' are mutually exclusive! */
+#define GXI_LIGHT_DIRECTION	(GFX_FLOAT3 | 2)	
+#define GXI_LIGHT_POSITION	(GFX_FLOAT3 | 3)
+#define GXI_LIGHT_COLOR		(GFX_FLOAT4 | 4)
+#define GXI_LIGHT_AMBIENT	(GFX_FLOAT4 | 5)
+#define GXI_TEXTURE_DIFFUSE	(GFX_TEXTURE | 6)
+
+
+typedef struct gfx_propertyS {
+	char* name;//user can name custom properties
+	int id;
+	int index;  //support multiple values of same kind of data (texture 0, texture 1... etc)
+	int uloc;  //if using shaders, uniform location
+	union {
+		float f;	//single float  
+		float fa[4]; //up to 4, for color, etc
+		vec3 v; //3 component vector (position)
+		vec4 v4; //3 component vector (position)
+		int i;
+		gfx_textureT* tex;
+
+	} data;
+} gfx_propertyT;
+
+
+
+#define MAX_FF_LIGHTS 4
+
+#endif

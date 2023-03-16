@@ -43,12 +43,12 @@ void gfx_gl_test() {
 	//set light parameters on both
 	gfx_style_set_property(st_strawberry, GFX_FLOAT4, "light_color", 0, 0, &lcol, 0);
 	gfx_style_set_property(st_strawberry, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
+	gfx_style_set_property(st_strawberry, GFX_TEXTURE, "texture_diffuse", 0, 0, strawtex, 0);
 
 	gfx_style_set_property(st_sphere, GFX_FLOAT4, "light_color", 0, 0, &lcol, 0);
 	gfx_style_set_property(st_sphere, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
+	gfx_style_set_property(st_sphere, GFX_TEXTURE, "texture_diffuse", 0, 0, earthtex, 0);
 
-	zvec_add(&st_strawberry->textures, strawtex);
-	zvec_add(&st_sphere->textures, earthtex);
 	
 	gfx_cameraT cam;
 	gfx_camera_init(&cam);
@@ -58,9 +58,10 @@ void gfx_gl_test() {
 	gfx_vertex_buffer_add_index(vb, 10000);
 
 	//define a sphere
+	int vend;
 
 	int j, k;
-	int v = 0;
+	
 	int vc = 0;
 	for (j = -10; j <= 10; j++) {
 		for (k = -10; k <= 10; k++) {
@@ -72,18 +73,18 @@ void gfx_gl_test() {
 			float fx = s * sinf(k / 10.0 * 3.141);
 			float fz = s * cosf(k / 10.0 * 3.141);
 
-			gfx_vertex_data(vb, 0, 1, 1, 1, 1);
-			gfx_vertex_data(vb, 2, k / 20.0, -(j + 10) / 20.0, 0, 1);
-			gfx_vertex_data(vb, 3, fx, fy, fz, 1);
+			gfx_vertex_data(vb, 0, 1.0, 1.0, 1.0, 1.0);
+			gfx_vertex_data(vb, 2, k / 20.0, -(j + 10) / 20.0, 0, 0);
+			gfx_vertex_data(vb, 3, fx, fy, fz, 0);
 			gfx_vertex_done(vb, 1, fx, fy, fz, 0);
 
 
 			if (k < 10 && j < 10) {
-				v = gfx_index_triangle(vb, vc, vc + 1, vc + 21);
-				v = gfx_index_triangle(vb, vc + 1, vc + 21, vc + 22);
+				 gfx_index_triangle(vb, vc, vc + 1, vc + 21);
+				 vend = gfx_index_triangle(vb, vc + 1, vc + 21, vc + 22);
 			}
 			vc++;
-
+			
 		}
 	}
 
@@ -186,7 +187,7 @@ void gfx_gl_test() {
 		gfx_rotate_y(ang);
 
 		gfx_style(st_sphere);
-		gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0, v, ZTRUE);
+		gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0, vend, ZTRUE);
 
 		gfx_style(st_strawberry);
 		

@@ -115,6 +115,10 @@ zbool gxi_texture_enable(gfx_textureT* image)
 
 //offset is to 'stack' up multiple sets of textures
 int gxi_enabled_texture_units = 0;
+int gxi_texture_count = 0;
+
+
+
 
 void gxi_texture_set_enable(zvecT* textures) {
 
@@ -128,11 +132,7 @@ void gxi_texture_set_enable(zvecT* textures) {
 			glActiveTexture(GL_TEXTURE0 + i);  //set texture unit
 			glEnable(GL_TEXTURE_2D);
 
-				//todo: only do this if using fixed function
-				if (i == 0)
-					glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); //multiply againt light value
-				else
-					glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL); //default as alpha blending
+			
 
 				gxi_texture_enable(zvec_get_at(textures, i));
 			
@@ -150,3 +150,37 @@ void gxi_texture_set_enable(zvecT* textures) {
 	gxi_enabled_texture_units = newcount;
 }
 
+
+
+void gxi_new_texture_set() {
+
+	gxi_texture_count = 0;
+	
+}
+
+
+zuint32 gxi_add_texture(gfx_textureT* tex) {
+
+	glActiveTexture(GL_TEXTURE0 + gxi_texture_count);  //set texture unit
+	glEnable(GL_TEXTURE_2D);
+
+	ff_texture_env(gxi_texture_count);
+
+	gxi_texture_enable(tex);
+	return gxi_texture_count++;
+
+}
+
+void gxi_texture_complete() {
+	int i;
+
+	for (i= gxi_texture_count; i < gxi_enabled_texture_units; i++) {
+
+		glActiveTexture(GL_TEXTURE0 + i);
+		glDisable(GL_TEXTURE_2D);
+
+	}
+
+	gxi_enabled_texture_units = gxi_texture_count;
+
+}
