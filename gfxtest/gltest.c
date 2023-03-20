@@ -12,6 +12,7 @@
 
 
 
+
 /* test program */
 //extern int frame;
 
@@ -36,25 +37,36 @@ void gfx_gl_test() {
 
 	gfx_style_set_property(st_sphere, 0, "blend", 0, GFX_BLEND_ALPHA, NULL, 0);
 
-	vec3 lpcam = vec3const(0, -2, 0);
-	vec4 lcol = vec4const(1, .8, .8, 1.0);
-	vec4 lam = vec4const(0, 0, .5, 1.0);
 
+	vec3 ldcam;
+	vec3 lpcam;
+	vec4 lcol = vec4const(.8, 1, .8, 1.0);
+	vec4 lam = vec4const(.2, .2, .5, 1.0);
+
+
+	float sh = 4.0;
 	//set light parameters on both
 	gfx_style_set_property(st_strawberry, GFX_FLOAT4, "light_color", 0, 0, &lcol, 0);
 	gfx_style_set_property(st_strawberry, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
 	gfx_style_set_property(st_strawberry, GFX_TEXTURE, "texture_diffuse", 0, 0, strawtex, 0);
+	gfx_style_set_property(st_strawberry, GFX_FLOAT, "specular_exponent", 0, 0, &sh, 0);
 
 	gfx_style_set_property(st_sphere, GFX_FLOAT4, "light_color", 0, 0, &lcol, 0);
 	gfx_style_set_property(st_sphere, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
 	gfx_style_set_property(st_sphere, GFX_TEXTURE, "texture_diffuse", 0, 0, earthtex, 0);
-
 	
+	gfx_style_set_property(st_sphere, GFX_FLOAT, "specular_exponent", 0, 0, &sh, 0);
+
+
+	gx_shadergroupT* tsg = gx_shader_source("@../gfxtest/vertex.glsl", "@../gfxtest/fragment.glsl");
+	//st_sphere->shader_group = ram_addref(tsg);
+	//st_strawberry->shader_group = ram_addref(tsg);
+
 	gfx_cameraT cam;
 	gfx_camera_init(&cam);
 
 	//create vertex buffer
-	gfx_vertex_bufferT* vb = gfx_vertex_buffer_mk(10000, "color:4|position:3|texcoord:2|normal:3");
+	gfx_vertex_bufferT* vb = gfx_vertex_buffer_mk(10000, "position:3|color:4|texcoord:2|normal:3");
 	gfx_vertex_buffer_add_index(vb, 10000);
 
 	//define a sphere
@@ -73,10 +85,11 @@ void gfx_gl_test() {
 			float fx = s * sinf(k / 10.0 * 3.141);
 			float fz = s * cosf(k / 10.0 * 3.141);
 
-			gfx_vertex_data(vb, 0, 1.0, 1.0, 1.0, 1.0);
-			gfx_vertex_data(vb, 2, k / 20.0, -(j + 10) / 20.0, 0, 0);
-			gfx_vertex_data(vb, 3, fx, fy, fz, 0);
-			gfx_vertex_done(vb, 1, fx, fy, fz, 0);
+			gfx_vertex_data(vb, 0, fx, fy, fz, 0);						//position
+			gfx_vertex_data(vb, 1, 1.0, 1.0, 1.0, 1.0);					//color
+			gfx_vertex_data(vb, 2, k / 20.0, -(j + 10) / 20.0, 0, 0);	//texcoord
+			gfx_vertex_done(vb, 3, fx, fy, fz, 0);						//normal
+			
 
 
 			if (k < 10 && j < 10) {
@@ -125,13 +138,31 @@ void gfx_gl_test() {
 				if (ev.a == '-')
 					speed /= 1.1;
 
+
+
+				if (ev.a == 'H')
+					sh++;
+				if (ev.a == 'h')
+					sh--;
+
+
+
+				if (ev.a == 'g') {
+					st_sphere->shader_group = NULL;
+					st_strawberry->shader_group = NULL;
+				}
+				if (ev.a == 'G') {
+					st_sphere->shader_group = tsg;
+					st_strawberry->shader_group = tsg;
+
+				}
 				
 			}
 
 
 			if (ZEVENTIS(ev.type, ZEVENT_KEY | ZEVENT_DOWN | ZKEY_CTRL) && (ev.a == 'q')) {
 				printf("CLOSE\n");
-				exit(1);
+				exit(1); 
 				break;
 			}
 
@@ -146,10 +177,14 @@ void gfx_gl_test() {
 		if (ev.type == ZEVENT_CLOSE)
 			break;
 
+		gfx_style_set_property(st_strawberry, GFX_FLOAT, "specular_exponent", 0, 0, &sh, 0);
+		gfx_style_set_property(st_sphere, GFX_FLOAT, "specular_exponent", 0, 0, &sh, 0);
+
+
 		float forward = 0.0;
 		float right = 0.0;
 		float up = 0.0;
-
+		float rspeed = .04; //rotation speed for keyboard controls
 		if (gx_keystate('a')) right -= speed;
 		if (gx_keystate('d')) right += speed;
 		if (gx_keystate('w')) forward += speed;
@@ -160,11 +195,11 @@ void gfx_gl_test() {
 		if (gx_keystate('q'))  roll -= .01;
 		if (gx_keystate('e'))  roll += .01;
 
-		if (gx_keystate(ZKEY_LEFT))  yaw += .01;
-		if (gx_keystate(ZKEY_RIGHT))  yaw -= .01;
+		if (gx_keystate(ZKEY_LEFT))  yaw += rspeed;
+		if (gx_keystate(ZKEY_RIGHT))  yaw -= rspeed;
 
-		if (gx_keystate(ZKEY_UP))  pitch += .01;
-		if (gx_keystate(ZKEY_DOWN))  pitch -= .01;
+		if (gx_keystate(ZKEY_UP))  pitch += rspeed;
+		if (gx_keystate(ZKEY_DOWN))  pitch -= rspeed;
 
 		gfx_camera_motion_6dof(&cam, forward, right, up, yaw, pitch, roll);
 
@@ -179,24 +214,52 @@ void gfx_gl_test() {
 
 
 		vec3set(lpcam, 0, 10, 5);
+		vec3set(ldcam, 1, 1, 0);
 		gfx_trans_vec3(&lpcam); //transform point for light 
-		gfx_style_set_property(st_strawberry , GFX_FLOAT3, "light_position", 0, 0, &lpcam, 0);
-		gfx_style_set_property(st_sphere, GFX_FLOAT3, "light_position", 0, 0, &lpcam, 0);
+		//gfx_trans_dir_vec3(&ldcam); //transform dir for light 
+		//gfx_style_set_property(st_strawberry , GFX_FLOAT3, "light_position", 0, 0, &lpcam, 0);
+		//gfx_style_set_property(st_sphere, GFX_FLOAT3, "light_position", 0, 0, &lpcam, 0);
+		
+		
+		vec4 purple;
+		vec3set(purple, 1, 0, 1);
+		vec3 green;
+		vec3set(green, 0, 1, 0);
+
+		vec3 black;
+		vec3set(black, 0, 0, 0);
+
+		vec3 white;
+		vec3set(white, 1, 1, 1);
+
+ 		gfx_style_set_property(st_sphere, GFX_FLOAT3, "specular", 0, 0, &white, 0);
+		gfx_style_set_property(st_strawberry, GFX_FLOAT3, "specular", 0, 0, &white, 0);
+
+
+		gfx_style_set_property(st_sphere, GFX_FLOAT3, "light_direction", 0, 0, &ldcam, GFX_TRANSFORM_DIRECTION);
+		gfx_style_set_property(st_strawberry, GFX_FLOAT3, "light_direction", 0, 0, &ldcam, GFX_TRANSFORM_DIRECTION);
+
+
 
 		gfx_translate3(0, 0, -5);
-		gfx_rotate_y(ang);
+		//gfx_rotate_y(ang);
 
 		gfx_style(st_sphere);
+
+		printf(" MATRIX FOR SPHERE\n");
 		gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0, vend, ZTRUE);
 
-		gfx_style(st_strawberry);
+	
+	
 		
 		gfx_translate3(0, 5, -1);
+		gfx_style(st_strawberry);
 
 		gfx_meshT* m;
 
 		for (m = strawberry_mesh; m; m = m->next_piece) {
-			gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
+			printf(" MATRIX FOR STRAWBERRY\n");
+ 			gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
 		}
 					
 		zwin->pixels(zwin, NULL);	//display the framebuffer

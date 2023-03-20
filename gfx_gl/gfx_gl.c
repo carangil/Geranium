@@ -6,6 +6,7 @@
 #include "zvector.h"
 #include "zstring.h"
 #include "string.h"
+#include "string.h"
 #include "zarray.h"
 #include <stdio.h>
 #include "ff.h"
@@ -84,8 +85,9 @@ void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom)
 
 
 
-char* gxi_builtin_properties[] = { "invalid" , "blend"        , "light_direction",   "light_color"   , "light_ambient",   "light_position", "texture_diffuse", NULL };
-zuint32 gxi_builtin_prop_id[] = { 0         , GXI_BLEND_MODE , GXI_LIGHT_DIRECTION,  GXI_LIGHT_COLOR, GXI_LIGHT_AMBIENT,  GXI_LIGHT_POSITION, GXI_TEXTURE_DIFFUSE, 0 };
+char* gxi_builtin_properties[] = { "invalid" , "blend"        , "light_direction",   "light_color"   , "light_ambient",   "light_position", "texture_diffuse", "specular_exponent", "specular", NULL };
+zuint32 gxi_builtin_prop_id[] = { 0         , GXI_BLEND_MODE , GXI_LIGHT_DIRECTION,  GXI_LIGHT_COLOR, GXI_LIGHT_AMBIENT,  GXI_LIGHT_POSITION, GXI_TEXTURE_DIFFUSE, GXI_SPECULAR_EXPONENT, GXI_SPECULAR_COLOR, 0 };
+
 
 zuint32 gxi_get_prop_id(char* name) {
 	zuint32 i;
@@ -108,6 +110,7 @@ gfx_styleT* gfx_style_mk() {
 
 	zvec_mk(&st->properties, 4);
 
+	st->style_dirty = ZTRUE; //need to regenerate the style key
 
 	return st;
 }
@@ -120,9 +123,9 @@ void gfx_style_set_property(gfx_styleT* st, int id, char* name_in, int index, in
 	int prop_id = gxi_get_prop_id(name);
 	if (prop_id) {
 		id = prop_id;
-		name = NULL; //drop name, since we have an exact integer id now
+//		name = NULL; //drop name, since we have an exact integer id now
 	}
-
+	st->style_dirty = ZTRUE; //style has changed
 	zuint32 i;
 	zuint32 ifound = 0xFFFF; //invalid
 	gfx_propertyT* p = NULL;
@@ -140,7 +143,7 @@ void gfx_style_set_property(gfx_styleT* st, int id, char* name_in, int index, in
 				break;
 			}
 		}
-
+		/*
 		//unnamed
 		if (!name && !(psearch->name)) {
 			if ((id == psearch->id) && (index == psearch->index)) {
@@ -150,6 +153,7 @@ void gfx_style_set_property(gfx_styleT* st, int id, char* name_in, int index, in
 			}
 
 		}
+		*/
 
 
 	}
@@ -188,9 +192,12 @@ void gfx_style_set_property(gfx_styleT* st, int id, char* name_in, int index, in
 		p->data.i = val;
 		break;
 
-
 	case GFX_FLOAT3:
 		p->data.v = *(vec3*)ptr;
+		break;
+
+	case GFX_FLOAT:
+		p->data.f = *(float*)ptr;
 		break;
 
 	case GFX_FLOAT4:
@@ -203,9 +210,16 @@ void gfx_style_set_property(gfx_styleT* st, int id, char* name_in, int index, in
 
 	default:
 		printf(" unknown property type\n");
-
+		getc(stdin);
 	}
 
+	if (action == GFX_TRANSFORM_DIRECTION)
+		gfx_trans_dir_vec3(&p->data.v);
+
+	if (action == GFX_TRANSFORM_POINT)
+		gfx_trans_vec3(&p->data.v);
+
+	
 
 }
 
@@ -241,20 +255,54 @@ void gxi_set_blend(int m) {
 
 }
 
+gfx_styleT* next_style=NULL;
+gfx_styleT* enabled_style=NULL;
+gx_shader_variantT* enabled_variant = NULL;
 
 
 void gfx_style(gfx_styleT* st) {
+	next_style = st;	//next draw commands will use this style
+}
+
+gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 
 	zuint32 i;
 	gfx_propertyT* p;
 
 
-
+	gfx_styleT* st = next_style;
 
 	vec4 ambientsum = vec4const(0, 0, 0, 1);
 
+	char* key = zstr_mk(100);
+
+
+	for (i = 0; i < zvec_count(&st->properties); i++) {
+		char b[20];
+		p = zvec_get_at(&st->properties, i);
+
+		char* name = p->name;
+			
+		snprintf(b, sizeof(b) , "%s%d|", name, p->index);
+		key = zstrcat(key, b);
+
+	}
+	//todo: save the key-so-far as the style_key
+
+	key = zstrcat(key, vb->buffer_spec);
+			
+	gx_shader_variantT* variant = gx_shader_variant(st->shader_group, key, st, vb);  //select 'cached' shader variant for key, or create it using st and vb
+	
+	enabled_variant = variant;
+		
+
 	gxi_new_texture_set();
-	ff_new_light_set();
+
+	if (!variant)	//fixed function light
+		ff_new_light_set();
+
+	
+	checkGL();
 
 	for (i = 0; i < zvec_count(&st->properties); i++) {
 
@@ -262,52 +310,79 @@ void gfx_style(gfx_styleT* st) {
 
 		//builtins
 
-		if (ff_light_parm(p))  //if ff lighting can accept the value, let it take it
+		if (!variant && ff_light_parm(p))  //if ff lighting can accept the value, let it take it
 			continue;
 
 
 		switch (p->id) {
 
+		case GXI_LIGHT_AMBIENT:
+			vec4add(ambientsum, p->data.v4);
+
+			continue;
+
 		case GXI_BLEND_MODE:
 
 			gxi_set_blend(p->data.i);
 
-			break;
-
-		case GXI_LIGHT_DIRECTION: //a directional light
-
-			printf(" shadercase direction\n");
-			break;
-
-
-		case GXI_LIGHT_POSITION: //a positional light
-			printf(" shadercase position\n");
-			
-			break;
-
-		case GXI_LIGHT_COLOR:
-			printf(" shadercase color\n");
-			
-			break;
-
-		case GXI_LIGHT_AMBIENT:
-			vec4add(ambientsum, p->data.v4);
-
-			break;
+			continue;
 
 		case GXI_TEXTURE_DIFFUSE:
-			gxi_add_texture(p->data.tex);
-			break;
+			zuint32 tu = gxi_add_texture(p->data.tex);  //add texture AND get the texture unit number
+
+			if (variant) {
+				//if using shaders, need to bind it to a sampler
+				printf(" texture unit %d for loc %d\n", tu, variant->uloc[i]);
+				if (variant->uloc[i] != -1) {
+					glUniform1i(variant->uloc[i], tu);
+				}
+			}
+
+			continue;
+
+		}
+
+		if (variant) {
+			char b[50];
+			snprintf(b, sizeof(b), "%s%d", p->name, p->index);
+
+			if (variant->uloc[i] != -1) {
+
+				if ((p->id & GXI_TYPEMASK) == GFX_FLOAT)
+					glUniform1f(variant->uloc[i], p->data.f);
+				else if ((p->id & GXI_TYPEMASK) == GFX_FLOAT3)
+					glUniform3fv(variant->uloc[i], 1, p->data.fa);
+				else if ((p->id & GXI_TYPEMASK) == GFX_FLOAT4)
+					glUniform4fv(variant->uloc[i], 1, p->data.fa);
+				else {
+					printf(" Unhandled variant uniform: %s %x\n", b, p->id);
+					getc(stdin);
+				}
+			}
+
+
+
+		}
+
+	}
+	checkGL();
+
+	gxi_texture_complete();
+
+	if (variant) {
+		if (variant->ambient_uloc != -1) {
+			glUniform3fv(variant->ambient_uloc, 1, &ambientsum);
 
 		}
 	}
+	else {
+		ff_light_complete(&ambientsum);
+	}
 
-	
+	enabled_style = next_style;
+	st->style_dirty = ZFALSE;  //no optimization yet, but in the future, changing styles when the style isn't dirty,won't change anything
 
-	gxi_texture_complete();
-	ff_light_complete(&ambientsum);
-	
-
+	return variant;
 }
 
 
@@ -337,6 +412,7 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 		return NULL;
 
 	gfx_vertex_bufferT* vb = ram_alloc(sizeof(gfx_vertex_bufferT), NULL); //no destructor yet
+	vb->buffer_spec = zstrdup(spec);
 
 	while (*s) {
 
@@ -471,8 +547,7 @@ void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb) {
 }
 
 
-//using fixed function or not
-zbool gxi_fixed_function = ZTRUE; //set to true 
+
 
 
 /*
@@ -482,7 +557,13 @@ zbool gxi_fixed_function = ZTRUE; //set to true
 */
 zuint32 gl_prims[] = { 0, GL_POINTS, GL_LINES, GL_TRIANGLES };
 
-int max_attrs_active;
+
+int max_aloc_active=0;
+zbool ff_buffers_in_use = ZFALSE;
+
+#define MAX_ALOC 16
+zuint32 last_aloc_use[MAX_ALOC] = { 0 };
+zuint32 aloc_use_counter = 0;
 
 void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end, zbool indexed) {
 
@@ -506,13 +587,32 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 		gxi_current_index_vbo = vb->index_vbo;
 	}
 
+
+
+	gx_shader_variantT* variant = gxi_enable_style_parameters(vb); //This function takes the vbuffer spec, combines it with the current style's spec, and attaches whatever shader to use
+	
 	//TODO: check if the shader changed, if so, setup arrays
-	gxi_refresh_matrix();
+	checkGL();
+	gxi_refresh_matrix(variant);
+	checkGL();
 
 	if (setup_arrays) {
 
 
-		if (gxi_fixed_function) {
+		if (!variant) {
+			int aloc;
+			//stop any attrib use
+ 			for (aloc = 0; aloc < MAX_ALOC; aloc++) {
+
+				if (last_aloc_use[aloc] ) {
+					glDisableVertexAttribArray(aloc);
+					last_aloc_use[aloc] = 0; //not used anymore
+					printf(" Disable aloc %d not in use for ff\n", aloc);
+				}
+
+			}
+			
+
 
 			//set each attribute - fixed function
 			if (vb->fixed_position != -1) {
@@ -544,18 +644,77 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 			else
 				glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 
+			ff_buffers_in_use = ZTRUE; 
+
 		}
 		else {
 			//setup arrays for shader use (all atribs)
+
+			//first disable ff if it was used
+			if (ff_buffers_in_use) {
+				glDisableClientState(GL_VERTEX_ARRAY);
+				glDisableClientState(GL_COLOR_ARRAY);
+				glDisableClientState(GL_NORMAL_ARRAY);
+				glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
+				ff_buffers_in_use = ZFALSE;
+			}
+
+
+			int i;
+			int aloc;
+
+			aloc_use_counter++;
+
+			for (i = 0; i < vb->num_attributes; i++) {
+				aloc = variant->aloc[i];
+
+				if (aloc != -1) {
+
+					printf(" %s is aloc %d \n", vb->attributes[i].name, variant->aloc[i]);
+
+					glEnableVertexAttribArray(aloc);
+					checkGL();
+
+					checkGL();
+					glVertexAttribPointer(aloc,
+						vb->attributes[i].type,  /* 1,2,3,4 : to GL it is the number of components */
+						GL_FLOAT, /*GL data type*/
+						0, vb->attributes[i].type * sizeof(zfloat32), /* normalized, stride. stride 0 means densely packed */
+						((char*)vb->attributes[i].data) - ((char*)vb->combined_data));
+					//(void*)((vb->attributes[i].data - vb->combined_data)*sizeof(zfloat32)));
+
+					checkGL();
+					last_aloc_use[aloc] = aloc_use_counter; //track that we used this attribute location
+
+				}//aloc
+
+
+			}//end for
+
+			//now disable any attributes we did use, but are not anymore
+			for (aloc = 0; aloc < MAX_ALOC; aloc++) {
+
+				if (last_aloc_use[aloc] && (last_aloc_use[aloc] != aloc_use_counter)) {
+					glDisableVertexAttribArray(aloc);
+					last_aloc_use[aloc] = 0; //not used anymore
+					printf(" Disable aloc %d not in use\n", aloc);
+				}
+
+			}
 
 		}
 
 	}
 
+	
+	checkGL();
 	if (indexed)
 		glDrawElements(gl_prims[prim], end - start, GL_UNSIGNED_SHORT, (void*)(sizeof(zuint16) * start));
 	else
 		glDrawArrays(gl_prims[prim], start, end - start);
 
 	checkGL();
+	
+
 }

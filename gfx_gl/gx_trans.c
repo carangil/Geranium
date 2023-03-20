@@ -152,19 +152,19 @@ void gfx_projection2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bott
  * OR as a uniform when we are doing shaders in the future 
  */
 
-void gxi_refresh_matrix(/*gfx_shader_t* shader*/) {
+void gxi_refresh_matrix(gx_shader_variantT* shader ) {
 
-	void* shader = NULL;
+	
 	
 	/* load our 3x3 matrix and translation vector as a 4x4 matrix to opengl */
 	
-	/*
+	
 	if (shader && shader->matrix_version == matrix_version)  {
 		gxdprintf(" Skip redundent matrix upload\n");
 		return;
 		
 	}
-	*/
+	
 			
 	zfloat32 matr[]={
 	     modelview.rot.x_axis.VX,    modelview.rot.x_axis.VY,     modelview.rot.x_axis.VZ, 0,
@@ -173,35 +173,37 @@ void gxi_refresh_matrix(/*gfx_shader_t* shader*/) {
 	     modelview.pos.VX,	      modelview.pos.VY,	modelview.pos.VZ,    1 
 	};
 			
-	if (!shader) {
-		
-		ff_update_matrix(proj_matrix, &matr);
+	//printMatrix44("modelview", matr);
+	
 
-		
-				
+	if (!shader) {	
+		ff_update_matrix(proj_matrix, &matr);
+		printf("updated ff\n");
+		return;
 	}
 	
-	/*
-	if (shader && shader->modelview_uloc != -1) {
-		//ff_matrix_version = -1; //if we turn shaders off, we will have to resend the fixed function matrix
-
+	
+	if (shader->modelview_uloc != -1) {
+	
 		gxdprintf(" upload shader matrix to ver %d\n", matrix_version);
-		
+		checkGL();
 		glUniformMatrix4fv(shader->modelview_uloc, 1, 0, matr);	
-		
+		checkGL();
 		glUniformMatrix4fv(shader->projection_uloc, 1, 0, proj_matrix);	
 		
-		shader->matrix_version = matrix_version;
-		
+	//	shader->matrix_version = matrix_version;
+		checkGL();
 		if (shader->camera_pos_uloc != -1) {
 			//printf(" upload campos %d   %f %f %f\n", shader->camera_pos_uloc, modelview_camera_pos.VX,modelview_camera_pos.VY,modelview_camera_pos.VZ);
 			glUniform3fv(shader->camera_pos_uloc, 1, modelview_camera_pos.array);	
 		}
 		
-		
+		checkGL();
+		return;
 	}
-	*/
 	
+	printf(" Unhandled matrix case\n");
+	exit(0);
 	
 }
 
@@ -353,9 +355,9 @@ void getmatrix(){
 	vec3set(modelview.pos, m[12],m[13],m[14]);
 
 }
+#endif
 
-
-
+#if 1
 void printMatrix44(char* name, float* m){
 	int i;
 	gxdprintf("[ %s ", name);

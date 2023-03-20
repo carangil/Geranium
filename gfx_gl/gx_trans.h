@@ -41,7 +41,7 @@ void gfx_rotate_z(float rad);
 void gfx_rotate_3x3(gfx_mat_3x3* rot);
 void gfx_scale3(float x,float y, float z);
 
-void gxi_refresh_matrix( /*gfx_shader_t* shader*/);
+void gxi_refresh_matrix( struct gx_shader_variant_s* shader);
 
 void gfx_trans_vec3(vec3* po); //transform a point by the current modelview matrix (3x3 + translation)
 void gfx_trans_dir_vec3(vec3* pd); //transform a direction by the current modeview matrix (3x3 only)

@@ -113,44 +113,9 @@ zbool gxi_texture_enable(gfx_textureT* image)
 }
 
 
-//offset is to 'stack' up multiple sets of textures
+
 int gxi_enabled_texture_units = 0;
 int gxi_texture_count = 0;
-
-
-
-
-void gxi_texture_set_enable(zvecT* textures) {
-
-	zuint32 i;
-	int newcount = 0;
-
-	//enable and set each texture
-	if (textures != NULL){
-
-		for (i = 0; i < zvec_count(textures); i++) {
-			glActiveTexture(GL_TEXTURE0 + i);  //set texture unit
-			glEnable(GL_TEXTURE_2D);
-
-			
-
-				gxi_texture_enable(zvec_get_at(textures, i));
-			
-		}
-		newcount = i;
-	}
-	//disable remaining textures
-	for (; i < gxi_enabled_texture_units; i++) {
-
-		glActiveTexture(GL_TEXTURE0 + i);
-		glDisable(GL_TEXTURE_2D);
-
-	}
-
-	gxi_enabled_texture_units = newcount;
-}
-
-
 
 void gxi_new_texture_set() {
 

@@ -5,16 +5,22 @@
 
 #include "ztypes.h"
 #include "zmem.h"
+#include "zlist.h"
 #include "zvector.h"		//vector array (data structure)
 #include "zvectormath.h"	//3d math
+#include "math.h"
 #include "math.h"
 
 #ifdef GFXINTERNAL
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#define checkGL()   checkGLfunc(__FILE__, __LINE__)
-void checkGLfunc(char* file, int line);
+#define checkGL()   checkGLfunc(__FILE__, __LINE__, "", ZFALSE);
+#define checkGLNote(NOTE,TOLERABLE)   checkGLfunc(__FILE__, __LINE__, NOTE, TOLERABLE);
+
+void checkGLfunc(char* file, int line, char* hint, zbool tolerable );
+
+
 
 
 #endif
@@ -47,15 +53,19 @@ void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom);
 
 typedef struct gfxstyleS {
 	zvecT properties;
-
+	struct gx_shadergroup_s* shader_group;
+	zbool style_dirty; //if true, need to push changes to opengl before rendering
 } gfx_styleT;
 
 gfx_styleT* gfx_style_mk();
 
 
 //set properties.  Pass GFX_DELETE if need to remove a value
-#define GFX_DELETE 1
-void gfx_style_set_property(gfx_styleT* st, int id, char* name_in, int index, int val, void* ptr, int action);
+//for light positions/directions that need to be specified in camspace, passing GFX_TRANSFORM_POINT or GFX_TRANSFORM_DIRECTION will transform using the current 'matrix'
+#define GFX_DELETE				1
+#define GFX_TRANSFORM_POINT		2
+#define GFX_TRANSFORM_DIRECTION	3
+void gfx_style_set_property(gfx_styleT* st, int idORtype, char* name_in, int index, int val, void* ptr, int action);
 
 //selects a style to use for rendering
 void gfx_style(gfx_styleT* st);
@@ -92,6 +102,8 @@ typedef struct gfx_VertexBufferS {
 	int fixed_texcoord;
 	int fixed_normal;
 	
+	char* buffer_spec;
+
 } gfx_vertex_bufferT;
 
 
@@ -123,7 +135,7 @@ void gfx_gl_test();
 void gfx_arrow(vec3* p1, vec3* p2);
 
 
-/*datatypes for attributes and properties*/
+/*datatypes for properties*/
 
 #define GFX_FLOAT		0x10000000
 #define GFX_FLOAT2		0x20000000
@@ -131,6 +143,10 @@ void gfx_arrow(vec3* p1, vec3* p2);
 #define GFX_FLOAT4		0x40000000
 #define GFX_INT			0x50000000
 #define GFX_TEXTURE		0x60000000
+
+//for FLOAT3 that get passed in:  put these in the valop field
+#define GFX_POINT_TRANSFORM		1
+#define GFX_NORMAL_TRANSFORM	2
 
 
 #ifdef GFXINTERNAL
@@ -145,10 +161,11 @@ void gfx_arrow(vec3* p1, vec3* p2);
 /* light DIRECTION and POSITION for the same 'n' are mutually exclusive! */
 #define GXI_LIGHT_DIRECTION	(GFX_FLOAT3 | 2)	
 #define GXI_LIGHT_POSITION	(GFX_FLOAT3 | 3)
-#define GXI_LIGHT_COLOR		(GFX_FLOAT4 | 4)
+#define GXI_LIGHT_COLOR		(GFX_FLOAT3 | 4)
 #define GXI_LIGHT_AMBIENT	(GFX_FLOAT4 | 5)
 #define GXI_TEXTURE_DIFFUSE	(GFX_TEXTURE | 6)
-
+#define GXI_SPECULAR_EXPONENT (GFX_FLOAT | 7)
+#define GXI_SPECULAR_COLOR (GFX_FLOAT3 | 8)
 
 typedef struct gfx_propertyS {
 	char* name;//user can name custom properties
@@ -171,3 +188,5 @@ typedef struct gfx_propertyS {
 #define MAX_FF_LIGHTS 4
 
 #endif
+
+#include "glsl.h"

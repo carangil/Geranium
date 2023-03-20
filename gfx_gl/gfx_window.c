@@ -12,16 +12,23 @@
 /*opengl error checker*/
 char* last_file;
 int last_line;
+char* last_hint = NULL;
 
-#define checkGL()   checkGLfunc(__FILE__, __LINE__)
-
-void checkGLfunc(char* file, int line) {
+void checkGLfunc(char* file, int line, char* hint, zbool tolerable) {
 	int err;
 
 	for (err = glGetError(); err != GL_NO_ERROR; err = glGetError()) {
-		printf("OPENGL ERROR %x FROM %s:%d to %s:%d\n", err, last_file, last_line, file, line);
+		
+			printf("OPENGL ERROR %x FROM %s:%d %s to %s:%d  %s\n", err, last_file, last_line, last_hint,  file, line, hint);
+		
+			if (tolerable)
+				printf(" ^ error is potentially expected and OK\n");
+			else
+				printf("Error is not expected.  Set breakpoint here.\n");
+			
 	}
 
+	last_hint = hint;
 	last_file = file;
 	last_line = line;
 
@@ -333,7 +340,8 @@ struct zwindowS* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) 
 	glfwGetWindowSize(win->fwindow, &win->iface.w, &win->iface.h);
 	glViewport(0, 0, win->iface.w, win->iface.h);
 	glClearColor(0, 0, 0, 1); //black window default
-	
+
+	glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR);
 	checkGL();
 
 	return &(win->iface);
@@ -349,7 +357,7 @@ void gfx_arrow(vec3* p1, vec3* p2) {
 	if (!p2)
 		p2 = &zero;
 
-	gxi_refresh_matrix();
+	gxi_refresh_matrix(NULL);
 	glDisable(GL_BLEND);
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_LIGHTING);
