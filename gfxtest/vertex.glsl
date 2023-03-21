@@ -1,24 +1,40 @@
-//These 3 are 'built in'
+//These are 'built in'
 uniform mat4 gfx_projection;
 uniform mat4 gfx_modelview;
 uniform vec3 gfx_camera_pos;
 uniform vec3 gfx_ambient_sum;
-
+varying float F_zcoord;
 
 /*********** UNIFORM INPUTS ***************/
+
+
+//material specular color (material property)
+#ifdef enable_specular0
+	uniform vec3 specular0;
+#endif
+
+
 
 #ifdef enable_light_direction0
 	uniform vec3 light_color0;
 	uniform vec3 light_direction0;
 #endif
 
-//material specular color
-#ifdef enable_specular0
-	uniform vec3 specular0;
+#ifdef enable_light_position0
+	uniform vec3 light_color0;
+	uniform vec3 light_position0;
 #endif
+
 
 #ifdef enable_specular_exponent0
 	uniform float specular_exponent0;
+#endif
+
+#ifdef enable_light_attenuation0
+	uniform vec3 light_attenuation0;
+	#define ATTENUATION_CONSTANT	x
+	#define ATTENUATION_LINEAR		y
+	#define ATTENUATION_SQUARED		z
 #endif
 
 /*********** VERTEX INPUTS ***************/
@@ -68,9 +84,23 @@ void main()
 	#ifdef enable_light_direction0
 		point_to_light = normalize(light_direction0);
 		attenuation = 1; 
-		
 	#endif
-	//todo positional light
+
+	#ifdef enable_light_position0
+	
+		point_to_light= light_position0 - vertex_camspace;
+		float d = length(point_to_light);
+		point_to_light = point_to_light / d;  //normally you'd use built-in 'normalize' but we need 'd' anyway.
+		#ifdef enable_light_attenuation0
+			attenuation = 1/ 
+				(        light_attenuation0.ATTENUATION_CONSTANT + 
+				  d *    light_attenuation0.ATTENUATION_LINEAR + 
+				  d *d * light_attenuation0.ATTENUATION_SQUARED
+				);
+		#else	
+			attenuation = 1; 
+		#endif
+	#endif
 
 	#if   defined(enable_light_direction0) || defined(enable_light_position0)
 	
@@ -96,12 +126,14 @@ void main()
 		F_specular_color += clamp(specularIntens, 0, 1)  * vec4(light_color0,1) * attenuation;
 			
 		//add each light's diffuse component
-		F_color += vec4( clamp(dot(normal_camspace,   point_to_light ),0.0,1.0) *  light_color0  ,1);
+		F_color +=  attenuation*vec4( clamp(dot(normal_camspace,   point_to_light ),0.0,1.0) *  light_color0  ,1);
 	#endif
 	
 
 
 	F_color += vec4(ambient, 0);	//add in ambient light : THis is either white if no lighting, or a value passed in from a uniform
+
+
 
 
 	#ifdef enable_color
@@ -120,5 +152,6 @@ void main()
 
 	//projection matrix
 	gl_Position = gfx_projection * vec4(vertex_camspace, 1.0) ;
+	F_zcoord = vertex_camspace.z; //unprojected
 
 }

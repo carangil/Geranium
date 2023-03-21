@@ -51,16 +51,26 @@ void ff_texture_env(zuint32 i) {
 //lighting
 int ff_lights_used = ZFALSE;
 zbool ff_lights_active[MAX_FF_LIGHTS];
+vec3 ff_light_attenuation[MAX_FF_LIGHTS];
 vec3 ff_specular_color;
 float ff_specular_exponent;
+float ff_fog_density;
+zbool ff_fog_enable=ZFALSE;
+vec4 ff_fog_color;
 
 void ff_new_light_set() {
+	int i;
 	memset(ff_lights_active, 0, sizeof(ff_lights_active));
 	ff_lights_used = ZFALSE;
-
+	ff_fog_enable = ZFALSE;
 	//default specular settings
 	ff_specular_exponent = 10.0;
 	vec3set(ff_specular_color, 1, 1, 1);
+
+	for (i = 0; i < MAX_FF_LIGHTS; i++){
+		vec3set( ff_light_attenuation[i] , 1, 0, 0); //no attenuation
+	}
+
 }
 
 //returns TRUE if fixed function handled the light property
@@ -71,6 +81,16 @@ zbool ff_light_parm(gfx_propertyT* p) {
 
 	switch (p->id) {
 
+
+	case GXI_FOG_COLOR: 
+		ff_fog_color = p->data.v4;
+		ff_fog_color.VW = 1;
+		return 1;
+
+	case GXI_FOG_DENSITY:
+		ff_fog_enable = ZTRUE;
+		ff_fog_density = p->data.f;
+		return 1;
 
 	case GXI_LIGHT_DIRECTION: //a directional light
 
@@ -103,8 +123,7 @@ zbool ff_light_parm(gfx_propertyT* p) {
 
 		glLightfv(GL_LIGHT0 + p->index, GL_DIFFUSE, p->data.fa);
 		glLightfv(GL_LIGHT0 + p->index, GL_SPECULAR, p->data.fa);
-		//vec4 zero = vec4const(0, 0, 0, 1);
-		//glLightfv(GL_LIGHT0 + p->index, GL_SPECULAR, &zero);
+
 		return 1;
 
 	case GXI_SPECULAR_EXPONENT:  //specular exponent
@@ -115,6 +134,12 @@ zbool ff_light_parm(gfx_propertyT* p) {
 	case GXI_SPECULAR_COLOR:  //specular color
 		ff_specular_color = p->data.v;
 		return 1;
+
+	case GXI_LIGHT_ATTENUATION:  //specular color
+		ff_light_attenuation[p->index] = p->data.v; 
+		return 1;
+	
+
 	}
 
 
@@ -142,7 +167,11 @@ void ff_light_complete(vec4* ambientsum) {
 
 		//disable and ff lights that are not being used anymore
 		for (i = 0; i < MAX_FF_LIGHTS; i++) {
-			if (!ff_lights_active[i]) {
+			if (ff_lights_active[i]) {
+				glLightf(GL_LIGHT0 + i, GL_CONSTANT_ATTENUATION, ff_light_attenuation[i].VX);
+				glLightf(GL_LIGHT0 + i, GL_LINEAR_ATTENUATION, ff_light_attenuation[i].VY);
+				glLightf(GL_LIGHT0 + i, GL_QUADRATIC_ATTENUATION, ff_light_attenuation[i].VZ);
+			} else {
 				printf(" dis ff light %d\n", i);
 				glDisable(GL_LIGHT0 + i);
 			}
@@ -153,6 +182,16 @@ void ff_light_complete(vec4* ambientsum) {
 	else {
 		glDisable(GL_LIGHTING);
 	}
+
+	if (ff_fog_enable) {
+		glEnable(GL_FOG);
+		glFogi(GL_FOG_MODE, GL_EXP);
+		glFogf(GL_FOG_DENSITY, ff_fog_density);
+		glFogfv(GL_FOG_COLOR, ff_fog_color.array);
+	}
+	else
+		glDisable(GL_FOG);
+
 }
 
 

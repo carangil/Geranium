@@ -159,13 +159,16 @@ void gfx_arrow(vec3* p1, vec3* p2);
 #define GXI_BLEND_MODE	(GFX_INT  |  1)
 
 /* light DIRECTION and POSITION for the same 'n' are mutually exclusive! */
-#define GXI_LIGHT_DIRECTION	(GFX_FLOAT3 | 2)	
-#define GXI_LIGHT_POSITION	(GFX_FLOAT3 | 3)
-#define GXI_LIGHT_COLOR		(GFX_FLOAT3 | 4)
-#define GXI_LIGHT_AMBIENT	(GFX_FLOAT4 | 5)
-#define GXI_TEXTURE_DIFFUSE	(GFX_TEXTURE | 6)
-#define GXI_SPECULAR_EXPONENT (GFX_FLOAT | 7)
-#define GXI_SPECULAR_COLOR (GFX_FLOAT3 | 8)
+#define GXI_LIGHT_DIRECTION		(GFX_FLOAT3  | 2 )	
+#define GXI_LIGHT_POSITION		(GFX_FLOAT3  | 3 )
+#define GXI_LIGHT_COLOR			(GFX_FLOAT3  | 4 )
+#define GXI_LIGHT_AMBIENT		(GFX_FLOAT4  | 5 )
+#define GXI_TEXTURE_DIFFUSE		(GFX_TEXTURE | 6 )
+#define GXI_SPECULAR_EXPONENT	(GFX_FLOAT   | 7 )
+#define GXI_SPECULAR_COLOR		(GFX_FLOAT3  | 8 )
+#define GXI_LIGHT_ATTENUATION	(GFX_FLOAT3  | 9 )
+#define GXI_FOG_COLOR			(GFX_FLOAT3  | 10)
+#define GXI_FOG_DENSITY			(GFX_FLOAT   | 11)
 
 typedef struct gfx_propertyS {
 	char* name;//user can name custom properties

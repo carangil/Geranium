@@ -213,13 +213,26 @@ void gfx_gl_test() {
 		gfx_camera_view(&cam);
 
 
-		vec3set(lpcam, 0, 10, 5);
+		//vec3set(lpcam, 0, 0, 5);
 		vec3set(ldcam, 1, 1, 0);
-		gfx_trans_vec3(&lpcam); //transform point for light 
+		//gfx_trans_vec3(&lpcam); //transform point for light 
 		//gfx_trans_dir_vec3(&ldcam); //transform dir for light 
-		//gfx_style_set_property(st_strawberry , GFX_FLOAT3, "light_position", 0, 0, &lpcam, 0);
-		//gfx_style_set_property(st_sphere, GFX_FLOAT3, "light_position", 0, 0, &lpcam, 0);
+
+		lpcam = cam.pos; //light is at the camera position
 		
+
+ 		gfx_style_set_property(st_strawberry , GFX_FLOAT3, "light_position", 0, 0, &lpcam, GFX_TRANSFORM_POINT);
+		gfx_style_set_property(st_sphere, GFX_FLOAT3, "light_position", 0, 0, &lpcam, GFX_TRANSFORM_POINT);
+		
+		
+
+
+		vec3 latten = vec3const(.1, 0, .5);
+
+		gfx_style_set_property(st_strawberry, GFX_FLOAT3, "light_attenuation", 0, 0, &latten, 0);
+
+		//gfx_style_set_property(st_sphere, GFX_FLOAT3, "light_direction", 0, 0, &ldcam, GFX_TRANSFORM_DIRECTION);
+		//gfx_style_set_property(st_strawberry, GFX_FLOAT3, "light_direction", 0, 0, &ldcam, GFX_TRANSFORM_DIRECTION);
 		
 		vec4 purple;
 		vec3set(purple, 1, 0, 1);
@@ -232,12 +245,16 @@ void gfx_gl_test() {
 		vec3 white;
 		vec3set(white, 1, 1, 1);
 
+		float fd = 0.1;
+		gfx_style_set_property(st_sphere, GFX_FLOAT3, "fog_color", 0, 0, &purple, 0);
+		gfx_style_set_property(st_sphere, GFX_FLOAT, "fog_density", 0, 0, &fd, 0);
+
+
  		gfx_style_set_property(st_sphere, GFX_FLOAT3, "specular", 0, 0, &white, 0);
 		gfx_style_set_property(st_strawberry, GFX_FLOAT3, "specular", 0, 0, &white, 0);
 
 
-		gfx_style_set_property(st_sphere, GFX_FLOAT3, "light_direction", 0, 0, &ldcam, GFX_TRANSFORM_DIRECTION);
-		gfx_style_set_property(st_strawberry, GFX_FLOAT3, "light_direction", 0, 0, &ldcam, GFX_TRANSFORM_DIRECTION);
+		
 
 
 

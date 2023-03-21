@@ -85,8 +85,11 @@ void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom)
 
 
 
-char* gxi_builtin_properties[] = { "invalid" , "blend"        , "light_direction",   "light_color"   , "light_ambient",   "light_position", "texture_diffuse", "specular_exponent", "specular", NULL };
-zuint32 gxi_builtin_prop_id[] = { 0         , GXI_BLEND_MODE , GXI_LIGHT_DIRECTION,  GXI_LIGHT_COLOR, GXI_LIGHT_AMBIENT,  GXI_LIGHT_POSITION, GXI_TEXTURE_DIFFUSE, GXI_SPECULAR_EXPONENT, GXI_SPECULAR_COLOR, 0 };
+char* gxi_builtin_properties[] = { "invalid" , "blend"        , "light_direction",   "light_color"   , "light_ambient",   
+"light_position", "texture_diffuse", "specular_exponent", "specular", "light_attenuation", "fog_color", "fog_density", NULL };
+
+zuint32 gxi_builtin_prop_id[] = { 0         , GXI_BLEND_MODE , GXI_LIGHT_DIRECTION,  GXI_LIGHT_COLOR, GXI_LIGHT_AMBIENT,  
+GXI_LIGHT_POSITION, GXI_TEXTURE_DIFFUSE, GXI_SPECULAR_EXPONENT, GXI_SPECULAR_COLOR, GXI_LIGHT_ATTENUATION, GXI_FOG_COLOR, GXI_FOG_DENSITY , 0 };
 
 
 zuint32 gxi_get_prop_id(char* name) {
