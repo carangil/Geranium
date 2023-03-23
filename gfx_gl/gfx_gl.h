@@ -1,7 +1,8 @@
 #pragma once
 
 #define GXDEBUG 1
-#define gxdprintf  if(GXDEBUG) printf
+#define gxdprintf  if(GXDEBUG>=1) printf
+#define gxdtracef  if(GXDEBUG>=2) printf
 
 #include "ztypes.h"
 #include "zmem.h"
@@ -143,6 +144,7 @@ void gfx_arrow(vec3* p1, vec3* p2);
 #define GFX_FLOAT4		0x40000000
 #define GFX_INT			0x50000000
 #define GFX_TEXTURE		0x60000000
+#define GFX_SWITCH		0x70000000  /* Flag creates a enable_Xn macro, with X the property name and n is the index (foo would be enable_foo0)*/
 
 //for FLOAT3 that get passed in:  put these in the valop field
 #define GFX_POINT_TRANSFORM		1
@@ -189,6 +191,8 @@ typedef struct gfx_propertyS {
 
 
 #define MAX_FF_LIGHTS 4
+
+zbool gfx_free_mesh(gfx_meshT* m);
 
 #endif
 

@@ -18,38 +18,49 @@
 
 
 void gfx_gl_test() {
+	zvecT* garbage = zvec_mk(NULL, 64);
 
 
 	zwindowT* zwin = gfx_mkwindow("Testing", 1024, 768, 0);
-	
+	zvec_add(garbage, zwin);
+
 	zbitmapT* earthpic = zbitmap_load_tga("../../Zcore-data/earth-cylindrical-alpha-holes.tga", 1 * ZTGA_TOP);
 	zbitmapT* strawpic = zbitmap_load_tga("../../Zcore-data/web/strawberry/Texture/Strawberry_basecolor.tga", 0 * ZTGA_TOP);
-	
+	zvec_add(garbage, earthpic);
+	zvec_add(garbage, strawpic);
+
+
 	gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/strawberry/Strawberry_obj.obj", 1.0);
-	
+	zvec_add(garbage, strawberry_mesh);
 	float speed = .05;
 
 	gfx_textureT* strawtex = gfx_texture_mk(strawpic);
 	gfx_textureT* earthtex = gfx_texture_mk(earthpic);
+	zvec_add(garbage, strawtex);
+	zvec_add(garbage, earthtex);
+
 
 	gfx_styleT* st_sphere = gfx_style_mk();
 	gfx_styleT* st_strawberry = gfx_style_mk();
+	zvec_add(garbage, st_sphere);
+	zvec_add(garbage, st_strawberry);
+
 
 	gfx_style_set_property(st_sphere, 0, "blend", 0, GFX_BLEND_ALPHA, NULL, 0);
 
 
 	vec3 ldcam;
 	vec3 lpcam;
-	vec4 lcol = vec4const(.8, 1, .8, 1.0);
+	vec4 lcol = vec4const(1, 1, .7, 1.0);
 	vec4 lam = vec4const(.2, .2, .5, 1.0);
 
 
-	float sh = 4.0;
+	float sh = 100.0;
 	//set light parameters on both
 	gfx_style_set_property(st_strawberry, GFX_FLOAT4, "light_color", 0, 0, &lcol, 0);
 	gfx_style_set_property(st_strawberry, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
 	gfx_style_set_property(st_strawberry, GFX_TEXTURE, "texture_diffuse", 0, 0, strawtex, 0);
-	gfx_style_set_property(st_strawberry, GFX_FLOAT, "specular_exponent", 0, 0, &sh, 0);
+
 
 	gfx_style_set_property(st_sphere, GFX_FLOAT4, "light_color", 0, 0, &lcol, 0);
 	gfx_style_set_property(st_sphere, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
@@ -58,7 +69,8 @@ void gfx_gl_test() {
 	gfx_style_set_property(st_sphere, GFX_FLOAT, "specular_exponent", 0, 0, &sh, 0);
 
 
-	gx_shadergroupT* tsg = gx_shader_source("@../gfxtest/vertex.glsl", "@../gfxtest/fragment.glsl");
+	gx_shadergroupT* tsg = gx_shader_source("@../gfxtest/finevertex.glsl", "@../gfxtest/finefragment.glsl");
+	zvec_add(garbage, tsg);
 	//st_sphere->shader_group = ram_addref(tsg);
 	//st_strawberry->shader_group = ram_addref(tsg);
 
@@ -68,6 +80,8 @@ void gfx_gl_test() {
 	//create vertex buffer
 	gfx_vertex_bufferT* vb = gfx_vertex_buffer_mk(10000, "position:3|color:4|texcoord:2|normal:3");
 	gfx_vertex_buffer_add_index(vb, 10000);
+
+	zvec_add(garbage, vb);
 
 	//define a sphere
 	int vend;
@@ -148,12 +162,20 @@ void gfx_gl_test() {
 
 
 				if (ev.a == 'g') {
+					ram_free(st_sphere->shader_group);
+					ram_free(st_sphere->shader_group);
 					st_sphere->shader_group = NULL;
 					st_strawberry->shader_group = NULL;
 				}
 				if (ev.a == 'G') {
-					st_sphere->shader_group = tsg;
-					st_strawberry->shader_group = tsg;
+					st_sphere->shader_group = ram_addref(tsg);
+					st_strawberry->shader_group = ram_addref(tsg);
+
+				}
+
+				if (ev.a == 'k') {
+					gfx_style_set_property(st_sphere, GFX_SWITCH, "XXX", 0, 0, NULL, 0);
+					gfx_style_set_property(st_strawberry, GFX_SWITCH, "XXX", 0, 0, NULL, 0);
 
 				}
 				
@@ -161,8 +183,8 @@ void gfx_gl_test() {
 
 
 			if (ZEVENTIS(ev.type, ZEVENT_KEY | ZEVENT_DOWN | ZKEY_CTRL) && (ev.a == 'q')) {
-				printf("CLOSE\n");
-				exit(1); 
+				
+				zwin->close(zwin);
 				break;
 			}
 
@@ -224,16 +246,16 @@ void gfx_gl_test() {
  		gfx_style_set_property(st_strawberry , GFX_FLOAT3, "light_position", 0, 0, &lpcam, GFX_TRANSFORM_POINT);
 		gfx_style_set_property(st_sphere, GFX_FLOAT3, "light_position", 0, 0, &lpcam, GFX_TRANSFORM_POINT);
 		
+		//gfx_style_set_property(st_sphere, GFX_FLOAT3, "light_direction", 0, 0, &ldcam, GFX_TRANSFORM_DIRECTION);
+		//gfx_style_set_property(st_strawberry, GFX_FLOAT3, "light_direction", 0, 0, &ldcam, GFX_TRANSFORM_DIRECTION);
+
 		
-
-
-		vec3 latten = vec3const(.1, 0, .5);
+		
+		vec3 latten = vec3const(.1, 0, .1);
 
 		gfx_style_set_property(st_strawberry, GFX_FLOAT3, "light_attenuation", 0, 0, &latten, 0);
 
-		//gfx_style_set_property(st_sphere, GFX_FLOAT3, "light_direction", 0, 0, &ldcam, GFX_TRANSFORM_DIRECTION);
-		//gfx_style_set_property(st_strawberry, GFX_FLOAT3, "light_direction", 0, 0, &ldcam, GFX_TRANSFORM_DIRECTION);
-		
+
 		vec4 purple;
 		vec3set(purple, 1, 0, 1);
 		vec3 green;
@@ -263,7 +285,7 @@ void gfx_gl_test() {
 
 		gfx_style(st_sphere);
 
-		printf(" MATRIX FOR SPHERE\n");
+		
 		gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0, vend, ZTRUE);
 
 	
@@ -275,7 +297,7 @@ void gfx_gl_test() {
 		gfx_meshT* m;
 
 		for (m = strawberry_mesh; m; m = m->next_piece) {
-			printf(" MATRIX FOR STRAWBERRY\n");
+			
  			gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
 		}
 					
@@ -285,6 +307,7 @@ void gfx_gl_test() {
 
 	printf(" window close button was pressed\n");
 
+	ram_free(garbage);
 
 }
 
@@ -292,6 +315,8 @@ void gfx_gl_test() {
 int main(int argc, char** args){
 
 	gfx_gl_test();
+	 
+	printf("%d allocations left\n", ram_allocs());
 
 }
 

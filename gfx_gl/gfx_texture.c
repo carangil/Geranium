@@ -12,11 +12,21 @@
 #include "gfx_gl.h"
 
 
+zbool freetex(void* v) {
+	gfx_textureT* t = v;
+
+	if (t->_gl_texture_number)
+		glDeleteTextures(1, &(t->_gl_texture_number));
+
+	ram_free(t->bitmap);
+	
+	return ZTRUE;
+}
 
 
 gfx_textureT* gfx_texture_mk(zbitmapT* bmp) {
 
-	gfx_textureT* tx = ram_alloc(sizeof(gfx_textureT), NULL);
+	gfx_textureT* tx = ram_alloc(sizeof(gfx_textureT), freetex);
 
 	tx->bitmap = ram_addref(bmp);
 	tx->_scaler = GFX_TEXTURE_SCALER_SMOOTH;

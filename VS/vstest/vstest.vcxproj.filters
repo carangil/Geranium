@@ -25,4 +25,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\gfxtest\fragment.glsl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="..\..\gfxtest\vertex.glsl">
+      <Filter>Header Files</Filter>
+    </None>
+  </ItemGroup>
 </Project>

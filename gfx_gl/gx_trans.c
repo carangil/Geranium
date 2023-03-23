@@ -185,7 +185,7 @@ void gxi_refresh_matrix(gx_shader_variantT* shader ) {
 	
 	if (shader->modelview_uloc != -1) {
 	
-		gxdprintf(" upload shader matrix to ver %d\n", matrix_version);
+		gxdtracef(" upload shader matrix to ver %d\n", matrix_version);
 		checkGL();
 		glUniformMatrix4fv(shader->modelview_uloc, 1, 0, matr);	
 		checkGL();

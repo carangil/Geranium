@@ -1,13 +1,18 @@
-/* Vertex lighting Vertex Shader */
-
-//These are 'built in'
-uniform mat4 gfx_projection;
-uniform mat4 gfx_modelview;
-uniform vec3 gfx_camera_pos;
 uniform vec3 gfx_ambient_sum;
+
+
+uniform sampler2D texture_diffuse0;
+varying vec4 F_vertex_color;
+varying vec2 F_texcoord;
 varying float F_zcoord;
 
-/*********** UNIFORM INPUTS ***************/
+varying vec3  vertex_camspace;
+varying vec3 normal_camspace;
+
+#ifdef enable_fog_density0
+	uniform float fog_density0;
+	uniform vec3 fog_color0;
+#endif
 
 
 //Material properties 
@@ -22,6 +27,7 @@ varying float F_zcoord;
 #endif
 
 //Per-light properties
+
 #ifdef enable_light_direction0
 	uniform vec3 light_direction0;
 #endif
@@ -40,21 +46,8 @@ varying float F_zcoord;
 	uniform vec3 light_attenuation0;
 #endif
 
-/*********** VERTEX INPUTS ***************/
-//These should match the vertex buffer attribute names
-
-attribute vec3 position;
-attribute vec4 color;
-attribute vec2 texcoord;
-attribute vec3 normal;
-
-/*********** OUTPUTS ******************/
-//interpolated outputs to the pixel shader
-varying vec4 F_color;
-varying vec4 F_specular_color;
-#ifdef enable_texcoord
-	varying vec2 F_texcoord;
-#endif
+vec4 F_color =vec4(0,0,0,1);
+vec4 F_specular_color = vec4(0,0,0,0);
 
 /*Light functions */
 	
@@ -100,31 +93,15 @@ void light_shading(vec3 normal_camspace, vec3 point_to_light, vec3 light_colorX,
 }
 
 
-/*************************/
+
+
 
 void main()
 {
-
-	vec3 point_to_light; 
 	float attenuation;
 	float out_distance;
-
-	//start colors
-	F_color = vec4(0,0,0,1);
-	F_specular_color = vec4(0,0,0,0);
-
-	// Transform vertex and normal
-	vec3 vertex_camspace = vec3( gfx_modelview * vec4(position, 1.0) );
-	
-	#ifdef enable_normal
-		vec3 normal_camspace = normalize(vec3( gfx_modelview * vec4(normal, 0.0)));  
-	#endif
-
-
-
-
-
-
+		
+	vec3 normal_camspace = normalize(normal_camspace);
 
 	//light 0
 	#if   defined(enable_light_direction0) || defined(enable_light_position0)
@@ -145,31 +122,52 @@ void main()
 	#endif
 
 
-
 	
 
+
+	
+	//ambient and color scaling
 	/* Add ambient light to vertex's light contribution */
 
 	F_color += vec4(gfx_ambient_sum, 0);	//add in ambient light: This is either the num of all ambient light OR is white 1,1,1 for no lighting
 
+
 	/* Filter diffuse light by vertex color (if exist) */
 	#ifdef enable_color
-		F_color = F_color * color;
-		F_color.w = color.w;	//copy transparency from the input color, if there was one
+		F_color = F_color * F_vertex_color;
+		F_color.w = F_vertex_color.w;	//copy transparency from the input color, if there was one
 	#endif
 
 	/*Filter specular light by specular material color */
 	#ifdef enable_specular0
 		F_specular_color *= vec4(specular0, 1);
 	#endif
-	
-	#ifdef enable_texcoord
-		F_texcoord=texcoord;
+
+	//texture filters the diffuse color
+
+	#ifdef enable_texture_diffuse0
+		F_color *= texture2D(texture_diffuse0, vec2(F_texcoord) );
 	#endif
 
-	//projection matrix
-	gl_Position = gfx_projection * vec4(vertex_camspace, 1.0) ;
 
-	F_zcoord = vertex_camspace.z; //pass unprojected Z coordinate (for fog)
+
+
+
+
+
+
+
+
+	
+	gl_FragColor = F_color + F_specular_color;
+
+	#ifdef enable_fog_density0
+		float foggy = 1-clamp(exp(F_zcoord*fog_density0), 0, 1);  //note normally is exp(-distance*denstity), but Z coordinate is already negative
+		gl_FragColor = mix(gl_FragColor, vec4(fog_color0, 1), foggy);
+
+	#endif
 
 }
+
+
+

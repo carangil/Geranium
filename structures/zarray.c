@@ -25,7 +25,7 @@ int zarray_countf(void* array) {
 
 void* zarray_allocf( zsize elemsize, zuint32 elemnum){
 	size_t size = elemsize * elemnum;
-	printf(" array needs %d\n", (int)size);
+	//printf(" array needs %d\n", (int)size);
 
 	//if array is byte array (elements are size one), allocate an extra byte
 	if (elemsize==1)
@@ -55,7 +55,7 @@ void* zarray_allocf( zsize elemsize, zuint32 elemnum){
 
 void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok){
 	size_t newsize = elemsize * elemnum;
-	printf(" array resize needs %d for %d * %d\n", (int)newsize, (int)elemsize, (int)elemnum);
+	//printf(" array resize needs %d for %d * %d\n", (int)newsize, (int)elemsize, (int)elemnum);
 
 	//allocate extra byte for byte arrays null terminator (in case we want C strings out of here)
 	if (elemsize==1)

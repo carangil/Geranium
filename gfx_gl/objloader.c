@@ -498,7 +498,7 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 
 		/* Make mesh from the data */
 		gfx_meshT* start_mesh = NULL;
-		gfx_meshT* mesh = start_mesh = ram_alloc(sizeof(gfx_meshT), NULL);
+		gfx_meshT* mesh = start_mesh = ram_alloc(sizeof(gfx_meshT), gfx_free_mesh);
 		
 		zuint32 va = unique_combos;
 		if (va > MESH_VERTEX_COUNT)
@@ -544,7 +544,7 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 			if ((vu + new_points >= va) || (iu + new_index >= vi)) {
 
 
-				mesh->next_piece = ram_alloc(sizeof(gfx_meshT), NULL);
+				mesh->next_piece = ram_alloc(sizeof(gfx_meshT), gfx_free_mesh);
 
 				mesh = mesh->next_piece;
 

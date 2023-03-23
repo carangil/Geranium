@@ -18,10 +18,11 @@ zint32 ff_matrix_version = -1;
 void ff_update_matrix(zfloat32* proj_matrix, zfloat32* matr) {
 
 	if (ff_matrix_version == matrix_version) {
-			gxdprintf("skip same ff matrix\n");
+			//gxdprintf("skip same ff matrix\n");
 		return;
 
 	}
+	
 	
 
 	glMatrixMode(GL_PROJECTION);
@@ -52,6 +53,7 @@ void ff_texture_env(zuint32 i) {
 int ff_lights_used = ZFALSE;
 zbool ff_lights_active[MAX_FF_LIGHTS];
 vec3 ff_light_attenuation[MAX_FF_LIGHTS];
+vec4 ff_light_color[MAX_FF_LIGHTS];
 vec3 ff_specular_color;
 float ff_specular_exponent;
 float ff_fog_density;
@@ -69,6 +71,7 @@ void ff_new_light_set() {
 
 	for (i = 0; i < MAX_FF_LIGHTS; i++){
 		vec3set( ff_light_attenuation[i] , 1, 0, 0); //no attenuation
+		vec4set(ff_light_color[i], 1, 1, 1, 1);
 	}
 
 }
@@ -120,10 +123,9 @@ zbool ff_light_parm(gfx_propertyT* p) {
 		return 1;
 
 	case GXI_LIGHT_COLOR:
+		ff_light_color[p->index] = p->data.v4;
 
-		glLightfv(GL_LIGHT0 + p->index, GL_DIFFUSE, p->data.fa);
-		glLightfv(GL_LIGHT0 + p->index, GL_SPECULAR, p->data.fa);
-
+		
 		return 1;
 
 	case GXI_SPECULAR_EXPONENT:  //specular exponent
@@ -164,15 +166,22 @@ void ff_light_complete(vec4* ambientsum) {
 		glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, ff_specular_color.array);
 		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, ff_specular_exponent);
 
+		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR);
 
 		//disable and ff lights that are not being used anymore
 		for (i = 0; i < MAX_FF_LIGHTS; i++) {
+
+			glLightfv(GL_LIGHT0 + i, GL_DIFFUSE, ff_light_color[i].array);
+			glLightfv(GL_LIGHT0 + i, GL_SPECULAR, ff_light_color[i].array);
+
+
+
 			if (ff_lights_active[i]) {
 				glLightf(GL_LIGHT0 + i, GL_CONSTANT_ATTENUATION, ff_light_attenuation[i].VX);
 				glLightf(GL_LIGHT0 + i, GL_LINEAR_ATTENUATION, ff_light_attenuation[i].VY);
 				glLightf(GL_LIGHT0 + i, GL_QUADRATIC_ATTENUATION, ff_light_attenuation[i].VZ);
 			} else {
-				printf(" dis ff light %d\n", i);
+				gxdtracef(" dis ff light %d\n", i);
 				glDisable(GL_LIGHT0 + i);
 			}
 

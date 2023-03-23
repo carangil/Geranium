@@ -97,7 +97,7 @@ zuint32 gxi_get_prop_id(char* name) {
 	for (i = 0; gxi_builtin_properties[i]; i++) {
 
 		if (!strcmp(name, gxi_builtin_properties[i])) {
-			//printf(" found builtin %x for %s\n", gxi_builtin_prop_id[i], name);
+			gxdtracef(" found builtin %x for %s\n", gxi_builtin_prop_id[i], name);
 			return gxi_builtin_prop_id[i];
 		}
 	}
@@ -105,11 +105,18 @@ zuint32 gxi_get_prop_id(char* name) {
 	return 0;
 }
 
+zbool freestyle(void* v) {
+	gfx_styleT* st = v;
 
+	zvec_cleanup(&st->properties);
+	ram_free(st->shader_group);
+
+	return ZTRUE;
+}
 
 
 gfx_styleT* gfx_style_mk() {
-	gfx_styleT* st = ram_alloc(sizeof(gfx_styleT), NULL);
+	gfx_styleT* st = ram_alloc(sizeof(gfx_styleT), freestyle);
 
 	zvec_mk(&st->properties, 4);
 
@@ -118,6 +125,15 @@ gfx_styleT* gfx_style_mk() {
 	return st;
 }
 
+zbool freeprop(void* v) {
+
+	gfx_propertyT* p = v;
+
+	if ((p->id & GXI_TYPEMASK) == GFX_TEXTURE)
+		ram_free(p->data.tex);
+
+	ram_free(p->name);
+}
 
 
 void gfx_style_set_property(gfx_styleT* st, int id, char* name_in, int index, int val, void* ptr, int action) {
@@ -161,26 +177,30 @@ void gfx_style_set_property(gfx_styleT* st, int id, char* name_in, int index, in
 
 	}
 
+	
 	if (p)
-		printf("Found existing property %x #%d for %s #%d\n", p->id, p->index, name_in, index);
+		gxdtracef("Found existing property %x #%d for %s #%d\n", p->id, p->index, name_in, index);
+		
 
 	if (action == GFX_DELETE) {
-		if (ifound != 0xFFFF)
-			zvec_remove_unordered(&st->properties, i);
+		if (ifound != 0xFFFF) {
+			p = zvec_remove_unordered(&st->properties, i);
+			ram_free(p);
+		}
 
-		printf(" delete property %x \n", ifound);
+		gxdtracef(" delete property %x \n", ifound);
 		return;
 	}
 
 	if (!p) {
-		p = ram_alloc(sizeof(gfx_propertyT), NULL);
+		p = ram_alloc(sizeof(gfx_propertyT), freeprop);
 		if (name)
 			p->name = zstrdup(name);
 		p->uloc = -1;
 		p->id = id;
 		p->index = index;
 
-		printf("New property %x #%d for %s #%d\n", p->id, p->index, name_in, index);
+		gxdtracef("New property %x #%d for %s #%d\n", p->id, p->index, name_in, index);
 
 		zvec_add_or_free(&st->properties, p);
 	}
@@ -208,9 +228,12 @@ void gfx_style_set_property(gfx_styleT* st, int id, char* name_in, int index, in
 		break;
 
 	case GFX_TEXTURE:
-		p->data.tex = ptr;
+		p->data.tex = ram_addref(ptr);
 		break;
 
+	case GFX_SWITCH:
+		//nothing to set 
+		break;
 	default:
 		printf(" unknown property type\n");
 		getc(stdin);
@@ -275,6 +298,7 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 
 	gfx_styleT* st = next_style;
 
+	zbool ambient_valid = ZFALSE;
 	vec4 ambientsum = vec4const(0, 0, 0, 1);
 
 	char* key = zstr_mk(100);
@@ -296,6 +320,8 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 			
 	gx_shader_variantT* variant = gx_shader_variant(st->shader_group, key, st, vb);  //select 'cached' shader variant for key, or create it using st and vb
 	
+	ram_free(key);
+
 	enabled_variant = variant;
 		
 
@@ -321,7 +347,6 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 
 		case GXI_LIGHT_AMBIENT:
 			vec4add(ambientsum, p->data.v4);
-
 			continue;
 
 		case GXI_BLEND_MODE:
@@ -335,13 +360,19 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 
 			if (variant) {
 				//if using shaders, need to bind it to a sampler
-				printf(" texture unit %d for loc %d\n", tu, variant->uloc[i]);
+				gxdtracef(" texture unit %d for loc %d\n", tu, variant->uloc[i]);
 				if (variant->uloc[i] != -1) {
 					glUniform1i(variant->uloc[i], tu);
 				}
 			}
 
 			continue;
+
+		case GXI_LIGHT_POSITION:
+		case GXI_LIGHT_DIRECTION:
+			ambient_valid = ZTRUE;
+			break; //continue thru to 'variant' check, because POS and DIR also need to be passed to shader
+			
 
 		}
 
@@ -374,6 +405,11 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 
 	if (variant) {
 		if (variant->ambient_uloc != -1) {
+
+			if (ambient_valid == 0) {
+				vec4set(ambientsum, 1, 1, 1, 1);  //white
+			}
+
 			glUniform3fv(variant->ambient_uloc, 1, &ambientsum);
 
 		}
@@ -407,6 +443,25 @@ zuint16 gfx_index_triangle(gfx_vertex_bufferT* vb, zuint16 a, zuint16 b, zuint16
 	return zarray_count(vb->index_buffer);
 }
 
+zbool freevb(void* v) {
+
+	gfx_vertex_bufferT* vb = v;
+
+	int i;
+	for (i = 0; i < vb->num_attributes;i++) {
+		ram_free(vb->attributes[i].name);
+	}
+	ram_free(vb->buffer_spec);
+	ram_free(vb->combined_data);
+	ram_free(vb->index_buffer);
+	if (vb->vbo)
+		glDeleteBuffers(1, &vb->vbo);
+	if (vb->index_vbo)
+		glDeleteBuffers(1, &vb->index_vbo);
+
+	return ZTRUE;
+}
+
 gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 
 	char* s = spec;
@@ -414,7 +469,7 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 	if (!s)
 		return NULL;
 
-	gfx_vertex_bufferT* vb = ram_alloc(sizeof(gfx_vertex_bufferT), NULL); //no destructor yet
+	gfx_vertex_bufferT* vb = ram_alloc(sizeof(gfx_vertex_bufferT), freevb); //no destructor yet
 	vb->buffer_spec = zstrdup(spec);
 
 	while (*s) {
@@ -431,7 +486,7 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 			break;
 
 		//add the attribute
-		printf(" name is [%s] size is [%d]", name, size);
+		gxdtracef(" name is [%s] size is [%d]", name, size);
 
 		vb->attributes[vb->num_attributes].name = name;
 		vb->attributes[vb->num_attributes++].type = size; //simple numbers 1 to 4 are just floats.  TODO: non-float attributes?
@@ -443,7 +498,7 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 		s = ne + 1;
 	}
 
-	printf(" There are %d float components by %d vertices\n", vb->fcount, vcount);
+	gxdtracef(" There are %d float components by %d vertices\n", vb->fcount, vcount);
 
 	//allocate the buffer
 	vb->combined_data = ram_alloc(sizeof(float) * vcount * vb->fcount, NULL);
@@ -457,7 +512,7 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 	float* fp = vb->combined_data;
 	for (i = 0; i < vb->num_attributes; i++) {
 		vb->attributes[i].data = fp;
-		printf(" Set ptr to %s  base+%d\n", vb->attributes[i].name, (int)(fp - vb->combined_data));
+		gxdtracef(" Set ptr to %s  base+%d\n", vb->attributes[i].name, (int)(fp - vb->combined_data));
 		fp += vb->attributes[i].type * vcount;
 
 		//some vertex attributes are special (can be used with fixed function pipeline.  If ever target old computers, or if I want to implement some generic default behavior with a default shader)
@@ -484,7 +539,7 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 void gfx_vertex_data(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d) {
 
 	int  pos = vb->count * vb->attributes[attr].type;
-	//printf(" Setting to attribute %d at %d", attr, pos);
+	gxdtracef(" Setting to attribute %d at %d", attr, pos);
 	if (vb->count > vb->capacity) {
 		printf("vertex buffer overflow\n");
 		exit(1);
@@ -524,7 +579,7 @@ void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb) {
 		//create VBO
 
 		glGenBuffers(1, &(vb->vbo));
-		printf(" Generated VBO %d\n", vb->vbo);
+		gxdtracef(" Generated VBO %d\n", vb->vbo);
 
 	}
 
@@ -532,12 +587,12 @@ void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb) {
 
 		if (!vb->index_vbo) {
 			glGenBuffers(1, &(vb->index_vbo));
-			printf(" Generated index VBO %d\n", vb->vbo);
+			gxdtracef(" Generated index VBO %d\n", vb->vbo);
 		}
 		//send index data, if we have it
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vb->index_vbo);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, zarray_count(vb->index_buffer) * sizeof(vb->index_buffer[0]), vb->index_buffer, GL_DYNAMIC_DRAW);
-		printf("send %d index values to vbo\n", zarray_count(vb->index_buffer));
+		gxdtracef("send %d index values to vbo\n", zarray_count(vb->index_buffer));
 		gxi_current_index_vbo = vb->index_vbo;
 	}
 
@@ -610,7 +665,7 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 				if (last_aloc_use[aloc] ) {
 					glDisableVertexAttribArray(aloc);
 					last_aloc_use[aloc] = 0; //not used anymore
-					printf(" Disable aloc %d not in use for ff\n", aloc);
+					gxdtracef(" Disable aloc %d not in use for ff\n", aloc);
 				}
 
 			}
@@ -674,7 +729,7 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 
 				if (aloc != -1) {
 
-					printf(" %s is aloc %d \n", vb->attributes[i].name, variant->aloc[i]);
+					gxdtracef(" %s is aloc %d \n", vb->attributes[i].name, variant->aloc[i]);
 
 					glEnableVertexAttribArray(aloc);
 					checkGL();
@@ -701,7 +756,7 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 				if (last_aloc_use[aloc] && (last_aloc_use[aloc] != aloc_use_counter)) {
 					glDisableVertexAttribArray(aloc);
 					last_aloc_use[aloc] = 0; //not used anymore
-					printf(" Disable aloc %d not in use\n", aloc);
+					gxdtracef(" Disable aloc %d not in use\n", aloc);
 				}
 
 			}
@@ -719,5 +774,16 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 
 	checkGL();
 	
+
+}
+
+
+zbool gfx_free_mesh(gfx_meshT* m) {
+
+	ram_free(m->vb);
+	ram_free(m->next_piece); //recursive:  maybe stack overflow if too many?
+
+	
+	return ZTRUE; //don't free, we already did
 
 }

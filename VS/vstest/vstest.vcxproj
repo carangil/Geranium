@@ -33,6 +33,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\gfxtest\fragment.glsl" />
+    <None Include="..\..\gfxtest\vertex.glsl" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <ProjectGuid>{5F702A45-754D-41EC-ABD4-BD18EA4A7F93}</ProjectGuid>

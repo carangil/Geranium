@@ -82,6 +82,23 @@ zbool gxi_is_property_for_shader(gfx_propertyT* p) {
 
 zbool shader_active = ZFALSE;
 
+
+zbool freevariant(void* v) {
+	gx_shader_variantT* variant = v;
+	ram_free(variant->key);
+	ram_free(variant->uloc);
+	ram_free(variant->aloc);
+
+	if (variant->program)
+		glDeleteProgram(variant->program);
+
+	return ZTRUE;
+
+}
+gx_shadergroupT* current_shader_group = NULL;
+gx_shader_variantT* current_variant = NULL;
+
+
 gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT* st, gfx_vertex_bufferT* vb) {
 
 	int i;
@@ -89,22 +106,33 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 	char log[1024];
 	int len = 0;
 
-	printf(" make shader variant for format key '%s'\n", key);
+
 	gx_shader_variantT* shader = NULL;
 
 	if (!sg) {
 		if (shader_active) {
 			glUseProgram(0);
 			shader_active = ZFALSE;
+			
+			current_variant = NULL;
+			current_shader_group = NULL;
 		}
 		return NULL;  //no shader variant, means no shader
+	}
+
+	//skip the current variant is from the same group and has the same key, just return it. No need to search
+	if (sg == current_shader_group) {
+		if (!strcmp(current_variant->key, key)) {
+			gxdprintf("Still using same variant %s\n", key);
+			return current_variant;
+		}
 	}
 
 	//find variant
 
 	for (shader = zlist_head(&(sg->variants)); shader; shader = zlist_next(shader)) {
 		if (!strcmp(shader->key, key)) {
-			printf(" Found existing shader variant %s\n", key);
+			gxdprintf(" Found existing shader variant %s\n", key);
 			break;
 		}
 
@@ -112,7 +140,8 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 
 	if (!shader) {
 
-		shader = ram_alloc(sizeof(gx_shader_variantT), NULL); //TODO: destructor
+		gxdprintf(" make shader variant for format key '%s'\n", key);
+		shader = ram_alloc(sizeof(gx_shader_variantT), freevariant); //TODO: destructor
 	
 
 
@@ -125,7 +154,7 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 
 			p = zvec_get_at(&st->properties, i);
 
-			if (!gxi_is_property_for_shader(p))  //some properties are NOT actually for shader uniforms
+ 			if (!gxi_is_property_for_shader(p))  //some properties are NOT actually for shader uniforms
 				continue;
 
 
@@ -161,7 +190,7 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 		status = 0;
 		glGetShaderiv(shader->v_shader, GL_COMPILE_STATUS, &status);
 		glGetShaderInfoLog(shader->v_shader, 1024, &len, log);
-		gxdprintf("vertex error:\n%s\n", log);
+		printf("vertex error:\n%s\n", log);
 		if (!status) {
 			//todo:cleanup
 			getc(stdin);
@@ -173,7 +202,7 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 
 		shader->f_shader = glCreateShader(GL_FRAGMENT_SHADER);
 
-		//printf(" Created fshader %u\n", shader->f_shader);
+		gxdprintf(" Created fshader %u\n", shader->f_shader);
 
 		glShaderSource(shader->f_shader, 2, (const char**)fsource, NULL);
 
@@ -183,7 +212,7 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 		glGetShaderiv(shader->f_shader, GL_COMPILE_STATUS, &status);
 		glGetShaderInfoLog(shader->f_shader, 1024, &len, log);
 
-		gxdprintf("fragment error:\n%s\n", log);
+		printf("fragment error:\n%s\n", log);
 		if (!status) {
 			//todo:cleanup
 			getc(stdin);
@@ -198,12 +227,13 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 		glAttachShader(shader->program, shader->f_shader);
 		glLinkProgram(shader->program);
 
+		ram_free(header);
 
 		status = 0;
 		glGetProgramiv(shader->program, GL_LINK_STATUS, &status);
 		if (!status) {
 			glGetProgramInfoLog(shader->program, 1024, &len, log);
-			printf(" Link error:%s\n", log);
+			gxdprintf(" Link error:%s\n", log);
 			getc(stdin);
 			//todo: cleanup
 			return NULL;
@@ -249,6 +279,8 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 	glUseProgram(shader->program);
 	checkGL();
 	shader_active = ZTRUE;
+	current_shader_group = sg;
+	current_variant = shader;
 	return shader;
 }
 

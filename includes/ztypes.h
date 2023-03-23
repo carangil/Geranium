@@ -2,7 +2,7 @@
 // ProjectZ is (C) 2018 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
-
+#define RAM_DEBUG
 /* Basic datatypes for my projects**/
 
 #include <stdlib.h>

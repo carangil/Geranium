@@ -1,4 +1,6 @@
 
+/* Vertex lighting Pixel Shader */
+
 uniform sampler2D texture_diffuse0;
 
 varying vec2 F_texcoord;

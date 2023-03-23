@@ -4,6 +4,7 @@
 
 #define RAM_C
 
+#define RAM_FAKE_FREE
 
 #include <malloc.h>
 #include <string.h>
@@ -214,7 +215,7 @@ void ram_free(void* thing)
 
 		if (header->refcount<0)
 		{
-			fprintf(stderr,"ERROR: negative refcount on %p\n", thing);
+			fprintf(stderr,"ERROR: negative refcount on %p %s\n", thing, thing);
 		}
 
 		if (header->refcount ==0)
@@ -244,7 +245,11 @@ void ram_free(void* thing)
 				if (header->shadow_size) {
 					//printf("Free physical buffer %p with shadow %d.  Header starts at %p Userdata at %p\n", buffer, header->shadow_size, header, header+1);
 				}
+#ifdef RAM_FAKE_FREE
+				header->magic = 0xABCDEF88;
+#else
 				free(buffer);
+#endif
 			}
 
 		}
@@ -407,8 +412,8 @@ zuint32 ram_allocs()
 
 	while(node)
 	{
-		fprintf(stderr, "%p alloced at %s:%d (%d refs)\n",
-			node+1, node->file, node->line, node->refcount	);
+		fprintf(stderr, "%p alloced at %s:%d (%d refs)  %s\n",
+			node+1, node->file, node->line, node->refcount	, node+1 );
 		count++;
 		node = zlist_next(node);
 	}
