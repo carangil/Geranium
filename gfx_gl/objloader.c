@@ -217,7 +217,7 @@ typedef struct face_s
 //behavior:
 
 #define MESH_VERTEX_COUNT 65535
-#define MESH_INDEX_COUNT  4*64436
+#define MESH_INDEX_COUNT  4*65536
 
 
 gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
@@ -348,7 +348,7 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 
 			delim = '/';
 #ifdef DOPRINTFS
-			printf("f ");
+			printf("\nf ");
 #endif
 
 			
@@ -500,11 +500,11 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 		gfx_meshT* start_mesh = NULL;
 		gfx_meshT* mesh = start_mesh = ram_alloc(sizeof(gfx_meshT), gfx_free_mesh);
 		
-		zuint32 va = unique_combos;
+		zuint32 va = unique_combos;  //was +1
 		if (va > MESH_VERTEX_COUNT)
 			va = MESH_VERTEX_COUNT;
 
-		zuint32 vi = tricount*3+3;
+		zuint32 vi = tricount*3;  //was +3
 		if (vi > MESH_INDEX_COUNT)
 			vi = MESH_INDEX_COUNT;
 
@@ -541,7 +541,7 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 
 			//todo: fix limits
 
-			if ((vu + new_points >= va) || (iu + new_index >= vi)) {
+			if ((vu + new_points > va) || (iu + new_index > vi)) {
 
 
 				mesh->next_piece = ram_alloc(sizeof(gfx_meshT), gfx_free_mesh);
@@ -588,7 +588,8 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 
 				if (j >= 2) {
 					iu+=3;
-					gfx_index_triangle(mesh->vb, poly->point[0]->p, poly->point[j-1]->p, poly->point[j]->p);
+					int n = gfx_index_triangle(mesh->vb, poly->point[0]->p, poly->point[j-1]->p, poly->point[j]->p);
+ 					//printf(" indexed triangle %d %d %d\n", poly->point[0]->p, poly->point[j - 1]->p, poly->point[j]->p);
 				}
 				
 

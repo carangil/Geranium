@@ -1,5 +1,9 @@
 uniform vec3 gfx_ambient_sum;
 
+#ifdef enable_texture_normal_tangent0
+uniform sampler2D  texture_normal_tangent0;
+uniform mat4 gfx_modelview;
+#endif
 
 uniform sampler2D texture_diffuse0;
 varying vec4 F_vertex_color;
@@ -117,6 +121,37 @@ void main()
 
 		#endif
 
+
+		/*  Object space normal mapping
+		#ifdef enable_texture_normal_tangent0
+			normal_camspace =  texture2D(texture_normal_tangent0, vec2(F_texcoord) ).xyz ;
+			normal_camspace = normal_camspace*2 -1.0; //TODO: need to rotate this by view matrix (and that's object space)  ALSO need to do peoper tangent space matrix
+			normal_camspace = mat3( gfx_modelview) * normal_camspace;
+		#endif
+		*/
+
+		#ifdef enable_texture_normal_tangent0
+			vec3 normal_lookup =  texture2D(texture_normal_tangent0, vec2(F_texcoord) ).xyz ;
+			normal_lookup = normalize( normal_lookup -0.5); 
+
+			vec2 st1 =     dFdx(F_texcoord);
+			vec2 st2 =     dFdy(F_texcoord);
+			vec3 edge1 =   dFdx(vertex_camspace);
+			vec3 edge2 =   dFdy(vertex_camspace);
+
+			vec3 tangent = edge1 * st2.y - edge2 * st1.y;
+			tangent = normalize(tangent);
+			vec3 bitangent = cross( tangent, normal_camspace);
+			mat3 TBN = mat3( tangent, bitangent, normal_camspace);
+
+
+			normal_camspace =    TBN * normal_lookup;
+
+
+		
+		#endif
+
+
 		light_shading(normal_camspace, normalize(light_direction0), light_color0,  attenuation); //adds to F_color and F_specular_color
 
 	#endif
@@ -140,7 +175,8 @@ void main()
 
 	/*Filter specular light by specular material color */
 	#ifdef enable_specular0
-		F_specular_color *= vec4(specular0, 1);
+		
+		F_specular_color *=vec4(specular0, 1);
 	#endif
 
 	//texture filters the diffuse color
@@ -148,14 +184,6 @@ void main()
 	#ifdef enable_texture_diffuse0
 		F_color *= texture2D(texture_diffuse0, vec2(F_texcoord) );
 	#endif
-
-
-
-
-
-
-
-
 
 
 	

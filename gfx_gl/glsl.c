@@ -150,7 +150,7 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 		gfx_propertyT* p;
 
 		for (i = 0; i < zvec_count(&st->properties); i++) {
-			char b[20];
+			char b[50];
 
 			p = zvec_get_at(&st->properties, i);
 

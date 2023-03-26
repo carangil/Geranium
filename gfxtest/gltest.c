@@ -29,21 +29,36 @@ void gfx_gl_test() {
 	zvec_add(garbage, earthpic);
 	zvec_add(garbage, strawpic);
 
+	zbitmapT* brickpic = zbitmap_load_tga("../../Zcore-data/web/brick.tga", 0);
+	zbitmapT* bricknorm = zbitmap_load_tga("../../Zcore-data/web/brick_normal.tga", 0);
+	zvec_add(garbage, brickpic);
+	zvec_add(garbage, bricknorm);
 
+
+
+
+	gfx_meshT* cube_mesh = gfx_mesh_load_obj("../../Zcore-data/cube.obj", 1.0);
 	gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/strawberry/Strawberry_obj.obj", 1.0);
 	zvec_add(garbage, strawberry_mesh);
+	zvec_add(garbage, cube_mesh);
 	float speed = .05;
 
 	gfx_textureT* strawtex = gfx_texture_mk(strawpic);
 	gfx_textureT* earthtex = gfx_texture_mk(earthpic);
+	gfx_textureT* bricktex = gfx_texture_mk(brickpic);
+	gfx_textureT* bricknormtex = gfx_texture_mk(bricknorm);
 	zvec_add(garbage, strawtex);
 	zvec_add(garbage, earthtex);
+	zvec_add(garbage, bricktex);
+	zvec_add(garbage, bricknormtex);
 
 
 	gfx_styleT* st_sphere = gfx_style_mk();
 	gfx_styleT* st_strawberry = gfx_style_mk();
+	gfx_styleT* st_cube = gfx_style_mk();
 	zvec_add(garbage, st_sphere);
 	zvec_add(garbage, st_strawberry);
+	zvec_add(garbage, st_cube);
 
 
 	gfx_style_set_property(st_sphere, 0, "blend", 0, GFX_BLEND_ALPHA, NULL, 0);
@@ -52,7 +67,7 @@ void gfx_gl_test() {
 	vec3 ldcam;
 	vec3 lpcam;
 	vec4 lcol = vec4const(1, 1, .7, 1.0);
-	vec4 lam = vec4const(.2, .2, .5, 1.0);
+	vec4 lam = vec4const(.1, .1, .2, 1.0);
 
 
 	float sh = 100.0;
@@ -66,13 +81,19 @@ void gfx_gl_test() {
 	gfx_style_set_property(st_sphere, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
 	gfx_style_set_property(st_sphere, GFX_TEXTURE, "texture_diffuse", 0, 0, earthtex, 0);
 	
-	gfx_style_set_property(st_sphere, GFX_FLOAT, "specular_exponent", 0, 0, &sh, 0);
+	gfx_style_set_property(st_cube, GFX_TEXTURE, "texture_diffuse", 0, 0, bricktex, 0);
+	gfx_style_set_property(st_cube, GFX_TEXTURE, "texture_normal_tangent", 0, 0, bricknormtex, 0);
+	
+	gfx_style_set_property(st_cube, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
+
+	gfx_style_set_property(st_cube, GFX_SWITCH, "pass_view_3x3", 0, 0, &lam, 0);
 
 
 	gx_shadergroupT* tsg = gx_shader_source("@../gfxtest/finevertex.glsl", "@../gfxtest/finefragment.glsl");
 	zvec_add(garbage, tsg);
-	//st_sphere->shader_group = ram_addref(tsg);
-	//st_strawberry->shader_group = ram_addref(tsg);
+	st_sphere->shader_group = ram_addref(tsg);
+	st_strawberry->shader_group = ram_addref(tsg);
+	st_cube->shader_group = ram_addref(tsg);
 
 	gfx_cameraT cam;
 	gfx_camera_init(&cam);
@@ -201,7 +222,7 @@ void gfx_gl_test() {
 
 		gfx_style_set_property(st_strawberry, GFX_FLOAT, "specular_exponent", 0, 0, &sh, 0);
 		gfx_style_set_property(st_sphere, GFX_FLOAT, "specular_exponent", 0, 0, &sh, 0);
-
+		gfx_style_set_property(st_cube, GFX_FLOAT, "specular_exponent", 0, 0, &sh, 0);
 
 		float forward = 0.0;
 		float right = 0.0;
@@ -245,11 +266,11 @@ void gfx_gl_test() {
 
  		gfx_style_set_property(st_strawberry , GFX_FLOAT3, "light_position", 0, 0, &lpcam, GFX_TRANSFORM_POINT);
 		gfx_style_set_property(st_sphere, GFX_FLOAT3, "light_position", 0, 0, &lpcam, GFX_TRANSFORM_POINT);
+		gfx_style_set_property(st_cube, GFX_FLOAT3, "light_position", 0, 0, &lpcam, GFX_TRANSFORM_POINT);
 		
 		//gfx_style_set_property(st_sphere, GFX_FLOAT3, "light_direction", 0, 0, &ldcam, GFX_TRANSFORM_DIRECTION);
 		//gfx_style_set_property(st_strawberry, GFX_FLOAT3, "light_direction", 0, 0, &ldcam, GFX_TRANSFORM_DIRECTION);
-
-		
+				
 		
 		vec3 latten = vec3const(.1, 0, .1);
 
@@ -266,6 +287,10 @@ void gfx_gl_test() {
 
 		vec3 white;
 		vec3set(white, 1, 1, 1);
+
+
+		vec3 gray;
+		vec3set(gray, .3, .3,.3);
 
 		float fd = 0.1;
 		gfx_style_set_property(st_sphere, GFX_FLOAT3, "fog_color", 0, 0, &purple, 0);
@@ -300,7 +325,15 @@ void gfx_gl_test() {
 			
  			gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
 		}
-					
+				
+
+		gfx_style_set_property(st_cube, GFX_FLOAT3, "specular", 0, 0, &gray, 0);
+
+		gfx_style(st_cube);
+		gfx_translate3(3, -5, -1);
+   		gfx_vertex_buffer_draw(cube_mesh->vb, GFX_TRIANGLE, 0, zarray_count(cube_mesh->vb->index_buffer), ZTRUE);
+
+
 		zwin->pixels(zwin, NULL);	//display the framebuffer
 		ang += .01;
 	}

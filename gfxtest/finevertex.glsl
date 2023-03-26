@@ -3,8 +3,6 @@ uniform mat4 gfx_projection;
 uniform mat4 gfx_modelview;
 uniform vec3 gfx_camera_pos;
 
-varying float F_zcoord;
-
 /*********** UNIFORM INPUTS ***************/
 
 
@@ -66,6 +64,6 @@ void main()
 	//projection matrix
 	gl_Position = gfx_projection * vec4(vertex_camspace, 1.0) ;
 
-	F_zcoord = vertex_camspace.z; //pass unprojected Z coordinate (for fog)
+	
 
 }

@@ -305,7 +305,7 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 
 
 	for (i = 0; i < zvec_count(&st->properties); i++) {
-		char b[20];
+		char b[100];
 		p = zvec_get_at(&st->properties, i);
 
 		char* name = p->name;
@@ -318,7 +318,7 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 
 	key = zstrcat(key, vb->buffer_spec);
 			
-	gx_shader_variantT* variant = gx_shader_variant(st->shader_group, key, st, vb);  //select 'cached' shader variant for key, or create it using st and vb
+ 	gx_shader_variantT* variant = gx_shader_variant(st->shader_group, key, st, vb);  //select 'cached' shader variant for key, or create it using st and vb
 	
 	ram_free(key);
 
@@ -356,16 +356,13 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 			continue;
 
 		case GXI_TEXTURE_DIFFUSE:
+
+			if (variant)
+				break;  //break down to the 'if variant' below
+
+			//line only executed for FF textures:
 			zuint32 tu = gxi_add_texture(p->data.tex);  //add texture AND get the texture unit number
-
-			if (variant) {
-				//if using shaders, need to bind it to a sampler
-				gxdtracef(" texture unit %d for loc %d\n", tu, variant->uloc[i]);
-				if (variant->uloc[i] != -1) {
-					glUniform1i(variant->uloc[i], tu);
-				}
-			}
-
+				
 			continue;
 
 		case GXI_LIGHT_POSITION:
@@ -388,7 +385,21 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 					glUniform3fv(variant->uloc[i], 1, p->data.fa);
 				else if ((p->id & GXI_TYPEMASK) == GFX_FLOAT4)
 					glUniform4fv(variant->uloc[i], 1, p->data.fa);
-				else {
+				else if ((p->id & GXI_TYPEMASK) == GFX_TEXTURE) {
+
+
+					zuint32 tu = gxi_add_texture(p->data.tex);  //add texture AND get the texture unit number
+
+					
+					//if using shaders, need to bind it to a sampler
+					gxdtracef(" texture unit %d for loc %d\n", tu, variant->uloc[i]);
+					if (variant->uloc[i] != -1) {
+						glUniform1i(variant->uloc[i], tu);
+					}
+					
+
+
+				}else{
 					printf(" Unhandled variant uniform: %s %x\n", b, p->id);
 					getc(stdin);
 				}
@@ -583,7 +594,7 @@ void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb) {
 
 	}
 
-	if (vb->index_buffer && (zarray_count(vb->index_buffer) > 0)) {
+	if (vb->index_buffer /*&& (zarray_count(vb->index_buffer) > 0)   */) {
 
 		if (!vb->index_vbo) {
 			glGenBuffers(1, &(vb->index_vbo));
@@ -592,7 +603,7 @@ void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb) {
 		//send index data, if we have it
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vb->index_vbo);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, zarray_count(vb->index_buffer) * sizeof(vb->index_buffer[0]), vb->index_buffer, GL_DYNAMIC_DRAW);
-		gxdtracef("send %d index values to vbo\n", zarray_count(vb->index_buffer));
+		gxdprintf("send %d index values to vbo\n", zarray_count(vb->index_buffer));
 		gxi_current_index_vbo = vb->index_vbo;
 	}
 
