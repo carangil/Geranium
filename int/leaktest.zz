@@ -1,0 +1,266 @@
+"base/base.zz" include
+
+
+proc f:(p:Z32%; q:Z32->)	//p is a possesive pointer, but not used
+	
+	10 #a		//non-pointer var
+	Z32 new #b		//possessive pointer var: autofreed when function returns
+	[Z32] 10 new #c		//another autofree
+	b take trash		//free explicity  (autofree will skip freeing full)
+
+
+	
+	//Z32 new  //pointer is abandoned: not used or stored
+	
+	2 3 + print newline
+	
+
+	1 if
+		10 30 + print
+		
+	3 elseif
+		33 	//unused value
+	else
+		
+		50 print
+	end
+
+	
+	return
+end
+
+Z32 new #l
+
+0 :Z32% l=
+
+//111 l@=
+//l@ print newline
+
+
+1 print newline
+
+2 print newline
+
+Z32 new 10 f	//testing that possessive pointers sent into functions are freed if the function doesn't use them
+
+Z32 new #j	//test that global allocations are freed when completing 
+
+
+
+
+loop
+	30 5 +	//error because value is not used
+	break
+end
+
+
+newline
+
+type slist
+	v:Z32;
+	next:slist%;
+end
+
+
+proc printslist:(si:slist& -> )
+
+	si #sp
+	
+	si if 
+		si.v print newline
+
+		si .next keep #so
+		loop
+			so if
+
+				so.v print newline 
+				so .next keep so=
+			else
+				break
+
+			end
+
+		end
+
+	else
+		
+	end
+	
+	break
+
+end
+
+slist new #s
+1000 s.v=
+
+
+slist new s.next=
+2000 s.next.v=
+
+slist new s.next.next=
+3000 s.next.next.v=
+
+
+s printslist
+
+[slist%] 10 new #zi
+
+slist new zi 0[] =   999 zi 0[] .v =
+slist new zi 3[] =   888 zi 3[] .v =
+
+
+
+type stringPair
+	a:String%;
+	b:String%;
+end
+
+proc mkPair:(a:String% ; b:String% -> stringPair%)
+
+	stringPair new #p
+	
+	a take p.a=
+	b take p.b=
+	
+	p take return
+	
+end
+
+
+proc showPair:(p:stringPair& ->)
+	"(" print
+	p.a print
+	" " print
+	p.b print
+	")" print
+	return
+end
+
+[stringPair%] 3 new #pp
+
+
+"AAA"strdup "BBB" strdup mkPair  pp 0[] =
+"CCC" strdup "DDD" strdup mkPair  pp 1[] =
+
+pp 0[] showPair
+pp 1[] showPair
+
+[stringPair] 5 new #sps
+
+"three" strdup sps 3[].a =
+"threeve" strdup sps 3[].b =
+
+sps 3[]& showPair
+
+
+
+newline
+newline
+
+proc showptr:(name:String&; s:String& ->)
+	name print " pointer is " print
+	
+	s:any& print " " print
+	
+	
+	s if
+		s print
+	else
+		"Zero" print
+	end
+	
+	
+	newline
+	
+	
+	return
+end
+
+proc ff:(s:String& ->)
+	
+	"s" s showptr
+	"sps 3[].a " sps 3[].a showptr
+	
+	"Trashing sps 3[].a" print newline
+	sps 3[].a take trash
+	
+	
+	"sps 3[].a " sps 3[].a showptr
+	"s" s showptr  "^---s is still valid, so sps above should still be valid" print newline
+
+	
+	return
+end
+
+
+sps 3[].a ff
+
+type Inner
+	a:Z32;
+	s:String%;
+end
+type Outer
+	a:Z32;
+	i:Inner;
+end
+
+type OuterOuter
+	o:Outer;
+end
+
+type OuterPtr
+	a:Z32;
+	i:Inner%;
+end
+
+
+
+var o:Outer;
+10 o.a=
+
+20 o.i.a=
+"ois" strdup o.i.s=
+
+var op:OuterPtr;
+30 op.a=
+
+Inner new op.i=
+40 op.i.a=
+"opis" strdup op.i.s=
+
+
+o.a print newline
+o.i.a print newline
+op.a print newline
+op.i.a print newline
+
+Outer new #dao
+"boooo" strdup dao.i.s=
+dao take trash
+
+var oo:OuterOuter;
+
+"banana" strdup oo.o.i.s =
+
+
+//ok another loophole: put a reference on the stack, call a word
+
+"Hello Banana" strdup #string1
+
+proc intAndFree:(->Z32)
+	"About to free " print string1 print newline
+	
+	string1 :any& print newline
+	string1 take trash
+	string1 :any& print newline
+	444 return
+end
+
+proc fff:(s:String& ; a:Z32 ->)
+	1 return
+end
+
+string1 intAndFree fff
+
+
+

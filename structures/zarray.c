@@ -75,7 +75,6 @@ void* zarray_allocf( zsize elemsize, zuint32 elemnum, ram_destructor custom_dest
 	
 	array_shadowT * sh = ram_shadow(array);
 	if (sh){
-		printf("setting array shadow\n");
 		sh->used = 0;
 		sh->capacity = (zuint32) elemnum;
 	}

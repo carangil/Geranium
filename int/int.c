@@ -80,7 +80,7 @@ typedef struct tokenS{
 	struct symbolS* sym;  //for things like procs that have a bunch of context info
 	int line;	//line number from source file
 	zbool val_to_free; //if true, free val's ptr block when destroying token
-	
+	struct tokenS* trackpossptr;	//
 }tokenT;
 
 
@@ -702,11 +702,19 @@ int printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indentin){
 			printf(" castfrom ");
 			printType(t->tyorig, ZFALSE, ZTRUE);
 		}
+		
+		if (t->trackpossptr){
+			printf("(Tracking %s ", t->trackpossptr->str);
+			printType( t->ty, ZFALSE, ZTRUE);
+			printf(")");
+		}
 
 		int i;
 		if (t->handler)
 			printf(" handler %p ", t->handler);
 
+		printf("(%p %x)",t->val.as.ptr.block, t->val.as.ptr.offset);
+		
 		if (!zlist_head(&t->subs))
 			printf("}");
 	
@@ -846,7 +854,7 @@ void printSymbols(zvecT* table , char* label){
 
 
 /**** Execution ****/
-
+zbool struct_clean(void* v, typeT* ty);
 void clean_context_pointers( zvecT* table, char* vars){
 	
 	int i;
@@ -854,6 +862,9 @@ void clean_context_pointers( zvecT* table, char* vars){
 		symbolT* sym = zvec_get_x_at(table, symbolT*, i);
 		if (sym->type->category == POINTERPOSSESSIVE){
 			ram_free( * (void**)  (vars+  sym->offset)  ); //free the possessive pointer
+		}
+		if (sym->type->category == STRUCT){
+			struct_clean(  (void*)  (vars+  sym->offset) , sym->type);  //clean up structs
 		}
 	}	
 }
@@ -988,7 +999,7 @@ tokenT* hloadptr (exectxT* ex, tokenT* t) { //load a pointer
 	ex->stack[ex->sp-1].as.ptr = DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
 	
 	
-	if ( t->val.as.n32 == 1) {
+	if ( t->val.as.n32 & 1) {
 		//the pointer will be assigned ex->level + 1
 		//this makes it so a possessive pointer can be duplicated as a user pointer and passed as an arg to a function
 		//if it was allowed to make user pointers available at the same level(this function and not just as an arg to another function)
@@ -1000,7 +1011,11 @@ tokenT* hloadptr (exectxT* ex, tokenT* t) { //load a pointer
 		//and it can't write it to a lower level pointer variable
 		//and since it isn't possessive, it doesn't have to be freed either, do it can't leak
 		ex->stack[(ex->sp-1)].as.ptr.level = ex->level+1;//pointer 'belongs' to deeper stack frames
-	} 
+	}
+	if (t->val.as.n32 & 2){
+		//non-possessive pointer, passed into a function, needs to be addreffed
+		ram_addref(ex->stack[ex->sp-1].as.ptr.block);
+	}
 	
 	return tnext(t);
 }
@@ -1213,7 +1228,7 @@ tokenT* hprintptr (exectxT* ex, tokenT* t) {
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
 	ex->sp--;
 
-	printf("{%p+%x lvl%d} ", ex->stack[ex->sp].as.ptr.block,  ex->stack[ex->sp].as.ptr.offset, ex->stack[ex->sp].as.ptr.level  );
+	printf("{%p+%x lvl%d refs%d} ", ex->stack[ex->sp].as.ptr.block,  ex->stack[ex->sp].as.ptr.offset, ex->stack[ex->sp].as.ptr.level   , ram_numrefs( ex->stack[ex->sp].as.ptr.block)  );
 
 	return tnext(t);
 }
@@ -1307,6 +1322,7 @@ UNOP(hint2real, f,z32, (FLOAT)  )
 UNOP(hreal2int, z32,f, (zint32) )
 
 #endif
+
 
 #define HANDLER(CONTEXT, NAME)	mkSymbol( CONTEXT, #NAME, tPrimitive, h ## NAME)
 
@@ -1409,6 +1425,23 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	
 	ex->fp=ex->sp;
 		
+	/*
+	//check if there are any tracked pointers to addref
+	tokenT* tv = tsub(t);
+	int count = zvec_count(t->sym->type->members);//number of args inside
+	int i=0; //number of subs (should be the same)
+	while(tv){ 
+		if (tv->trackpossptr){
+				printf(" Arg %d/%d derived from possessive pointer <%s> ", i, count, tv->str  );	
+				printf(" addref %p +%d\n", ex->stack[ex->fp-count+i].as.ptr.block, ex->stack[ex->fp-count+i].as.ptr.offset);
+				ram_addref( ex->stack[ex->fp-count+i].as.ptr.block );
+		}
+		
+		tv = tnext(tv);
+		i++;
+	}
+	*/
+	
 	//printf(" enter call SP:%d  FP:%d\n", ex->sp, ex->fp); 
 	
 	void* oldlocal = ex->vars;   //take old local var data
@@ -1440,16 +1473,27 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 		ex->fp -=  zvec_count(t->sym->type->members);  //subtract out all passed values
 	*/
 	
-	//free any passed pointers that didn't get taken
+	//free any passed pointers that didn't get taken, or pointers that were addreffed
+	
+	tokenT* tv = tsub(t);
+	
 	if (t->sym->type->members) {
 		int i;
 		int count = zvec_count(t->sym->type->members);
 		for (i=0;i<  count; i++) {
 			typeT* m = zvec_get_at(t->sym->type->members, i);
-			printf(" ARG %d is ", i);
-			printType(m->ref, ZTRUE, ZFALSE);
-			if (m->ref->category == POINTERPOSSESSIVE)
+			//printf(" ARG %d is ", i);
+			//printType(m->ref, ZTRUE, ZFALSE);
+			if (m->ref->category == POINTERPOSSESSIVE) {
+				printf(" freeing poss pointer also has track %p\n", tv->trackpossptr);
 				ram_free( ex->stack[ex->fp-count+i].as.ptr.block );
+				
+			}
+			else if (tv->trackpossptr){
+				printf(" free trackpossptr\n");
+				ram_free( ex->stack[ex->fp-count+i].as.ptr.block );
+			}
+			tv = tnext(tv);
 			
 		}
 		ex->fp -= count;
@@ -1493,15 +1537,18 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 
 zbool struct_clean(void* v, typeT* ty){
 	
-	printf(" Clean for %s\n", (ty)->name);
+//	printf(" Clean for %s\n", (ty)->name);
 	
 	int i;
 	for (i=0; i < zvec_count( (ty)->members); i++){
 		typeT* member = zvec_get_at((ty)->members , i);
-		printf(" fields: %s  %d n", member->name, member->offset);
+		//printf(" fields: %s  %d n", member->name, member->offset);
 		if (member->ref->category == POINTERPOSSESSIVE){
 			vptrT* vp = member->offset  +  (char*)(v);
 			ram_free( vp->block);
+		}
+		if (member->ref->category == STRUCT){
+			struct_clean( member->offset  +  (char*)(v) , member->ref);
 		}
 	}
 		
@@ -1516,7 +1563,7 @@ zbool struct_destructor(void* v){
 	if (!ty)
 		printf("Runtime issue: No Shadow on block %p\n", v);
 	else if (*ty){
-		printf(" Destruct for %s\n", (*ty)->name);
+		//printf(" Destruct for %s\n", (*ty)->name);
 		return struct_clean( v, *ty);
 	}
 	else
@@ -1561,14 +1608,14 @@ zbool ptr_array_destructor(void* va){
 	
 	ty = ty->ref;  //get the base type of the array
 		
-	printf(" THIS ARRAY IS %d out of %d of type (cat %x) \n", zarray_count(va), zarray_size(va), ty->category );
-	printType( ty, ZTRUE,ZTRUE);
-	printf("\n");
+	//printf(" THIS ARRAY IS %d out of %d of type (cat %x) \n", zarray_count(va), zarray_size(va), ty->category );
+	//printType( ty, ZTRUE,ZTRUE);
+	//printf("\n");
 	
 	if (ty->category == POINTERPOSSESSIVE){
 		int i;
 		vptrT* pv = va;
-		printf("To free each pointer.  size of an array element is %d\n", ty->size);
+		//printf("To free each pointer.  size of an array element is %d\n", ty->size);
 		for (i=0;i<zarray_size(va);i++){  //for now whole array, not just using 'count'
 			ram_free(pv[i].block);
 		}
@@ -1578,7 +1625,7 @@ zbool ptr_array_destructor(void* va){
 		
 		int i;
 		char* vc = va;
-		printf(" To clean each struct element, size of each is %d\n", ty->size);
+		//printf(" To clean each struct element, size of each is %d\n", ty->size);
 		
 		
 		for (i=0;i<zarray_size(va);i++){  //for now whole array, not just using 'count'
@@ -1611,11 +1658,11 @@ tokenT* hallocarray(exectxT* ex, tokenT* t) {
 	
 	ex->sp--;
 	//size *= ex->stack[ex->sp].as.z32;
-//#ifdef EXEDEBUG
+#ifdef EXEDEBUG
 	printf(" ALLOC %d for ", size);
 	printType( t->ty->ref, ZTRUE, ZTRUE);
 
-//#endif
+#endif
 	
 	
 	ex->stack[ex->sp] .as.ptr.level=0;
@@ -2358,6 +2405,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			t->handler = hindex;
 			
+			t->trackpossptr = ts->trackpossptr;  //if was tracking from a possessive pointer, still track this pointer is derived from that
+			
 			if (
 				((ts->ty->category == POINTERUSER) ||(ts->ty->category==POINTERPOSSESSIVE))
 				&&
@@ -2370,6 +2419,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 				t->ty = findType(POINTERUSER, ts->ty->ref->ref, NULL,0);
 				t->val.as.n32 = ts->ty->ref->ref->size;
+				
 			}
 			
 			//printf(" array element size %d\n", t->val.as.n32);
@@ -2466,6 +2516,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				} else {
 					//return nonpossessive form of same pointer
 					t->ty = findType(POINTERUSER, tprev(t)->ty->ref->ref, NULL, 0);
+					
+					t->trackpossptr = t; //have the nonpossessive pointer and all their derivatives track this
 				}
 				
 				fold(tprev(t),t);
@@ -2670,6 +2722,36 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				if (s->type->category == FUNCTION){
 					//printf(" IS FUNCTION\n");
 					fold(startfold, t);
+					
+					//check parameters to function being called
+					//if any parameters are tracked from a possessive pointer, flag for addref
+					
+					tokenT* tv =startfold;
+					
+					while(tv){ 
+						if (tv->trackpossptr){
+							//printf(" Arg derived from possessive pointer <%s> ", tv->str  );
+							//if an arg being passed to a function is a possive pointer (or result of adding/indexing from a possessive pointer), then it needs to be addref'd before being passed to a function
+							if (s->handler == hcall){
+								
+								if (tv->trackpossptr->handler == hloadptr){
+									tv->trackpossptr->val.as.n32 |=2;
+									
+								}	
+							}
+							
+							//getc(stdin);
+							//	printf(" addref %p +%d\n", ex->stack[ex->fp-count+i].as.ptr.block, ex->stack[ex->fp-count+i].as.ptr.offset);
+								//ram_addref( ex->stack[ex->fp-count+i].as.ptr.block );
+						}
+						
+						tv = tnext(tv);
+						
+					}
+	
+					
+					
+					
 					t->ty = s->type->ref;
 					t->sym=s;
 					if (s->handler){
@@ -2693,8 +2775,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					t->val.as.ptr.offset= s->offset;
 					
 					
+					
+					
 					if ((s->type->category!=ARRAYSTATIC)&&(s->type->category!=STRUCT)) {  
 						tokenT* tn = mkToken('@', "@", 1);  //load the variable
+						
+						
+						
 						insert_after(t, tn);
 					}
 					//printList(ts, t, ENDFILE, 1);
@@ -2730,9 +2817,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						t->val.as.n32 = m->offset;
 						t->ty = findType(POINTERUSER, m->ref, NULL,0); //find pointer to the member type
 						
+						t->trackpossptr = tprev(t)->trackpossptr;  //if was tracking from a possessive pointer, still track this pointer is derived from that
 						fold(tprev(t),t);
 						
-						
+						//for static arrays or substructs (that are embedded (not pointers)) then the pointer addition already made a pointer to the substruct/array.  For other cases (it is a pointer to a struct, integer, etc) then insert a load token.  
 						if (( m->ref->category!=ARRAYSTATIC)&&( m->ref->category!=STRUCT)) {  
 							tokenT* tn = mkToken('@', "@", 1);  //load the variable
 							insert_after(t, tn);
