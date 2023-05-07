@@ -487,7 +487,7 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 	printf(" PARSED %d vertices  %d normals  %d texcoords   %d polygons   (%d unique vertices %d triangles) \n",
 		zvec_count(&vertices), zvec_count(&normals), zvec_count(&texcoords), zvec_count(&polys), unique_combos, tricount);
 
-
+	
 #ifdef DOPRINTFS
 		printf("done\n");
 #endif
@@ -544,9 +544,9 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 			if ((vu + new_points > va) || (iu + new_index > vi)) {
 
 
-				mesh->next_piece = ram_alloc(sizeof(gfx_meshT), gfx_free_mesh);
+				mesh->next = ram_alloc(sizeof(gfx_meshT), gfx_free_mesh);
 
-				mesh = mesh->next_piece;
+				mesh = mesh->next;
 
 				vu = 0;
 				iu = 0;
@@ -607,7 +607,7 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 		zvec_cleanup(&texcoords);
 		zvec_cleanup(&polys);
 
-		return start_mesh;
+ 		return start_mesh;
 		//end function//end loop
 
 

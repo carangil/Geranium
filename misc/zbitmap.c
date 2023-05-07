@@ -72,6 +72,20 @@ void zpset4(zbitmapT*bmp, zuint32 x, zuint32 y, zuint32 color){
     
 }
 
+zuint32  zpget4(zbitmapT* bmp, zuint32 x, zuint32 y) {
+	if (!bmp)
+		return;
+
+
+	if ((x >= bmp->w) || (y >= bmp->h))
+		WARNRETURN(0, "zpset pixel out of range %d %d for %d by %d\n", x, y, bmp->w, bmp->h);
+
+	zuint32* px = bmp->data;
+	return px[(bmp->w) * y + x];
+
+}
+
+
 
 void zline4(zbitmapT *bmp, zuint32 x, zuint32 y, zuint32 x2, zuint32 y2, zuint32 color){
     //not guarded for bounds yet...
@@ -190,6 +204,8 @@ void zdrawtext4(zbitmapT* dest, zbitmapT* font, char* text, int px, int py, zuin
 	px+=cw;
     }
 }
+
+
 
 
 //taken from gx_image_load_tga

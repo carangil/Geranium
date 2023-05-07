@@ -6,14 +6,15 @@
 
 typedef struct gx_mesh_s
 {
-
-	gfx_vertex_bufferT* vb;
+	
+	gfx_styleT*			style;
+	gfx_vertex_bufferT*	vb;
 	
 	zuint32			drawstart;	//vbuffer start and end points to draw
 	zuint32			drawend;
-	zbool			indexed;	
+	//zbool			indexed;	
 
-	struct gx_mesh_s* next_piece;
+	struct gx_mesh_s* next;
 	
 } gfx_meshT;
 

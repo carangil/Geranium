@@ -28,8 +28,8 @@ attribute vec3 normal;
 	varying vec4 F_vertex_color;
 #endif
 
-varying vec3 vertex_camspace;
-varying vec3 normal_camspace;
+varying vec3 F_vertex_camspace;
+varying vec3 F_normal_camspace;
 
 /*************************/
 
@@ -43,10 +43,10 @@ void main()
 
 	// Transform vertex and normal
 	//vec3 
-	vertex_camspace = vec3( gfx_modelview * vec4(position, 1.0) );
+	F_vertex_camspace = vec3( gfx_modelview * vec4(position, 1.0) );
 	
 	#ifdef enable_normal
-		normal_camspace = normalize(vec3( gfx_modelview * vec4(normal, 0.0)));  
+		F_normal_camspace = normalize(vec3( gfx_modelview * vec4(normal, 0.0)));  
 	#endif
 
 
@@ -62,7 +62,7 @@ void main()
 	#endif
 
 	//projection matrix
-	gl_Position = gfx_projection * vec4(vertex_camspace, 1.0) ;
+	gl_Position = gfx_projection * vec4(F_vertex_camspace, 1.0) ;
 
 	
 

@@ -2,16 +2,24 @@ uniform vec3 gfx_ambient_sum;
 
 #ifdef enable_texture_normal_tangent0
 uniform sampler2D  texture_normal_tangent0;
+//uniform mat4 gfx_modelview;
+#endif
+
+#ifdef enable_texture_height0
+uniform sampler2D  texture_height0;
 uniform mat4 gfx_modelview;
 #endif
+
 
 uniform sampler2D texture_diffuse0;
 varying vec4 F_vertex_color;
 varying vec2 F_texcoord;
-varying float F_zcoord;
 
-varying vec3  vertex_camspace;
-varying vec3 normal_camspace;
+
+varying vec3  F_vertex_camspace;
+varying vec3 F_normal_camspace;
+
+
 
 #ifdef enable_fog_density0
 	uniform float fog_density0;
@@ -105,7 +113,8 @@ void main()
 	float attenuation;
 	float out_distance;
 		
-	vec3 normal_camspace = normalize(normal_camspace);
+	vec3 normal_camspace = normalize(F_normal_camspace);
+	vec3 vertex_camspace = F_vertex_camspace;
 
 	//light 0
 	#if   defined(enable_light_direction0) || defined(enable_light_position0)
@@ -130,9 +139,10 @@ void main()
 		#endif
 		*/
 
-		#ifdef enable_texture_normal_tangent0
-			vec3 normal_lookup =  texture2D(texture_normal_tangent0, vec2(F_texcoord) ).xyz ;
-			normal_lookup = normalize( normal_lookup -0.5); 
+
+		#if  defined(enable_texture_normal_tangent0) || defined(enable_texture_height0) 
+
+			/* If doing tangent space normal mapping, or displacement/parallax mapping, need to build a TBN matrix */
 
 			vec2 st1 =     dFdx(F_texcoord);
 			vec2 st2 =     dFdy(F_texcoord);
@@ -144,13 +154,108 @@ void main()
 			vec3 bitangent = cross( tangent, normal_camspace);
 			mat3 TBN = mat3( tangent, bitangent, normal_camspace);
 
-
-			normal_camspace =    TBN * normal_lookup;
-
-
-		
 		#endif
 
+
+
+
+
+	
+		#ifdef enable_texture_height0
+		
+				#if 0	//parallax mapping
+					float height_lookup = .05* texture2D(texture_height0, F_texcoord).x ;
+					vec3 vertex_direction = normalize( vertex_camspace* TBN);
+					vec2 disp = -height_lookup * vertex_direction.xy ;
+					vec2 texcoord = F_texcoord + disp;
+				#endif
+	
+			#if 0  // displacement linear
+						
+				vec3 vertex_direction = normalize( vertex_camspace  * TBN);
+				
+				float t=0;
+				vec2 disp=vec2(0,0);
+						
+				#define STEPCOUNT 32
+				#define MAXD .1
+
+				vec2 texcoord = F_texcoord;
+				int iter;
+				float step = MAXD / STEPCOUNT;
+
+				disp = vertex_direction.xy  / vertex_direction.z ;
+
+				for (iter=0; iter<STEPCOUNT ; iter++){
+	
+					float height_lookup =MAXD*  texture2D(texture_height0, texcoord).x ;
+
+					if (t >= height_lookup) {
+						break;
+					}
+					
+							
+					texcoord = F_texcoord + disp * t;
+					t+=step;
+				}
+
+				
+			#endif
+
+			#if 1  // displacement binary search
+						
+				vec3 vertex_direction = normalize( vertex_camspace  * TBN);
+				
+				float t=0;
+				vec2 disp=vec2(0,0);
+						
+				#define LINEAR_STEPS	16
+				
+				#define STEPCOUNT 24
+				#define MAXD .125
+
+				vec2 texcoord = F_texcoord;
+				int iter;
+				float step = MAXD / (LINEAR_STEPS); 
+
+				disp = vertex_direction.xy  / vertex_direction.z ;
+
+				for (iter=0; iter<STEPCOUNT ; iter++){
+	
+					float height_lookup =MAXD*  texture2D(texture_height0, texcoord).x;
+
+					if ( (t-height_lookup) * step > 0) { /* equivalent to the below two conditions */
+						step = step / -2.0;
+					}
+
+					/*
+						if ((t > height_lookup)&&(step >0)) {
+							step = -step /2;
+						}
+						if ((t < height_lookup)&&(step <0)) {
+							step = -step /2;
+						} 
+					*/
+							
+					texcoord = F_texcoord + disp * t;
+					t+=step;
+				}
+							
+			#endif
+
+		#else
+	
+			#define texcoord F_texcoord
+		#endif
+		
+		
+		#ifdef enable_texture_normal_tangent0
+
+			vec3 normal_lookup =  texture2D(texture_normal_tangent0, texcoord ).xyz ;
+			normal_lookup = normalize( normal_lookup -0.5); 
+			normal_camspace =    TBN * normal_lookup; //transform tangent space normal into view space
+
+		#endif 
 
 		light_shading(normal_camspace, normalize(light_direction0), light_color0,  attenuation); //adds to F_color and F_specular_color
 
@@ -182,7 +287,7 @@ void main()
 	//texture filters the diffuse color
 
 	#ifdef enable_texture_diffuse0
-		F_color *= texture2D(texture_diffuse0, vec2(F_texcoord) );
+		F_color *= texture2D(texture_diffuse0, texcoord  );
 	#endif
 
 
@@ -190,7 +295,7 @@ void main()
 	gl_FragColor = F_color + F_specular_color;
 
 	#ifdef enable_fog_density0
-		float foggy = 1-clamp(exp(F_zcoord*fog_density0), 0, 1);  //note normally is exp(-distance*denstity), but Z coordinate is already negative
+		float foggy = 1-clamp(exp(F_vertex_camspace.z*fog_density0), 0, 1);  //note normally is exp(-distance*denstity), but Z coordinate is already negative
 		gl_FragColor = mix(gl_FragColor, vec4(fog_color0, 1), foggy);
 
 	#endif

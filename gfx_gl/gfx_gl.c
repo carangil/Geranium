@@ -284,7 +284,7 @@ void gxi_set_blend(int m) {
 gfx_styleT* next_style=NULL;
 gfx_styleT* enabled_style=NULL;
 gx_shader_variantT* enabled_variant = NULL;
-
+gfx_styleT default_style;
 
 void gfx_style(gfx_styleT* st) {
 	next_style = st;	//next draw commands will use this style
@@ -297,6 +297,12 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 
 
 	gfx_styleT* st = next_style;
+
+	if (!st) {
+		
+		st = &default_style;
+
+	}
 
 	zbool ambient_valid = ZFALSE;
 	vec4 ambientsum = vec4const(0, 0, 0, 1);
@@ -549,6 +555,7 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 
 void gfx_vertex_data(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d) {
 
+
 	int  pos = vb->count * vb->attributes[attr].type;
 	gxdtracef(" Setting to attribute %d at %d", attr, pos);
 	if (vb->count > vb->capacity) {
@@ -660,6 +667,14 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 
 	gx_shader_variantT* variant = gxi_enable_style_parameters(vb); //This function takes the vbuffer spec, combines it with the current style's spec, and attaches whatever shader to use
 	
+#ifdef DISABLE_FIXED_FUNCTION
+	if (variant == NULL) {
+		printf(" FIXED FUNCTION DISABLED\n");
+		exit(1);
+	}
+#endif
+
+
 	//TODO: check if the shader changed, if so, setup arrays
 	checkGL();
 	gxi_refresh_matrix(variant);
@@ -789,10 +804,87 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 }
 
 
+//temporary vertex buffers
+//for 'immediate mode' style
+
+
+
+
+void gfx_vertex_buffer_reset(gfx_vertex_bufferT* vb) {
+	vb->count = 0; //reset vertices
+
+
+}
+
+gfx_vertex_bufferT* gfx_vertex_temp(zwindowT* zw, char* spec) {
+	gfx_vertex_bufferT* vb = NULL;
+	gfx_windowT* gw = (void*)zw;
+
+	int i;
+	for (i = 0; i < zvec_count(gw->tempvbufs); i++) {
+		vb = zvec_get_at(gw->tempvbufs, i);
+		if (!strcmp(vb->buffer_spec, spec)) {
+			printf(" Returning previously used buffer\n", vb->buffer_spec);
+			gfx_vertex_buffer_reset(vb);
+			return vb;
+		}
+	}
+
+	return zvec_add_or_free(gw->tempvbufs, gfx_vertex_buffer_mk(GFX_MAX_TEMP, spec));
+}
+
+//draws contents of vertex buffer AND resets the count to zero
+//call after filling temp buffer with geometry
+void gfx_vertex_buffer_draw_clear(gfx_vertex_bufferT* vb, zuint32 prim) {
+
+	//special handling: create index buffer to make triangle pairs from the submitted vertices
+	if (prim == GFX_QUAD) {
+		if (vb->index_buffer == NULL) {
+			gfx_vertex_buffer_add_index(vb, GFX_MAX_TEMP * GFX_QUAD); //GFX_QUAD is '6' because it takes 6 indices to draw 2 triangles to make a quad
+			int i;
+			for (i = 0; i < GFX_MAX_TEMP / 4; i++) {
+				/*
+				*  1   2
+				*
+				*  0   3
+				* */
+				gfx_index_triangle(vb, i * 4 + 0, i * 4 + 1, i * 4 + 2);
+				gfx_index_triangle(vb, i * 4 + 0, i * 4 + 2, i * 4 + 3);
+
+			}
+		}
+		gfx_vertex_buffer_update(vb);
+		gfx_vertex_buffer_draw(vb, GFX_TRIANGLE, 0, ((zuint32)vb->count) * 6 / 4, ZTRUE);
+
+	}
+	else {
+		gfx_vertex_buffer_update(vb);
+		gfx_vertex_buffer_draw(vb, prim, 0, vb->count, ZFALSE);
+	}
+
+	gfx_vertex_buffer_reset(vb);
+}
+//calls gfx_vertex_buffer_draw_clear if there is not space to draw count more prims
+//note : here a quad is only 4, not 6, because there are 4 points in the buffer.  
+void gfx_vertex_buffer_continue(gfx_vertex_bufferT* vb, zuint32 prim, zuint32 count) {
+
+	if ((vb->count + count * 4) >= vb->capacity) {
+		gfx_vertex_buffer_draw_clear(vb, prim);
+	}
+
+}
+
+
+
+
+
+
+
 zbool gfx_free_mesh(gfx_meshT* m) {
 
+	ram_free(m->style);
 	ram_free(m->vb);
-	ram_free(m->next_piece); //recursive:  maybe stack overflow if too many?
+	ram_free(m->next); //recursive:  maybe stack overflow if too many?
 
 	
 	return ZTRUE; //don't free, we already did

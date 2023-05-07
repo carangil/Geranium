@@ -11,7 +11,9 @@ typedef struct shadergroup_s {
 //gives source code for a shader group
 gx_shadergroupT* gx_shader_source(char* vsource, char* fsource);
 
+void gx_set_basic_shader(char* vsource, char* fsource);
 
+void gfx_free_basic_shader();  //todo: make the basic_shader part of the window struct or something else that gets freed already
 
 
 

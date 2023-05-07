@@ -13,6 +13,8 @@
 
 
 
+
+
 /* test program */
 //extern int frame;
 
@@ -29,11 +31,19 @@ void gfx_gl_test() {
 	zvec_add(garbage, earthpic);
 	zvec_add(garbage, strawpic);
 
-	zbitmapT* brickpic = zbitmap_load_tga("../../Zcore-data/web/brick.tga", 0);
-	zbitmapT* bricknorm = zbitmap_load_tga("../../Zcore-data/web/brick_normal.tga", 0);
+	//zbitmapT* brickpic = zbitmap_load_tga("../../Zcore-data/web/brick.tga", 0);
+	//zbitmapT* bricknorm = zbitmap_load_tga("../../Zcore-data/web/brick_normal.tga", 0);
+
+	zbitmapT* brickpic = zbitmap_load_tga("../../Zcore-data/web/Rock_044_SD/Rock_044_BaseColor.tga", 0);
+	zbitmapT* bricknorm = zbitmap_load_tga("../../Zcore-data/web/Rock_044_SD/Rock_044_Normal.tga", 0);
+	zbitmapT* brickheight = zbitmap_load_tga("../../Zcore-data/web/Rock_044_SD/Rock_044_Height.tga", 0);
+
+	//zbitmapT* brickpic = zbitmap_load_tga("../../Zcore-data/finechecker.tga", 0);
+	//zbitmapT* brickheight = zbitmap_load_tga("../../Zcore-data/testheight.tga", 0);
+
 	zvec_add(garbage, brickpic);
 	zvec_add(garbage, bricknorm);
-
+	zvec_add(garbage, brickheight);
 
 
 
@@ -47,10 +57,12 @@ void gfx_gl_test() {
 	gfx_textureT* earthtex = gfx_texture_mk(earthpic);
 	gfx_textureT* bricktex = gfx_texture_mk(brickpic);
 	gfx_textureT* bricknormtex = gfx_texture_mk(bricknorm);
+	gfx_textureT* brickheighttex = gfx_texture_mk(brickheight);
 	zvec_add(garbage, strawtex);
 	zvec_add(garbage, earthtex);
 	zvec_add(garbage, bricktex);
 	zvec_add(garbage, bricknormtex);
+	zvec_add(garbage, brickheighttex);
 
 
 	gfx_styleT* st_sphere = gfx_style_mk();
@@ -83,20 +95,27 @@ void gfx_gl_test() {
 	
 	gfx_style_set_property(st_cube, GFX_TEXTURE, "texture_diffuse", 0, 0, bricktex, 0);
 	gfx_style_set_property(st_cube, GFX_TEXTURE, "texture_normal_tangent", 0, 0, bricknormtex, 0);
+	gfx_style_set_property(st_cube, GFX_TEXTURE, "texture_height", 0, 0, brickheighttex, 0);
 	
 	gfx_style_set_property(st_cube, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
 
-	gfx_style_set_property(st_cube, GFX_SWITCH, "pass_view_3x3", 0, 0, &lam, 0);
+	gx_set_basic_shader("@../gfxtest/vertex.glsl", "@../gfxtest/fragment.glsl");
+	
+	gx_shadergroupT* fsg = gx_shader_source("@../gfxtest/finevertex.glsl", "@../gfxtest/finefragment.glsl");
+	zvec_add(garbage, fsg);
 
-
-	gx_shadergroupT* tsg = gx_shader_source("@../gfxtest/finevertex.glsl", "@../gfxtest/finefragment.glsl");
-	zvec_add(garbage, tsg);
-	st_sphere->shader_group = ram_addref(tsg);
-	st_strawberry->shader_group = ram_addref(tsg);
-	st_cube->shader_group = ram_addref(tsg);
+	st_sphere->shader_group = NULL;
+	st_strawberry->shader_group = NULL;
+	st_cube->shader_group = ram_addref(fsg);
 
 	gfx_cameraT cam;
 	gfx_camera_init(&cam);
+
+
+	//make temp vertex buffer
+	//gfx_vertex_bufferT* vbt = NULL; = gfx_vertex_buffer_mk(10000, "position:3|color:4");
+
+
 
 	//create vertex buffer
 	gfx_vertex_bufferT* vb = gfx_vertex_buffer_mk(10000, "position:3|color:4|texcoord:2|normal:3");
@@ -120,10 +139,10 @@ void gfx_gl_test() {
 			float fx = s * sinf(k / 10.0 * 3.141);
 			float fz = s * cosf(k / 10.0 * 3.141);
 
-			gfx_vertex_data(vb, 0, fx, fy, fz, 0);						//position
-			gfx_vertex_data(vb, 1, 1.0, 1.0, 1.0, 1.0);					//color
-			gfx_vertex_data(vb, 2, k / 20.0, -(j + 10) / 20.0, 0, 0);	//texcoord
-			gfx_vertex_done(vb, 3, fx, fy, fz, 0);						//normal
+			gfx_vertex_data3(vb, 0, fx, fy, fz);						//position
+			gfx_vertex_data4(vb, 1, 1.0, 1.0, 1.0, 1.0);					//color
+			gfx_vertex_data2(vb, 2, k / 20.0, -(j + 10) / 20.0);	//texcoord
+			gfx_vertex_done3(vb, 3, fx, fy, fz);						//normal
 			
 
 
@@ -189,8 +208,8 @@ void gfx_gl_test() {
 					st_strawberry->shader_group = NULL;
 				}
 				if (ev.a == 'G') {
-					st_sphere->shader_group = ram_addref(tsg);
-					st_strawberry->shader_group = ram_addref(tsg);
+					st_sphere->shader_group = ram_addref(fsg);
+					st_strawberry->shader_group = ram_addref(fsg);
 
 				}
 
@@ -321,7 +340,7 @@ void gfx_gl_test() {
 
 		gfx_meshT* m;
 
-		for (m = strawberry_mesh; m; m = m->next_piece) {
+		for (m = strawberry_mesh; m; m = m->next) {
 			
  			gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
 		}
@@ -330,16 +349,35 @@ void gfx_gl_test() {
 		gfx_style_set_property(st_cube, GFX_FLOAT3, "specular", 0, 0, &gray, 0);
 
 		gfx_style(st_cube);
-		gfx_translate3(3, -5, -1);
+		gfx_translate3(3, -5, 4);
    		gfx_vertex_buffer_draw(cube_mesh->vb, GFX_TRIANGLE, 0, zarray_count(cube_mesh->vb->index_buffer), ZTRUE);
 
+
+		gfx_style(NULL);
+		gfx_identity();
+
+		gfx_vertex_bufferT* vbt = gfx_vertex_temp(zwin, "position:3|color:4"); //make or recycle a temp vertex buffer
+		gfx_vertex_data4(vbt, 1, 1.0, 0.0, 0.0, 1.0);
+		gfx_vertex_done3(vbt, 0, 0.0 + cam.pos.named.x , -.2, -2);
+
+		gfx_vertex_data4(vbt, 1, 0.0, 1.0, 0.0, 1.0);
+		gfx_vertex_done3(vbt, 0, 1.0, 0.0, -2);
+
+		gfx_vertex_data4(vbt, 1, 1.0, 0.0, 1.0, 1.0);
+		gfx_vertex_done3(vbt, 0, 1.0, 1.0, -2);
+
+
+		gfx_vertex_data4(vbt, 1, 0.0, 0.0, 1.0, 1.0);
+		gfx_vertex_done3(vbt, 0, 0.0, 1.0, -2);
+		
+		gfx_vertex_buffer_draw_clear(vbt, GFX_QUAD);
 
 		zwin->pixels(zwin, NULL);	//display the framebuffer
 		ang += .01;
 	}
 
 	printf(" window close button was pressed\n");
-
+	gfx_free_basic_shader();
 	ram_free(garbage);
 
 }

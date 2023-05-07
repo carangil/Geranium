@@ -26,7 +26,17 @@ zbool gxi_delete_shadergroup(void* v) {
 	return ZTRUE;
 }
 
+gx_shadergroupT* basic_shader = NULL;  //This is set to a very basic vertex-lighting shader similar to fixed function opengl
+										//for quick and dirty protyping, debug drawing, etc
 
+void gx_set_basic_shader(char* vsource, char* fsource) {
+	
+	basic_shader = gx_shader_source(vsource, fsource);
+}
+
+void gfx_free_basic_shader() {
+	ram_free(basic_shader);
+}
 
 gx_shadergroupT* gx_shader_source(char* vsource, char* fsource) {
 
@@ -109,6 +119,11 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 
 	gx_shader_variantT* shader = NULL;
 
+
+
+	if (!sg)
+		sg = basic_shader;
+
 	if (!sg) {
 		if (shader_active) {
 			glUseProgram(0);
@@ -119,7 +134,6 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 		}
 		return NULL;  //no shader variant, means no shader
 	}
-
 	//skip the current variant is from the same group and has the same key, just return it. No need to search
 	if (sg == current_shader_group) {
 		if (!strcmp(current_variant->key, key)) {
@@ -144,7 +158,7 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 		shader = ram_alloc(sizeof(gx_shader_variantT), freevariant); //TODO: destructor
 	
 
-
+		int hline = 1;
 		char* header = zstrdup("#version 120\n");
 
 		gfx_propertyT* p;
@@ -162,6 +176,7 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 			header = zstrcat(header, "#define enable_");
 			header = zstrcat(header, b);
 			header = zstrcat(header, "\n");
+			hline++;
 
 
 		}
@@ -172,6 +187,7 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 			header = zstrcat(header, "#define enable_");
 			header = zstrcat(header, vb->attributes[i].name);
 			header = zstrcat(header, "\n");
+			hline++;
 		}
 
 		char* vsource[] = { header, sg->vsource };
@@ -190,7 +206,7 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 		status = 0;
 		glGetShaderiv(shader->v_shader, GL_COMPILE_STATUS, &status);
 		glGetShaderInfoLog(shader->v_shader, 1024, &len, log);
-		printf("vertex error:\n%s\n", log);
+		printf("vertex error:\n%s\n +%dlines\n", log, hline);
 		if (!status) {
 			//todo:cleanup
 			getc(stdin);
@@ -212,7 +228,7 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 		glGetShaderiv(shader->f_shader, GL_COMPILE_STATUS, &status);
 		glGetShaderInfoLog(shader->f_shader, 1024, &len, log);
 
-		printf("fragment error:\n%s\n", log);
+		printf("fragment error:\n%s\n+%dlines\n", log, hline);
 		if (!status) {
 			//todo:cleanup
 			getc(stdin);
@@ -231,14 +247,17 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 
 		status = 0;
 		glGetProgramiv(shader->program, GL_LINK_STATUS, &status);
+		
+		glGetProgramInfoLog(shader->program, 1024, &len, log);
+		gxdprintf(" Link error:%s\n", log);
+		
 		if (!status) {
-			glGetProgramInfoLog(shader->program, 1024, &len, log);
-			gxdprintf(" Link error:%s\n", log);
-			getc(stdin);
+			printf(" Link unsuccessful\n");
 			//todo: cleanup
 			return NULL;
 		}
-
+		printf(" SHADER COMPILE OUTPUT ^^\n");
+		//getc(stdin);
 
 		//find all the uniform and attribute locations
 

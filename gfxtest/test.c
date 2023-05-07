@@ -11,9 +11,6 @@
 
 
 
-
-
-
 int main(int argc, char** args){
 	zwindowT* window = pt_mkwindow("testing", 1024,512,1);
 	zuint16 window_pxformat = ZBITMAP_BGRA; //todo: window pxformat will be part of the window struct returned

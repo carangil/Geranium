@@ -34,11 +34,6 @@ void checkGLfunc(char* file, int line, char* hint, zbool tolerable) {
 
 }
 
-/*glfw windowing and zevent interface*/
-typedef struct gfx_windowS {
-	zwindowT iface;	//the zevent window interface
-	GLFWwindow* fwindow;
-}gfx_windowT;
 
 void errorHandler(int error, const char* message) {
 	printf(" glfw e");
@@ -292,15 +287,23 @@ void gfx_pixels(zwindowT * zw, void* px) {
 	checkGL();//check for errors
 }
 
-void gfx_close(zwindowT * zw) {
+
+void gfx_close(zwindowT* zw) {
 	gfx_windowT* win = (gfx_windowT*)zw;
-	
+
 	glfwSetWindowShouldClose(win->fwindow, GLFW_TRUE);
 
-	
 }
 
+zvecT* gxi_window_tempbuffers(gfx_windowT* gw) {
+	return gw->tempvbufs;
+}
 
+zbool window_free(void* v) {
+	gfx_windowT* gw = v;
+	ram_free(gw->tempvbufs);
+	return ZTRUE;
+}
 
 
 //flags currently don't do anything
@@ -310,7 +313,9 @@ struct zwindowS* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) 
 
 	memset(keystatus, 0, sizeof(keystatus));
 
-	gfx_windowT* win = ram_alloc(sizeof(gfx_windowT), NULL); //no destructor key
+	gfx_windowT* win = ram_alloc(sizeof(gfx_windowT),  window_free ); 
+
+	win->tempvbufs = zvec_mk(NULL, 10);
 
 	if (!gfxi_inited)
 		gfxi_init();

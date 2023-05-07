@@ -118,35 +118,33 @@ void main()
 	
 	#ifdef enable_normal
 		vec3 normal_camspace = normalize(vec3( gfx_modelview * vec4(normal, 0.0)));  
-	#endif
+	
 
 
 
 
 
+		//light 0
+		#if   defined(enable_light_direction0) || defined(enable_light_position0)
+			attenuation = 1.0;
 
+			#ifdef enable_light_position0
 
-	//light 0
-	#if   defined(enable_light_direction0) || defined(enable_light_position0)
-		attenuation = 1.0;
+				vec3  light_direction0 = light_point( vertex_camspace, light_position0, out_distance);	
 
-		#ifdef enable_light_position0
+				#ifdef enable_light_attenuation0 
+					attenuation = light_attenuationf(light_attenuation0, out_distance);
+				#endif
 
-			vec3  light_direction0 = light_point( vertex_camspace, light_position0, out_distance);	
-
-			#ifdef enable_light_attenuation0 
-				attenuation = light_attenuationf(light_attenuation0, out_distance);
 			#endif
+
+			light_shading(normal_camspace, normalize(light_direction0), light_color0,  attenuation); //adds to F_color and F_specular_color
 
 		#endif
 
-		light_shading(normal_camspace, normalize(light_direction0), light_color0,  attenuation); //adds to F_color and F_specular_color
+
 
 	#endif
-
-
-
-	
 
 	/* Add ambient light to vertex's light contribution */
 

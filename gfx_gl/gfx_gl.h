@@ -29,12 +29,12 @@ void checkGLfunc(char* file, int line, char* hint, zbool tolerable );
 #include "gx_trans.h"
 #include "gfx_texture.h"
 
+#define DISABLE_FIXED_FUNCTION
 
 
 //creates a zwindowT object that gives UI zevents
 //creates an opengl context, and makes it current
 struct zwindowS* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags);
-
 
 /* Basic framebuffer and setup functions */
 void gfx_background_color(float r, float g, float b, float a);
@@ -105,6 +105,8 @@ typedef struct gfx_VertexBufferS {
 	
 	char* buffer_spec;
 
+	
+
 } gfx_vertex_bufferT;
 
 
@@ -113,14 +115,39 @@ typedef struct gfx_VertexBufferS {
 #define GFX_POINT	1
 #define GFX_LINE	2
 #define GFX_TRIANGLE	3
+#define GFX_QUAD		6
+/* QUAD is 6 because it is split in 2 triangles, 6 vertices: opengl wants triangles */
 
 gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount, char* spec);
 zuint16 gfx_index_triangle(gfx_vertex_bufferT* vb, zuint16 a, zuint16 b, zuint16 c);
 void gfx_vertex_data(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d);
 zuint16 gfx_vertex_done(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d);
+
+#define gfx_vertex_data4	gfx_vertex_data
+#define gfx_vertex_done4	gfx_vertex_done
+#define gfx_vertex_data2(BUF, ATTR, S, T)		gfx_vertex_data(BUF, ATTR, S, T, 0.0f, 0.0f)
+#define gfx_vertex_data3(BUF, ATTR, X, Y, Z)	gfx_vertex_data(BUF, ATTR, X, Y, Z, 0.0f)
+#define gfx_vertex_done2(BUF, ATTR, S, T)		gfx_vertex_done(BUF, ATTR, S, T, 0.0f, 0.0f)
+#define gfx_vertex_done3(BUF, ATTR, X, Y, Z)	gfx_vertex_done(BUF, ATTR, X, Y, Z, 0.0f)
+
 zuint16* gfx_vertex_buffer_add_index(gfx_vertex_bufferT* vb, int num);
 void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb);
 void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end, zbool indexed);
+
+
+//temporary vertex buffers:
+//these do not need to be freed, and are automatically recycled as needed
+gfx_vertex_bufferT* gfx_vertex_temp(struct zwindowS* gw ,char* spec);  //returns a vertex buffer in speficed format.  CAn hold MAX_GFX_TEMP vertices
+void gfx_vertex_buffer_draw_clear(gfx_vertex_bufferT* vb, zuint32 prim);  //draws the temporary vertex buffer's contents with the currently selected style.
+//can draw TRIANGLE or QUAD
+
+#define GFX_MAX_TEMP 65535
+
+//If there is enough space to hold  count number of prims, then this doesn't do anything.
+//otherwise it will draw and clear the buffer.
+//If drawing a large number of immediate primitives, calling this function every so often (at least once per GFX_MAX_TEMP vertices), then you don't need to bother counting exactly
+void gfx_vertex_buffer_continue(gfx_vertex_bufferT* vb, zuint32 prim, zuint32 count);
+
 
 
 #include "objloader.h"
@@ -187,6 +214,13 @@ typedef struct gfx_propertyS {
 
 	} data;
 } gfx_propertyT;
+
+/*glfw windowing and zevent interface*/
+typedef struct gfx_windowS {
+	zwindowT iface;	//the zevent window interface
+	GLFWwindow* fwindow;
+	zvecT* tempvbufs;	//additional objects to free when window is closed
+}gfx_windowT;
 
 
 

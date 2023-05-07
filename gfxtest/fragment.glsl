@@ -3,7 +3,10 @@
 
 uniform sampler2D texture_diffuse0;
 
+#ifdef enable_texcoord
 varying vec2 F_texcoord;
+#endif
+
 varying vec4 F_color;
 varying vec4 F_specular_color;
 varying float F_zcoord;
@@ -14,20 +17,18 @@ varying float F_zcoord;
 #endif
 
 
+
 void main()
 {
 	vec4 diffuse_color = F_color;
 	vec4 specular_color = vec4(F_specular_color.xyz, 0.0);
 
 
-	#ifdef enable_texture_diffuse0
+	#if defined(enable_texture_diffuse0) && defined(enable_texcoord)
 		diffuse_color *= texture2D(texture_diffuse0, vec2(F_texcoord) );
 	#endif
 
 	
-	
-	
-
 
 	
 	gl_FragColor = diffuse_color +specular_color;
