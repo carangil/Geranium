@@ -305,7 +305,7 @@ zbool window_free(void* v) {
 	return ZTRUE;
 }
 
-
+gfx_windowT* gxi_current_window = NULL;
 //flags currently don't do anything
 //creation of first window will init glfw
 
@@ -334,6 +334,7 @@ struct zwindowS* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) 
 	glfwSetMouseButtonCallback(win->fwindow, mousebuttonHandler);
 	
 	glfwMakeContextCurrent(win->fwindow);
+	gxi_current_window = win;
 		
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
 		printf("Can't init glad\n");
@@ -360,29 +361,3 @@ struct zwindowS* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) 
 }
 
 
-void gfx_arrow(vec3* p1, vec3* p2) {
-
-	vec3 zero = vec3const(0, 0, 0);
-	if (!p1)
-		p1 = &zero;
-
-	if (!p2)
-		p2 = &zero;
-
-	gxi_refresh_matrix(NULL);
-	glDisable(GL_BLEND);
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_LIGHTING);
-	glDisable(GL_TEXTURE_2D);
-	glColor4f(1, 1, 1, 1);
-	float s = .02f;
-	glBegin(GL_TRIANGLES);
-		
-		glVertex3f(p1->VX-s,		p1->VY, p1->VZ-s);
-		glVertex3f(p1->VX+s,	p1->VY+s, p1->VZ+s);
-		glVertex3f(p2->VX,		p2->VY, p2->VZ);
-				
-	glEnd();
-
-
-}

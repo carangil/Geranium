@@ -22,6 +22,7 @@
 void gfx_gl_test() {
 	zvecT* garbage = zvec_mk(NULL, 64);
 
+	int frame = -1 ;
 
 	zwindowT* zwin = gfx_mkwindow("Testing", 1024, 768, 0);
 	zvec_add(garbage, zwin);
@@ -30,6 +31,10 @@ void gfx_gl_test() {
 	zbitmapT* strawpic = zbitmap_load_tga("../../Zcore-data/web/strawberry/Texture/Strawberry_basecolor.tga", 0 * ZTGA_TOP);
 	zvec_add(garbage, earthpic);
 	zvec_add(garbage, strawpic);
+
+
+	zbitmapT* grid = zbitmap_load_tga("../../Zcore-data/finechecker.tga", 1 * ZTGA_TOP);
+	zvec_add(garbage, grid);
 
 	//zbitmapT* brickpic = zbitmap_load_tga("../../Zcore-data/web/brick.tga", 0);
 	//zbitmapT* bricknorm = zbitmap_load_tga("../../Zcore-data/web/brick_normal.tga", 0);
@@ -45,12 +50,92 @@ void gfx_gl_test() {
 	zvec_add(garbage, bricknorm);
 	zvec_add(garbage, brickheight);
 
+	zvecT* ignore = zstrsplit(NULL, "__0|root-end|hips|arm.pool.r|arm.pool.l|arm.ik.r|arm.ik.l|leg.ik.l|leg.ik.r|leg.pool.l|leg.pool.r|root|hips.comtroll|arm.pool.r-end|arm.pool.l-end|arm.ik.r-end|arm.ik.l-end|leg.ik.l-end|leg.ik.r-end|leg.pool.l-end|leg.pool.r-end", '|');
 
+	gfx_jointT* skel = load_bvh("../../Zcore-data/web/metal_hands.bvh", .1, ignore);
+	//gfx_jointT* skel = load_bvh("../../Zcore-data/test.bvh", 2);
+
+;
+	zvec_add(garbage, skel);
 
 	gfx_meshT* cube_mesh = gfx_mesh_load_obj("../../Zcore-data/cube.obj", 1.0);
 	gfx_meshT* strawberry_mesh = gfx_mesh_load_obj("../../Zcore-data/web/strawberry/Strawberry_obj.obj", 1.0);
 	zvec_add(garbage, strawberry_mesh);
 	zvec_add(garbage, cube_mesh);
+
+	gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands.obj", .1);
+	zvec_add(garbage, model);
+
+
+	//map points to bones
+	gfx_identity();
+	recurse_skeleton(skel, -1, 0); //process the skeleton rest pose
+
+
+	{
+		gfx_meshT* m;
+		int i;
+
+		for (m = model; m; m = m->next) {
+
+			int count = m->vb->count;
+			
+
+			m->vbaux = gfx_vertex_buffer_mk(count, "position:3|color:4"); 
+			m->bone = zarray_alloc(zuint16, count);
+
+			for (i = 0; i < count; i++) {
+
+				vec3 p;
+
+				p.named.x = m->vb->attributes[m->vb->fixed_position].data[i * 3];
+				p.named.y = m->vb->attributes[m->vb->fixed_position].data[i * 3+1];
+				p.named.z = m->vb->attributes[m->vb->fixed_position].data[i * 3+2];
+
+				vec4 color = vec4const(1, 0, 0, 1);
+				float closestd = 9999;
+				int j;
+				for (j = 0; j < zvec_count(&skel->bones); j++) {
+					gfx_jointT* joint = zvec_get_at(&skel->bones, j);
+					if (joint->ignored)
+						continue;
+
+					float t;
+					for (t = 0; t <= 1; t += .1) {  //step along the bone line
+
+						
+
+						vec3 q = joint->point;
+						vec3scale(q, t);
+						vec3madd(q, 1 - t, joint->parent->point);	
+
+
+
+						vec3sub(q, p );
+						float d = vec3abs_sq(q);
+						if (d < closestd) {
+							closestd = d;
+							m->bone[i] = j;//set ith point to use jth bone
+							color = joint->parent->debugcolor;
+						}
+
+					}
+
+
+				}
+
+
+				gfx_vertex_data3(m->vbaux, 0, p.named.x, p.named.y, p.named.z);
+
+ 				gfx_vertex_done4(m->vbaux,1,    color.named.x, color.named.y, color.named.z, 1);
+
+			}
+
+
+		}
+	}
+
+
 	float speed = .05;
 
 	gfx_textureT* strawtex = gfx_texture_mk(strawpic);
@@ -58,19 +143,24 @@ void gfx_gl_test() {
 	gfx_textureT* bricktex = gfx_texture_mk(brickpic);
 	gfx_textureT* bricknormtex = gfx_texture_mk(bricknorm);
 	gfx_textureT* brickheighttex = gfx_texture_mk(brickheight);
+	gfx_textureT* gridtex = gfx_texture_mk(grid);
 	zvec_add(garbage, strawtex);
 	zvec_add(garbage, earthtex);
 	zvec_add(garbage, bricktex);
 	zvec_add(garbage, bricknormtex);
 	zvec_add(garbage, brickheighttex);
+	zvec_add(garbage, gridtex);
 
 
 	gfx_styleT* st_sphere = gfx_style_mk();
 	gfx_styleT* st_strawberry = gfx_style_mk();
 	gfx_styleT* st_cube = gfx_style_mk();
+	gfx_styleT* st_tex = gfx_style_mk();
+	gfx_styleT* st_grid = gfx_style_mk();
 	zvec_add(garbage, st_sphere);
 	zvec_add(garbage, st_strawberry);
 	zvec_add(garbage, st_cube);
+	zvec_add(garbage, st_grid);
 
 
 	gfx_style_set_property(st_sphere, 0, "blend", 0, GFX_BLEND_ALPHA, NULL, 0);
@@ -88,6 +178,7 @@ void gfx_gl_test() {
 	gfx_style_set_property(st_strawberry, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
 	gfx_style_set_property(st_strawberry, GFX_TEXTURE, "texture_diffuse", 0, 0, strawtex, 0);
 
+	gfx_style_set_property(st_grid, GFX_TEXTURE, "texture_diffuse", 0, 0, gridtex, 0);
 
 	gfx_style_set_property(st_sphere, GFX_FLOAT4, "light_color", 0, 0, &lcol, 0);
 	gfx_style_set_property(st_sphere, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
@@ -199,6 +290,11 @@ void gfx_gl_test() {
 				if (ev.a == 'h')
 					sh--;
 
+				if (ev.a == '.')
+					frame++;
+
+				if (ev.a == ',')
+					frame--;
 
 
 				if (ev.a == 'g') {
@@ -352,10 +448,63 @@ void gfx_gl_test() {
 		gfx_translate3(3, -5, 4);
    		gfx_vertex_buffer_draw(cube_mesh->vb, GFX_TRIANGLE, 0, zarray_count(cube_mesh->vb->index_buffer), ZTRUE);
 
+		gfx_identity();
+		gfx_camera_view(&cam);
+		gfx_translate3(0,-2, -3);
+		gfx_style(st_grid);
+		//gfx_translate3(3, 0, 4);
+		
+		
+	//	for (m = model; m; m = m->next) {
+		//	gfx_vertex_buffer_draw(m->vb, GFX_POINT, 0, zarray_count(m->vb->index_buffer), ZTRUE);
+	//	}
+
+	
+		gfx_transformT tr;
+		gfx_save_transform(&tr);
+
+		gfx_identity();
+		recurse_skeleton(skel, frame, 0);
+		
+
+		for (m = model; m; m = m->next) {
+			
+			int i;
+			//copy from original
+			memcpy(m->vbaux->attributes[m->vbaux->fixed_position].data, m->vb->attributes[m->vb->fixed_position].data, sizeof(float) * 3 * m->vbaux->count);
+			for (i = 0; i < m->vbaux->count; i++) {
+				gfx_jointT* joint = zvec_get_at(&skel->bones, m->bone[i]); //get the closest bone
+				vec3* p = m->vbaux->attributes[m->vbaux->fixed_position].data + 3 * i;
+			
+				
+				gfx_load_transform(&joint->parent->stransform);
+				vec3add(*p, joint->parent->accumulated_offset);
+			
+				gfx_trans_vec3(p);
+				
+			}
+			gfx_vertex_buffer_update(m->vbaux);
+			gfx_load_transform(&tr);
+			gfx_vertex_buffer_draw(m->vbaux, GFX_POINT, 0, m->vbaux->count, ZFALSE);
+			//gfx_vertex_buffer_draw(m->vb, GFX_POINT, 0, m->vb->count, ZFALSE);
+		}
+		
+		gfx_style(NULL);
+		vec3 z = vec3const(0, 0, 0);
+		vec3 o = vec3const(1, 1, 1);
+
+
+		gfx_arrow_start();
+	//	gfx_arrow(&z, &o);
+		
+		recurse_skeleton(skel, frame, SKEL_OP_DRAW);
+		gfx_identity();
+		gfx_arrow_end();
 
 		gfx_style(NULL);
 		gfx_identity();
 
+		/*
 		gfx_vertex_bufferT* vbt = gfx_vertex_temp(zwin, "position:3|color:4"); //make or recycle a temp vertex buffer
 		gfx_vertex_data4(vbt, 1, 1.0, 0.0, 0.0, 1.0);
 		gfx_vertex_done3(vbt, 0, 0.0 + cam.pos.named.x , -.2, -2);
@@ -371,7 +520,7 @@ void gfx_gl_test() {
 		gfx_vertex_done3(vbt, 0, 0.0, 1.0, -2);
 		
 		gfx_vertex_buffer_draw_clear(vbt, GFX_QUAD);
-
+		*/
 		zwin->pixels(zwin, NULL);	//display the framebuffer
 		ang += .01;
 	}

@@ -137,7 +137,7 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 	//skip the current variant is from the same group and has the same key, just return it. No need to search
 	if (sg == current_shader_group) {
 		if (!strcmp(current_variant->key, key)) {
-			gxdprintf("Still using same variant %s\n", key);
+			//gxdprintf("Still using same variant %s\n", key);
 			return current_variant;
 		}
 	}
@@ -146,7 +146,7 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 
 	for (shader = zlist_head(&(sg->variants)); shader; shader = zlist_next(shader)) {
 		if (!strcmp(shader->key, key)) {
-			gxdprintf(" Found existing shader variant %s\n", key);
+		//	gxdprintf(" Found existing shader variant %s\n", key);
 			break;
 		}
 

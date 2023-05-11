@@ -158,10 +158,7 @@ void gfx_vertex_buffer_continue(gfx_vertex_bufferT* vb, zuint32 prim, zuint32 co
 
 void gfx_gl_test();
 
-
-//garbage function, to redo later
-void gfx_arrow(vec3* p1, vec3* p2);
-
+void gfx_arrow(vec3* p1, vec3* p2, vec4* color);
 
 /*datatypes for properties*/
 
@@ -222,6 +219,8 @@ typedef struct gfx_windowS {
 	zvecT* tempvbufs;	//additional objects to free when window is closed
 }gfx_windowT;
 
+
+extern gfx_windowT* gxi_current_window;
 
 
 #define MAX_FF_LIGHTS 4

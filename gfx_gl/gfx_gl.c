@@ -610,7 +610,7 @@ void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb) {
 		//send index data, if we have it
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vb->index_vbo);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, zarray_count(vb->index_buffer) * sizeof(vb->index_buffer[0]), vb->index_buffer, GL_DYNAMIC_DRAW);
-		gxdprintf("send %d index values to vbo\n", zarray_count(vb->index_buffer));
+		//gxdprintf("send %d index values to vbo\n", zarray_count(vb->index_buffer));
 		gxi_current_index_vbo = vb->index_vbo;
 	}
 
@@ -824,7 +824,7 @@ gfx_vertex_bufferT* gfx_vertex_temp(zwindowT* zw, char* spec) {
 	for (i = 0; i < zvec_count(gw->tempvbufs); i++) {
 		vb = zvec_get_at(gw->tempvbufs, i);
 		if (!strcmp(vb->buffer_spec, spec)) {
-			printf(" Returning previously used buffer\n", vb->buffer_spec);
+		//	printf(" Returning previously used buffer\n", vb->buffer_spec);
 			gfx_vertex_buffer_reset(vb);
 			return vb;
 		}
@@ -874,8 +874,49 @@ void gfx_vertex_buffer_continue(gfx_vertex_bufferT* vb, zuint32 prim, zuint32 co
 
 }
 
+gfx_vertex_bufferT* vbt = NULL;
+void gfx_arrow_start() {
+	vbt = gfx_vertex_temp(&gxi_current_window->iface, "position:3|color:4"); //make or recycle a temp vertex buffer
+}
+
+void gfx_arrow(vec3* p1, vec3* p2, vec4* color) {
+
+	vec3 zero = vec3const(0, 0, 0);
+	vec4 one = vec4const(1, 1, 1, 1);
+
+	if (!p1)
+		p1 = &zero;
+
+	if (!p2)
+		p2 = &zero;
+
+	if (!color)
+		color = &one;
+
+	vec3 a = *p1;
+	vec3sub(a, *p2);
 
 
+	float s = sqrtf(vec3abs_sq(a)) * .05;
+
+
+
+	gfx_vertex_data4(vbt, 1, color->named.x, color->named.y, color->named.z, color->named.w);
+	gfx_vertex_done3(vbt, 0, p1->VX - s, p1->VY, p1->VZ - s);
+
+	gfx_vertex_data4(vbt, 1, color->named.x, color->named.y, color->named.z, color->named.w);
+	gfx_vertex_done3(vbt, 0, p1->VX + s, p1->VY + s, p1->VZ + s);
+
+	gfx_vertex_data4(vbt, 1, color->named.x, color->named.y, color->named.z, color->named.w);
+	gfx_vertex_done3(vbt, 0, p2->VX, p2->VY, p2->VZ);
+
+
+	
+
+}
+void gfx_arrow_end() {
+	gfx_vertex_buffer_draw_clear(vbt, GFX_TRIANGLE);
+}
 
 
 
@@ -884,6 +925,7 @@ zbool gfx_free_mesh(gfx_meshT* m) {
 
 	ram_free(m->style);
 	ram_free(m->vb);
+	ram_free(m->vbaux);
 	ram_free(m->next); //recursive:  maybe stack overflow if too many?
 
 	

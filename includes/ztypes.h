@@ -45,6 +45,7 @@ typedef int zerror;
 #ifdef _WIN32
 #include <windows.h>
 #define sleep(sec)  Sleep( (int)((sec)*1000))
+#define stricmp _stricmp
 #endif
 
 #endif

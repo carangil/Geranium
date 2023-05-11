@@ -73,7 +73,7 @@ void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok){
 		
 	 
 		sh->capacity = elemnum;
-		printf(" resize successful %d %d\n", sh->used, sh->capacity);
+		//printf(" resize successful %d %d\n", sh->used, sh->capacity);
 		return newarray;
 	}
 

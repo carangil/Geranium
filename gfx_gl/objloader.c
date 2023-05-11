@@ -5,7 +5,8 @@
 #define GFXINTERNAL
 #include "gfx_gl.h"
 #include "zarray.h"
-
+#include "zstring.h"
+#include "zrand.h"
 
 #include <stdio.h>
 
@@ -626,9 +627,10 @@ void lcase(char* s) {
 }
 
 int next(FILE* f, char* buf) {
-	int e = fscanf(f, "%99s", buf);
+	int e = fscanf(f, "%89s", buf);
 
 	lcase(buf);
+
 
 	 if (e == EOF)
 		return 0;
@@ -650,20 +652,58 @@ int next(FILE* f, char* buf) {
 #define Z_Y_SWAP 
 
 
-gfx_jointT* tryparsejoint(FILE* f, char* buf, float scale) {
+gfx_jointT* tryparsejoint(FILE* f, char* buf, float scale, zvecT* ignorelist, char* parentname, gfx_jointT* root) {
 
 	gfx_jointT* child = NULL;
-
+	
 
 	if (EQ("joint") || EQ("root") ||EQ("end" )) {
-		printf(" parsing joint\n");
-
-		NEXT;	//name (or "site" in end site
-		printf("name is %s\n", buf);
 
 		gfx_jointT* joint = ram_alloc(sizeof(gfx_jointT), NULL);
 		
-		joint->name = ram_strdup(buf);
+		joint->debugcolor.named.x = zrandf(.3, 1.0);
+		joint->debugcolor.named.y = zrandf(.3, 1.0);
+		joint->debugcolor.named.z = zrandf(.3, 1.0);
+		joint->debugcolor.named.w = 1.0;
+
+
+		if (!root) {
+			root = joint;  //first joint is root
+			zvec_mk(&root->bones, 10);
+			zvec_disown(&root->bones);
+		}
+		
+		zvec_add(&root->bones, joint);
+
+		if (EQ("end"))
+			joint->is_end = ZTRUE;
+
+		NEXT;	//name (or "site" in end site
+		
+		if (joint->is_end) {
+			joint->name = zstrdup(parentname);
+			joint->name = zstrcat(joint->name, "-end");
+			
+		}	else 
+			joint->name = zstrdup(buf);
+
+		printf("name is %s\n", joint->name);
+
+		
+
+		if (ignorelist) {
+			int j;
+			for (j = 0; j < zvec_count(ignorelist); j++)
+				if (!stricmp(zvec_get_at(ignorelist, j), joint->name)) {
+							
+					joint->ignored = ZTRUE;
+
+				}
+
+		}
+	
+	
+		
 
 		NEXT;
 		if (!EQ("{")) {
@@ -677,8 +717,12 @@ gfx_jointT* tryparsejoint(FILE* f, char* buf, float scale) {
 			if (EQ("}"))
 				return joint; //bubble up
 
-			child = tryparsejoint(f, buf, scale); //see if there's a joint inside
+			child = tryparsejoint(f, buf, scale, ignorelist, joint->name, root); //see if there's a joint inside
 			if (child) {
+				child->parent = joint;
+
+				
+
 				zvec_add_or_free(&joint->children, child);
 				child = NULL;
 			}
@@ -751,44 +795,44 @@ void debug_print_skeleton(gfx_jointT* joint, int indent) {
 	gfx_jointT* child;
 	int i;
 
-	printf("%*s  numchannels  %d\n", indent, "", joint->numchannels);
+	printf("%*s  %s  numchannels  %d\n", indent, "", joint->name, joint->numchannels);
 
 	for (i = 0; i < zvec_count(&joint->children); i++) {
 		child = zvec_get_at(&joint->children, i);
 		debug_print_skeleton(child, indent + 4);
 	}
 
+
 }
 
 float aaa = 0;
-int frame = 100;
 
-gfx_transformT test_trans;
+//gfx_transformT test_trans;
 
-void debug_draw_skeleton(gfx_jointT* joint, vec3* origin) {
+void recurse_skeleton(gfx_jointT* joint, int frame, int op) {
+	gfx_transformT saved;
 	gfx_jointT* child;
 	int i;
-
-	vec3 z;
-	vec3set(z, 0, 0, 0);
-
-	if (origin != NULL)  //origin tracks the rest post offet
-		z = *origin;
-	
-	vec3add(z, joint->offset); //track accumulated rest pose offset
 	
 
+	if (joint->parent)
+		joint->accumulated_offset = joint->parent->accumulated_offset;
+	else {
+		vec3set(joint->accumulated_offset, 0, 0, 0);
+	}
 
-	gfx_transformT tr;
-	
+	vec3sub(joint->accumulated_offset, joint->offset);
+
+	gfx_save_transform(&saved);
+		
+
 	if ((joint->numchannels == 3) || frame ==-1)
-		gfx_translate(&joint->offset);				//use resf post offset translation IF we are in rest pose OR this joint doesn't have per-frame translation data
+		gfx_translate(&joint->offset);				//use rest post offset translation IF we are in rest pose OR this joint doesn't have per-frame translation data
 
 	int h;
 
 
 	if (frame >= 0) {
-
 
 		for (h = 0; h < joint->numchannels; h++) {
 
@@ -813,41 +857,38 @@ void debug_draw_skeleton(gfx_jointT* joint, vec3* origin) {
 	}
 	
 
+	//if (joint->name && !strcmp(joint->name, "lower.leg.l")) {
+		//skip
+		//printf(" don't draw leg\n");
+//	}
+	
 
-	gfx_save_transform(&tr);
+	gfx_save_transform(&joint->stransform);  //save joint transform
 
-	if (joint->name && !strcmp(joint->name, "lower.arm.l")) {
-		gfx_translate3(-z.VX, -z.VY, -z.VZ);  //undo rest pose offset
-		gfx_save_transform(&test_trans);  //save this as model transformation
-
-		gfx_load_transform(&tr); //put it back for skel drawing
-
-
-	}
-
-
+	joint->point = joint->stransform.pos;  //our bone starts at local '0', which is the same as the position part of the transform we just saved
+	
+	
 
 	for (i = 0; i < zvec_count(&joint->children); i++) {
-		vec3 p;
-
-		
-		//p=*origin;
 
 		child = zvec_get_at(&joint->children, i);
+
+		recurse_skeleton(child, frame, op);
+
+		if (!child->ignored) {
+
+			if (op & SKEL_OP_DRAW)
+				gfx_arrow(&joint->point, &child->point, &joint->debugcolor);
+
+			
+
+		}
 		
-	//	vec3add(p, child->offset);
-
-//		gfx_rotate_z(aaa * DEGREE);
-	//	aaa += .0001;
-
-
-		//gfx_rotate_z(aaa * DEGREE);
-		if (origin)
-			gfx_arrow(NULL, &child->offset);
-					
-		debug_draw_skeleton(child, &z);
-		gfx_load_transform(&tr);
+	
 	}
+
+	
+	gfx_load_transform(&saved);
 
 }
 
@@ -884,7 +925,7 @@ void read_pose_frame(FILE* f, gfx_jointT* joint, int frame, int framecount, floa
 }
 
 
-gfx_jointT* load_bvh(char* filename, float scale) {
+gfx_jointT* load_bvh(char* filename, float scale, zvecT* ignorelist) {
 
 	FILE* f = fopen(filename, "rb");
 	
@@ -896,7 +937,7 @@ gfx_jointT* load_bvh(char* filename, float scale) {
 
  		if (EQ("hierarchy")) {
 			NEXT;
-			rootJoint = tryparsejoint(f, buf, scale);
+ 			rootJoint = tryparsejoint(f, buf, scale, ignorelist, NULL, NULL);
 		}
 		if (EQ("frames:")) { //not checking for 'motion' keyword, just ignore until frames
 			NEXT;
