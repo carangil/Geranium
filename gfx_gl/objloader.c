@@ -99,6 +99,7 @@ void gx_mesh_draw(gx_mesh_t* mesh_in)
 //               -1 buffer is full
 //				 -2 end of file
 //				 >0 the delimiter character
+
 static zint32 read_to_delim(FILE* f, zchar* buffer, zuint32 buffer_len, zchar* delims)
 {
 	zuint32 i = 0;
@@ -161,7 +162,6 @@ typedef struct v_t_n_combo_s
 	//track if already in the vbuffer
 	gfx_vertex_bufferT* vb; //vertex buffer
 	zuint32 p;	//point number
-
 } v_t_n_combo_t;
 
 //store 3-space number (positions or normals)
@@ -208,6 +208,7 @@ typedef struct coord2_s
 typedef struct face_s
 {
 	v_t_n_combo_t* point[FACE_POINT_LIMIT];
+	int group_name;
 } poly_t;
 
 //#define DOPRINTFS
@@ -220,6 +221,18 @@ typedef struct face_s
 #define MESH_VERTEX_COUNT 65535
 #define MESH_INDEX_COUNT  4*65536
 
+int findname(zvecT* list, char* name) {
+	int i;
+	for (i = 0; i < zvec_count(list); i++)
+		if (!strcmp(zvec_get_at(list, i), name))
+			return i;
+			
+	//name not found
+	zvec_add(list, zstrdup(name));
+
+	return i;
+
+}
 
 gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 {
@@ -228,7 +241,9 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 
 	char buffer[100];
 	int delim;
+	int curgroup = -1;
 
+	zvecT* group_names = NULL;
 
 	zvecT vertices;
 	zvecT normals;
@@ -316,32 +331,23 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 		//group command
 		else if (!strcmp(buffer, "g"))
 		{
-			int igs;
-			//the only support we have for groups is to exclude certain groups from the mesh
-#if 0
-			fscanf("%99s", buffer);
+			
+			fscanf(f, "%99s", buffer);
 
-			if (ignoregroups)
-			{
+			if (!group_names)
+				group_names = zvec_mk(NULL, 10);
 
-				while (ignoregroups[igs])
-				{
-					if (!strcmp(ignoregroups[igs], buffer))
-					{
-						//we found something on the ignoregroup list
-
-					}
-
-				}
-
-			}
-#endif
+			curgroup = findname(group_names, buffer);
+			printf(" Group %s is %d\n", buffer, curgroup);
+			
 
 		} //end g
 		//face (triangle or quad)
 		else if (!strcmp(buffer, "f"))
 		{
 			poly_t* poly = ram_alloc(sizeof(poly_t), NULL);
+			
+			poly->group_name = curgroup;
 
 			int i = 0;
 
@@ -512,6 +518,12 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 		mesh->vb = gfx_vertex_buffer_mk(va, "position:3|normal:3|texcoord:2"); //this sets position as 0, normal as 1, and texcoord as 2
 		gfx_vertex_buffer_add_index(mesh->vb, vi);
 
+		if (group_names) {
+			mesh->group_names = ram_addref(group_names);
+			mesh->group_name = zarray_alloc(int, va);
+		}
+
+
 		zuint32 i;
 		zuint32 iu=0;  //index used
 		zuint32 vu = 0; //vertex used
@@ -557,6 +569,11 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 				mesh->vb = gfx_vertex_buffer_mk(va, "position:3|normal:3|texcoord:2"); //this sets position as 0, normal as 1, and texcoord as 2
 				gfx_vertex_buffer_add_index(mesh->vb, vi);
 
+				if (group_names) {
+					mesh->group_names = ram_addref(group_names);
+					mesh->group_name = zarray_alloc(int, va);
+				}
+
 
 			}
 			
@@ -564,6 +581,10 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 			for (j = 0; poly->point[j] && (j < FACE_POINT_LIMIT); j++) {
 
 				if (poly->point[j]->vb != mesh->vb) {
+					
+					if (mesh->group_name)
+						mesh->group_name[mesh->vb->count] = poly->group_name;//set group name note: since vertices may have faces w/ differnt group names, the first face to use a point defines that point's 'group'
+					
 					//need to add the point;
 					poly->point[j]->vb = mesh->vb;  //use this buffer 
 					
@@ -579,7 +600,11 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 						gfx_vertex_data(mesh->vb, 2, vtp->s, vtp->t, 0.0f, 0.0f);
 
 					vu++;
+					
+					
 					poly->point[j]->p= gfx_vertex_done(mesh->vb, 0, vp->x, vp->y, vp->z, 0.0f); //position
+
+										
 					//printf(" Made new point %d for vtn %d %d %d\n", poly->point[j]->p, poly->point[j]->v, poly->point[j]->vt, poly->point[j]->vn);
 
 				}
@@ -706,11 +731,17 @@ gfx_jointT* tryparsejoint(FILE* f, char* buf, float scale, zvecT* ignorelist, ch
 		
 
 		NEXT;
+
+		while (!EQ("{")) {
+			printf(" truncate name %s", buf);
+			NEXT;
+		}
+		/*
 		if (!EQ("{")) {
 			printf(" expected{");
 			
 			exit(1);
-		}
+		}*/
 				
 		while (NEXT) {
 
@@ -813,15 +844,15 @@ void recurse_skeleton(gfx_jointT* joint, int frame, int op) {
 	gfx_transformT saved;
 	gfx_jointT* child;
 	int i;
-	
+
 
 	if (joint->parent)
-		joint->accumulated_offset = joint->parent->accumulated_offset;
+		joint->total_offset = joint->parent->total_offset;
 	else {
-		vec3set(joint->accumulated_offset, 0, 0, 0);
+		vec3set(joint->total_offset, 0, 0, 0);
 	}
 
-	vec3sub(joint->accumulated_offset, joint->offset);
+	vec3add(joint->total_offset, joint->offset);
 
 	gfx_save_transform(&saved);
 		
@@ -852,6 +883,8 @@ void recurse_skeleton(gfx_jointT* joint, int frame, int op) {
 
 #endif
 
+
+
 		}
 
 	}
@@ -864,8 +897,14 @@ void recurse_skeleton(gfx_jointT* joint, int frame, int op) {
 	
 
 	gfx_save_transform(&joint->stransform);  //save joint transform
-
+	
 	joint->point = joint->stransform.pos;  //our bone starts at local '0', which is the same as the position part of the transform we just saved
+	
+	
+	vec3 ao = joint->total_offset; //take the total offset from the root
+	gfx_trans_dir_vec3(&ao); //transform that offset by the bone's transform matrix
+	vec3sub(joint->stransform.pos, ao); //subtract it from the tranform matrix
+	//note: most tutorials say to use the inverse of the rest post matrix.  The rest post has no rotation... it is only translation, so this is equivalent
 	
 	
 

@@ -17,6 +17,12 @@ typedef struct gx_mesh_s
 	zuint16*			bone; 
 	struct gx_mesh_s* next;
 	
+	gfx_vertex_bufferT* vdebug;
+
+
+	zint32* group_name;
+	zvecT* group_names;
+
 } gfx_meshT;
 
 //defines a mesh
@@ -68,7 +74,7 @@ typedef struct jointS {
 	vec4 debugcolor;
 	gfx_transformT stransform; //accumulated transform of this joint's matrix for the current pose being iterated
 	vec3 point;	//this joint's position, transformed by the current pose
-	vec3 accumulated_offset; // total offset relative to root.  AND negative.
+	vec3 total_offset; // total offset relative to root.  This what needs to be subtracted from the rest pose
 	zbool is_end;  //trus if 'end site'
 	zbool ignored; //if true, done isn't drawn, or linked to vertices, etc
 } gfx_jointT;

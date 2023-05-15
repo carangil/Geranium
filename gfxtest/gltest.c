@@ -50,9 +50,10 @@ void gfx_gl_test() {
 	zvec_add(garbage, bricknorm);
 	zvec_add(garbage, brickheight);
 
-	zvecT* ignore = zstrsplit(NULL, "__0|root-end|hips|arm.pool.r|arm.pool.l|arm.ik.r|arm.ik.l|leg.ik.l|leg.ik.r|leg.pool.l|leg.pool.r|root|hips.comtroll|arm.pool.r-end|arm.pool.l-end|arm.ik.r-end|arm.ik.l-end|leg.ik.l-end|leg.ik.r-end|leg.pool.l-end|leg.pool.r-end", '|');
+	zvecT* ignore = NULL;  zstrsplit(NULL, "__0|root-end|hips|arm.pool.r|arm.pool.l|arm.ik.r|arm.ik.l|leg.ik.l|leg.ik.r|leg.pool.l|leg.pool.r|root|hips.comtroll|arm.pool.r-end|arm.pool.l-end|arm.ik.r-end|arm.ik.l-end|leg.ik.l-end|leg.ik.r-end|leg.pool.l-end|leg.pool.r-end|eye.l|eye.r|eye.l-end|eye.r-end", '|');
 
 	gfx_jointT* skel = load_bvh("../../Zcore-data/web/metal_hands.bvh", .1, ignore);
+   	//gfx_jointT* skel = load_bvh("../../Zcore-data/web/dance.bvh", 1, ignore);//not working
 	//gfx_jointT* skel = load_bvh("../../Zcore-data/test.bvh", 2);
 
 ;
@@ -63,7 +64,9 @@ void gfx_gl_test() {
 	zvec_add(garbage, strawberry_mesh);
 	zvec_add(garbage, cube_mesh);
 
-	gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands.obj", .1);
+	//gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands.obj", .1);
+	gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands_vg.obj", .1);
+	//gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/dance.obj", 1);
 	zvec_add(garbage, model);
 
 
@@ -71,6 +74,7 @@ void gfx_gl_test() {
 	gfx_identity();
 	recurse_skeleton(skel, -1, 0); //process the skeleton rest pose
 
+	
 
 	{
 		gfx_meshT* m;
@@ -79,29 +83,70 @@ void gfx_gl_test() {
 		for (m = model; m; m = m->next) {
 
 			int count = m->vb->count;
-			
 
-			m->vbaux = gfx_vertex_buffer_mk(count, "position:3|color:4"); 
+
+			m->vbaux = gfx_vertex_buffer_mk(count, "position:3|normal:3|color:4");
 			m->bone = zarray_alloc(zuint16, count);
 
+	
+			//copy original points to aux buffer
+			memcpy(m->vbaux->attributes[m->vbaux->fixed_position].data, m->vb->attributes[m->vb->fixed_position].data, sizeof(float) * 3 * m->vb->count);
+			memcpy(m->vbaux->attributes[m->vbaux->fixed_normal].data, m->vb->attributes[m->vb->fixed_normal].data, sizeof(float) * 3 * m->vb->count);
+			m->vbaux->count = m->vb->count;
+			
+			m->vdebug = gfx_vertex_buffer_mk(count * 2, "position:3|color:4");
+
+
+
+			for (i = 0; i < count; i++) {
+				if (m->group_name[i] != -1) {
+					int j;
+
+					for (j = 0; j < zvec_count(&skel->bones); j++) {
+						gfx_jointT* joint = zvec_get_at(&skel->bones, j);
+						char* name = zvec_get_at(m->group_names, m->group_name[i]);
+						if (!stricmp(joint->name, name)) {
+							m->bone[i] = j;
+
+
+						}
+
+					}
+
+				}
+
+			}
+
+		}
+	}
+
+
+
+
+#if 0
 			for (i = 0; i < count; i++) {
 
 				vec3 p;
-
+				vec3 bestp;
 				p.named.x = m->vb->attributes[m->vb->fixed_position].data[i * 3];
 				p.named.y = m->vb->attributes[m->vb->fixed_position].data[i * 3+1];
 				p.named.z = m->vb->attributes[m->vb->fixed_position].data[i * 3+2];
 
+				vec3* n = m->vb->attributes[m->vb->fixed_normal].data + i * 3;
+				          
 				vec4 color = vec4const(1, 0, 0, 1);
 				float closestd = 9999;
+	
 				int j;
+				zbool found=ZFALSE;
+
 				for (j = 0; j < zvec_count(&skel->bones); j++) {
 					gfx_jointT* joint = zvec_get_at(&skel->bones, j);
 					if (joint->ignored)
-						continue;
+							continue;
 
 					float t;
-					for (t = 0; t <= 1; t += .1) {  //step along the bone line
+					for (t = 0; t <= 1; t += .05) {  //step along the bone line
 
 						
 
@@ -109,11 +154,21 @@ void gfx_gl_test() {
 						vec3scale(q, t);
 						vec3madd(q, 1 - t, joint->parent->point);	
 
+						vec3 qc = q;
+						//find distance
+						vec3sub(q, p);
 
+						vec3 a = q;
+						vec3 b = *n;
+						vec3normalize(&a);
+						vec3normalize(&b);
 
-						vec3sub(q, p );
 						float d = vec3abs_sq(q);
-						if (d < closestd) {
+
+					
+						if (d<closestd){
+													
+							bestp =	qc ;
 							closestd = d;
 							m->bone[i] = j;//set ith point to use jth bone
 							color = joint->parent->debugcolor;
@@ -124,16 +179,42 @@ void gfx_gl_test() {
 
 				}
 
+				if (!found) {
+
+					printf(" no bone for point\n");
+			//		vec3set(bestp, 0, 0, 0);
+				//	vec4set(color, 1, 1, 1, 1);
+				}
+				else continue;
 
 				gfx_vertex_data3(m->vbaux, 0, p.named.x, p.named.y, p.named.z);
 
- 				gfx_vertex_done4(m->vbaux,1,    color.named.x, color.named.y, color.named.z, 1);
+				gfx_vertex_data3(m->vbaux, 1,
+					m->vb->attributes[m->vb->fixed_normal].data[i * 3],
+					m->vb->attributes[m->vb->fixed_normal].data[i * 3 + 1],
+					m->vb->attributes[m->vb->fixed_normal].data[i * 3 + 2]);
+					
+					
+
+				gfx_vertex_done4(m->vbaux, 2, color.named.x, color.named.y, color.named.z, 1);
+
+				//debug one
+				gfx_vertex_data3(m->vdebug, 0, p.named.x, p.named.y, p.named.z);
+				gfx_vertex_done4(m->vdebug, 1, 0,0,0, 1);
+
+				vec3madd(p, .01, *n);
+				gfx_vertex_data3(m->vdebug, 0, p.named.x, p.named.y, p.named.z);
+
+				//gfx_vertex_data3(m->vdebug, 0, bestp.named.x, bestp.named.y, bestp.named.z);
+				gfx_vertex_done4(m->vdebug, 1, color.named.x, color.named.y, color.named.z, 1);
+
+				
+
 
 			}
+#endif
 
 
-		}
-	}
 
 
 	float speed = .05;
@@ -179,6 +260,9 @@ void gfx_gl_test() {
 	gfx_style_set_property(st_strawberry, GFX_TEXTURE, "texture_diffuse", 0, 0, strawtex, 0);
 
 	gfx_style_set_property(st_grid, GFX_TEXTURE, "texture_diffuse", 0, 0, gridtex, 0);
+	gfx_style_set_property(st_grid, GFX_FLOAT4, "light_color", 0, 0, &lcol, 0);
+	gfx_style_set_property(st_grid, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
+
 
 	gfx_style_set_property(st_sphere, GFX_FLOAT4, "light_color", 0, 0, &lcol, 0);
 	gfx_style_set_property(st_sphere, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
@@ -382,6 +466,7 @@ void gfx_gl_test() {
  		gfx_style_set_property(st_strawberry , GFX_FLOAT3, "light_position", 0, 0, &lpcam, GFX_TRANSFORM_POINT);
 		gfx_style_set_property(st_sphere, GFX_FLOAT3, "light_position", 0, 0, &lpcam, GFX_TRANSFORM_POINT);
 		gfx_style_set_property(st_cube, GFX_FLOAT3, "light_position", 0, 0, &lpcam, GFX_TRANSFORM_POINT);
+		gfx_style_set_property(st_grid, GFX_FLOAT3, "light_position", 0, 0, &lpcam, GFX_TRANSFORM_POINT);
 		
 		//gfx_style_set_property(st_sphere, GFX_FLOAT3, "light_direction", 0, 0, &ldcam, GFX_TRANSFORM_DIRECTION);
 		//gfx_style_set_property(st_strawberry, GFX_FLOAT3, "light_direction", 0, 0, &ldcam, GFX_TRANSFORM_DIRECTION);
@@ -455,10 +540,7 @@ void gfx_gl_test() {
 		//gfx_translate3(3, 0, 4);
 		
 		
-	//	for (m = model; m; m = m->next) {
-		//	gfx_vertex_buffer_draw(m->vb, GFX_POINT, 0, zarray_count(m->vb->index_buffer), ZTRUE);
-	//	}
-
+	
 	
 		gfx_transformT tr;
 		gfx_save_transform(&tr);
@@ -471,25 +553,49 @@ void gfx_gl_test() {
 			
 			int i;
 			//copy from original
-			memcpy(m->vbaux->attributes[m->vbaux->fixed_position].data, m->vb->attributes[m->vb->fixed_position].data, sizeof(float) * 3 * m->vbaux->count);
+			//memcpy(m->vbaux->attributes[m->vbaux->fixed_position].data, m->vb->attributes[m->vb->fixed_position].data, sizeof(float) * 3 * m->vbaux->count);
+
+			//copy to original
+			memcpy(m->vb->attributes[m->vb->fixed_position].data, m->vbaux->attributes[m->vbaux->fixed_position].data, sizeof(float) * 3 * m->vbaux->count);
+			memcpy(m->vb->attributes[m->vb->fixed_normal].data, m->vbaux->attributes[m->vbaux->fixed_normal].data, sizeof(float) * 3 * m->vbaux->count);
+
 			for (i = 0; i < m->vbaux->count; i++) {
 				gfx_jointT* joint = zvec_get_at(&skel->bones, m->bone[i]); //get the closest bone
-				vec3* p = m->vbaux->attributes[m->vbaux->fixed_position].data + 3 * i;
+				vec3* p = m->vb->attributes[m->vb->fixed_position].data + 3 * i;
 			
-				
-				gfx_load_transform(&joint->parent->stransform);
-				vec3add(*p, joint->parent->accumulated_offset);
+				//if (!joint->parent)
+				//	continue;
+//				gfx_load_transform(&joint->parent->stransform);  //for our own closest algo
+				gfx_load_transform(&joint->stransform);  //for blender imported vertex groups
+
+				//vec3add(*p, joint->parent->accumulated_offset);
 			
 				gfx_trans_vec3(p);
 				
+				p = m->vb->attributes[m->vb->fixed_normal].data + 3 * i;
+				gfx_trans_dir_vec3(p);
+				
 			}
-			gfx_vertex_buffer_update(m->vbaux);
+			gfx_vertex_buffer_update(m->vb);
 			gfx_load_transform(&tr);
-			gfx_vertex_buffer_draw(m->vbaux, GFX_POINT, 0, m->vbaux->count, ZFALSE);
+			//gfx_vertex_buffer_draw(m->vbaux, GFX_POINT, 0, m->vbaux->count, ZFALSE);
 			//gfx_vertex_buffer_draw(m->vb, GFX_POINT, 0, m->vb->count, ZFALSE);
 		}
 		
+		for (m = model; m; m = m->next) {
+			gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
+			//gfx_vertex_buffer_draw(m->vb, GFX_POINT, 0, zarray_count(m->vb->index_buffer), ZTRUE);
+		}
 		gfx_style(NULL);
+		gfx_translate3(-2, 0, 0);
+		for (m = model; m; m = m->next) {
+			//gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
+			//gfx_vertex_buffer_draw(m->vbaux, GFX_POINT, 0, m->vbaux->count, ZFALSE);
+		//	gfx_vertex_buffer_draw(m->vdebug, GFX_LINE, 0, m->vdebug->count, ZFALSE);
+		}
+		
+
+	
 		vec3 z = vec3const(0, 0, 0);
 		vec3 o = vec3const(1, 1, 1);
 
