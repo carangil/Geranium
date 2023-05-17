@@ -412,12 +412,34 @@ void gfx_rotate_3x3 (gfx_mat_3x3* rot) {
 
 
 
-void gfx_load_transform(gfx_transformT* trans){
+void gfx_load_transform(gfx_transformT* trans) {
 
 	modelview = *trans;
 
 	matrix_version++;
 }
+
+
+
+void gfx_blend_transform(float a, float b, gfx_transformT* trans) {
+
+
+	
+	vec3scale(modelview.pos, a);
+	vec3scale(modelview.rot.x_axis, a);
+	vec3scale(modelview.rot.y_axis, a);
+	vec3scale(modelview.rot.z_axis, a);
+
+	vec3madd(modelview.pos, b, trans->pos);
+	vec3madd(modelview.rot.x_axis, b, trans->rot.x_axis);
+	vec3madd(modelview.rot.y_axis, b, trans->rot.y_axis);
+	vec3madd(modelview.rot.z_axis, b, trans->rot.z_axis);
+	
+
+
+
+}
+
 
 void gfx_rotate_y(float rad) {
 	

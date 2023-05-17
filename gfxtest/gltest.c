@@ -33,7 +33,8 @@ void gfx_gl_test() {
 	zvec_add(garbage, strawpic);
 
 
-	zbitmapT* grid = zbitmap_load_tga("../../Zcore-data/finechecker.tga", 1 * ZTGA_TOP);
+	//zbitmapT* grid = zbitmap_load_tga("../../Zcore-data/finechecker.tga", 1 * ZTGA_TOP);
+	zbitmapT* grid = zbitmap_load_tga("../../Zcore-data/web/femalenude.tga", 0 * ZTGA_TOP);
 	zvec_add(garbage, grid);
 
 	//zbitmapT* brickpic = zbitmap_load_tga("../../Zcore-data/web/brick.tga", 0);
@@ -50,9 +51,10 @@ void gfx_gl_test() {
 	zvec_add(garbage, bricknorm);
 	zvec_add(garbage, brickheight);
 
-	zvecT* ignore = NULL;  zstrsplit(NULL, "__0|root-end|hips|arm.pool.r|arm.pool.l|arm.ik.r|arm.ik.l|leg.ik.l|leg.ik.r|leg.pool.l|leg.pool.r|root|hips.comtroll|arm.pool.r-end|arm.pool.l-end|arm.ik.r-end|arm.ik.l-end|leg.ik.l-end|leg.ik.r-end|leg.pool.l-end|leg.pool.r-end|eye.l|eye.r|eye.l-end|eye.r-end", '|');
+	zvecT* ignore = zstrsplit(NULL, "__0|root-end|hips|arm.pool.r|arm.pool.l|arm.ik.r|arm.ik.l|leg.ik.l|leg.ik.r|leg.pool.l|leg.pool.r|root|hips.comtroll|arm.pool.r-end|arm.pool.l-end|arm.ik.r-end|arm.ik.l-end|leg.ik.l-end|leg.ik.r-end|leg.pool.l-end|leg.pool.r-end|eye.l|eye.r|eye.l-end|eye.r-end", '|');
 
-	gfx_jointT* skel = load_bvh("../../Zcore-data/web/metal_hands.bvh", .1, ignore);
+	//gfx_jointT* skel = load_bvh("../../Zcore-data/web/metal_hands.bvh", .1, ignore);
+	gfx_jointT* skel = load_bvh("../../Zcore-data/testhuman.bvh", .1, NULL);
    	//gfx_jointT* skel = load_bvh("../../Zcore-data/web/dance.bvh", 1, ignore);//not working
 	//gfx_jointT* skel = load_bvh("../../Zcore-data/test.bvh", 2);
 
@@ -65,7 +67,8 @@ void gfx_gl_test() {
 	zvec_add(garbage, cube_mesh);
 
 	//gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands.obj", .1);
-	gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands_vg.obj", .1);
+	//gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands_vg.obj", .1);
+	gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/testhuman.obj", .1);
 	//gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/dance.obj", 1);
 	zvec_add(garbage, model);
 
@@ -86,27 +89,108 @@ void gfx_gl_test() {
 
 
 			m->vbaux = gfx_vertex_buffer_mk(count, "position:3|normal:3|color:4");
-			m->bone = zarray_alloc(zuint16, count);
+			gfx_vertex_buffer_add_index(m->vbaux, zarray_count(m->vb->index_buffer));
 
+			
+			m->bone = zarray_alloc(zuint16, count);
+			m->bone1 = zarray_alloc(zuint16, count);
+			m->bone_blend = zarray_alloc(float, count);
 	
 			//copy original points to aux buffer
 			memcpy(m->vbaux->attributes[m->vbaux->fixed_position].data, m->vb->attributes[m->vb->fixed_position].data, sizeof(float) * 3 * m->vb->count);
 			memcpy(m->vbaux->attributes[m->vbaux->fixed_normal].data, m->vb->attributes[m->vb->fixed_normal].data, sizeof(float) * 3 * m->vb->count);
 			m->vbaux->count = m->vb->count;
+
+			memcpy(m->vbaux->attributes[m->vbaux->fixed_normal].data, m->vb->attributes[m->vb->fixed_normal].data, sizeof(float) * 3 * m->vb->count);
+			
+			memcpy(m->vbaux -> index_buffer, m->vb->index_buffer, sizeof(zuint16) * zarray_count(m->vb->index_buffer));
+			zarray_use(m->vbaux->index_buffer, zarray_count(m->vb->index_buffer));
+			
 			
 			m->vdebug = gfx_vertex_buffer_mk(count * 2, "position:3|color:4");
 
+			vec4* color;
+			
 
-
+			//match up vertex group names to bone names
+#if 1
 			for (i = 0; i < count; i++) {
 				if (m->group_name[i] != -1) {
 					int j;
+
+					color = m->vbaux->attributes[m->vbaux->fixed_color].data + 4 * i;
 
 					for (j = 0; j < zvec_count(&skel->bones); j++) {
 						gfx_jointT* joint = zvec_get_at(&skel->bones, j);
 						char* name = zvec_get_at(m->group_names, m->group_name[i]);
 						if (!stricmp(joint->name, name)) {
 							m->bone[i] = j;
+							*color = joint->debugcolor;
+
+							gfx_jointT* ch;
+							gfx_jointT* closestchild = NULL;
+							int k;
+							//see if it makes sense to blend
+							float closestt = 0;
+							float closestd = 999999;
+							int closestch = -1;
+
+							vec3* p = &m->vb->attributes[m->vb->fixed_position].data[i * 3];
+
+							for (k = 0; k < zvec_count(&joint->children); k++) {
+								ch = zvec_get_at(&joint->children, k);
+
+
+
+
+								float t;
+								for (t = 0; t <= 1; t += .05) {  //step along the bone line
+
+									vec3 q = joint->point;
+									vec3scale(q, 1 - t);
+									vec3madd(q, t, ch->point);
+
+									vec3sub(q, *p);
+
+									float d = vec3abs_sq(q);
+
+									if (d < closestd) {
+
+
+										closestd = d;
+										closestt = t;
+										closestch = k;
+										closestchild = ch;
+									}
+
+								} //end t
+
+
+
+
+							}//end k
+
+
+
+
+							//if (closestt < .2) {
+#if 0
+							if (closestchild) {
+								//vecset(*color, 1, 1, 1, 1, );
+#define CC .15
+								if ((closestt < CC)&&(!joint->parent->ignored)) {
+
+
+									vec3scale(*color, closestt/CC);
+									vec3madd(*color, 1 - closestt/CC, joint->parent->debugcolor);
+									m->bone_blend[i] = 1-closestt/CC;
+								}
+
+
+							}
+#endif					
+
+							//}
 
 
 						}
@@ -116,6 +200,13 @@ void gfx_gl_test() {
 				}
 
 			}
+#endif
+
+
+
+
+
+
 
 		}
 	}
@@ -123,95 +214,95 @@ void gfx_gl_test() {
 
 
 
-#if 0
-			for (i = 0; i < count; i++) {
+#if 0   //choose closest bone
+	for (i = 0; i < count; i++) {
 
-				vec3 p;
-				vec3 bestp;
-				p.named.x = m->vb->attributes[m->vb->fixed_position].data[i * 3];
-				p.named.y = m->vb->attributes[m->vb->fixed_position].data[i * 3+1];
-				p.named.z = m->vb->attributes[m->vb->fixed_position].data[i * 3+2];
+		vec3 p;
+		vec3 bestp;
+		p.named.x = m->vb->attributes[m->vb->fixed_position].data[i * 3];
+		p.named.y = m->vb->attributes[m->vb->fixed_position].data[i * 3 + 1];
+		p.named.z = m->vb->attributes[m->vb->fixed_position].data[i * 3 + 2];
 
-				vec3* n = m->vb->attributes[m->vb->fixed_normal].data + i * 3;
-				          
-				vec4 color = vec4const(1, 0, 0, 1);
-				float closestd = 9999;
-	
-				int j;
-				zbool found=ZFALSE;
+		vec3* n = m->vb->attributes[m->vb->fixed_normal].data + i * 3;
 
-				for (j = 0; j < zvec_count(&skel->bones); j++) {
-					gfx_jointT* joint = zvec_get_at(&skel->bones, j);
-					if (joint->ignored)
-							continue;
+		vec4 color = vec4const(1, 0, 0, 1);
+		float closestd = 9999;
 
-					float t;
-					for (t = 0; t <= 1; t += .05) {  //step along the bone line
+		int j;
+		zbool found = ZFALSE;
 
-						
+		for (j = 0; j < zvec_count(&skel->bones); j++) {
+			gfx_jointT* joint = zvec_get_at(&skel->bones, j);
+			if (joint->ignored)
+				continue;
 
-						vec3 q = joint->point;
-						vec3scale(q, t);
-						vec3madd(q, 1 - t, joint->parent->point);	
-
-						vec3 qc = q;
-						//find distance
-						vec3sub(q, p);
-
-						vec3 a = q;
-						vec3 b = *n;
-						vec3normalize(&a);
-						vec3normalize(&b);
-
-						float d = vec3abs_sq(q);
-
-					
-						if (d<closestd){
-													
-							bestp =	qc ;
-							closestd = d;
-							m->bone[i] = j;//set ith point to use jth bone
-							color = joint->parent->debugcolor;
-						}
-
-					}
+			float t;
+			for (t = 0; t <= 1; t += .05) {  //step along the bone line
 
 
+
+				vec3 q = joint->point;
+				vec3scale(q, t);
+				vec3madd(q, 1 - t, joint->parent->point);
+
+				vec3 qc = q;
+				//find distance
+				vec3sub(q, p);
+
+				vec3 a = q;
+				vec3 b = *n;
+				vec3normalize(&a);
+				vec3normalize(&b);
+
+				float d = vec3abs_sq(q);
+
+
+				if (d < closestd) {
+
+					bestp = qc;
+					closestd = d;
+					m->bone[i] = j;//set ith point to use jth bone
+					color = joint->parent->debugcolor;
 				}
-
-				if (!found) {
-
-					printf(" no bone for point\n");
-			//		vec3set(bestp, 0, 0, 0);
-				//	vec4set(color, 1, 1, 1, 1);
-				}
-				else continue;
-
-				gfx_vertex_data3(m->vbaux, 0, p.named.x, p.named.y, p.named.z);
-
-				gfx_vertex_data3(m->vbaux, 1,
-					m->vb->attributes[m->vb->fixed_normal].data[i * 3],
-					m->vb->attributes[m->vb->fixed_normal].data[i * 3 + 1],
-					m->vb->attributes[m->vb->fixed_normal].data[i * 3 + 2]);
-					
-					
-
-				gfx_vertex_done4(m->vbaux, 2, color.named.x, color.named.y, color.named.z, 1);
-
-				//debug one
-				gfx_vertex_data3(m->vdebug, 0, p.named.x, p.named.y, p.named.z);
-				gfx_vertex_done4(m->vdebug, 1, 0,0,0, 1);
-
-				vec3madd(p, .01, *n);
-				gfx_vertex_data3(m->vdebug, 0, p.named.x, p.named.y, p.named.z);
-
-				//gfx_vertex_data3(m->vdebug, 0, bestp.named.x, bestp.named.y, bestp.named.z);
-				gfx_vertex_done4(m->vdebug, 1, color.named.x, color.named.y, color.named.z, 1);
-
-				
-
 
 			}
+
+
+		}
+
+		if (!found) {
+
+			printf(" no bone for point\n");
+			//		vec3set(bestp, 0, 0, 0);
+				//	vec4set(color, 1, 1, 1, 1);
+		}
+		else continue;
+
+		gfx_vertex_data3(m->vbaux, 0, p.named.x, p.named.y, p.named.z);
+
+		gfx_vertex_data3(m->vbaux, 1,
+			m->vb->attributes[m->vb->fixed_normal].data[i * 3],
+			m->vb->attributes[m->vb->fixed_normal].data[i * 3 + 1],
+			m->vb->attributes[m->vb->fixed_normal].data[i * 3 + 2]);
+
+
+
+		gfx_vertex_done4(m->vbaux, 2, color.named.x, color.named.y, color.named.z, 1);
+
+		//debug one
+		gfx_vertex_data3(m->vdebug, 0, p.named.x, p.named.y, p.named.z);
+		gfx_vertex_done4(m->vdebug, 1, 0, 0, 0, 1);
+
+		vec3madd(p, .01, *n);
+		gfx_vertex_data3(m->vdebug, 0, p.named.x, p.named.y, p.named.z);
+
+		//gfx_vertex_data3(m->vdebug, 0, bestp.named.x, bestp.named.y, bestp.named.z);
+		gfx_vertex_done4(m->vdebug, 1, color.named.x, color.named.y, color.named.z, 1);
+
+
+
+
+	}
 #endif
 
 
@@ -249,9 +340,10 @@ void gfx_gl_test() {
 
 	vec3 ldcam;
 	vec3 lpcam;
-	vec4 lcol = vec4const(1, 1, .7, 1.0);
-	vec4 lam = vec4const(.1, .1, .2, 1.0);
+	vec4 lcol = vec4const(.8, .8, .7, 1.0);
+	vec4 lam = vec4const(.1, .1, .1, 1.0);
 
+	vec4 scol = vec4const(.2,.2,.2,0);
 
 	float sh = 100.0;
 	//set light parameters on both
@@ -262,6 +354,7 @@ void gfx_gl_test() {
 	gfx_style_set_property(st_grid, GFX_TEXTURE, "texture_diffuse", 0, 0, gridtex, 0);
 	gfx_style_set_property(st_grid, GFX_FLOAT4, "light_color", 0, 0, &lcol, 0);
 	gfx_style_set_property(st_grid, GFX_FLOAT4, "light_ambient", 0, 0, &lam, 0);
+	gfx_style_set_property(st_grid, GFX_FLOAT4, "specular", 0, 0, &scol , 0);
 
 
 	gfx_style_set_property(st_sphere, GFX_FLOAT4, "light_color", 0, 0, &lcol, 0);
@@ -423,6 +516,8 @@ void gfx_gl_test() {
 		gfx_style_set_property(st_sphere, GFX_FLOAT, "specular_exponent", 0, 0, &sh, 0);
 		gfx_style_set_property(st_cube, GFX_FLOAT, "specular_exponent", 0, 0, &sh, 0);
 
+		gfx_style_set_property(st_grid, GFX_FLOAT, "specular_exponent", 0, 0, &sh, 0);
+
 		float forward = 0.0;
 		float right = 0.0;
 		float up = 0.0;
@@ -553,6 +648,7 @@ void gfx_gl_test() {
 			
 			int i;
 			//copy from original
+			//copy from original
 			//memcpy(m->vbaux->attributes[m->vbaux->fixed_position].data, m->vb->attributes[m->vb->fixed_position].data, sizeof(float) * 3 * m->vbaux->count);
 
 			//copy to original
@@ -566,7 +662,17 @@ void gfx_gl_test() {
 				//if (!joint->parent)
 				//	continue;
 //				gfx_load_transform(&joint->parent->stransform);  //for our own closest algo
+				
 				gfx_load_transform(&joint->stransform);  //for blender imported vertex groups
+			
+				//if (m->bone1[i]) {
+					//gfx_jointT* joint1 = zvec_get_at(&skel->bones, m->bone1[i]); //get the closest bone
+				//gfx_blend_transform(1.0 - m->bone_blend[i], m->bone_blend[i], &joint1->stransform); //
+
+				if (joint->parent)
+					gfx_blend_transform(1.0 - m->bone_blend[i], m->bone_blend[i], & joint->parent->stransform); //
+
+				//}
 
 				//vec3add(*p, joint->parent->accumulated_offset);
 			
@@ -589,7 +695,7 @@ void gfx_gl_test() {
 		gfx_style(NULL);
 		gfx_translate3(-2, 0, 0);
 		for (m = model; m; m = m->next) {
-			//gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
+			gfx_vertex_buffer_draw(m->vbaux, GFX_TRIANGLE, 0, zarray_count(m->vbaux->index_buffer), ZTRUE);
 			//gfx_vertex_buffer_draw(m->vbaux, GFX_POINT, 0, m->vbaux->count, ZFALSE);
 		//	gfx_vertex_buffer_draw(m->vdebug, GFX_LINE, 0, m->vdebug->count, ZFALSE);
 		}

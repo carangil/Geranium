@@ -15,6 +15,9 @@ typedef struct gx_mesh_s
 
 	gfx_vertex_bufferT* vbaux;//additional vertex data that isn't rendered ( like the rest pose of a mesh or whatever)
 	zuint16*			bone; 
+	zuint16*			bone1;
+	float*				bone_blend;
+
 	struct gx_mesh_s* next;
 	
 	gfx_vertex_bufferT* vdebug;

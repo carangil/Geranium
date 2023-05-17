@@ -171,6 +171,7 @@ typedef struct coord3_s
 	float y;
 	float z;
 	v_t_n_combo_t* combos;  //used for positions to keep track of combinations used
+	int vgroup; //need all the vertices with the same 'v' (3d point) to be in the same group, if vertex groups are being used for animation
 } coord3_t;
 
 
@@ -208,7 +209,6 @@ typedef struct coord2_s
 typedef struct face_s
 {
 	v_t_n_combo_t* point[FACE_POINT_LIMIT];
-	int group_name;
 } poly_t;
 
 //#define DOPRINTFS
@@ -287,8 +287,8 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 			if (v3 = zvec_add_or_free(&vertices, ram_alloc(sizeof(*v3), _coord3_s_cleanup)))
 			{
 				fscanf(f, "%f %f %f", &v3->x, &v3->y, &v3->z);
+				v3->vgroup = -1; 
 
-		
 				v3->x *=scale;
 				v3->y *=scale;
 				v3->z *=scale;
@@ -347,7 +347,7 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 		{
 			poly_t* poly = ram_alloc(sizeof(poly_t), NULL);
 			
-			poly->group_name = curgroup;
+			//poly->group_name = curgroup;
 
 			int i = 0;
 
@@ -415,8 +415,18 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 
 					vv = zvec_get_at(&vertices, tmp_combo->v - 1); //-1 because OBJ files are 1-indexed
 
-					if (vv)
+					if (vv) {
+
+						
+						if (vv->vgroup == -1)
+							vv->vgroup = curgroup; 
+
+										
+						
+
 						search_combo = vv->combos;
+
+					}
 
 					while (search_combo)
 					{
@@ -582,8 +592,6 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 
 				if (poly->point[j]->vb != mesh->vb) {
 					
-					if (mesh->group_name)
-						mesh->group_name[mesh->vb->count] = poly->group_name;//set group name note: since vertices may have faces w/ differnt group names, the first face to use a point defines that point's 'group'
 					
 					//need to add the point;
 					poly->point[j]->vb = mesh->vb;  //use this buffer 
@@ -591,6 +599,10 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 					coord3_t* vp = zvec_get_at(&vertices, poly->point[j]->v-1);
 					coord3_t* vnp = zvec_get_at(&normals, poly->point[j]->vn-1);
 					coord2_t* vtp = zvec_get_at(&texcoords, poly->point[j]->vt-1);
+
+
+					if (mesh->group_name)
+						mesh->group_name[mesh->vb->count] = vp->vgroup;
 
 
 					if (vnp)

@@ -31,6 +31,8 @@ void gfx_load_transform(gfx_transformT* trans);
 
 void gfx_save_transform(gfx_transformT* s);
 
+void gfx_blend_transform(float a, float b, gfx_transformT* trans);
+
 void gfx_translate(vec3* delta) ;
 void gfx_translate3(float x, float y, float z);
 void gfx_rotate(gfx_mat_3x3* rot); 
