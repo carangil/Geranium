@@ -6,7 +6,7 @@ void zlist_init(zlistT* list){
 	memset(list, 0, sizeof(*list));
 	list->sentinal_head.next = &list->sentinal_tail;	
 	list->sentinal_tail.prev = &list->sentinal_head;
-	printf("inited list\n");
+	//printf("inited list\n");
 }
 
 zlistT* zlist_check_init(zlistT* list){
@@ -14,7 +14,7 @@ zlistT* zlist_check_init(zlistT* list){
 		list->sentinal_head.next = &list->sentinal_tail;	
 		list->sentinal_tail.prev = &list->sentinal_head;
 	}
-	printf("check inited list\n");
+	//printf("check inited list\n");
 	return list;
 }
 

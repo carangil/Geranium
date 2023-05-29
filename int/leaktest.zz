@@ -263,4 +263,86 @@ end
 string1 intAndFree fff
 
 
+proc hhh:(->)
 
+	"whatever" strdup
+	
+end
+
+
+primitive C_hello  hello:(->whatever&);
+
+hello #g
+
+g:String& strdup #j2
+
+j2:String& print newline
+g:String& print newline
+
+
+//C-pointers are delinated with !  TODO
+//String& 	//non-possessive pointer
+//String%	//reference counted possesive pointer
+//String!	// C pointer: it is treated as a opaque pointer-sized value that can returned from functions, etc.  It's use is dangerous, lol
+
+
+//_zallocated	//means
+//
+//    _zallocated char*  returnZString(int a);  //meaning the char* was allocated with the interpreter's allocator  (ram_alloc)
+//
+//	add 'list' as a datatype
+//	[Z32]  arrau
+//	[sometype%..]	 //zvec	can only contain refcounted pointers
+//	Z32 list
+//	Z32 listNode
+//	mylist head value
+//	mylist head next next value
+//	mylist head next next remove #g	//remove item from list and hold onto it as g
+//	mylist head next next remove [Z32..] list add
+//	<
+
+[Z32%]2 new #za
+
+Z32 new za 0 []=
+Z32 new za 1 []=
+
+5 za 0[]@=
+7 za 1[]@=
+
+
+za :any& print  "  za" print newline
+za 0[]& :any& print  "  za 0" print newline
+za 1[]& :any& print  "  za 1 " print newline
+
+
+za 0[] :any& print  "  za 0" print newline
+za 1[] :any& print  "  za 1 " print newline
+
+za 0[]@ print newline
+za 1[]@ print newline
+
+ 
+
+za 0[] :any& print  "  za 0" print newline
+za 1[] :any& print  "  za 1 " print newline
+
+type aaaa
+	a:Z32%;
+	b:Z32%;
+end
+
+proc ffff:(->)
+	var zstatic:[2 Z32%];
+	var v:aaaa;
+
+	Z32 new zstatic 0 []=  //these are not freed (TODO: bug!)
+	Z32 new zstatic 1 []= 
+	
+	
+	Z32 new v.a=	//these are freed
+	Z32 new v.b=
+	
+	return
+end
+//TODO: free static arrays of possessive pointers
+ffff 

@@ -63,7 +63,7 @@ char* get_as(char* type, int isunsigned){
 		return "z32";
 	
 	
-	printf(" Unknown type, assume z32: %s \n", type);
+	fprintf(stderr, " Unknown type, assume z32: %s \n", type);
 	
 	
 	return "z32";
@@ -152,12 +152,12 @@ void process_line(char* buf){
 			
 	
 	if (!strchr(buf, '(')){
-		printf(" skip non-prototype .. ( is required to defind a function\n");
+		fprintf(stderr, " skip non-prototype .. ( is required to defind a function\n");
 		return;
 	}
 	
 	
-	printf(" CANDIDATE PROTOTYPE: %s\n", buf);
+	fprintf(stderr," CANDIDATE PROTOTYPE: %s\n", buf);
 	
 	//output prototype to gen header
 	fprintf(outc,  "%s;\n",  buf);
@@ -183,7 +183,7 @@ void process_line(char* buf){
 			if (buf[i] =='(')
 				pstart=i;
 			
-			printf(" arg |%s|\n", buf+i);
+			fprintf(stderr, " arg |%s|\n", buf+i);
 			buf[i++]=0;
 			ns=0;
 		
@@ -191,7 +191,7 @@ void process_line(char* buf){
 				i++;
 			
 			if ( buf[i] == 0) {
-				printf(" NO ARGS\n");
+				fprintf(stderr, " NO ARGS\n");
 				continue;  //no args
 			}
 
@@ -204,7 +204,7 @@ void process_line(char* buf){
 					
 				
 				if(!strncmp("unsigned", buf+pos, i-pos)){
-					printf(" skip unsigned\n");
+					fprintf(stderr, " skip unsigned\n");
 					isunsigned=1;
 					i++;
 					continue;
@@ -215,7 +215,7 @@ void process_line(char* buf){
 			
 			char* typename = strndup(buf+pos, i-pos);
 			
-			printf(" NAME IS <%s>  unsigned:%d\n", typename, isunsigned);
+			fprintf(stderr, " NAME IS <%s>  unsigned:%d\n", typename, isunsigned);
 			
 			
 			argT* arg = ram_alloc(sizeof(argT), argT_cleanup);
@@ -226,7 +226,7 @@ void process_line(char* buf){
 			while(buf[i]=='*' || buf[i]==' '){
 				if (buf[i]=='*'){
 					arg->pointer++;
-					printf(" pointer\n");
+					fprintf(stderr, " pointer\n");
 				}
 				i++;
 			}
@@ -238,7 +238,7 @@ void process_line(char* buf){
 				i++;
 			}
 			buf[i]=0;
-			printf(" varname '%s'\n", buf+pos);
+			fprintf(stderr, " varname '%s'\n", buf+pos);
 			
 			if (strlen(buf+pos)){
 				arg->name = zstrdup(buf+pos);
@@ -263,7 +263,7 @@ void process_line(char* buf){
 				i--;
 			}
 			
-			printf(" Function name <%s>\n", buf+i+1); 
+			fprintf(stderr," Function name <%s>\n", buf+i+1); 
 			char* fname = buf+i+1;
 			
 			//skip any spaces and stars
@@ -271,7 +271,7 @@ void process_line(char* buf){
 			while( (i>=0) &&( (buf[i]=='*') || (buf[i]==' '))){
 				
 				if (buf[i]=='*') {
-					printf(" rpointer\n");
+					fprintf(stderr," rpointer\n");
 					pointer++;
 				}
 				i--;
@@ -281,7 +281,7 @@ void process_line(char* buf){
 			while((i>=0) && buf[i]!=' ')
 				i--;
 			
-			printf(" return type <%s>\n", buf+i+1); 
+			fprintf(stderr," return type <%s>\n", buf+i+1); 
 			
 			int isunsigned=0;
 			
@@ -297,7 +297,7 @@ void process_line(char* buf){
 				
 				argT* arg= zvec_get_at(args, j);
 				
-				printf("%s  %s  *:%d\n", arg->name, arg->ctype, arg->pointer);
+				fprintf(stderr, "%s  %s  *:%d\n", arg->name, arg->ctype, arg->pointer);
 				
 			}
 			
