@@ -428,6 +428,11 @@ zuint32 ram_allocs()
 	return ram_allocs_cnt;
 }
 
+void* ram_malloc_interface(size_t size){
+	fprintf(stderr, "External malloc %ud bytes\n", (zuint32)size);
+	return ram_alloc(size, NULL);
+}
+
 
 char* ram_loadstr(char* filename) {
 	char* str = NULL;
