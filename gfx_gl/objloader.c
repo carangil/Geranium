@@ -171,7 +171,7 @@ typedef struct coord3_s
 	float y;
 	float z;
 	v_t_n_combo_t* combos;  //used for positions to keep track of combinations used
-	int vgroup; //need all the vertices with the same 'v' (3d point) to be in the same group, if vertex groups are being used for animation
+	
 } coord3_t;
 
 
@@ -234,7 +234,9 @@ int findname(zvecT* list, char* name) {
 
 }
 
-gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
+
+
+gfx_meshT* gfx_mesh_load_objmm(zchar* filename, float scale, vec3* min, vec3* max)
 {
 	//	gx_mesh_t* m = NULL;
 	FILE* f = fopen(filename, "rb");
@@ -260,7 +262,10 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 		return NULL;
 	}
 
-
+	if (min && max) {
+		vec3set(*min, 0, 0, 0);
+		vec3set(*max, 0, 0, 0);
+	}
 	
 	//obj file data
 	//TODO:  these vectors are pointer arrays. allocating an object per vertex, texcoord, etc is a bit wasteful
@@ -287,7 +292,7 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 			if (v3 = zvec_add_or_free(&vertices, ram_alloc(sizeof(*v3), _coord3_s_cleanup)))
 			{
 				fscanf(f, "%f %f %f", &v3->x, &v3->y, &v3->z);
-				v3->vgroup = -1; 
+				
 
 				v3->x *=scale;
 				v3->y *=scale;
@@ -295,6 +300,16 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 #ifdef DOPRINTFS
 				printf("v(%d)", vertices.count);
 #endif
+				//check min/max
+				if (min && max) {
+					if (v3->x < min->named.x)	min->named.x = v3->x;
+					if (v3->y < min->named.y)	min->named.y = v3->y;
+					if (v3->z < min->named.z)	min->named.z = v3->z;
+
+					if (v3->x > max->named.x)	max->named.x = v3->x;
+					if (v3->y > max->named.y)	max->named.y = v3->y;
+					if (v3->z > max->named.z)	max->named.z = v3->z;
+				}
 
 			}
 		}//end 'v'
@@ -418,9 +433,7 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 					if (vv) {
 
 						
-						if (vv->vgroup == -1)
-							vv->vgroup = curgroup; 
-
+						
 										
 						
 
@@ -443,7 +456,7 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 							{
 								printf(".TOO MANY POINTS IN ONE FACE %d\n", face_point_count);
 								break;
-							}
+							} 
 
 							poly->point[face_point_count++] = search_combo;  //we found an existing point for our face
 							break;
@@ -528,10 +541,10 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 		mesh->vb = gfx_vertex_buffer_mk(va, "position:3|normal:3|texcoord:2"); //this sets position as 0, normal as 1, and texcoord as 2
 		gfx_vertex_buffer_add_index(mesh->vb, vi);
 
-		if (group_names) {
-			mesh->group_names = ram_addref(group_names);
-			mesh->group_name = zarray_alloc(int, va);
-		}
+//		if (group_names) {
+	//		mesh->group_names = ram_addref(group_names);
+		//	mesh->group_name = zarray_alloc(int, va);
+		//}
 
 
 		zuint32 i;
@@ -579,10 +592,10 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 				mesh->vb = gfx_vertex_buffer_mk(va, "position:3|normal:3|texcoord:2"); //this sets position as 0, normal as 1, and texcoord as 2
 				gfx_vertex_buffer_add_index(mesh->vb, vi);
 
-				if (group_names) {
-					mesh->group_names = ram_addref(group_names);
-					mesh->group_name = zarray_alloc(int, va);
-				}
+			//	if (group_names) {
+			//		mesh->group_names = ram_addref(group_names);
+			//		mesh->group_name = zarray_alloc(int, va);
+			//	}
 
 
 			}
@@ -600,11 +613,7 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 					coord3_t* vnp = zvec_get_at(&normals, poly->point[j]->vn-1);
 					coord2_t* vtp = zvec_get_at(&texcoords, poly->point[j]->vt-1);
 
-
-					if (mesh->group_name)
-						mesh->group_name[mesh->vb->count] = vp->vgroup;
-
-
+			
 					if (vnp)
 						gfx_vertex_data(mesh->vb, 1, vnp->x, vnp->y, vnp->z, 0.0f); //normal
 
@@ -612,11 +621,9 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
 						gfx_vertex_data(mesh->vb, 2, vtp->s, vtp->t, 0.0f, 0.0f);
 
 					vu++;
-					
-					
-					poly->point[j]->p= gfx_vertex_done(mesh->vb, 0, vp->x, vp->y, vp->z, 0.0f); //position
-
 										
+					poly->point[j]->p= gfx_vertex_done(mesh->vb, 0, vp->x, vp->y, vp->z, 0.0f); //position
+															
 					//printf(" Made new point %d for vtn %d %d %d\n", poly->point[j]->p, poly->point[j]->v, poly->point[j]->vt, poly->point[j]->vn);
 
 				}
@@ -630,11 +637,8 @@ gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale)
  					//printf(" indexed triangle %d %d %d\n", poly->point[0]->p, poly->point[j - 1]->p, poly->point[j]->p);
 				}
 				
-
 			}
 			
-
-
 		}
 
 		/*mesh is finished */

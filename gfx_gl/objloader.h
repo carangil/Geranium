@@ -3,6 +3,12 @@
 // Commercial use prohibited.
 
 
+#define MAX_BONE 4
+typedef struct bone_weights {
+	zuint16	bone[MAX_BONE];
+	float	weight[MAX_BONE];
+}gfx_bone_weightT;
+
 
 typedef struct gx_mesh_s
 {
@@ -13,26 +19,26 @@ typedef struct gx_mesh_s
 	zuint32			drawstart;	//vbuffer start and end points to draw
 	zuint32			drawend;
 
-	gfx_vertex_bufferT* vbaux;//additional vertex data that isn't rendered ( like the rest pose of a mesh or whatever)
-	zuint16*			bone; 
-	zuint16*			bone1;
-	float*				bone_blend;
+
+	gfx_vertex_bufferT*	vbaux;//additional vertex data that isn't rendered ( like the rest pose of a mesh or whatever)
+	gfx_bone_weightT*	bone_bind;
+	zuint32*			vertex_n; //from obj file
 
 	struct gx_mesh_s* next;
 	
-	gfx_vertex_bufferT* vdebug;
-
-
-	zint32* group_name;
-	zvecT* group_names;
+	//gfx_vertex_bufferT* vdebug;
+	//zint32* group_name;
+	//zvecT* group_names;
 
 } gfx_meshT;
 
 //defines a mesh
 //gx_mesh_t*  gx_mesh_def(gx_vbuffer_t* v, gx_drawstyle_t* s, zuint32 drawstart, zuint32 drawend, zbool indexed);
 
-gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale);
 
+gfx_meshT* gfx_mesh_load_objmm(zchar* filename, float scale, vec3* min, vec3* max);
+
+#define gfx_mesh_load_obj(A,B) gfx_mesh_load_objmm(A,B,NULL,NULL)
 
 #define MAX_CHANNELS 6
 

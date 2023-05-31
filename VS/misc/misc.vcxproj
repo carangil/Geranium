@@ -160,14 +160,18 @@ copy $(SolutionDir)..\vmath\*.h $(solutiondir)\hcopy</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\misc\tm.c" />
+    <ClCompile Include="..\..\misc\yxml.c" />
     <ClCompile Include="..\..\misc\zbitmap.c" />
     <ClCompile Include="..\..\misc\zrand.c" />
     <ClCompile Include="..\..\misc\zwindow.c" />
+    <ClCompile Include="..\..\misc\zxml.c" />
     <ClCompile Include="..\..\vmath\vectormath.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\misc\yxml.h" />
     <ClInclude Include="..\..\misc\zbitmap.h" />
     <ClInclude Include="..\..\misc\zwindow.h" />
+    <ClInclude Include="..\..\misc\zxml.h" />
     <ClInclude Include="..\..\vmath\zvectormath.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

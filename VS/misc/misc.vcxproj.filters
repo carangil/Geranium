@@ -30,6 +30,12 @@
     <ClCompile Include="..\..\vmath\vectormath.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\misc\yxml.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\misc\zxml.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\misc\zwindow.h">
@@ -39,6 +45,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\misc\zbitmap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\misc\yxml.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\misc\zxml.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -93,7 +93,11 @@ char* zstrcatsub(char* dest, char* src, zsize start, zsize count){
 	return dest;
 }
 
+void zstr_reset(char* s) {
+	s[0] = 0;
+	zarray_use(s, 1);
 
+}
 
 
 //split string into vector of string, by delim.

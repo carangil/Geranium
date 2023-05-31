@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "zmem.h"
 #include "zarray.h"
 #include "zvector.h"
@@ -7,11 +8,12 @@
 
 #include "math.h"
 #include "zbitmap.h"
-
+#include "zxml.h"
 #include "gfx_gl.h"
 
 
 
+//#define USE_VERTEX_GROUPS
 
 
 
@@ -54,7 +56,8 @@ void gfx_gl_test() {
 	zvecT* ignore = zstrsplit(NULL, "__0|root-end|hips|arm.pool.r|arm.pool.l|arm.ik.r|arm.ik.l|leg.ik.l|leg.ik.r|leg.pool.l|leg.pool.r|root|hips.comtroll|arm.pool.r-end|arm.pool.l-end|arm.ik.r-end|arm.ik.l-end|leg.ik.l-end|leg.ik.r-end|leg.pool.l-end|leg.pool.r-end|eye.l|eye.r|eye.l-end|eye.r-end", '|');
 
 	//gfx_jointT* skel = load_bvh("../../Zcore-data/web/metal_hands.bvh", .1, ignore);
-	gfx_jointT* skel = load_bvh("../../Zcore-data/testhuman.bvh", .1, NULL);
+	//gfx_jointT* skel = load_bvh("../../Zcore-data/testhuman.bvh", .1, NULL);
+	 gfx_jointT* skel = load_bvh("../../Zcore-data/test/blender-processed/test.bvh", .1, NULL);
    	//gfx_jointT* skel = load_bvh("../../Zcore-data/web/dance.bvh", 1, ignore);//not working
 	//gfx_jointT* skel = load_bvh("../../Zcore-data/test.bvh", 2);
 
@@ -68,8 +71,13 @@ void gfx_gl_test() {
 
 	//gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands.obj", .1);
 	//gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands_vg.obj", .1);
-	gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/testhuman.obj", .1);
+	vec3 min;
+	vec3 max;
+	//gfx_meshT* model = gfx_mesh_load_objmm("../../Zcore-data/testhuman.obj", .1, &min, &max);
+	gfx_meshT* model = gfx_mesh_load_objmm("../../Zcore-data/test/blender-processed/test.obj", .1, &min, &max);
+	printf(" min %f %f %f   max %f %f %f\n", min.VX, min.VY, min.VZ, max.VX, max.VY, max.VZ);
 	//gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/dance.obj", 1);
+
 	zvec_add(garbage, model);
 
 
@@ -78,7 +86,7 @@ void gfx_gl_test() {
 	recurse_skeleton(skel, -1, 0); //process the skeleton rest pose
 
 	
-
+#if 0
 	{
 		gfx_meshT* m;
 		int i;
@@ -113,7 +121,10 @@ void gfx_gl_test() {
 			
 
 			//match up vertex group names to bone names
-#if 1
+
+
+
+#ifdef USE_VERTEX_GROUPS
 			for (i = 0; i < count; i++) {
 				if (m->group_name[i] != -1) {
 					int j;
@@ -200,109 +211,79 @@ void gfx_gl_test() {
 				}
 
 			}
+
+
+
 #endif
 
 
 
 
+#if 1   //choose closest bone
+			for (i = 0; i < count; i++) {
+
+				vec3 p;
+				vec3 bestp;
+				p.named.x = m->vb->attributes[m->vb->fixed_position].data[i * 3];
+				p.named.y = m->vb->attributes[m->vb->fixed_position].data[i * 3 + 1];
+				p.named.z = m->vb->attributes[m->vb->fixed_position].data[i * 3 + 2];
+
+				vec3* n = m->vb->attributes[m->vb->fixed_normal].data + i * 3;
+				vec4* color = m->vbaux->attributes[m->vbaux->fixed_color].data + 4 * i;
+				
+				//vec4 color = vec4const(1, 0, 0, 1);
+				float closestd = 9999;
+
+				int j;
+				zbool found = ZFALSE;
+
+				for (j = 0; j < zvec_count(&skel->bones); j++) {
+					gfx_jointT* joint = zvec_get_at(&skel->bones, j);
+					if (joint->ignored)
+						continue;
+
+					float t;
+					for (t = 0; t <= .99; t += .1) {  //step along the bone line
+
+						if (!joint->parent)
+							continue;
+
+						vec3 q = joint->point;
+						vec3scale(q, t);
+						vec3madd(q, 1 - t, joint->parent->point);
+				
+						vec3 qc = q;
+						//find distance
+						vec3sub(q, p);
+
+						vec3 a = q;
+						vec3 b = *n;
+						vec3normalize(&a);
+						vec3normalize(&b);
+
+						float d = vec3abs_sq(q);
+
+						if (d < closestd) {
+
+							bestp = qc;
+							closestd = d;
+							m->bone[i] = j;//set ith point to use jth bone
+							*color = joint->parent->debugcolor;
+						}
+
+					}//end t
+
+				}//end jth bone
+			
+		
+
+			} //end ith point
+		}//end m
 
 
 
-		}
-	}
-
-
-
-
-#if 0   //choose closest bone
-	for (i = 0; i < count; i++) {
-
-		vec3 p;
-		vec3 bestp;
-		p.named.x = m->vb->attributes[m->vb->fixed_position].data[i * 3];
-		p.named.y = m->vb->attributes[m->vb->fixed_position].data[i * 3 + 1];
-		p.named.z = m->vb->attributes[m->vb->fixed_position].data[i * 3 + 2];
-
-		vec3* n = m->vb->attributes[m->vb->fixed_normal].data + i * 3;
-
-		vec4 color = vec4const(1, 0, 0, 1);
-		float closestd = 9999;
-
-		int j;
-		zbool found = ZFALSE;
-
-		for (j = 0; j < zvec_count(&skel->bones); j++) {
-			gfx_jointT* joint = zvec_get_at(&skel->bones, j);
-			if (joint->ignored)
-				continue;
-
-			float t;
-			for (t = 0; t <= 1; t += .05) {  //step along the bone line
-
-
-
-				vec3 q = joint->point;
-				vec3scale(q, t);
-				vec3madd(q, 1 - t, joint->parent->point);
-
-				vec3 qc = q;
-				//find distance
-				vec3sub(q, p);
-
-				vec3 a = q;
-				vec3 b = *n;
-				vec3normalize(&a);
-				vec3normalize(&b);
-
-				float d = vec3abs_sq(q);
-
-
-				if (d < closestd) {
-
-					bestp = qc;
-					closestd = d;
-					m->bone[i] = j;//set ith point to use jth bone
-					color = joint->parent->debugcolor;
-				}
-
-			}
-
-
-		}
-
-		if (!found) {
-
-			printf(" no bone for point\n");
-			//		vec3set(bestp, 0, 0, 0);
-				//	vec4set(color, 1, 1, 1, 1);
-		}
-		else continue;
-
-		gfx_vertex_data3(m->vbaux, 0, p.named.x, p.named.y, p.named.z);
-
-		gfx_vertex_data3(m->vbaux, 1,
-			m->vb->attributes[m->vb->fixed_normal].data[i * 3],
-			m->vb->attributes[m->vb->fixed_normal].data[i * 3 + 1],
-			m->vb->attributes[m->vb->fixed_normal].data[i * 3 + 2]);
-
-
-
-		gfx_vertex_done4(m->vbaux, 2, color.named.x, color.named.y, color.named.z, 1);
-
-		//debug one
-		gfx_vertex_data3(m->vdebug, 0, p.named.x, p.named.y, p.named.z);
-		gfx_vertex_done4(m->vdebug, 1, 0, 0, 0, 1);
-
-		vec3madd(p, .01, *n);
-		gfx_vertex_data3(m->vdebug, 0, p.named.x, p.named.y, p.named.z);
-
-		//gfx_vertex_data3(m->vdebug, 0, bestp.named.x, bestp.named.y, bestp.named.z);
-		gfx_vertex_done4(m->vdebug, 1, color.named.x, color.named.y, color.named.z, 1);
-
-
-
-
-	}
+	} //end block
+#endif
 #endif
 
 
@@ -545,7 +526,7 @@ void gfx_gl_test() {
 		gfx_background_color(.3, .2, .1, 0);
 		gfx_frame_clear(ZTRUE, ZTRUE);
 
-		gfx_setup_3d(80, (float)zwin->w / (float)zwin->h, .1, 1000);
+		gfx_setup_3d(80, (float)zwin->w / (float)zwin->h, .01, 1000);
 	
 		gfx_camera_view(&cam);
 
@@ -643,7 +624,7 @@ void gfx_gl_test() {
 		gfx_identity();
 		recurse_skeleton(skel, frame, 0);
 		
-
+#if 0
 		for (m = model; m; m = m->next) {
 			
 			int i;
@@ -661,16 +642,16 @@ void gfx_gl_test() {
 			
 				//if (!joint->parent)
 				//	continue;
-//				gfx_load_transform(&joint->parent->stransform);  //for our own closest algo
+				gfx_load_transform(&joint->parent->stransform);  //for our own closest algo
 				
-				gfx_load_transform(&joint->stransform);  //for blender imported vertex groups
+				//gfx_load_transform(&joint->stransform);  //for blender imported vertex groups
 			
 				//if (m->bone1[i]) {
 					//gfx_jointT* joint1 = zvec_get_at(&skel->bones, m->bone1[i]); //get the closest bone
 				//gfx_blend_transform(1.0 - m->bone_blend[i], m->bone_blend[i], &joint1->stransform); //
 
-				if (joint->parent)
-					gfx_blend_transform(1.0 - m->bone_blend[i], m->bone_blend[i], & joint->parent->stransform); //
+			//	if (joint->parent)
+				//	gfx_blend_transform(1.0 - m->bone_blend[i], m->bone_blend[i], & joint->parent->stransform); //
 
 				//}
 
@@ -687,16 +668,20 @@ void gfx_gl_test() {
 			//gfx_vertex_buffer_draw(m->vbaux, GFX_POINT, 0, m->vbaux->count, ZFALSE);
 			//gfx_vertex_buffer_draw(m->vb, GFX_POINT, 0, m->vb->count, ZFALSE);
 		}
-		
+	
+#endif
+		gfx_load_transform(&tr);
 		for (m = model; m; m = m->next) {
+			gfx_vertex_buffer_update(m->vb);
 			gfx_vertex_buffer_draw(m->vb, GFX_TRIANGLE, 0, zarray_count(m->vb->index_buffer), ZTRUE);
 			//gfx_vertex_buffer_draw(m->vb, GFX_POINT, 0, zarray_count(m->vb->index_buffer), ZTRUE);
 		}
 		gfx_style(NULL);
 		gfx_translate3(-2, 0, 0);
 		for (m = model; m; m = m->next) {
-			gfx_vertex_buffer_draw(m->vbaux, GFX_TRIANGLE, 0, zarray_count(m->vbaux->index_buffer), ZTRUE);
-			//gfx_vertex_buffer_draw(m->vbaux, GFX_POINT, 0, m->vbaux->count, ZFALSE);
+			//gfx_vertex_buffer_draw(m->vbaux, GFX_TRIANGLE, 0, zarray_count(m->vbaux->index_buffer), ZTRUE);
+			if (m->vbaux)
+				gfx_vertex_buffer_draw(m->vbaux, GFX_POINT, 0, m->vbaux->count, ZFALSE);
 		//	gfx_vertex_buffer_draw(m->vdebug, GFX_LINE, 0, m->vdebug->count, ZFALSE);
 		}
 		
@@ -744,7 +729,162 @@ void gfx_gl_test() {
 }
 
 
+
+
+
+
+
+
+
+typedef struct  {
+	int v1;
+	int v2;
+	int v3;
+	char* contentstr;
+}face;
+
+zbool free_face(void* v) {
+	face* f = v;
+	ram_free(f->contentstr);
+	return ZTRUE;
+}
+
+typedef struct {
+	float x, y, z;
+}point;
+
+
+
+typedef struct {
+	int a;
+	zvecT faces;
+	zvecT points;
+	zvecT normals;
+	zvecT texcoords;
+	char* materialname;
+}submesh;
+
+zbool free_submesh(void* v) {
+	submesh* s = v;
+	zvec_cleanup(&s->faces);
+	zvec_cleanup(&s->points);
+	zvec_cleanup(&s->normals);
+	zvec_cleanup(&s->texcoords);
+	ram_free(s->materialname);
+	return ZTRUE;
+}
+
+typedef struct {
+	zvecT submeshes;
+} doc;
+
+zbool free_doc(void*v) {
+	doc* d = v;
+	zvec_cleanup(&d->submeshes);
+	return ZTRUE;
+}
+
 int main(int argc, char** args){
+	
+	yxml_t* parser = zxml_mk(64);
+
+
+	//FILE* f = fopen("../../zcore-data/test.mesh.mesh.xml", "rb");
+	FILE* f = fopen("../../zcore-data/mini.xml", "rb");
+
+	face ff;
+	face* tf = &ff;
+	ff.v1 = 88888;
+	zxmlhandlerT handlers[30];
+	memset(handlers, 0, sizeof(handlers));
+	int hc = 0;
+
+	zxmlhandlerT* hface = 
+		zxml_set_handler(&handlers[hc++], "@v1", ZXML_WRITE_INT, offsetof(face, v1), 0, NULL, NULL);
+		zxml_set_handler(&handlers[hc++], "@v2", ZXML_WRITE_INT, offsetof(face, v2), 0, NULL, NULL);
+		zxml_set_handler(&handlers[hc++], "@v3", ZXML_WRITE_INT, offsetof(face, v3), 0, NULL, NULL);
+		zxml_set_handler(&handlers[hc++], ".", ZXML_ADD_STRING, offsetof(face, contentstr), 0, NULL, NULL);
+	
+	hc++;
+
+	zxmlhandlerT* hpoint =
+		zxml_set_handler(&handlers[hc++], "@x", ZXML_WRITE_FLOAT32, offsetof(point, x), 0, NULL, NULL);
+		zxml_set_handler(&handlers[hc++], "@y", ZXML_WRITE_FLOAT32, offsetof(point, y), 0, NULL, NULL);
+		zxml_set_handler(&handlers[hc++], "@z", ZXML_WRITE_FLOAT32, offsetof(point, z), 0, NULL, NULL);
+		zxml_set_handler(&handlers[hc++], "@u", ZXML_WRITE_FLOAT32, offsetof(point, x), 0, NULL, NULL);
+		zxml_set_handler(&handlers[hc++], "@v", ZXML_WRITE_FLOAT32, offsetof(point, y), 0, NULL, NULL);
+	hc++;
+
+
+
+
+	zxmlhandlerT* hsubmesh = 
+		zxml_set_handler(&handlers[hc++], "face",     ZXML_ADD_VECTOR, offsetof(submesh, faces), sizeof(face), hface, free_face);
+		zxml_set_handler(&handlers[hc++], "position", ZXML_ADD_VECTOR, offsetof(submesh, points), sizeof(point), hpoint, NULL);
+		zxml_set_handler(&handlers[hc++], "normal", ZXML_ADD_VECTOR, offsetof(submesh, normals), sizeof(point), hpoint, NULL);
+		zxml_set_handler(&handlers[hc++], "texcoord", ZXML_ADD_VECTOR, offsetof(submesh, texcoords), sizeof(point), hpoint, NULL);
+		zxml_set_handler(&handlers[hc++], "@material", ZXML_ADD_STRING, offsetof(submesh, materialname), 0, NULL, NULL);
+		
+
+	hc++;
+
+	
+	zxmlhandlerT* hdoc =
+		zxml_set_handler(&handlers[hc++], "submesh", ZXML_ADD_VECTOR, offsetof(doc, submeshes), sizeof(submesh), hsubmesh, free_submesh);
+	
+	hc++;
+
+	doc* dd;
+	dd = ram_alloc(sizeof(doc), free_doc);
+
+
+	zparsexml(parser, f, fgetc, hdoc, dd);
+	{
+		int i;
+		int j;
+		for (j = 0; j < zvec_count(&dd->submeshes); j++) {
+			submesh* d = zvec_get_at(&dd->submeshes, j);
+			
+			for (i = 0; i < zvec_count(&d->faces); i++) {
+				face* f = zvec_get_at(&d->faces, i);
+				printf(" %d %d %d\n", f->v1, f->v2, f->v3);
+
+				if (f->contentstr)
+					printf(" ---- content %s\n", f->contentstr);
+
+
+			}
+
+			for (i = 0; i < zvec_count(&d->points); i++) {
+				point* f = zvec_get_at(&d->points, i);
+				printf("position %f %f %f", f->x, f->y, f->z);
+
+
+				f = zvec_get_at(&d->normals, i);
+				printf("normal  %f %f %f ", f->x, f->y, f->z);
+
+
+				f = zvec_get_at(&d->texcoords, i);
+				printf("texcoords  %f %f %f (zero) \n ", f->x, f->y, f->z);
+
+
+
+				printf("\n");
+			}
+
+			
+
+			
+
+		}
+
+	}
+	fclose(f);
+	ram_free(parser);
+	ram_free(dd);
+
+	printf("%d allocations left\n", ram_allocs());
+	return 1;
 
 	gfx_gl_test();
 	 

@@ -20,6 +20,8 @@ char*  zstrbuild(zvecT* v, char delim);
 //Show information about a C or zstring
 void zstr_debug(char* x) ;
 
+void zstr_reset(char* s);
+
 //Make an empty zstring with space for 'capacity' bytes.  Null terminator automatically added to length.
 char* zstr_mk(zsize capacity);
 
