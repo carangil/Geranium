@@ -814,7 +814,7 @@ symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction h
 	if ( (type->category != FUNCTION) && (type->category!= PRIMITIVE)){
 		
 		if (type->size == 0){
-// 			ERR(" type with size 0\n");
+ 	//		ERR(" type with size 0\n");
 		}
 	
 	}
@@ -866,6 +866,13 @@ void clean_context_pointers( zvecT* table, char* vars){
 		if (sym->type->category == STRUCT){
 			struct_clean(  (void*)  (vars+  sym->offset) , sym->type);  //clean up structs
 		}
+		
+		if ((sym->type->category == ARRAYSTATIC)&&(sym->type->ref->category == POINTERPOSSESSIVE)){
+			//ERR(" Free static array of possessive pointers\n");
+			free_array_of_possessive_pointers( (void*)  (vars+  sym->offset) , sym->type->len );
+			
+		}
+		
 	}	
 }
 
@@ -1537,8 +1544,8 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 
 zbool struct_clean(void* v, typeT* ty){
 	
-//	printf(" Clean for %s\n", (ty)->name);
-	
+	printf(" Clean for ");
+	printType(ty, ZTRUE, ZFALSE);
 	int i;
 	for (i=0; i < zvec_count( (ty)->members); i++){
 		typeT* member = zvec_get_at((ty)->members , i);
@@ -1549,6 +1556,22 @@ zbool struct_clean(void* v, typeT* ty){
 		}
 		if (member->ref->category == STRUCT){
 			struct_clean( member->offset  +  (char*)(v) , member->ref);
+		}
+		if ((member->ref->category == ARRAYSTATIC)&&(member->ref->ref->category==POINTERPOSSESSIVE)){
+		
+			//printf(" MEMBER is "); printType(member, ZTRUE,ZTRUE);
+			//printf(" REF is "); printType(member->ref, ZTRUE,ZTRUE);
+			//printf(" REFREF is "); printType(member->ref->ref, ZTRUE,ZTRUE);
+			
+			//member->ref is a static array type
+			//member->ref->ref is the type of the array element
+			
+			free_array_of_possessive_pointers( member->offset + (char*)(v), member->ref->len );
+			
+			
+			
+			
+						
 		}
 	}
 		
@@ -1563,6 +1586,8 @@ zbool struct_destructor(void* v){
 	if (!ty)
 		printf("Runtime issue: No Shadow on block %p\n", v);
 	else if (*ty){
+				
+		
 		//printf(" Destruct for %s\n", (*ty)->name);
 		return struct_clean( v, *ty);
 	}
@@ -1571,10 +1596,11 @@ zbool struct_destructor(void* v){
 		
 	return ZTRUE;
 }
+zbool ptr_array_destructor(void* va);
 
 tokenT* halloc(exectxT* ex, tokenT* t) {
 	
-	//TODO: allow destructors for alloced structs
+	
 	size_t size =   t->ty->ref->size;
 #ifdef EXEDEBUG
 	printf(" ALLOC %d for ", size);
@@ -1598,9 +1624,23 @@ tokenT* halloc(exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
+
+void free_array_of_possessive_pointers(void* v, zuint32 len){
+	vptrT* vprs =  v ;
+	int j;
+	for(j=0;j<len;j++)
+		ram_free( vprs[j].block);
+}
+
+
 zbool ptr_array_destructor(void* va){
 	//If va is a zarray of pointers, it is iterated and freed
 	typeT* ty = zarray_get_meta(va);
+	
+	printf(" Clean for array ");
+	printType(ty, ZTRUE, ZFALSE);
+	
+	
 	if (ty && ty->category != ARRAYDYNAMIC){
 		ERR(" attempt to array destruct something that isn't a dynamic array\n");
 		
@@ -2599,9 +2639,19 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if ( (tprev(t)->ty == tZ32) &&  (tprev(tprev(t))->ty == tType)){  //such as [Z32] 10 new
 						
 				
+				
 				fold(  tprev(t), t); //put array size as sub
 					
 				typeT* rt = (void*) tprev(t)->val.as.type;  //value of item
+				
+			
+				
+				if(rt->category != ARRAYDYNAMIC){
+					printf(" allocating array for type ");
+					printType(rt, NULL, NULL);
+					ERR("Only dynamic arrays can be allocated by  '[type] count new' \n");
+				
+				}
 				
 				ram_free(tremove(tprev(t))); //remove array type token
 				
@@ -2615,6 +2665,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				
 			if (tprev(t)->ty == tType){	//suchas as MyWhateverStrucutre new
 				typeT* rt = (void*) tprev(t)->val.as.type;
+				
+				if ((rt->category == ARRAYSTATIC)||(rt->category == ARRAYDYNAMIC)){
+					printType(rt, ZTRUE, ZTRUE);
+					ERR(" Cannot allocate array with '[type] new' ; must use dynamic syntax: [type] count new\n");
+				}
 				
 				t->ty = findType(POINTERPOSSESSIVE, rt, NULL, 0);
 				printf(" new will return \n");
