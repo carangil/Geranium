@@ -1,0 +1,108 @@
+
+primitive add32		+:(a:Z32; b:Z32	>> Z32);
+primitive load32	@:(a:Z32& 	>> Z32);
+primitive store32	=:(v:Z32; a:Z32&>> );
+primitive printchar print:(a:N8 >>);
+primitive print32   print:(a:Z32 >>);
+
+
+
+proc newline:(>>)
+	10 :N8 print
+	return
+end
+
+
+proc sum:(a:Z32>>Z32)
+
+	var i:Z32;
+	var s:Z32;
+	
+	a i=
+	
+	loop
+		s i+s=
+		i -1+i=
+		i if else
+			break
+		end
+	
+	end
+	s return
+end
+
+
+
+100 sum
+
+
+type point
+	x:Z32;
+	y:Z32;
+end
+
+var d:[10 point];
+var i:Z32;
+
+
+ 0 i=
+loop
+
+	i i +  d i[] .x =
+	i i + i +  d i[] .y =
+	i 1+ i=
+	i -10 +  if else break end
+end
+ 
+
+ 0 i=
+loop
+
+	d i[].x print   32:N8 print    d i[].y print newline
+	i 1+ i=
+	i -10 +  if else break end
+end
+ 
+
+
+100 sum print newline
+
+100 print newline
+
+0 i=
+loop
+	i 65 + :N8 print 
+	i 1+ i= 
+	i -26 + if else break end
+end
+newline
+
+var x:Z32;
+var y:Z32&;
+var z:Z32&&;
+
+
+10 x=
+x print newline
+
+//y& z=
+x& y=
+
+x print newline
+
+//44 z@@=
+x print newline
+
+0 print newline
+0 i = 
+loop
+	i 1 + i=
+	i -1000000+ if else break end
+end
+i print newline
+
+
+
+
+
+

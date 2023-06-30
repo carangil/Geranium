@@ -27,6 +27,9 @@
     <ClCompile Include="..\..\gfxtest\img.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\int\int.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\gfxtest\fragment.glsl">

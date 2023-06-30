@@ -30,6 +30,8 @@ void zpset4(zbitmapT* bmp, zuint32 x, zuint32 y, zcolor color);
 zuint32  zpget4(zbitmapT* bmp, zuint32 x, zuint32 y);
 void zline4(zbitmapT *bmp, zuint32 x, zuint32 y, zuint32 x2, zuint32 y2, zuint32 color);
 
+zuint32 zpget4(zbitmapT*bmp, zuint32 x, zuint32 y);
+
 void zpblit4(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zuint32 srcw,zuint32 srch);
 void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zuint32 srcw,zuint32 srch, zuint32 color, zuint32 flags);
 

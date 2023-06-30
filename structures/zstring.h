@@ -18,7 +18,7 @@ zvecT* zstrsplit(zvecT* v, char* str, char delim);
 char*  zstrbuild(zvecT* v, char delim);
 
 //Show information about a C or zstring
-void zstr_debug(char* x) ;
+void zstr_debug(char* x, char* label) ;
 
 void zstr_reset(char* s);
 
@@ -34,4 +34,6 @@ char* zstrcatsub(char* dest, char* src, zsize start, zsize count);
 //abbreviated version of zstrcatsub that takes the whole src string
 #define zstrcat(XDEST,XSRC) zstrcatsub(XDEST,XSRC,0,ZSTRING_ALL)
 
+//like zstrcat, but frees the right hand side (combines a zstring on the left with any allocated string on the right (can be a zstring or a cstring that was allocated with the same malloc)
+char* zstrcombine(char* left, char* right);
 

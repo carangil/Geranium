@@ -2,14 +2,17 @@
 #ifndef ZARRAY
 #define ZARRAY
 
-void* zarray_allocf( zsize elemsize, zuint32 elemnum);
 
-
+void* zarray_allocf( zsize elemsize, zuint32 elemnum, ram_destructor custom_destructor, char* file, int line);
 
 
 void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok);
 
-#define zarray_alloc(ARRAYTYPE, len)  	zarray_allocf( sizeof(ARRAYTYPE), len)
+//allocare len items of ARRAYTYPE.  the array may have a custom destructor for when ram_free is called on it
+//array is discarded by ram_free... can also be reference counted with ram_addref
+
+#define  zarray_alloc(ARRAYTYPE, len)  	zarray_allocf( sizeof(ARRAYTYPE), len, NULL, __FILE__, __LINE__)
+#define zarray_allocd(ARRAYTYPE, len, DESTRUCTOR)  	zarray_allocf( sizeof(ARRAYTYPE), len, DESTRUCTOR, __FILE__, __LINE__)
 #define zarray_resize(ARRAYNAME, NEWSIZE, ISOK)  zarray_resizef(ARRAYNAME, sizeof(ARRAYNAME[0]), NEWSIZE, ISOK)
 
 
@@ -28,14 +31,20 @@ void* zarray_appendf(void* dest, void* src, zbool grow2x, zbool* ok, zsize elems
 
 void zarray_debug(void* array);
 
-
 typedef struct array_shadow{
-	zuint32 capacity; //number of elements allocated
-	zuint32 used; //number of elements used (optional)
+	zuint32 capacity;	//number of elements allocated
+	zuint32 used;		//number of elements used (optional)
+	void* userptr;		
 } array_shadowT;
 
 //set 'num' number of elements as in use
 void zarray_use(void* array, zuint32 num);
+
+
+//each zarray can carry 1 pointer the calling function can use to store additional metadata
+void* zarray_set_meta(void* array, void* ptr);
+void* zarray_get_meta(void* array);
+
 
 //function versions of count and size... slower but reliable
 int zarray_countf(void* array) ;

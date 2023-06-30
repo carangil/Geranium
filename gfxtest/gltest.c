@@ -884,7 +884,7 @@ int main(int argc, char** args){
 	ram_free(dd);
 
 	printf("%d allocations left\n", ram_allocs());
-	return 1;
+//	return 1;
 
 	gfx_gl_test();
 	 

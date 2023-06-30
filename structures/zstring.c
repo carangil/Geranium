@@ -19,8 +19,9 @@ char* zstr_mk(zsize ns)
 	return x;
 }
 
-void zstr_debug(char* a){
+void zstr_debug(char* a, char* label){
 
+	printf("zstring debug %s:", label);
 	if (a == NULL)
 		printf("string '' is NULL\n");
 	else if(!ram_shadow(a))
@@ -65,8 +66,15 @@ char* zstrndup(char* a, zsize n) {
 	
 char* zstrcatsub(char* dest, char* src, zsize start, zsize count){
 
+	if (dest==NULL){
+		fprintf(stderr, " Can't append to null string\n");
+		exit(1);
+	}
+
+
 	if (ram_numrefs(dest) != 1){
-		printf(" Can't append to string with multiple references\n");
+		fprintf(stderr, " Can't append to string with multiple references\n");
+		exit(1);
 		return dest;
 
 	}
@@ -77,15 +85,26 @@ char* zstrcatsub(char* dest, char* src, zsize start, zsize count){
 	if (count == ZSTRING_ALL){
 		count = ((zuint32)strlen(src)) - start;
 	}
+
+	//zstr_debug(dest, "dest");
+	//zstr_debug(src, "src");
    
 	if (!zarray_space(dest, count+2)){
-		dest = zarray_expand(dest);
+
+		int newsize = count +2 + zarray_count(dest);
+
+		if (newsize < zarray_count(dest)*2){
+			//if newsize is less than double, then double
+			newsize = zarray_count(dest)*2;
+
+		}
+		dest = zarray_resize(dest, newsize, NULL);
+
 	}
 
 	int pos = zarray_count(dest);
 	if (pos>0)
 	    pos--;
-
 	memcpy(dest+pos, src+start, count);
 	dest[pos+count]=0;
 	zarray_use(dest, (zuint32) pos+count+1);
@@ -93,10 +112,16 @@ char* zstrcatsub(char* dest, char* src, zsize start, zsize count){
 	return dest;
 }
 
+
 void zstr_reset(char* s) {
 	s[0] = 0;
 	zarray_use(s, 1);
+}
 
+char* zstrcombine(char* left, char* right){
+	char * newleft = zstrcat(left,right);
+	ram_free(right);
+	return newleft;
 }
 
 
@@ -166,3 +191,7 @@ char* zstrbuild(zvecT* v, char delim){
 	return str;
 
 }
+
+
+
+

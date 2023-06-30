@@ -22,7 +22,7 @@ typedef struct zvec_s {
 #define zvec_get_x_at(vec, type, pos)  ((type)( ((unsigned int)(pos)) < (vec)->count ?  (vec)->elements[(pos)] : NULL ))
 #define zvec_elements(vec)  ((vec)->elements)
 #define zvec_elements_as(type, vec)   ((type*)((vec)->elements))
-
+#define zvec_setcount(vec,value) ((vec)->count=(value))
 
 
 //call this to cleanup the contents of a zvecT, without freeing the zvecT itself
@@ -67,7 +67,8 @@ void* zvec_remove_ordered(zvecT* v, zuint32 index);
 
 
 //disowns vectors contents (User will have to free things that were put in the vector)
-void zvec_disown(zvecT* v);
+zvecT* zvec_disown(zvecT* v);
 
 
 #endif
+

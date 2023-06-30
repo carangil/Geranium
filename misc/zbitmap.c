@@ -72,9 +72,10 @@ void zpset4(zbitmapT*bmp, zuint32 x, zuint32 y, zuint32 color){
     
 }
 
+
 zuint32  zpget4(zbitmapT* bmp, zuint32 x, zuint32 y) {
 	if (!bmp)
-		return;
+		return 0;
 
 
 	if ((x >= bmp->w) || (y >= bmp->h))
@@ -84,6 +85,7 @@ zuint32  zpget4(zbitmapT* bmp, zuint32 x, zuint32 y) {
 	return px[(bmp->w) * y + x];
 
 }
+
 
 
 

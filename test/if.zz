@@ -1,0 +1,111 @@
+
+primitive add32		+:(a:Z32; b:Z32	>> Z32);
+primitive load32	@:(a:Z32* 	>> Z32);
+primitive store32	=:(v:Z32; a:Z32*>> );
+primitive printchar print:(a:N8 >>);
+primitive print32   print:(a:Z32 >>);
+
+proc newline:(>>)
+	10 :N8 print
+	return
+end
+
+
+proc sum:(a:Z32>>Z32)
+
+	var i:Z32;
+	var s:Z32;
+	
+	a i=
+	
+	loop
+		s i+s=
+		i -1+i=
+		i if else
+			break
+		end
+	
+	end
+	s return
+end
+
+
+
+var a:Z32;
+
+
+0 if
+100	
+
+0 elseif
+200
+0 elseif
+300
+else
+
+1 if 33333 else 4000 end
+
+end
+
+500
+
+100 a=
+
+loop
+	a -1 + a=
+	
+	a if else
+		break
+	end
+	
+end
+
+10
+
+
+100 sum
+
+var d:[10 Z32];
+var i:Z32;
+
+loop
+	i i + d i[]=
+	i 1+ i=
+	i -10 +  if else break end
+end
+ 
+ 0 i=
+loop
+	d i[]
+	i 1+ i=
+	i -10 +  if else break end
+end
+ 
+
+
+100 sum print newline
+
+100 print newline
+
+0 i=
+loop
+	i 65 + :N8 print 
+	i 1+ i= 
+	i -26 + if else break end
+end
+newline
+
+var x:Z32;
+var y:Z32*;
+var z:Z32**;
+
+
+10 x=
+x print newline
+
+
+x print newline
+
+
+
+
