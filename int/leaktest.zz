@@ -325,14 +325,21 @@ za 1[] :any& print  "  za 1 " print newline
 type aaaa
 	a:Z32%;
 	b:Z32%;
+	zs:[2 Z32%];
 end
 
 proc ffff:(->)
 	var zstatic:[2 Z32%];
 	var v:aaaa;
 
+	
+	Z32 new v.zs 0[]=
+	Z32 new v.zs 1[]=
+	
 	Z32 new zstatic 0 []=  //these are not freed (TODO: bug!)
 	Z32 new zstatic 1 []= 
+	
+	
 	
 	
 	Z32 new v.a=	//these are freed
@@ -342,3 +349,5 @@ proc ffff:(->)
 end
 //TODO: free static arrays of possessive pointers
 ffff 
+
+

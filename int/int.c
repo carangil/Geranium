@@ -734,6 +734,7 @@ int printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indentin){
 
 typedef struct symbolS{
 	char* name;
+	char* alias;
 	typeT* type;
 	zuint32 offset;
 	instruction handler;
@@ -746,6 +747,7 @@ zbool symbol_cleanup(void* v){
 	symbolT* s = v;
 	
 	ram_free(s->name);
+	ram_free(s->alias);
 	ram_free(s->subctx);
 	ram_free(s->tokens);
 	//types are freed elsewhere
@@ -782,7 +784,10 @@ symbolT* findSymbol(zvecT* table, char* name, zvecT* typelist){
 	symbolT* s;
 	
 	for (i=0;i<zvec_count(table);i++){
-		if (!strcmp(name, (s = zvec_get_x_at(table, symbolT*, i))->name)){
+
+		s = zvec_get_at(table, i);
+				
+		if (   (!strcmp(name, s->name)) || (s->alias && (!strcmp(s->alias,name)))) {
 						
 			if (s->type->category == FUNCTION){
 					if (cmpTypeListToFunc(s->type->members, typelist)){
@@ -816,7 +821,7 @@ symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction h
 	if ( (type->category != FUNCTION) && (type->category!= PRIMITIVE)){
 		
 		if (type->size == 0){
-// 			ERR(" type with size 0\n");
+ 	//		ERR(" type with size 0\n");
 		}
 	
 	}
@@ -854,6 +859,7 @@ void printSymbols(zvecT* table , char* label){
 	}
 }
 
+void free_array_of_possessive_pointers(void* v, zuint32 len);
 
 /**** Execution ****/
 zbool struct_clean(void* v, typeT* ty);
@@ -868,6 +874,13 @@ void clean_context_pointers( zvecT* table, char* vars){
 		if (sym->type->category == STRUCT){
 			struct_clean(  (void*)  (vars+  sym->offset) , sym->type);  //clean up structs
 		}
+		
+		if ((sym->type->category == ARRAYSTATIC)&&(sym->type->ref->category == POINTERPOSSESSIVE)){
+			//ERR(" Free static array of possessive pointers\n");
+			free_array_of_possessive_pointers( (void*)  (vars+  sym->offset) , sym->type->len );
+			
+		}
+		
 	}	
 }
 
@@ -1539,8 +1552,9 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 
 zbool struct_clean(void* v, typeT* ty){
 	
-//	xprintf(" Clean for %s\n", (ty)->name);
-	
+	xprintf(" Clean for %s\n", (ty)->name);
+	printType(ty, ZTRUE, ZFALSE);
+
 	int i;
 	for (i=0; i < zvec_count( (ty)->members); i++){
 		typeT* member = zvec_get_at((ty)->members , i);
@@ -1551,6 +1565,22 @@ zbool struct_clean(void* v, typeT* ty){
 		}
 		if (member->ref->category == STRUCT){
 			struct_clean( member->offset  +  (char*)(v) , member->ref);
+		}
+		if ((member->ref->category == ARRAYSTATIC)&&(member->ref->ref->category==POINTERPOSSESSIVE)){
+		
+			//printf(" MEMBER is "); printType(member, ZTRUE,ZTRUE);
+			//printf(" REF is "); printType(member->ref, ZTRUE,ZTRUE);
+			//printf(" REFREF is "); printType(member->ref->ref, ZTRUE,ZTRUE);
+			
+			//member->ref is a static array type
+			//member->ref->ref is the type of the array element
+			
+			free_array_of_possessive_pointers( member->offset + (char*)(v), member->ref->len );
+			
+			
+			
+			
+						
 		}
 	}
 		
@@ -1565,7 +1595,8 @@ zbool struct_destructor(void* v){
 	if (!ty)
 		xprintf("Runtime issue: No Shadow on block %p\n", v);
 	else if (*ty){
-		//xprintf(" Destruct for %s\n", (*ty)->name);
+		//printf(" Destruct for %s\n", (*ty)->name);
+		xprintf(" Destruct for %s\n", (*ty)->name);
 		return struct_clean( v, *ty);
 	}
 	else
@@ -1573,10 +1604,11 @@ zbool struct_destructor(void* v){
 		
 	return ZTRUE;
 }
+zbool ptr_array_destructor(void* va);
 
 tokenT* halloc(exectxT* ex, tokenT* t) {
 	
-	//TODO: allow destructors for alloced structs
+	
 	size_t size =   t->ty->ref->size;
 #ifdef EXEDEBUG
 	xprintf(" ALLOC %d for ", size);
@@ -1600,9 +1632,23 @@ tokenT* halloc(exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
+
+void free_array_of_possessive_pointers(void* v, zuint32 len){
+	vptrT* vprs =  v ;
+	int j;
+	for(j=0;j<len;j++)
+		ram_free( vprs[j].block);
+}
+
+
 zbool ptr_array_destructor(void* va){
 	//If va is a zarray of pointers, it is iterated and freed
 	typeT* ty = zarray_get_meta(va);
+	
+	//xprintf(" Clean for array ");
+	printType(ty, ZTRUE, ZFALSE);
+	
+	
 	if (ty && ty->category != ARRAYDYNAMIC){
 		ERR(" attempt to array destruct something that isn't a dynamic array\n");
 		
@@ -2102,7 +2148,18 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		
 			name=NULL;
 			typeT* type=NULL;
-			
+			char* alias = NULL;
+
+			if ( tnext(tnext(t))->tok == '/') {
+				
+				printf(" Alias is %s\n", tnext(t)->str);
+				alias = ram_addref(tnext(t)->str);
+				ram_free(tremove(tnext(t))); //remove alias name
+				ram_free(tremove(tnext(t))); //remove '/'
+					
+				
+			}
+
 			t = parseVar( tnext(t), &name, &type); //parse variable; name is required
 
 			xprintf("proc/var %s   %s is type ", ts->str,  name);
@@ -2148,7 +2205,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				s->handler = hcall;	//will eventually be a function call
 			}
 			
-			
+			s->alias = alias;
+			alias = NULL;
 			
 			if (ts->tok == KPROC){
 				//procedures go into a body of statements
@@ -2308,6 +2366,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			if (!ty)
 				ty = mkType( PENDING, NULL, name, 0);  //create a pending type (so it can be referenced by pointer, but not directly yet)
+
 
 			t = parseTypeList(tnext(tnext(t)), ty);
 
@@ -2601,9 +2660,19 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if ( (tprev(t)->ty == tZ32) &&  (tprev(tprev(t))->ty == tType)){  //such as [Z32] 10 new
 						
 				
+				
 				fold(  tprev(t), t); //put array size as sub
 					
 				typeT* rt = (void*) tprev(t)->val.as.type;  //value of item
+				
+			
+				
+				if(rt->category != ARRAYDYNAMIC){
+					printf(" allocating array for type ");
+					printType(rt, NULL, NULL);
+					ERR("Only dynamic arrays can be allocated by  '[type] count new' \n");
+				
+				}
 				
 				ram_free(tremove(tprev(t))); //remove array type token
 				
@@ -2617,6 +2686,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				
 			if (tprev(t)->ty == tType){	//suchas as MyWhateverStrucutre new
 				typeT* rt = (void*) tprev(t)->val.as.type;
+				
+				if ((rt->category == ARRAYSTATIC)||(rt->category == ARRAYDYNAMIC)){
+					printType(rt, ZTRUE, ZTRUE);
+					ERR(" Cannot allocate array with '[type] new' ; must use dynamic syntax: [type] count new\n");
+				}
 				
 				t->ty = findType(POINTERPOSSESSIVE, rt, NULL, 0);
 				xprintf(" new will return \n");

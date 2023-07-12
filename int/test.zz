@@ -1,0 +1,11 @@
+"base/base.zz" include
+
+"test" print newline
+
+proc f/h:(a:Z32;b:Z32->Z32)
+a b + return
+
+end
+
+10 20 h print newline
+10 20 f print newline
