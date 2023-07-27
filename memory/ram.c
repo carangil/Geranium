@@ -195,11 +195,15 @@ void* ram_alloc(zsize size, ram_destructor destructor) {
 }
 #endif
 
-
+void (*abyss)(void* unknown);
+void* flagged = NULL;
 
 //executes a block's destructor
-
+#ifdef RAM_DEBUG
+void ram_free_debug(void* thing, char* file, int line)
+#else
 void ram_free(void* thing)
+#endif
 {
 	mem_headerT* header = (mem_headerT*) thing;
 	zbool do_free = ZTRUE;
@@ -207,6 +211,9 @@ void ram_free(void* thing)
 
 	if (! thing)
 		return;
+
+	if (thing == flagged &&  abyss)
+		abyss(thing);
 
 	if (header) 
 	{
@@ -217,6 +224,15 @@ void ram_free(void* thing)
 		if (header->refcount<0)
 		{
 			fprintf(stderr,"ERROR: negative refcount on %p %s\n", thing, thing);
+
+			fprintf(stderr, "%p alloced at %s:%d (%d refs)  %s\n",
+				header + 1, header->file, header->line, header->refcount, header + 1);
+ 			fprintf(stderr, "free at %s %d\n", file, line);
+
+			if (abyss)
+				abyss(thing);
+
+		
 		}
 
 		if (header->refcount ==0)
@@ -260,6 +276,11 @@ void ram_free(void* thing)
 void* ram_addref(void* thing)
 {
 	mem_headerT* header = (mem_headerT*) thing;
+
+	if (thing == flagged && thing && abyss)
+		abyss(thing);
+
+
 	if (header)
 	{
 		header --;
@@ -308,6 +329,7 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 			if (okptr)
 			    *okptr = ZFALSE;
 
+		
 			return NULL;
 		}
 #ifdef RAM_DEBUG

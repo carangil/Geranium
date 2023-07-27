@@ -1,11 +1,176 @@
 "base/base.zz" include
 
-"test" print newline
+//"test" print newline
 
-proc f/h:(a:Z32;b:Z32->Z32)
-a b + return
+//proc f/h:(a:Z32;b:Z32->Z32)
+    //a b + return
+//end
 
+//10 20 h print newline
+//10 20 f print newline
+
+virtual TestInterface;
+
+selector t/F:(a:Z32; t:TestInterface&    -> Z32);
+selector a/G:(a:TestInterface&  ; b:Z32  -> N8);
+selector t/F:(a:Z32; t:TestInterface%    -> Z32);
+
+
+type A
+    aselectors:TestInterface;
+    a:Z32;
+    b:Z32;
 end
 
-10 20 h print newline
-10 20 f print newline
+type Boo
+    s:String&;
+    x:TestInterface;
+end
+
+var b:Boo;
+var a:A;
+
+newline "boo" print newline
+
+
+
+
+proc G:(aa:A& ; b:Z32->N8)
+    "G on A" print newline
+    b 65 +:N8 return
+end
+
+
+proc F:(b:Z32; aa:A&->Z32)
+    "F on A " print 
+    aa.a print newline
+    3 b + return
+end
+
+
+proc F:(b:Z32; aa:A%->Z32)
+    "F on A (possessive version)" print 
+    aa.a print newline
+    3 b + return
+end
+
+
+proc G:(aa:Boo& ; b:Z32->N8)
+    "G on Boo" print newline
+    b 65 +:N8 return
+end
+
+
+proc F:(b:Z32; aa:Boo&->Z32)
+    "F on Boo " print 
+    aa.s print newline
+    30 b + return
+end
+
+proc F:(b:Z32; aa:Boo%->Z32)
+    "F on Boo (possessive version)" print 
+    aa.s print newline
+    30 b + return
+end
+
+
+
+"whatever" print newline
+
+
+
+"boo" b.s=
+
+
+ 10 a.a=
+ 22 a:TestInterface&  F print newline
+
+ a:TestInterface&  1 G print newline
+ 
+ 22 b:TestInterface&  F print newline
+ 
+ 
+ 
+ proc UseInterface:(v:TestInterface& ->)
+    "using interface passed in to function " print newline
+    10 v F print newline
+    return
+ 
+ end
+ 
+ 
+ //cast a struct to an interface, and then call a function that accepts an interface
+ a:TestInterface& UseInterface
+ b:TestInterface& UseInterface
+ 
+
+ 
+[A%] 5 new #As
+
+A new As 0[]=
+A new #an
+ 
+an keep As 1[]=
+200 an .a=
+
+100 As 0[].a=
+
+
+0 #i
+loop
+    As i[] :TestInterface& UseInterface
+    i&++
+    i 2 == if break end
+end
+
+[Z32%] 10 new #p
+
+Z32 new p 1 []=
+
+10 p 1[]@=
+
+
+p 1[]@ print
+
+
+proc mkBoo:(s:String& -> Boo%)
+    Boo new #b
+    s strdup #scopy
+    debug
+    scopy  b.s=
+    b take return
+end
+
+
+[TestInterface%] 5 new #ifacesp
+
+    A new  :TestInterface%  ifacesp 0[]=
+    "whatever2" mkBoo  :TestInterface% ifacesp 1[]=
+  
+  
+  
+ifacesp 0 [] UseInterface
+ifacesp 1 [] UseInterface
+
+var staticA:[10 A%];
+
+A new staticA 0[]=
+A new staticA 1[]=
+
+staticA 0[]:TestInterface& UseInterface
+staticA 1[]:TestInterface& UseInterface
+
+type hasStatic
+
+    staticti:[10 TestInterface%];
+    
+end
+
+var hs:hasStatic;
+
+
+A new :TestInterface% hs.staticti 0[]=
+Boo new :TestInterface% hs.staticti 1[]=
+
+
+

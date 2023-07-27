@@ -19,16 +19,21 @@ typedef zbool (*ram_destructor)(void* block);
 #define ram_alloc(SSS,DDD) ram_alloc_debug (SSS,DDD,__FILE__, __LINE__)
 #define ram_alloc_shadow(SSS,DDD,SHSH) ram_alloc_shadow_debug (SSS,DDD,SHSH, __FILE__ , __LINE__)
 
+
+#define ram_free(TTT)  ram_free_debug(TTT, __FILE__, __LINE__)
+
 #endif 
 
 void* ram_alloc_debug(zsize size, ram_destructor destructor, char* file, int line);
 void* ram_alloc_shadow_debug(zsize size, ram_destructor destructor, zuint32 shadowsize, char* file, int line);
-
+void ram_free_debug(void* thing, char* file, int line);
 #else  //NON-DEBUGGING MEMORY
 
 //Just call the allocator directly (no line numbers)
 void* ram_alloc(zsize size, ram_destructor destructor);
 void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadowsize);
+void  ram_free(void* thing);  //call on an object to dec refcount, ultimately calling its destructor when refcount==0
+
 
 //when 'debug' ram call is done explicitly (to pass thru line numbers), strip it off and call the non-debug version
 #define ram_alloc_debug(SSS,DDD, FFF, LLL)  ram_alloc(SSS,DDD);
@@ -43,7 +48,6 @@ void ram_init();
 //returns true if resize successful. Replaces pointer with new one
 void* ram_resize(void* ram, zsize size, zbool* successful);
 void* ram_addref(void* thing);
-void  ram_free(void* thing);  //call on an object to dec refcount, ultimately calling its destructor when refcount==0
 
 //char* ram_strdup(char* in);
 char* ram_strdup_func(char* in, char* file,  int line);
@@ -63,7 +67,13 @@ zuint32 ram_allocs();
 
 void* ram_shadow(void* thing);
 
-void ram_free(void* thing);
+extern void (*abyss)(void* unknown);
+//'abyss' is global and can be assigned to any function that takes a void*.  It is called on pointers that get a negative refcount
+//These are double-free type crashes.  the object might not even be valid.  this can be used for debugging if the same object keeps
+//crashing and you need to examine that object
+
+extern void* flagged; //If this is set to non-null and addref/free will call into abyss
+
 
 //ram_malloc_interface can be passed to functions that expect a pointer to malloc.  No destructor will be available, but functions that take in a malloc function pointer handle their own memory
 //ram_free can be passed as a free interface already
