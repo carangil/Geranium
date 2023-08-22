@@ -1,0 +1,61 @@
+"base/base.zz" include
+
+cpointer Void;
+
+"gen.zz" include
+
+//Define 'short' versions of these functions with default parameters
+proc UpdatePixels:(w:ZWindow -> )    w 0:Void UpdatePixels  return end
+
+
+proc Done:(vb:VBuffer; attr:Z32; x:Real; y:Real; z:Real->)  vb attr x y z 0.0 Done return end
+proc Data:(vb:VBuffer; attr:Z32;x:Real; y:Real; z:Real->)   vb attr x y z 0.0 Data return end
+proc Done:(vb:VBuffer; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Done return end
+proc Data:(vb:VBuffer; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Data return end
+
+    
+
+"Z Window " 1024 768 0 GLWindow #window
+
+var ev:ZEvent;
+
+1.0 1.0 0.5 1.1 BackgroundColor
+
+//fov   aspect   near  far
+90.0   4.0 3.0/  0.1   1000.0 Setup3D 
+
+
+100 "color:4|position:3" MkVBuffer #vb
+
+//       R   G   B    A                     x   y     z   
+vb   0  1.0 0.0 0.0  1.0    Data   vb   1  0.0 0.0 -2.0    Done
+vb   0  0.0 1.0 0.0  1.0    Data   vb   1  1.0 0.0 -2.0    Done
+vb   0  0.0 0.0 1.0  1.0    Data   vb   1  0.0 1.0 -2.0    Done
+
+//vb Update
+
+gfx_identity
+
+loop
+
+    loop
+        window ev GetEvent  not if break end
+        "Event " print ev.eventType print newline
+    end
+    ev.eventType ZEVENT_CLOSE == if 
+        "Closing window" print newline
+        window zw_close
+        break
+    end
+
+    "mainloop " print newline
+
+    0.01 gfx_rotate_z
+    
+    1:Bit 1:Bit FrameClear
+    
+    vb GFX_TRIANGLE 0 3 0:Bit Draw
+    
+    window UpdatePixels
+
+end

@@ -253,8 +253,8 @@ void gfxi_init() {
 	glfwPollEvents(); //enqueue events
 
 	//read from queue first
- 	if (zw_event(zw, ev)) {
-		printf(" RETURNING QUEUED EVENT\n");
+ 	if (zw_queued(zw, ev)) {
+		//printf(" RETURNING QUEUED EVENT\n");
 		return ZTRUE;
 	}
 
@@ -309,7 +309,7 @@ gfx_windowT* gxi_current_window = NULL;
 //flags currently don't do anything
 //creation of first window will init glfw
 
-struct zwindowS* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) {
+struct zwindow_s* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) {
 
 	memset(keystatus, 0, sizeof(keystatus));
 

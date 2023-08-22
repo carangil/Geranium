@@ -1,0 +1,138 @@
+type @zeventT ZEvent
+	@zeventT_type	eventType:Z32;
+	@zeventT_a	A:Z32;
+	@zeventT_b	B:Z32;
+end
+0 #ZEVENT_NONE 
+16777216 #ZEVENT_KEY 
+33554432 #ZEVENT_CHAR 
+67108864 #ZEVENT_CLOSE 
+134217728 #ZEVENT_MOUSE 
+65536 #ZEVENT_DOWN 
+131072 #ZEVENT_UP 
+262144 #ZEVENT_MOVE 
+524288 #ZEVENT_DELTA 
+4096 #ZEVENT_MOUSE_STATE_L 
+8192 #ZEVENT_MOUSE_STATE_M 
+16384 #ZEVENT_MOUSE_STATE_R 
+256 #ZEVENT_MOUSE_L 
+512 #ZEVENT_MOUSE_M 
+1024 #ZEVENT_MOUSE_R 
+0 #ZKEY_BACKSPACE 
+0 #ZKEY_TAB 
+0 #ZKEY_ENTER 
+27 #ZKEY_ESCAPE 
+127 #ZKEY_LASTCHAR 
+128 #ZKEY_PAUSE 
+129 #ZKEY_MODFIRST 
+129 #ZKEY_CTRL 
+130 #ZKEY_SHIFT 
+132 #ZKEY_ALT 
+136 #ZKEY_MOD_FUTURE 
+143 #ZKEY_MODLAST 
+145 #ZKEY_F1 
+146 #ZKEY_F2 
+147 #ZKEY_F3 
+148 #ZKEY_F4 
+149 #ZKEY_F5 
+150 #ZKEY_F6 
+151 #ZKEY_F7 
+152 #ZKEY_F8 
+153 #ZKEY_F9 
+154 #ZKEY_F10 
+155 #ZKEY_F11 
+156 #ZKEY_F12 
+160 #ZKEY_LEFT 
+171 #ZKEY_RIGHT 
+172 #ZKEY_UP 
+173 #ZKEY_DOWN 
+174 #ZKEY_PGUP 
+175 #ZKEY_PGDN 
+176 #ZKEY_HOME 
+177 #ZKEY_END 
+178 #ZKEY_INS 
+179 #ZKEY_DEL 
+180 #ZKEY_RCTRL 
+181 #ZKEY_RSHIFT 
+182 #ZKEY_RALT 
+255 #ZKEY_LASTKEY 
+cpointer ZWindow;
+cpointer ZWindow;
+10 #MAXEVENT 
+primitive C_zw_enqueue zw_enqueue:(c_zw:ZWindow;c_type:Z32;c_a:Z32;c_b:Z32;c_ptr:Void->);
+primitive C_zw_queued zw_queued:(c_zw:ZWindow;c_ev:ZEvent&->Bit);
+primitive C_zw_event GetEvent:(c_zw:ZWindow;c_ev:ZEvent&->Bit);
+primitive C_zw_close zw_close:(c_zw:ZWindow->);
+primitive C_zw_pixels UpdatePixels:(c_zw:ZWindow;c_v:Void->);
+primitive C_zprintevent zprintevent:(c_ev:ZEvent&->);
+1 #GXDEBUG 
+primitive C_checkGLfunc checkGLfunc:(c_file:String&;c_line:Z32;c_hint:String&;c_tolerable:Bit->);
+primitive C_gfx_mkwindow GLWindow:(c_title:String&;c_w:Z32;c_h:Z32;c_flags:Z32->ZWindow);
+primitive C_gfx_background_color BackgroundColor:(c_r:Real;c_g:Real;c_b:Real;c_a:Real->);
+primitive C_gfx_frame_clear FrameClear:(c_color:Bit;c_depth:Bit->);
+primitive C_gfx_depth_buffer DepthBuffer:(c_test:Bit;c_write:Bit->);
+primitive C_gfx_setup_3d Setup3D:(c_fovy:Real;c_aspect:Real;c_neardist:Real;c_fardist:Real->);
+primitive C_gfx_setup_2d Setup2D:(c_left:Real;c_right:Real;c_top:Real;c_bottom:Real->);
+1 #GFX_BLEND_OFF 
+2 #GFX_BLEND_ALPHA 
+3 #GFX_BLEND_ADD 
+4 #GFX_BLEND_MUL 
+cpointer Style;
+primitive C_gfx_style_mk MkStyle:(->Style);
+1 #GFX_DELETE 
+2 #GFX_TRANSFORM_POINT 
+3 #GFX_TRANSFORM_DIRECTION 
+primitive C_gfx_style_set_property gfx_style_set_property:(c_st:Style;c_idORtype:Z32;c_name_in:String&;c_index:Z32;c_val:Z32;c_ptr:Void;c_action:Z32->);
+primitive C_gfx_style SetStyle:(c_st:Style->);
+8 #MAX_ATTRIBUTE 
+1 #GFX_POINT 
+2 #GFX_LINE 
+3 #GFX_TRIANGLE 
+6 #GFX_QUAD 
+cpointer VBuffer;
+primitive C_gfx_vertex_buffer_mk MkVBuffer:(c_vcount:Z32;c_spec:String&->VBuffer);
+primitive C_gfx_index_triangle gfx_index_triangle:(c_vb:VBuffer;c_a:Z32;c_b:Z32;c_c:Z32->Z32);
+primitive C_gfx_vertex_data Data:(c_vb:VBuffer;c_attr:Z32;c_a:Real;c_b:Real;c_c:Real;c_d:Real->);
+primitive C_gfx_vertex_done Done:(c_vb:VBuffer;c_attr:Z32;c_a:Real;c_b:Real;c_c:Real;c_d:Real->Z32);
+0 #gfx_vertex_data4 
+0 #gfx_vertex_done4 
+primitive C_gfx_vertex_buffer_add_index gfx_vertex_buffer_add_index:(c_vb:VBuffer;c_num:Z32->Void);
+primitive C_gfx_vertex_buffer_update Update:(c_vb:VBuffer->);
+primitive C_gfx_vertex_buffer_draw Draw:(c_vb:VBuffer;c_prim:Z32;c_start:Z32;c_end:Z32;c_indexed:Bit->);
+primitive C_gfx_vertex_temp gfx_vertex_temp:(c_gw:ZWindow;c_spec:String&->VBuffer);
+primitive C_gfx_vertex_buffer_draw_clear gfx_vertex_buffer_draw_clear:(c_vb:VBuffer;c_prim:Z32->);
+65535 #GFX_MAX_TEMP 
+primitive C_gfx_vertex_buffer_continue gfx_vertex_buffer_continue:(c_vb:VBuffer;c_prim:Z32;c_count:Z32->);
+primitive C_gfx_arrow gfx_arrow:(c_p1:cpointer vec3;c_p2:vec3;c_color:cpointer vec4->);
+268435456 #GFX_FLOAT 
+536870912 #GFX_FLOAT2 
+805306368 #GFX_FLOAT3 
+1073741824 #GFX_FLOAT4 
+1342177280 #GFX_INT 
+1610612736 #GFX_TEXTURE 
+1 #GFX_POINT_TRANSFORM 
+2 #GFX_NORMAL_TRANSFORM 
+2147483647 #GXI_TYPEMASK 
+4 #MAX_FF_LIGHTS 
+primitive C_gfx_free_mesh gfx_free_mesh:(c_m:cpointer gfx_meshT->Bit);
+primitive C_gfx_spin_matrix gfx_spin_matrix:(c_yaw:Real;c_pitch:Real;c_roll:Real;c_rot:cpointer gfx_mat_3x3->);
+primitive C_gfx_camera_init gfx_camera_init:(c_cam:cpointer gfx_cameraT->);
+primitive C_gfx_trans_init gfx_trans_init:(c_cam:cpointer gfx_transformT->);
+primitive C_gfx_camera_motion_6dof gfx_camera_motion_6dof:(c_cam:gfx_cameraT;c_forward:Real;c_right:Real;c_up:Real;c_yaw:Real;c_pitch:Real;c_roll:Real->);
+primitive C_gfx_camera_view gfx_camera_view:(c_cam:gfx_cameraT->);
+primitive C_gfx_load_transform gfx_load_transform:(c_trans:gfx_transformT->);
+primitive C_gfx_save_transform gfx_save_transform:(c_s:gfx_transformT->);
+primitive C_gfx_blend_transform gfx_blend_transform:(c_a:Real;c_b:Real;c_trans:gfx_transformT->);
+primitive C_gfx_translate gfx_translate:(c_delta:vec3->);
+primitive C_gfx_translate3 gfx_translate3:(c_x:Real;c_y:Real;c_z:Real->);
+primitive C_gfx_identity gfx_identity:(->);
+primitive C_gfx_rotate_x gfx_rotate_x:(c_rad:Real->);
+primitive C_gfx_rotate_y gfx_rotate_y:(c_rad:Real->);
+primitive C_gfx_rotate_z gfx_rotate_z:(c_rad:Real->);
+primitive C_gfx_rotate_3x3 gfx_rotate_3x3:(c_rot:gfx_mat_3x3->);
+primitive C_gfx_scale3 gfx_scale3:(c_x:Real;c_y:Real;c_z:Real->);
+primitive C_gxi_refresh_matrix gxi_refresh_matrix:(c_shader:cpointer gx_shader_variant_s->);
+primitive C_gfx_trans_vec3 gfx_trans_vec3:(c_po:vec3->);
+primitive C_gfx_trans_dir_vec3 gfx_trans_dir_vec3:(c_pd:vec3->);
+primitive C_gfx_projection3d gfx_projection3d:(c_fovy:Real;c_aspect:Real;c_neardist:Real;c_fardist:Real->);
+primitive C_gfx_projection2d gfx_projection2d:(c_left:Real;c_right:Real;c_top:Real;c_bottom:Real->);

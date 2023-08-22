@@ -1,5 +1,5 @@
 #include <stdio.h>
-
+#include <string.h>
 #include "ztypes.h"
 #include "zvector.h"
 #include "zstring.h"
@@ -7,6 +7,7 @@
 
 
 FILE* outc = NULL;
+FILE* outz = NULL;
 
 typedef struct argS{
 	char* ctype;
@@ -14,6 +15,25 @@ typedef struct argS{
 	int isunsigned;
 	int pointer;
 }argT;
+
+typedef struct mapping {
+	char* ctype;
+	int pointer;
+
+	char* ztype;
+} mappingT;
+zvecT *typemap;
+
+mappingT* mkMapping(char* ctype, int pointer,  char* ztype) {
+	mappingT* m = ram_alloc(sizeof(mappingT), NULL);
+
+	m->ctype = zstrdup(ctype);
+	m->ztype = zstrdup(ztype);
+	m->pointer = pointer;
+
+	zvec_add(typemap, m);
+	return m;
+}
 
 zbool argT_cleanup(void* v){
 	argT* a = v;
@@ -62,6 +82,8 @@ char* get_as(char* type, int isunsigned){
 	if (!strcmp(type, "short"))
 		return "z32";
 	
+	if (!strcmp(type, "float")|| !strcmp(type, "zfloat32"))
+		return "f";
 	
 	fprintf(stderr, " Unknown type, assume z32: %s \n", type);
 	
@@ -70,7 +92,69 @@ char* get_as(char* type, int isunsigned){
 	
 }
 
+zvecT* collected = NULL;
 zvecT* fnames = NULL;
+zvecT* pendingz = NULL;
+
+
+char* get_zz(char* type, int isunsigned, int pointer, int isreturn) {
+
+	if (!type)
+		return NULL;
+
+
+	int i;
+
+	//special cases
+
+	if ((pointer == 1) && (!strcmp(type, "char"))) {
+
+		if (isreturn) {
+			printf(" Returning string object from C is not supported yet.  Need to copy to zstring\n");
+		}
+		else {
+			return zstrdup("String&");
+		}
+	}
+
+	mappingT* selected = NULL;
+
+	for (i = 0; i < zvec_count(typemap); i++) {
+
+		mappingT* m  = zvec_get_at(typemap, i);
+
+		if (!strcmp(type, m->ctype)   && (pointer == m->pointer) ) {
+			selected = m;
+			break;
+		}
+
+	}
+
+	if (selected) {
+		return zstrdup(selected->ztype);
+	}
+	
+	if (pointer) {
+		//if an unknown pointer type, make a cpointer of the same name
+				
+		mappingT* m = mkMapping(type, 1, type);
+
+		char* s = zstrndup("cpointer ", 24);
+		s = zstrcat(s, type);
+		
+		
+		//zvec_add(pendingz, s);
+
+		return zstrdup(s);
+
+		//fprintf(outz, "cpointer %s;\n", type);
+	}
+
+	return zstrdup("Unknown");
+	
+}
+
+
 
 void create_handler_function(int isunsigned, char* return_type, int return_pointer, char* name , zvecT* args){
 	
@@ -127,7 +211,7 @@ void create_handler_function(int isunsigned, char* return_type, int return_point
 	
 	
 	//end function call
-	fprintf(outc, ");");
+	fprintf(outc, ");\n");
 	
 	
 	if (return_pointer){
@@ -143,6 +227,51 @@ void create_handler_function(int isunsigned, char* return_type, int return_point
 		
 }
 
+
+void create_primitive(int isunsigned, char* return_type, int return_pointer, char* name, zvecT* args) {
+
+
+	char* nickname = name;
+
+	int i;
+	for (i = 0; i < zvec_count(typemap); i++) {
+		mappingT* m = zvec_get_at(typemap, i);
+		if (!strcmp(m->ctype, name)) {
+			nickname = m->ztype;
+			break;
+		}
+	}
+
+	fprintf(outz, "primitive C_%s %s:(", name, nickname);
+	if ((!strcmp(return_type, "void")) && (!return_pointer))
+		return_type = NULL;
+
+	int j;
+	char* tmp = NULL;
+
+	for (j = zvec_count(args) - 1; j >= 0; j--) {
+
+		argT* arg = zvec_get_at(args, j);
+
+		if (j != zvec_count(args)-1)
+			fprintf(outz, ";");
+
+		fprintf(outz, "c_%s:%s", arg->name, tmp=get_zz(arg->ctype, arg->isunsigned, arg->pointer, ZFALSE) );
+		ram_free(tmp);
+	}
+
+	fprintf(outz, "->");
+
+
+	if (return_type ) {
+		fprintf(outz, "%s", tmp=get_zz(return_type, isunsigned, return_pointer, ZTRUE));
+		ram_free(tmp);
+	}
+	fprintf(outz, ");\n");
+
+}
+char* to_chars(char* s, char* to);
+
 void process_line(char* buf){
 	
 
@@ -152,9 +281,12 @@ void process_line(char* buf){
 			
 	
 	if (!strchr(buf, '(')){
-		fprintf(stderr, " skip non-prototype .. ( is required to defind a function\n");
+		fprintf(stderr, " skip non-prototype .. ( is required to define a function\n");
 		return;
 	}
+	
+
+
 	
 	
 	fprintf(stderr," CANDIDATE PROTOTYPE: %s\n", buf);
@@ -202,6 +334,11 @@ void process_line(char* buf){
 				while(buf[i] && buf[i]!=' ' && buf[i] !='*')
 					i++; //go until space or star
 					
+				if (!strncmp("struct", buf + pos, i - pos)) {
+					//skip word 'struct'
+					i++; 
+					continue;
+				}
 				
 				if(!strncmp("unsigned", buf+pos, i-pos)){
 					fprintf(stderr, " skip unsigned\n");
@@ -213,13 +350,13 @@ void process_line(char* buf){
 				break;
 			}
 			
-			char* typename = strndup(buf+pos, i-pos);
+			char* typename = zstrndup(buf+pos, i-pos);
 			
 			fprintf(stderr, " NAME IS <%s>  unsigned:%d\n", typename, isunsigned);
 			
 			
 			argT* arg = ram_alloc(sizeof(argT), argT_cleanup);
-			arg->ctype = zstrdup(typename);
+			arg->ctype = typename;
 			arg->isunsigned = isunsigned;
 			zvec_add(args, arg);
 			
@@ -301,6 +438,7 @@ void process_line(char* buf){
 				
 			}
 			
+			create_primitive(isunsigned, buf + i + 1, pointer, fname, args);
 			
 			break;
 			
@@ -315,18 +453,191 @@ void process_line(char* buf){
 }
 
 
-int main (int argc, char** args){
+
+char* to_chars(char* s, char* to) {
+	char* c;
+
+	//starting with non-space character, consume until end of string or a space.  Returned pointer is the space or end of string
+	while (s && *s) {
+		for (c = to; *c; c++)
+			if (*c == *s)
+				return s;
+		s++;
+	}
+	
+	return s;
+}
+
+
+char* eat_chars(char* s, char* eat) {
+	
+	char* c;
+	//starting with space character, consumes until non-space
+	while (s && *s) {
+		int a = 0;
+		for (c = eat; *c; c++)
+			if (*c == *s){
+				a = 1;
+				break;
+			}
+
+		if (!a)
+			return s;
+		s++;
+	}
+
+	return s;
+}
+
+
+
+//buf:define WORD VALUE
+int process_define(char* buf) {
+
+	
+	if (strchr(buf, '(')) {
+		//skip function-like macros
+		return;
+	}
+
+	char* word = buf + 6;
+	word = eat_chars(word, " \t\n");
+	
+	char* definition = to_chars(word, " \t\n");
+
+	if (*definition == 0)  //already at end of string
+		return;
+
+	*definition = 0;
+	definition++;
+	definition = eat_chars(definition, " \t");
+	char* defend = to_chars(definition, "\n\r \t");
+	*defend = 0;
+	
+
+	if (strlen(definition) == 0) {
+		//skip empty definitions
+		return;
+	}
+
+	//#define Structmap_zeventT type=eventType:Z32;a=A:Z32;b=B:Z32;
+	int is_tm = 0;
+
+	if ( (is_tm=!strncmp(word, "Typemap_", 8)) || !strncmp(word, "Procmap_", 8)) {
+		int ptr = 0;
+		word += 8;
+			
+		while (*definition == '*')
+			ptr++, definition++;
+
+		if (is_tm)
+			fprintf(outz, "cpointer %s;\n", definition);
+
+		mkMapping(word , ptr, definition);
+		return;
+	}
+
+
+	//import a C structure into ZZ, keeping C object size and memory layout.
+	//This makes it easy for the interpreter to access structs shared with C, without trying to re-write the equivalent structure directly.
+	//If the C layout changes (padding, size of c pointers, etc), the interpreter's layout will always match, because it uses 'offsetof'
+	if (!strncmp(word, "Structmap_", 10)) {
+		int ptr = 0;
+		word += 10;
+
+		printf("Need to process %s as %s\n", word, definition);
+
+		char tmp[100];
+
+		char* zname = definition;
+		definition = strchr(definition, ':');
+
+		if (definition) {
+			*definition = 0;
+			definition++;
+
+			//printf("\t ty = mkType(PENDING, NULL, \"%s\", 0);\n", zname);
+
+			fprintf(outz, "type @%s %s\n", word, zname);
+
+
+			//Add the mapping from C pointer  cname*  to a user pointer  zname&
+			char znamep[100];
+			snprintf(znamep, sizeof(znamep), "%s&", zname);
+			mkMapping(word, 1, znamep);
+
+			snprintf(tmp, sizeof(tmp), "\taddCSize(\"%s\", sizeof(%s));\n", word, word);
+			zvec_add(collected, zstrdup(tmp));
+
+			while (*definition) {
+				char* oldname = definition;
+				char* newname = strchr(definition, '=');
+				if (newname) {
+					*newname = 0;
+					newname++;
+					char* type = strchr(newname, ':');
+					if (type) {
+						*type = 0;
+						type++;
+						definition = strchr(type, ';');
+						if (definition) {
+							*definition = 0;
+							definition++;
+							//printf(" /%s/  /%s/  /%s/\n", oldname, newname, type);
+							fprintf(outz, "\t@%s_%s\t%s:%s;\n", word, oldname, newname, type);
+
+							snprintf(tmp, sizeof(tmp), "\taddCSize(\"%s_%s\", offsetof(%s,%s));\n", word, oldname, word, oldname );
+							zvec_add(collected, zstrdup(tmp));
+
+						}
+					}
+				}
+			}
+
+			fprintf(outz, "end\n");
+
+		}
+
+		return;
+	}
+
+	//fprintf(outz, "constant %s %s;\n", word, definition); 
+
+	int num = atoi(definition);
+
+	if (num == 0) {
+		//try hex
+		num = strtol(definition, NULL, 16);
+	}
+
+	//instead of making a constant, just make it variable for now
+	fprintf(outz, "%d #%s \n",  num, word);
+
+}
+
+int scanmain (int argc, char** args){
 	int bracelevel=0;
 	char lc=' ';
 	
 	if(argc<2)
 		return 1;
 
-	FILE* f = fopen (args[1], "rb");
+	int curfile = 0;
+	zvecT* filenames = zstrsplit(NULL, args[1], ',');
+
+	{
+		int j;
+		for (j = 0; j < zvec_count(filenames); j++) {
+			char* x = zvec_get_at(filenames, j);
+			printf(" TO scan %s\n", x);
+		}
+	}
+
+	FILE* f = fopen(zvec_get_at(filenames, curfile), "rb");
 
 	if (!f)
 		return 2;
-
+	
 	
 	if (argc > 2)
 		outc = fopen(args[2], "wb");
@@ -334,16 +645,56 @@ int main (int argc, char** args){
 	if (outc == NULL)
 		outc = stdout;
 	
+
+	if (argc > 3)
+		outz = fopen(args[3], "wb");
+
+	if (outz == NULL)
+		outz = stdout;
+
+
 	char buf[1024];
-	int pos=0;
+	char buf2[1024];
+	int pos = 0;
+	int pos2 = 0;
 
 	
 	fnames = zvec_mk(NULL, 16);
+	collected = zvec_mk(NULL, 16);
+	pendingz = zvec_mk(NULL, 16);
+	typemap = zvec_mk(NULL, 16);
+
+
+	mkMapping("int", 0, "Z32");
+	mkMapping("float", 0, "Real");
+	mkMapping("zfloat32",0, "Real");
+	mkMapping("zbool", 0, "Bit");
+	mkMapping("zuint16", 0, "Z32");
+	mkMapping("zuint32", 0, "Z32");
+	mkMapping("zint32", 0, "Z32");
 	
+	mkMapping("void", 1, "Void");
+	mkMapping("zuint16", 1, "Void");
+
 	for(;;){
 		int c = fgetc(f);
-		if (c<0)
-			break;
+		if (c < 0) {
+			fclose(f);
+			f = NULL;
+			
+			curfile++;
+			if (curfile < zvec_count(filenames)) {
+				
+ 				f = fopen(zvec_get_at(filenames, curfile), "rb");
+				if (!f)
+					printf("Can't open %s\n", zvec_get_at(filenames, curfile));
+			}
+
+			if (f)
+				continue;
+			else
+				break;
+		}
 		
 		//skip preprocessor direcives or '//' until the end of the line
 		if ((c=='#') ||   ((c=='/')&&(lc=='/'))     ){
@@ -351,12 +702,23 @@ int main (int argc, char** args){
 			if ((lc=='/')&&(pos>0))
 				pos--;
 			
+			pos2 = 0;
+
 			while ((c !='\n')&&(c!='\r')&&(c>0)){
 
 				c = fgetc(f);
+				if (pos2 < sizeof(buf2))
+					buf2[pos2++] = c;
+
 
 			}
+			buf2[pos2] = 0;
 			lc=' ';
+
+			if (!strncmp("define", buf2, 6))
+				process_define(buf2);
+			
+
 			continue;
 		}
 		
@@ -415,8 +777,18 @@ int main (int argc, char** args){
 	for (i=0;i<zvec_count(fnames);i++){
 		
 		char* name = zvec_get_at(fnames, i);
-		fprintf(outc, "	mkSymbol(global, \"C_%s\", tPrimitive, hc_%s);\n", name, name);
+		fprintf(outc, "\tmkSymbol(global, \"C_%s\", tPrimitive, hc_%s);\n", name, name);
 	}
+
+	
+	for (i = 0; i < zvec_count(collected); i++) {
+		fprintf(outc, "%s", zvec_get_at(collected, i));
+	}
+	
+	for (i = 0; i < zvec_count(pendingz); i++) {
+		fprintf(outz, "%s", zvec_get_at(pendingz, i));
+	}
+
 	fprintf(outc, "}\n");
 	
 	ram_allocs();
@@ -424,4 +796,7 @@ int main (int argc, char** args){
 	
 	if (outc != stdout)
 		fclose(outc);
+	
+	return 0;
+
 }

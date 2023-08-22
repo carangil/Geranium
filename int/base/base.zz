@@ -10,7 +10,7 @@ primitive print32   print:(a:N32 ->);
 primitive print32   print:(a:Bit ->);
 primitive printptr  print:(a:any& ->);
 primitive readchar  getch:(->N8);
-
+primitive equal32   ==:(a:N8; b:N8 -> Bit);
 
 proc newline:(->)
 	10 :N8 print
@@ -90,7 +90,7 @@ proc readline:(->String%)
 	
 end
 
-primitive equal32	==:(a:N8; b:N8 -> Bit);
+
 proc strlen:(s:String& -> Z32)
 
 

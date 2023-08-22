@@ -29,18 +29,27 @@ void checkGLfunc(char* file, int line, char* hint, zbool tolerable );
 #include "gx_trans.h"
 #include "gfx_texture.h"
 
-#define DISABLE_FIXED_FUNCTION
-
+//#define DISABLE_FIXED_FUNCTION
 
 //creates a zwindowT object that gives UI zevents
 //creates an opengl context, and makes it current
-struct zwindowS* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags);
+#define Procmap_gfx_mkwindow GLWindow
+struct zwindow_s* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags);
 
 /* Basic framebuffer and setup functions */
+#define Procmap_gfx_background_color BackgroundColor
 void gfx_background_color(float r, float g, float b, float a);
+
+#define Procmap_gfx_frame_clear FrameClear
 void gfx_frame_clear(zbool color, zbool depth);
+
+#define Procmap_gfx_depth_buffer DepthBuffer
 void gfx_depth_buffer(zbool test, zbool write);
+
+#define Procmap_gfx_setup_3d Setup3D
 void gfx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist);
+
+#define Procmap_gfx_setup_2d Setup2D
 void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom);
 
 
@@ -58,8 +67,10 @@ typedef struct gfxstyleS {
 	zbool style_dirty; //if true, need to push changes to opengl before rendering
 } gfx_styleT;
 
-gfx_styleT* gfx_style_mk();
+#define Typemap_gfx_styleT *Style
 
+#define Procmap_gfx_style_mk MkStyle
+gfx_styleT* gfx_style_mk();
 
 //set properties.  Pass GFX_DELETE if need to remove a value
 //for light positions/directions that need to be specified in camspace, passing GFX_TRANSFORM_POINT or GFX_TRANSFORM_DIRECTION will transform using the current 'matrix'
@@ -69,6 +80,7 @@ gfx_styleT* gfx_style_mk();
 void gfx_style_set_property(gfx_styleT* st, int idORtype, char* name_in, int index, int val, void* ptr, int action);
 
 //selects a style to use for rendering
+#define Procmap_gfx_style SetStyle
 void gfx_style(gfx_styleT* st);
 
 
@@ -118,8 +130,17 @@ typedef struct gfx_VertexBufferS {
 #define GFX_QUAD		6
 /* QUAD is 6 because it is split in 2 triangles, 6 vertices: opengl wants triangles */
 
+#define Typemap_gfx_vertex_bufferT *VBuffer
+
+#define Procmap_gfx_vertex_buffer_mk MkVBuffer
 gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount, char* spec);
+
+
 zuint16 gfx_index_triangle(gfx_vertex_bufferT* vb, zuint16 a, zuint16 b, zuint16 c);
+
+#define Procmap_gfx_vertex_data Data
+#define Procmap_gfx_vertex_done Done
+
 void gfx_vertex_data(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d);
 zuint16 gfx_vertex_done(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d);
 
@@ -130,14 +151,20 @@ zuint16 gfx_vertex_done(gfx_vertex_bufferT* vb, int attr, float a, float b, floa
 #define gfx_vertex_done2(BUF, ATTR, S, T)		gfx_vertex_done(BUF, ATTR, S, T, 0.0f, 0.0f)
 #define gfx_vertex_done3(BUF, ATTR, X, Y, Z)	gfx_vertex_done(BUF, ATTR, X, Y, Z, 0.0f)
 
+
+
 zuint16* gfx_vertex_buffer_add_index(gfx_vertex_bufferT* vb, int num);
+
+#define Procmap_gfx_vertex_buffer_update Update
 void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb);
+
+#define Procmap_gfx_vertex_buffer_draw Draw
 void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end, zbool indexed);
 
 
 //temporary vertex buffers:
 //these do not need to be freed, and are automatically recycled as needed
-gfx_vertex_bufferT* gfx_vertex_temp(struct zwindowS* gw ,char* spec);  //returns a vertex buffer in speficed format.  CAn hold MAX_GFX_TEMP vertices
+gfx_vertex_bufferT* gfx_vertex_temp(struct zwindow_s* gw ,char* spec);  //returns a vertex buffer in speficed format.  CAn hold MAX_GFX_TEMP vertices
 void gfx_vertex_buffer_draw_clear(gfx_vertex_bufferT* vb, zuint32 prim);  //draws the temporary vertex buffer's contents with the currently selected style.
 //can draw TRIANGLE or QUAD
 
@@ -156,7 +183,7 @@ void gfx_vertex_buffer_continue(gfx_vertex_bufferT* vb, zuint32 prim, zuint32 co
 
 #include "zwindow.h"
 
-void gfx_gl_test();
+//void gfx_gl_test();
 
 void gfx_arrow(vec3* p1, vec3* p2, vec4* color);
 

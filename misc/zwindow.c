@@ -1,4 +1,5 @@
 #include "ztypes.h"
+#include "zmem.h"
 #include "zwindow.h"
 // first	last
 // 0		0	empty
@@ -21,8 +22,8 @@ void zw_enqueue(zwindowT* zw, zuint32 type, zuint32 a, zuint32 b, void* ptr) {
 	zw->last = nlast;
 }
 
-zbool zw_event(zwindowT * zw, zeventT * ev) {
-	
+zbool zw_queued(zwindowT* zw, zeventT* ev) {
+
 
 	//try to return an event
 	if (zw->first != zw->last) {
@@ -35,6 +36,25 @@ zbool zw_event(zwindowT * zw, zeventT * ev) {
 	return ZFALSE;
 
 }
+
+zbool zw_event(zwindowT* zw, zeventT* ev) {
+
+	return zw->event(zw, ev);
+
+}
+
+
+
+
+void zw_close(zwindowT* zw) {
+	zw->close(zw);
+	ram_free(zw);
+}
+
+void zw_pixels(zwindowT* zw, void* v) {
+	zw->pixels(zw, v);
+}
+
 
 zuint32 eventMasks[] = { ZEVENT_KEY, ZEVENT_CHAR, ZEVENT_MOUSE, ZEVENT_CLOSE, ZEVENT_DOWN, ZEVENT_UP, ZEVENT_MOVE, ZEVENT_DELTA, ZEVENT_MOUSE_STATE_L, ZEVENT_MOUSE_STATE_M,ZEVENT_MOUSE_STATE_R,ZEVENT_MOUSE_L,ZEVENT_MOUSE_M, ZEVENT_MOUSE_R,ZKEY_CTRL, ZKEY_SHIFT, ZKEY_ALT , 0 };
 char*   eventNames[] ={ "ZEVENT_KEY","ZEVENT_CHAR","ZEVENT_MOUSE","ZEVENT_CLOSE","ZEVENT_DOWN","ZEVENT_UP","ZEVENT_MOVE","ZEVENT_DELTA","ZEVENT_MOUSE_STATE_L","ZEVENT_MOUSE_STATE_M","ZEVENT_MOUSE_STATE_R","ZEVENT_MOUSE_L","ZEVENT_MOUSE_M","ZEVENT_MOUSE_R","ZKEY_CTRL","ZKEY_SHIFT","ZKEY_ALT", 0 };

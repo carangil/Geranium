@@ -55,7 +55,7 @@ char* zstrndup(char* a, zsize n) {
 	if (z){
 		strncpy(z, a, n);
 		z[n]='\0';
-		zarray_use(z, (zuint32)n + 1);  //include terminator in byte count of array
+		zarray_use(z, (zuint32)strlen(z) + 1);  //include terminator in byte count of array
 	}
 	
 	return z;
