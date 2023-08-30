@@ -25,6 +25,8 @@ void boo() {
 }
 
 #define ERR( ...) { fprintf(stderr,__VA_ARGS__);fflush(stderr);boo();  exit(1);}
+
+//uncommenting below will log a LOT while running.
 //#define EXEDEBUG 
 
 /**** Basic Values ****/
@@ -615,7 +617,7 @@ zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty){
 			
 			//compare names of members too
 			if (strcmp(memberty->name, memberref->name)){
-				xprintf("arg %d to function is of different name\n", i);
+				//xprintf("arg %d to function is of different name\n", i);
 				return ZFALSE;
 			}
 			
@@ -949,6 +951,10 @@ void clean_context_pointers( zvecT* table, char* vars){
 		}
 		if (sym->type->category == STRUCT){
 			struct_clean(  (void*)  (vars+  sym->offset) , sym->type);  //clean up structs
+		}
+
+		if (sym->type->category == CPOINTER) {
+			printf(" Clean cpointer?\n");
 		}
 		
 		if ((sym->type->category == ARRAYSTATIC)&&(sym->type->ref->category == POINTERPOSSESSIVE)){
@@ -1686,12 +1692,12 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 			//xprintf(" ARG %d is ", i);
 			//printType(m->ref, ZTRUE, ZFALSE);
 			if (m->ref->category == POINTERPOSSESSIVE) {
-				xprintf(" freeing poss pointer also has track %p\n", tv->trackpossptr);
+				//xprintf(" freeing poss pointer also has track %p\n", tv->trackpossptr);
 				ram_free( ex->stack[ex->fp-count+i].as.ptr.block );
 				
 			}
 			else if (tv->trackpossptr){
-				xprintf(" free trackpossptr\n");
+				//xprintf(" free trackpossptr\n");
 				ram_free( ex->stack[ex->fp-count+i].as.ptr.block );
 			}
 			tv = tnext(tv);
@@ -1738,8 +1744,8 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 
 zbool struct_clean(void* v, typeT* ty){
 	
-	xprintf(" Clean for %s\n", (ty)->name);
-	printType(ty, ZTRUE, ZFALSE);
+	//xprintf(" Clean for %s\n", (ty)->name);
+	//printType(ty, ZTRUE, ZFALSE);
 
 	int i;
 	for (i=0; i < zvec_count( (ty)->members); i++){
@@ -1841,7 +1847,7 @@ zbool ptr_array_destructor(void* va){
 	typeT* ty = zarray_get_meta(va);
 	
 	//xprintf(" Clean for array ");
-	printType(ty, ZTRUE, ZFALSE);
+	//printType(ty, ZTRUE, ZFALSE);
 	
 	
 	if (ty && ty->category != ARRAYDYNAMIC){
@@ -1931,7 +1937,7 @@ tokenT* hallocarray(exectxT* ex, tokenT* t) {
 		zarray_use(ex->stack[ex->sp].as.ptr.block, arraycount);  //say all the elements are in use
 	}
 
-	xprintf(" Created array %d count  %d size\n", zarray_count(ex->stack[ex->sp].as.ptr.block), zarray_size(ex->stack[ex->sp].as.ptr.block));
+	//xprintf(" Created array %d count  %d size\n", zarray_count(ex->stack[ex->sp].as.ptr.block), zarray_size(ex->stack[ex->sp].as.ptr.block));
 
 	zarray_set_meta( ex->stack[ex->sp].as.ptr.block, t->ty->ref);
 	(ex->sp)++;
@@ -2054,10 +2060,10 @@ tokenT*  parseType(tokenT* t) {
 		iscptr = 1;
 	}
 
-	xprintf("PTstart\n");
+	//xprintf("PTstart\n");
 	for ( ; t;  t = next ) {
 
-		xprintf("PT %s\n", t->str);
+		//xprintf("PT %s\n", t->str);
 		
 		if (t->tok == '[' && !named){ //array type
 			tokenT* S = t;
@@ -2134,7 +2140,7 @@ tokenT*  parseType(tokenT* t) {
 			}
 			
 			S->ty = findType( FUNCTION, ty, NULL, 0); //either adds this function to the type list, or returns the version already existing
-			xprintf(" finding function type %d %d->\n", ty->tid, S->ty->tid);
+			//xprintf(" finding function type %d %d->\n", ty->tid, S->ty->tid);
 
 			named=ZTRUE;
 			next = tnext(t);
@@ -2145,7 +2151,7 @@ tokenT*  parseType(tokenT* t) {
 	}
 	
 	
-	xprintf("PTend\n");
+	//xprintf("PTend\n");
 
 
 	return t;
@@ -3369,7 +3375,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					if (s)
 						break;
 
-					if (pc->parent) {
+					if (pc->parent && pc->parent != global) {
 						s = findSymbol(pc->parent->symbols, t->str, v);
 
 						if (s && s->type->category != FUNCTION) {

@@ -77,10 +77,11 @@ gfx_styleT* gfx_style_mk();
 #define GFX_DELETE				1
 #define GFX_TRANSFORM_POINT		2
 #define GFX_TRANSFORM_DIRECTION	3
+#define Procmap_gfx_style_set_property Set
 void gfx_style_set_property(gfx_styleT* st, int idORtype, char* name_in, int index, int val, void* ptr, int action);
 
 //selects a style to use for rendering
-#define Procmap_gfx_style SetStyle
+#define Procmap_gfx_style UseStyle
 void gfx_style(gfx_styleT* st);
 
 
@@ -135,7 +136,7 @@ typedef struct gfx_VertexBufferS {
 #define Procmap_gfx_vertex_buffer_mk MkVBuffer
 gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount, char* spec);
 
-
+#define Procmap_gfx_index_triangle IndexTriangle
 zuint16 gfx_index_triangle(gfx_vertex_bufferT* vb, zuint16 a, zuint16 b, zuint16 c);
 
 #define Procmap_gfx_vertex_data Data
@@ -152,8 +153,8 @@ zuint16 gfx_vertex_done(gfx_vertex_bufferT* vb, int attr, float a, float b, floa
 #define gfx_vertex_done3(BUF, ATTR, X, Y, Z)	gfx_vertex_done(BUF, ATTR, X, Y, Z, 0.0f)
 
 
-
-zuint16* gfx_vertex_buffer_add_index(gfx_vertex_bufferT* vb, int num);
+#define Procmap_gfx_vertex_buffer_add_index AddIndexBuffer
+void gfx_vertex_buffer_add_index(gfx_vertex_bufferT* vb, int num);
 
 #define Procmap_gfx_vertex_buffer_update Update
 void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb);
@@ -164,7 +165,9 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 
 //temporary vertex buffers:
 //these do not need to be freed, and are automatically recycled as needed
+#define Procmap_gfx_vertex_temp TempVBuffer
 gfx_vertex_bufferT* gfx_vertex_temp(struct zwindow_s* gw ,char* spec);  //returns a vertex buffer in speficed format.  CAn hold MAX_GFX_TEMP vertices
+#define Procmap_gfx_vertex_buffer_draw_clear	 DrawReset
 void gfx_vertex_buffer_draw_clear(gfx_vertex_bufferT* vb, zuint32 prim);  //draws the temporary vertex buffer's contents with the currently selected style.
 //can draw TRIANGLE or QUAD
 
@@ -173,6 +176,7 @@ void gfx_vertex_buffer_draw_clear(gfx_vertex_bufferT* vb, zuint32 prim);  //draw
 //If there is enough space to hold  count number of prims, then this doesn't do anything.
 //otherwise it will draw and clear the buffer.
 //If drawing a large number of immediate primitives, calling this function every so often (at least once per GFX_MAX_TEMP vertices), then you don't need to bother counting exactly
+#define Procmap_gfx_vertex_buffer_continue DrawContinue
 void gfx_vertex_buffer_continue(gfx_vertex_bufferT* vb, zuint32 prim, zuint32 count);
 
 

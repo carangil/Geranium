@@ -1,19 +1,11 @@
 "base/base.zz" include
 
-//"test" print newline
-
-//proc f/h:(a:Z32;b:Z32->Z32)
-    //a b + return
-//end
-
-//10 20 h print newline
-//10 20 f print newline
 
 virtual TestInterface;
 
-selector t/F:(a:Z32; t:TestInterface&    -> Z32);
-selector a/G:(a:TestInterface&  ; b:Z32  -> N8);
-selector t/F:(a:Z32; t:TestInterface%    -> Z32);
+selector t F:(a:Z32; t:TestInterface&    -> Z32);
+selector a G:(a:TestInterface&  ; b:Z32  -> N8);
+selector t F:(a:Z32; t:TestInterface%    -> Z32);
 
 
 type A
@@ -136,7 +128,7 @@ p 1[]@ print
 proc mkBoo:(s:String& -> Boo%)
     Boo new #b
     s strdup #scopy
-    debug
+    
     scopy  b.s=
     b take return
 end
@@ -173,4 +165,130 @@ A new :TestInterface% hs.staticti 0[]=
 Boo new :TestInterface% hs.staticti 1[]=
 
 
+virtual Sequence;
 
+selector seq Next:(seq:Sequence& -> Z32);
+
+
+type Counter
+    val:Z32;
+    s:Sequence;
+end
+
+type Exp
+    v:Z32;
+    s:Sequence;
+end
+
+var c:Counter;
+var e:Exp;
+
+
+[Z32] 20 new0 #n0
+
+
+proc Next:(c:Counter&->Z32)
+    c.val #a
+    c.val&++
+    a return
+end
+
+
+proc Next:(e:Exp&->Z32)
+    e.v 0 == if
+        1 e.v =
+    end
+    e.v #a
+    e.v 3*e.v=
+    a return
+end
+
+
+
+[Sequence%] 2 new  #seqs
+
+
+
+Counter new :Sequence% seqs 0[]=
+Exp new :Sequence% seqs 1[]=
+
+0 #s loop
+    0 i= loop
+        "Sequence " print s print " i=" print i print "  " print
+        seqs s [] Next print newline
+        i&++
+        i 10 > if break end
+    end
+    "increment " print newline
+    s&++
+    s print "  " s 2 >= print newline
+    s 2 >= if break end
+    
+end
+
+
+
+
+cpointer Window;
+cpointer CSTRING;
+
+type hasCPointersInIt
+
+    a:Z32;
+    b:Window;
+    c:Boo;
+end
+
+
+proc ff:(a:Z32->Z32)
+   
+   var x:Z32;
+   
+   "start ff " print newline
+   
+   1  a == if
+        "1 case - return " print newline
+        0 return
+    end
+   
+   33 x=
+   
+    proc gg:(b:Z32->Z32)  //can next helper functions
+        
+        b 10 == if 
+            "gg 10 case --return 3 " print newline
+            3 return 
+        end
+        
+      
+      
+        10 gg
+      
+        "in gg " print newline
+         1 ff
+        b 10 + return
+    end
+
+    
+    a 10 + gg #z
+        "end ff " print newline
+    z return
+    
+end
+
+
+
+10 ff print newline
+//10 gg print newline
+
+
+[Z32] 100 new #aaa
+[Z32] 100 new0 #bbb
+"sizes aaa" print newline
+aaa 'count print newline
+aaa 'size print newline
+"sizes bbb" print newline
+bbb 'count print newline
+bbb 'size print newline
+5 bbb  'setcount 
+bbb 'count print newline

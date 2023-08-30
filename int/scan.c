@@ -107,7 +107,7 @@ char* get_zz(char* type, int isunsigned, int pointer, int isreturn) {
 
 	//special cases
 
-	if ((pointer == 1) && (!strcmp(type, "char"))) {
+	if ((pointer == 1) && (!strcmp(type, "char") || (!strcmp(type, "zchar")))) {
 
 		if (isreturn) {
 			printf(" Returning string object from C is not supported yet.  Need to copy to zstring\n");
@@ -150,7 +150,9 @@ char* get_zz(char* type, int isunsigned, int pointer, int isreturn) {
 		//fprintf(outz, "cpointer %s;\n", type);
 	}
 
-	return zstrdup("Unknown");
+	char* s = zstrdup("Unknown_");
+	return zstrcat(s, type);
+	
 	
 }
 
@@ -672,6 +674,7 @@ int scanmain (int argc, char** args){
 	mkMapping("zuint16", 0, "Z32");
 	mkMapping("zuint32", 0, "Z32");
 	mkMapping("zint32", 0, "Z32");
+	
 	
 	mkMapping("void", 1, "Void");
 	mkMapping("zuint16", 1, "Void");

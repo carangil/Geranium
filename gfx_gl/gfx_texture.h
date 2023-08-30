@@ -5,7 +5,7 @@
 //image data buffer
 #include "zbitmap.h"
 
-
+#define Typemap_gfx_textureT Texture
 typedef struct
 {
 	zbitmapT* bitmap;
@@ -17,8 +17,10 @@ typedef struct
 #define GFX_TEXTURE_SCALER_SMOOTH 0
 #define GFX_TEXTURE_SCALER_BLOCKY 1
 
+#define Procmap_gfx_texture_mk CreateTexture
 gfx_textureT* gfx_texture_mk(zbitmapT* bmp);
 
+#define Procmap_gfx_texture_scaler Scaler
 void gfx_texture_scaler(gfx_textureT* image, int scaler);
 
 void gxi_new_texture_set();

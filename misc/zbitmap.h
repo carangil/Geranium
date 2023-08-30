@@ -9,6 +9,7 @@
 
 #define zbitmap_pxsize(ZZZ) ((ZZZ)->format & ZBITMAP_PXSIZE)
 
+#define Typemap_zbitmapT *Bitmap
 typedef struct zbitmap_s{
 	zuint32 size;
 	zuint16 w;
@@ -26,11 +27,11 @@ zbool zbitmap_cleanup(zbitmapT* bmp);
 //create a bitmap
 zbitmapT* zbitmap_mk(zuint32 w, zuint32 h, zuint16 format);
 
-void zpset4(zbitmapT* bmp, zuint32 x, zuint32 y, zcolor color);
+void zpset4(zbitmapT* bmp, zuint32 x, zuint32 y, zuint32 color);
 zuint32  zpget4(zbitmapT* bmp, zuint32 x, zuint32 y);
 void zline4(zbitmapT *bmp, zuint32 x, zuint32 y, zuint32 x2, zuint32 y2, zuint32 color);
 
-zuint32 zpget4(zbitmapT*bmp, zuint32 x, zuint32 y);
+
 
 void zpblit4(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zuint32 srcw,zuint32 srch);
 void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zuint32 srcw,zuint32 srch, zuint32 color, zuint32 flags);
@@ -44,6 +45,7 @@ void zpblit4adebug(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 s
 //intended use is to draw text, but could be used to draw sprites or even a row of tiles for a tile-based renderer
 void zdrawtext4(zbitmapT* dest, zbitmapT* font, char* text, int px, int py, zuint32 color, zuint32 flags);
 
+#define Procmap_zbitmap_load_tga BitmapLoadTGA
 zbitmapT* zbitmap_load_tga( zchar* f, zuint32 flags);
 
 #define ZTGA_TOP			0x001

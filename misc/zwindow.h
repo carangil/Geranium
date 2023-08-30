@@ -11,11 +11,18 @@ typedef struct zevent_s {
 
 #define ZEVENT_NONE	0x0
 
-//top 2 digits are the event type
-#define ZEVENT_KEY	0x01000000
-#define ZEVENT_CHAR	0x02000000
-#define ZEVENT_CLOSE	0x04000000
+//top 2 digits are the event type.  The 0N000000  digit is reserver for input bitmask. Must be 0 on other event types
+#define ZEVENT_KEY		0x01000000
+#define ZEVENT_CHAR		0x02000000
+// can have another bitmask  event 0x04000000 
 #define ZEVENT_MOUSE	0x08000000
+
+//top digit isn't bitmasked, but are exact codes
+
+#define ZEVENT_CLOSE		0x10000000
+#define ZEVENT_WINDOWSIZE	0x20000000
+//#define ZEVENT_WINDOWMOVE   0x30000000
+
 
 //everything else is dependant on the type
 //for keyboard and mouse events:

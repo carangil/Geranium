@@ -280,9 +280,20 @@ void gfx_pixels(zwindowT * zw, void* px) {
 	}
 
 	//get the window size and fix the viewport
-	glfwGetWindowSize(win->fwindow, &win->iface.w, &win->iface.h);
-	glViewport(0, 0, win->iface.w, win->iface.h);
+	int w, h;
+
+
+	glfwGetWindowSize(win->fwindow, &w, &h);
+
+	
+	glViewport(0, 0, w, h);
 	//the above is also updating the 'w' and 'h' coordinates, so the app can use them in drawing the next frame, if they are adapting to window size
+
+	if(( win->iface.w != w) || (win->iface.h != h))
+		zw_enqueue(zw, ZEVENT_WINDOWSIZE, w, h, NULL);	//send event if changed
+
+	win->iface.w = w;
+	win->iface.h = h;
 
 	checkGL();//check for errors
 }
@@ -299,7 +310,7 @@ zvecT* gxi_window_tempbuffers(gfx_windowT* gw) {
 	return gw->tempvbufs;
 }
 
-zbool window_free(void* v) {
+zbool window_cleanup(void* v) {
 	gfx_windowT* gw = v;
 	ram_free(gw->tempvbufs);
 	return ZTRUE;
@@ -313,7 +324,7 @@ struct zwindow_s* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags)
 
 	memset(keystatus, 0, sizeof(keystatus));
 
-	gfx_windowT* win = ram_alloc(sizeof(gfx_windowT),  window_free ); 
+	gfx_windowT* win = ram_alloc(sizeof(gfx_windowT),  window_cleanup ); 
 
 	win->tempvbufs = zvec_mk(NULL, 10);
 

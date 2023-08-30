@@ -442,19 +442,17 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 }
 
 
-zuint16* gfx_vertex_buffer_add_index(gfx_vertex_bufferT* vb, int num) {
+void gfx_vertex_buffer_add_index(gfx_vertex_bufferT* vb, int num) {
 
 	if (vb) {
 		vb->index_buffer = zarray_alloc(zuint16, num);
-
-		return vb->index_buffer; //the index, or null
 	}
 	return 0;
 }
 
 zuint16 gfx_index_triangle(gfx_vertex_bufferT* vb, zuint16 a, zuint16 b, zuint16 c) {
 
-	zarray_add(vb->index_buffer, a);
+ 	zarray_add(vb->index_buffer, a);
 	zarray_add(vb->index_buffer, b);
 	zarray_add(vb->index_buffer, c);
 	return zarray_count(vb->index_buffer);

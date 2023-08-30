@@ -252,16 +252,14 @@ tokenT* hc_gfx_vertex_done (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
-zuint16* gfx_vertex_buffer_add_index(gfx_vertex_bufferT* vb, int num);
+void gfx_vertex_buffer_add_index(gfx_vertex_bufferT* vb, int num);
 tokenT* hc_gfx_vertex_buffer_add_index (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
-	ex->stack[ex->sp-2].as.ptr.block= gfx_vertex_buffer_add_index(
+		gfx_vertex_buffer_add_index(
 			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
 			ex->stack[ex->sp-1].as.z32);
-	ex->stack[ex->sp-2].as.ptr.level=0; 
-	ex->stack[ex->sp-2].as.ptr.offset=0; 
 
-	ex->sp+= (-2+1);
+	ex->sp+= (-2+0);
 
 	return tnext(t); 
 }
@@ -579,6 +577,208 @@ tokenT* hc_gfx_projection2d (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
+zbool zbitmap_cleanup(zbitmapT* bmp);
+tokenT* hc_zbitmap_cleanup (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	ex->stack[ex->sp-1].as.z32 =
+		zbitmap_cleanup(
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	ex->sp+= (-1+1);
+
+	return tnext(t); 
+}
+zbitmapT* zbitmap_mk(zuint32 w, zuint32 h, zuint16 format);
+tokenT* hc_zbitmap_mk (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	ex->stack[ex->sp-3].as.ptr.block= zbitmap_mk(
+			ex->stack[ex->sp-3].as.z32,
+			ex->stack[ex->sp-2].as.z32,
+			ex->stack[ex->sp-1].as.z32);
+	ex->stack[ex->sp-3].as.ptr.level=0; 
+	ex->stack[ex->sp-3].as.ptr.offset=0; 
+
+	ex->sp+= (-3+1);
+
+	return tnext(t); 
+}
+void zpset4(zbitmapT* bmp, zuint32 x, zuint32 y, zuint32 color);
+tokenT* hc_zpset4 (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+		zpset4(
+			(void*)((ex->stack[ex->sp-4].as.ptr.block)+(ex->stack[ex->sp-4].as.ptr.offset)),
+			ex->stack[ex->sp-3].as.z32,
+			ex->stack[ex->sp-2].as.z32,
+			ex->stack[ex->sp-1].as.z32);
+
+	ex->sp+= (-4+0);
+
+	return tnext(t); 
+}
+zuint32 zpget4(zbitmapT* bmp, zuint32 x, zuint32 y);
+tokenT* hc_zpget4 (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	ex->stack[ex->sp-3].as.z32 =
+		zpget4(
+			(void*)((ex->stack[ex->sp-3].as.ptr.block)+(ex->stack[ex->sp-3].as.ptr.offset)),
+			ex->stack[ex->sp-2].as.z32,
+			ex->stack[ex->sp-1].as.z32);
+
+	ex->sp+= (-3+1);
+
+	return tnext(t); 
+}
+void zline4(zbitmapT *bmp, zuint32 x, zuint32 y, zuint32 x2, zuint32 y2, zuint32 color);
+tokenT* hc_zline4 (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+		zline4(
+			(void*)((ex->stack[ex->sp-6].as.ptr.block)+(ex->stack[ex->sp-6].as.ptr.offset)),
+			ex->stack[ex->sp-5].as.z32,
+			ex->stack[ex->sp-4].as.z32,
+			ex->stack[ex->sp-3].as.z32,
+			ex->stack[ex->sp-2].as.z32,
+			ex->stack[ex->sp-1].as.z32);
+
+	ex->sp+= (-6+0);
+
+	return tnext(t); 
+}
+void zpblit4(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zuint32 srcw,zuint32 srch);
+tokenT* hc_zpblit4 (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+		zpblit4(
+			(void*)((ex->stack[ex->sp-8].as.ptr.block)+(ex->stack[ex->sp-8].as.ptr.offset)),
+			ex->stack[ex->sp-7].as.z32,
+			ex->stack[ex->sp-6].as.z32,
+			(void*)((ex->stack[ex->sp-5].as.ptr.block)+(ex->stack[ex->sp-5].as.ptr.offset)),
+			ex->stack[ex->sp-4].as.z32,
+			ex->stack[ex->sp-3].as.z32,
+			ex->stack[ex->sp-2].as.z32,
+			ex->stack[ex->sp-1].as.z32);
+
+	ex->sp+= (-8+0);
+
+	return tnext(t); 
+}
+void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zuint32 srcw,zuint32 srch, zuint32 color, zuint32 flags);
+tokenT* hc_zpblit4c (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+		zpblit4c(
+			(void*)((ex->stack[ex->sp-10].as.ptr.block)+(ex->stack[ex->sp-10].as.ptr.offset)),
+			ex->stack[ex->sp-9].as.z32,
+			ex->stack[ex->sp-8].as.z32,
+			(void*)((ex->stack[ex->sp-7].as.ptr.block)+(ex->stack[ex->sp-7].as.ptr.offset)),
+			ex->stack[ex->sp-6].as.z32,
+			ex->stack[ex->sp-5].as.z32,
+			ex->stack[ex->sp-4].as.z32,
+			ex->stack[ex->sp-3].as.z32,
+			ex->stack[ex->sp-2].as.z32,
+			ex->stack[ex->sp-1].as.z32);
+
+	ex->sp+= (-10+0);
+
+	return tnext(t); 
+}
+void zpblit4adebug(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zuint32 srcw,zuint32 srch);
+tokenT* hc_zpblit4adebug (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+		zpblit4adebug(
+			(void*)((ex->stack[ex->sp-8].as.ptr.block)+(ex->stack[ex->sp-8].as.ptr.offset)),
+			ex->stack[ex->sp-7].as.z32,
+			ex->stack[ex->sp-6].as.z32,
+			(void*)((ex->stack[ex->sp-5].as.ptr.block)+(ex->stack[ex->sp-5].as.ptr.offset)),
+			ex->stack[ex->sp-4].as.z32,
+			ex->stack[ex->sp-3].as.z32,
+			ex->stack[ex->sp-2].as.z32,
+			ex->stack[ex->sp-1].as.z32);
+
+	ex->sp+= (-8+0);
+
+	return tnext(t); 
+}
+void zdrawtext4(zbitmapT* dest, zbitmapT* font, char* text, int px, int py, zuint32 color, zuint32 flags);
+tokenT* hc_zdrawtext4 (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+		zdrawtext4(
+			(void*)((ex->stack[ex->sp-7].as.ptr.block)+(ex->stack[ex->sp-7].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-6].as.ptr.block)+(ex->stack[ex->sp-6].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-5].as.ptr.block)+(ex->stack[ex->sp-5].as.ptr.offset)),
+			ex->stack[ex->sp-4].as.z32,
+			ex->stack[ex->sp-3].as.z32,
+			ex->stack[ex->sp-2].as.z32,
+			ex->stack[ex->sp-1].as.z32);
+
+	ex->sp+= (-7+0);
+
+	return tnext(t); 
+}
+zbitmapT* zbitmap_load_tga( zchar* f, zuint32 flags);
+tokenT* hc_zbitmap_load_tga (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	ex->stack[ex->sp-2].as.ptr.block= zbitmap_load_tga(
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			ex->stack[ex->sp-1].as.z32);
+	ex->stack[ex->sp-2].as.ptr.level=0; 
+	ex->stack[ex->sp-2].as.ptr.offset=0; 
+
+	ex->sp+= (-2+1);
+
+	return tnext(t); 
+}
+gfx_textureT* gfx_texture_mk(zbitmapT* bmp);
+tokenT* hc_gfx_texture_mk (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	ex->stack[ex->sp-1].as.ptr.block= gfx_texture_mk(
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+	ex->stack[ex->sp-1].as.ptr.level=0; 
+	ex->stack[ex->sp-1].as.ptr.offset=0; 
+
+	ex->sp+= (-1+1);
+
+	return tnext(t); 
+}
+void gfx_texture_scaler(gfx_textureT* image, int scaler);
+tokenT* hc_gfx_texture_scaler (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+		gfx_texture_scaler(
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			ex->stack[ex->sp-1].as.z32);
+
+	ex->sp+= (-2+0);
+
+	return tnext(t); 
+}
+void gxi_new_texture_set();
+tokenT* hc_gxi_new_texture_set (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+		gxi_new_texture_set(
+			);
+
+	ex->sp+= (-0+0);
+
+	return tnext(t); 
+}
+zuint32 gxi_add_texture(gfx_textureT* tex);
+tokenT* hc_gxi_add_texture (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	ex->stack[ex->sp-1].as.z32 =
+		gxi_add_texture(
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	ex->sp+= (-1+1);
+
+	return tnext(t); 
+}
+void gxi_texture_complete();
+tokenT* hc_gxi_texture_complete (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+		gxi_texture_complete(
+			);
+
+	ex->sp+= (-0+0);
+
+	return tnext(t); 
+}
 #define SET_EXTENSIONS set_handlers
 void set_handlers(){
 	mkSymbol(global, "C_zw_enqueue", tPrimitive, hc_zw_enqueue);
@@ -630,6 +830,21 @@ void set_handlers(){
 	mkSymbol(global, "C_gfx_trans_dir_vec3", tPrimitive, hc_gfx_trans_dir_vec3);
 	mkSymbol(global, "C_gfx_projection3d", tPrimitive, hc_gfx_projection3d);
 	mkSymbol(global, "C_gfx_projection2d", tPrimitive, hc_gfx_projection2d);
+	mkSymbol(global, "C_zbitmap_cleanup", tPrimitive, hc_zbitmap_cleanup);
+	mkSymbol(global, "C_zbitmap_mk", tPrimitive, hc_zbitmap_mk);
+	mkSymbol(global, "C_zpset4", tPrimitive, hc_zpset4);
+	mkSymbol(global, "C_zpget4", tPrimitive, hc_zpget4);
+	mkSymbol(global, "C_zline4", tPrimitive, hc_zline4);
+	mkSymbol(global, "C_zpblit4", tPrimitive, hc_zpblit4);
+	mkSymbol(global, "C_zpblit4c", tPrimitive, hc_zpblit4c);
+	mkSymbol(global, "C_zpblit4adebug", tPrimitive, hc_zpblit4adebug);
+	mkSymbol(global, "C_zdrawtext4", tPrimitive, hc_zdrawtext4);
+	mkSymbol(global, "C_zbitmap_load_tga", tPrimitive, hc_zbitmap_load_tga);
+	mkSymbol(global, "C_gfx_texture_mk", tPrimitive, hc_gfx_texture_mk);
+	mkSymbol(global, "C_gfx_texture_scaler", tPrimitive, hc_gfx_texture_scaler);
+	mkSymbol(global, "C_gxi_new_texture_set", tPrimitive, hc_gxi_new_texture_set);
+	mkSymbol(global, "C_gxi_add_texture", tPrimitive, hc_gxi_add_texture);
+	mkSymbol(global, "C_gxi_texture_complete", tPrimitive, hc_gxi_texture_complete);
 	addCSize("zeventT", sizeof(zeventT));
 	addCSize("zeventT_type", offsetof(zeventT,type));
 	addCSize("zeventT_a", offsetof(zeventT,a));

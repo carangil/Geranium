@@ -26,7 +26,7 @@ zbool freetex(void* v) {
 
 gfx_textureT* gfx_texture_mk(zbitmapT* bmp) {
 
-	gfx_textureT* tx = ram_alloc(sizeof(gfx_textureT), freetex);
+  	gfx_textureT* tx = ram_alloc(sizeof(gfx_textureT), freetex);
 
 	tx->bitmap = ram_addref(bmp);
 	tx->_scaler = GFX_TEXTURE_SCALER_SMOOTH;

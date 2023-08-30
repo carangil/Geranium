@@ -1,60 +1,121 @@
 "base/base.zz" include
-
 cpointer Void;
-
 "gen.zz" include
 
-//Define 'short' versions of these functions with default parameters
 proc UpdatePixels:(w:ZWindow -> )    w 0:Void UpdatePixels  return end
-
-
 proc Done:(vb:VBuffer; attr:Z32; x:Real; y:Real; z:Real->)  vb attr x y z 0.0 Done return end
 proc Data:(vb:VBuffer; attr:Z32;x:Real; y:Real; z:Real->)   vb attr x y z 0.0 Data return end
 proc Done:(vb:VBuffer; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Done return end
 proc Data:(vb:VBuffer; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Data return end
 
-    
 
-"Z Window " 1024 768 0 GLWindow #window
+
+type Sprite
+    style:Style;
+    left:Z32;
+    top:Z32;
+    width:Z32;
+    height:Z32;
+    pw:Z32;
+    ph:Z32
+end
+
+var window:ZWindow;
+
+proc pix:(x:Z32;w:Z32->Real)
+    x.Real  w.Real / return
+    
+end
+
+proc Draw:(sprite:Sprite& ; x:Real; y:Real; w:Real; h:Real ->)
+
+    
+    window  "position:3|texcoord:2" TempVBuffer #vb
+    
+    sprite.left sprite.width+  #sprite_right
+    sprite.top  sprite.height+     #sprite_bottom
+ 
+    
+    sprite.style UseStyle
+        vb   0  x        y      0.0  Data vb 1     sprite.left sprite.pw pix    sprite.top sprite.ph pix  Done         
+        vb   0  x w+     y      0.0  Data vb 1     sprite_right sprite.pw pix   sprite.top sprite.ph pix  Done  
+        vb   0  x w+     y h +  0.0  Data vb 1     sprite_right sprite.pw pix   sprite_bottom sprite.ph pix  Done  
+        vb   0  x        y h +  0.0  Data vb 1     sprite.left sprite.pw pix    sprite_bottom sprite.ph pix  Done  
+    vb GFX_QUAD DrawReset
+  
+    return
+end
+
+
+//create an opengl window
+"Z Window " 1024 768 0 GLWindow window=
 
 var ev:ZEvent;
+
+//make a style
+MkStyle #style
+    
+//load an image
+//"..\..\Zcore-data\label.tga" ZTGA_TOP BitmapLoadTGA #img
+"..\..\Zcore-data\pixeltest.tga" ZTGA_TOP BitmapLoadTGA #img
+
+//create a HW accelerated texture from image
+img CreateTexture #tex
+
+tex GFX_TEXTURE_SCALER_BLOCKY Scaler
+
+//assign image to the style
+style GFX_TEXTURE "texture_diffuse" 0 0 tex:Void 0 Set
+style 0            "blend" 0 GFX_BLEND_ALPHA 0:Void 0 Set
+
+style UseStyle
 
 1.0 1.0 0.5 1.1 BackgroundColor
 
 //fov   aspect   near  far
-90.0   4.0 3.0/  0.1   1000.0 Setup3D 
+120.0   4.0 3.0/  0.1   1000.0 Setup3D 
+
+0.0 1024.0 0.0 768.0  Setup2D
+
+window  "color:4|position:3|texcoord:2" TempVBuffer #vb
 
 
-100 "color:4|position:3" MkVBuffer #vb
+var s:Sprite;
+    style s.style=
+    0 s.left=
+    0 s.top=
+    8 s.width=
+    8 s.height=
+    32 s.pw=
+    32 s.ph=
 
-//       R   G   B    A                     x   y     z   
-vb   0  1.0 0.0 0.0  1.0    Data   vb   1  0.0 0.0 -2.0    Done
-vb   0  0.0 1.0 0.0  1.0    Data   vb   1  1.0 0.0 -2.0    Done
-vb   0  0.0 0.0 1.0  1.0    Data   vb   1  0.0 1.0 -2.0    Done
-
-//vb Update
-
-gfx_identity
-
+    
 loop
 
     loop
         window ev GetEvent  not if break end
         "Event " print ev.eventType print newline
+        
+        ev.eventType ZEVENT_WINDOWSIZE == if 
+            //90.0   ev.A.Real ev.B.Real/  0.1   1000.0 Setup3D 
+            ev.A print " " print ev.B print " <- resize \n" print
+        end
     end
+    
     ev.eventType ZEVENT_CLOSE == if 
         "Closing window" print newline
         window zw_close
         break
     end
 
-    "mainloop " print newline
-
-    0.01 gfx_rotate_z
+  //  0.001 gfx_rotate_z
+   
     
     1:Bit 1:Bit FrameClear
     
-    vb GFX_TRIANGLE 0 3 0:Bit Draw
+    
+    
+    s 200.0 150.0 8.0 8.0 Draw
     
     window UpdatePixels
 
