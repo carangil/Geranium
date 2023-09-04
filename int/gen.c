@@ -1,3 +1,62 @@
+tokenT* hc_zstrdup (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	ex->stack[ex->sp-1].as.ptr.block= zstrdup(
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+	ex->stack[ex->sp-1].as.ptr.level=0; 
+	ex->stack[ex->sp-1].as.ptr.offset=0; 
+
+	ex->sp+= (-1+1);
+
+	return tnext(t); 
+}
+tokenT* hc_fopen (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	ex->stack[ex->sp-2].as.ptr.block= fopen(
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+	ex->stack[ex->sp-2].as.ptr.level=0; 
+	ex->stack[ex->sp-2].as.ptr.offset=0; 
+
+	ex->sp+= (-2+1);
+
+	return tnext(t); 
+}
+tokenT* hc_fclose (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	ex->stack[ex->sp-1].as.z32 =
+		fclose(
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	ex->sp+= (-1+1);
+
+	return tnext(t); 
+}
+tokenT* hc_fwrite (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	ex->stack[ex->sp-4].as.z32 =
+		fwrite(
+			(void*)((ex->stack[ex->sp-4].as.ptr.block)+(ex->stack[ex->sp-4].as.ptr.offset)),
+			ex->stack[ex->sp-3].as.z32,
+			ex->stack[ex->sp-2].as.z32,
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	ex->sp+= (-4+1);
+
+	return tnext(t); 
+}
+tokenT* hc_fread (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	ex->stack[ex->sp-4].as.z32 =
+		fread(
+			(void*)((ex->stack[ex->sp-4].as.ptr.block)+(ex->stack[ex->sp-4].as.ptr.offset)),
+			ex->stack[ex->sp-3].as.z32,
+			ex->stack[ex->sp-2].as.z32,
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	ex->sp+= (-4+1);
+
+	return tnext(t); 
+}
 void zw_enqueue(zwindowT* zw, zuint32 type, zuint32 a, zuint32 b, void* ptr);
 tokenT* hc_zw_enqueue (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
@@ -781,6 +840,11 @@ tokenT* hc_gxi_texture_complete (exectxT* ex, tokenT* t) {
 }
 #define SET_EXTENSIONS set_handlers
 void set_handlers(){
+	mkSymbol(global, "C_zstrdup", tPrimitive, hc_zstrdup);
+	mkSymbol(global, "C_fopen", tPrimitive, hc_fopen);
+	mkSymbol(global, "C_fclose", tPrimitive, hc_fclose);
+	mkSymbol(global, "C_fwrite", tPrimitive, hc_fwrite);
+	mkSymbol(global, "C_fread", tPrimitive, hc_fread);
 	mkSymbol(global, "C_zw_enqueue", tPrimitive, hc_zw_enqueue);
 	mkSymbol(global, "C_zw_queued", tPrimitive, hc_zw_queued);
 	mkSymbol(global, "C_zw_event", tPrimitive, hc_zw_event);

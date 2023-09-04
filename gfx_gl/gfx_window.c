@@ -57,6 +57,10 @@ void keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods)
 
 	int zkey = 0;
 
+	if (key < 0) {
+		printf(" Invalid key %d\n", key);
+		return;
+	}
 	//printf(" Key: %d %x %c\n", key, key, key);
 
 	//translate to ZEVENT keys

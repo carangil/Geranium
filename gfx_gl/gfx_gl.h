@@ -67,7 +67,7 @@ typedef struct gfxstyleS {
 	zbool style_dirty; //if true, need to push changes to opengl before rendering
 } gfx_styleT;
 
-#define Typemap_gfx_styleT *Style
+#define Counted_gfx_styleT *Style
 
 #define Procmap_gfx_style_mk MkStyle
 gfx_styleT* gfx_style_mk();

@@ -5,7 +5,7 @@
 //image data buffer
 #include "zbitmap.h"
 
-#define Typemap_gfx_textureT Texture
+#define Counted_gfx_textureT *Texture
 typedef struct
 {
 	zbitmapT* bitmap;

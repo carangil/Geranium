@@ -14,18 +14,19 @@ FILE* logfile;
 int parseDebugFlag = 0;
 
 //make adjustable precision
-#define FLOAT float
+#define FLOAT float 
 #define MATH_FUNC_SUFFIX(FFF)   FFF ## f
  
-#ifdef FLOAT
+#ifdef FLOAT 
 #include "math.h"
 #endif
 void boo() {
-           	printf("breakpoint here\n");
+
+   	           	printf("breakpoint here\n");
 }
-
+ 
 #define ERR( ...) { fprintf(stderr,__VA_ARGS__);fflush(stderr);boo();  exit(1);}
-
+ 
 //uncommenting below will log a LOT while running.
 //#define EXEDEBUG 
 
@@ -154,11 +155,11 @@ typedef struct tokenS{
 #define KCPOINTER	0x8013
 #define KNEW0		0x8014
 #define KCOUNT		0x8015
-#define KSIZE		0x8016
+#define KSIZE		0x8016	
 #define KSETCOUNT   0x8017
+#define KCDATA		0x8018
 
-
-char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0", "'count", "'size", "'setcount", NULL};
+char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0", "count", "size", "setcount","cdata", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -373,10 +374,13 @@ zbool tokenize(tokenT* insert, char* in){
 #define PRIMITIVE 7
 #define POINTERPOSSESSIVE 8
 #define CPOINTER 9
-#define VIRTUAL 10
-#define LAST_REAL_TYPE 10
+#define CDATA 10
+#define VIRTUAL 11
+#define LAST_REAL_TYPE 11
 //letting virtual types be 'real' when parsing a struct type definition makes the code easier
 //CPOINTER is an opaque value.  Different CPOINTERS can have different names for some type safety, but they are all treated the same
+//CDATA is also an opaque value, but is never manipulated directly, only by pointers (% or &).  For structures allocated by C, but by using the interpreter's memory allocator.  Possessive CDATA pointers particpate in the normal reference tracking... keep, trash, take, auto free on out of scope, etc.
+//CDATA is also an opaque value, but is never manipulated directly, only by pointers (% or &).  For structures allocated by C, but by using the interpreter's memory allocator.  Possessive CDATA pointers particpate in the normal reference tracking... keep, trash, take, auto free on out of scope, etc.
 
 //ARRAYSTATIC have a fixed size.  To be embedded directly in structs, etc
 //ARRAYDYNAMIC are heap allocated
@@ -526,6 +530,9 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 		case CPOINTER:
 			xprintf("C*  ");
 			break;
+		case CDATA:
+			xprintf("CDATA  ");
+			break;
 		case SIMPLE:
 			break;
 		default:
@@ -662,6 +669,7 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 			case STRUCT: 
 			case PENDING:
 			case CPOINTER:
+			case CDATA:
 				if (!strcmp(name, ty->name)){
 					//found on name
 					return ty;
@@ -953,9 +961,7 @@ void clean_context_pointers( zvecT* table, char* vars){
 			struct_clean(  (void*)  (vars+  sym->offset) , sym->type);  //clean up structs
 		}
 
-		if (sym->type->category == CPOINTER) {
-			printf(" Clean cpointer?\n");
-		}
+	
 		
 		if ((sym->type->category == ARRAYSTATIC)&&(sym->type->ref->category == POINTERPOSSESSIVE)){
 			//ERR(" Free static array of possessive pointers\n");
@@ -2059,6 +2065,10 @@ tokenT*  parseType(tokenT* t) {
 		t = tnext(t);
 		iscptr = 1;
 	}
+	/*else if (t->tok == KCDATA) {
+		t = tnext(t);
+		iscptr = 2;
+	}*/
 
 	//xprintf("PTstart\n");
 	for ( ; t;  t = next ) {
@@ -2106,8 +2116,10 @@ tokenT*  parseType(tokenT* t) {
 			named=ZTRUE;
 			t->ty = findType(NAMED, NULL, t->str, 0);
 			if (!t->ty){
-				if (iscptr)
+				if (iscptr == 1)
 					t->ty = mkType(CPOINTER, NULL, t->str, 0);
+				else if (iscptr == 2)
+					t->ty = mkType(CDATA, NULL, t->str, 0);
 				else
 					t->ty = mkType(PENDING, NULL, t->str, 0);
 			}
@@ -2471,6 +2483,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			ERR(" Cannot 'end' in the global context\n");
 
+		case KCDATA:
 		case KCPOINTER:
 		case KVIRTUAL:
 
@@ -2484,6 +2497,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 				if (ts->tok == KVIRTUAL)
 					mkType(VIRTUAL, NULL, t->str, 0);
+				else if (ts->tok == KCDATA)
+					mkType(CDATA, NULL, t->str, 0); //CDATA has  no size AND  possessive/user pointers to Cdata are vptrs like any other
 				else
 					mkType(CPOINTER, NULL, t->str, sizeof(void*));
 			}
@@ -2945,7 +2960,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (
 				tprev(ts)->ty &&
 				tprev(ts)->ty->category == POINTERUSER &&
-				tprev(ts)->ty->ref->category == ARRAYDYNAMIC) {
+				(tprev(ts)->ty->ref->category == ARRAYDYNAMIC  //TODO: add case for String to be treated like [N8]&
+				 || tprev(ts)->ty->ref == tString)
+			){
 
 				ts->handler = harrayinfo;
 
