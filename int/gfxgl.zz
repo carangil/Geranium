@@ -8,42 +8,104 @@ proc Data:(vb:VBuffer; attr:Z32;x:Real; y:Real; z:Real->)   vb attr x y z 0.0 Da
 proc Done:(vb:VBuffer; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Done return end
 proc Data:(vb:VBuffer; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Data return end
 
-
-//proc Write:( f:File; s:String& ->)
-//    s:Void  1 s count 1- f fwrite
-//    return
-//end
-
-//"Whatever.txt" "wb" File_Open #ff
-
-//ff "Test" Write
-//ff "2" Write
-
-//ff Close
-
-
 type Sprite
-    style:Style%;
-    left:Z32;
-    top:Z32;
-    width:Z32;
-    height:Z32;
-    pw:Z32;
-    ph:Z32;
-    
-    
+    style:  Style%;
+    left:   Z32;
+    top:    Z32;
+    width:  Z32;
+    height: Z32;
+    pw:     Z32;
+    ph:     Z32;
 end
+
+proc LoadSprite:(filename:String&; left:Z32; top:Z32; w:Z32; h:Z32  ->Sprite%)
+
+    MkStyle                             #style
+        
+    filename ZTGA_TOP BitmapLoadTGA #img
+    img keep CreateTexture  #texture               
+    texture GFX_TEXTURE_SCALER_BLOCKY   Scaler
+    
+    style GFX_TEXTURE "texture_diffuse" 0 0               texture:Void  0 Set
+    style 0            "blend"          0 GFX_BLEND_ALPHA 0:Void        0 Set
+
+    Sprite new #s
+    
+    style take  s.style=
+    left        s.left=
+    top         s.top=
+    w           s.width=
+    h           s.height=
+    img.width   s.pw=
+    img.height  s.ph=
+
+    s take return   
+end
+
+
+
+type Entity
+
+    sprite: Sprite%; //what to draw
+    angle:Real;  
+    vangle:Real;
+    adampening:Real;
+    
+    x:Real;
+    y:Real;
+    h:Real;
+    w:Real;
+    
+    vx:Real;
+    vy:Real;   
+    r:Real;
+end
+
+
+
+
 
 var window:ZWindow;
 
-proc pix:(x:Z32;w:Z32->Real)
-    x.Real  w.Real / return
-    
-end
+
 
 
 6.28318 #TAU
 
+
+1024.0 #GW
+768.0 #GH
+
+proc Wrap:(x:Real;w:Real->Real)
+
+    x 0.0 < if
+        x w + return
+    end
+    
+    x w >= if
+        x w - return
+    end
+    
+    x return
+
+end
+
+
+proc Move:(e:Entity&->)
+
+
+    e.angle e.vangle+ e.angle=
+    
+    
+    e.vangle 1.0 e.adampening- * e.vangle=
+    
+    
+    e.x e.vx + GW Wrap e.x=
+    e.y e.vy + GH Wrap e.y=
+        
+    
+    return
+end
 
 
 
@@ -51,119 +113,92 @@ end
 
 proc Draw:(sprite:Sprite& ; x:Real; y:Real; w:Real; h:Real ; angle:Real ->)
 
-
+    //testing nested helper procedure
     proc RotXY:(x:Real&;y:Real&;angle:Real->)
 
-        angle  cos x@*
-        angle  sin y@ * - #nx
+        angle 180.0/ TAU* cos x@*
+        angle 180.0/ TAU* sin y@ * - 
+                                  #nx
 
-        angle  sin x@*
-        angle  cos y@*  + y@=
+        angle 180.0/ TAU* sin x@*
+        angle 180.0/ TAU* cos y@*+   y@=
 
-                                    nx x@=
+                                  nx x@=
         
         return
-            
-
+        
+    end
+    
+    proc Texel:(x:Z32; w:Z32 -> Real)
+        x:Real w:Real / return
     end
 
-
+    sprite.style UseStyle
+    sprite.left sprite.width  +  #sprite_right
+    sprite.top  sprite.height +  #sprite_bottom
+    
 
     window  "position:3|texcoord:2" TempVBuffer 
-     #vb
+      #vb
+        
+
+            
+            
+                w 0.5* .-  #xx         h 0.5* .- #yy                               
+                            xx&                   yy& angle RotXY
+            vb   0          xx x+                 yy y+             0.0  Data 
+            vb   1                                                            sprite.left sprite.pw Texel     sprite.top sprite.ph Texel    Done          
+            
+            
+            
+            
+                w 0.5*      xx=        h 0.5* .-  yy=                              
+                            xx&                   yy& angle RotXY
+            vb  0           xx x+                 yy y+             0.0  Data 
+            vb  1                                                              sprite_right sprite.pw Texel    sprite.top sprite.ph Texel    Done          
+            
+            
+            
+                w 0.5*      xx=            h 0.5* yy=                              
+                            xx&                   yy& angle RotXY
+            vb  0           xx x+                 yy y+             0.0  Data 
+            vb  1                                                              sprite_right sprite.pw Texel    sprite_bottom sprite.ph Texel    Done          
+            
+                                            
+                    
+                                                
+            
+                w 0.5*  .-  xx=            h 0.5* yy=                              
+                            xx&                   yy& angle RotXY
+            vb  0           xx x+                 yy y+            0.0  Data 
+            vb  1                                                              sprite.left sprite.pw Texel    sprite_bottom sprite.ph Texel    Done          
+    
+           
+      vb GFX_QUAD DrawReset
    
-                                                                sprite.style UseStyle
-                                                                sprite.left sprite.width  +  #sprite_right
-                                                                sprite.top  sprite.height +  #sprite_bottom
-     
-      
-          w 0.5* negative #xx   h 0.5* negative #yy                               
-                           xx&                   yy& angle RotXY
-       vb  0            x  xx+                y  yy+               0.0  Data 
-       vb  1                                                       sprite.left sprite.pw pix     sprite.top sprite.ph pix    Done          
-      
-      
-      
-      
-      
-          w 0.5*           xx=  h 0.5* negative  yy=                              
-                           xx&                   yy& angle RotXY
-       vb  0            x  xx+                y  yy+               0.0  Data 
-       vb  1                                                       sprite_right sprite.pw pix    sprite.top sprite.ph pix    Done          
-      
-      
-      
-          w 0.5*           xx=  h 0.5*           yy=                              
-                           xx&                   yy& angle RotXY
-       vb  0            x  xx+                y  yy+               0.0  Data 
-       vb  1                                                       sprite_right sprite.pw pix    sprite_bottom sprite.ph pix    Done          
-      
-                                        
-                                        
-                                        
-    
-          w 0.5* negative  xx=  h 0.5*           yy=                              
-                           xx&                   yy& angle RotXY
-       vb  0            x  xx+                y  yy+               0.0  Data 
-       vb  1                                                       sprite.left sprite.pw pix    sprite_bottom sprite.ph pix    Done          
-    
-    
-                        
-            
-            
-     //   vb   0  x w 0.5* -     y h 0.5* -  0.0  Data vb 1     sprite.left sprite.pw pix   sprite.top sprite.ph pix    Done       
-        //vb   0  x w 0.5* +     y h 0.5* -  0.0  Data vb 1     sprite_right sprite.pw pix   sprite.top sprite.ph pix    Done    
-        ///vb   0  x w 0.5* +     y h 0.5* +  0.0  Data vb 1     sprite_right sprite.pw pix   sprite_bottom sprite.ph pix Done  
-      //  vb   0  x w 0.5* -     y h 0.5* +  0.0  Data vb 1     sprite.left sprite.pw pix    sprite_bottom sprite.ph pix Done  
-        vb GFX_QUAD DrawReset
- 
-      // angle 1.0 + angle=
-//    sprite.style UseStyle
-//        vb   0  x        y      0.0  Data vb 1     sprite.left sprite.pw pix    sprite.top sprite.ph pix  Done         
-//        vb   0  x w+     y      0.0  Data vb 1     sprite_right sprite.pw pix   sprite.top sprite.ph pix  Done  
-//        vb   0  x w+     y h +  0.0  Data vb 1     sprite_right sprite.pw pix   sprite_bottom sprite.ph pix  Done  
-//        vb   0  x        y h +  0.0  Data vb 1     sprite.left sprite.pw pix    sprite_bottom sprite.ph pix  Done  
-//    vb GFX_QUAD DrawReset
-  
   
   
     return
 end
 
 
-proc LoadSprite:(filename:String&; left:Z32; top:Z32; w:Z32; h:Z32; imgw:Z32; imgh:Z32 ->Sprite%)
 
 
-    MkStyle #style
-    filename ZTGA_TOP BitmapLoadTGA #image
-    image CreateTexture #texture
-    texture GFX_TEXTURE_SCALER_BLOCKY Scaler
-    
-    style GFX_TEXTURE "texture_diffuse" 0 0 texture:Void 0 Set
-    style 0            "blend" 0 GFX_BLEND_ALPHA 0:Void 0 Set
-
-    Sprite new #s
-    
-    style take s.style=
-    left s.left=
-    top s.top=
-    w s.width=
-    h s.height=
-    imgw s.pw=
-    imgh s.ph=
-
-    s take return
+proc Draw:(e:Entity&->)
+    e.sprite e.x e.y e.w e.h e.angle Draw
+    return
 end
 
 
+[Z32] ZKEY_LASTKEY new #Keys
+proc IsPressed:(key:Z32->Bit)
+    Keys key[] 1 == return
+end
+
 //create an opengl window
-"Z Window " 1024 768 0 GLWindow window=
+"Space Rocks" 1024 768 0 GLWindow window=
 
 var ev:ZEvent;
-
-
-    
-
 
 0.0 0.0 0.1 1.1 BackgroundColor
 
@@ -172,21 +207,121 @@ var ev:ZEvent;
 
 window  "color:4|position:3|texcoord:2" TempVBuffer #vb
 
+"../../Zcore-data/font32.tga" ZTGA_TOP BitmapLoadTGA #bbb
+bbb keep CreateTexture  #fonttexture
 
-"asteroids/ship.tga" 0 0 64 64 64 64 LoadSprite #ship
 
-0.0 #angle
+
+    type vec2
+        x:Real;
+        y:Real;
+    end
+
+        type matrix2
+            topRow:vec2;
+            bottomRow:vec2;
+        end
+        
+          type matrix2p
+            topRow:vec2%;
+            bottomRow:vec2%;
+        end
+    
+      proc print:(v:vec2&->)
+      
+      
+      
+            "(" print v.x print "," print v.y print ")" print
+            return
+        end
+        
+        
+        var mmm:matrix2;  //make a matrix2 variable.
+
+        mmm
+        10.0 mmm.bottomRow.x =
+        22.0 mmm.bottomRow.y =
+        
+        mmm.bottomRow print
+        
+        var ppp:matrix2p;
+        vec2 new ppp.topRow=
+        300.0 ppp.topRow.x=
+        400.0 ppp.topRow.y=
+        
+        ppp.topRow print
+        
+        
+       
+"asteroids/ship.tga" 0 0 64 64  LoadSprite #shipsprite
+var ship:Entity;
+
+shipsprite keep ship.sprite =
+20.0 ship.r=
+64.0 ship.w=
+64.0 ship.h=
+500.0 ship.x=
+350.0 ship.y=
+0.1  ship.adampening=  
+
+1.0 ship.vx=
+-2.0 ship.vy=
+-1.0 ship.vangle=
+
+[Sprite%] 3 new #rocksprites
+
+"asteroids/rock0.tga" 0 0 64 64  LoadSprite rocksprites 0[] =
+"asteroids/rock1.tga" 0 0 128 128  LoadSprite rocksprites 1[] =
+"asteroids/rock2.tga" 0 0 128 128  LoadSprite rocksprites 2[] =
+
+
+1.0 #MAXVRAND
+1.0 #MAXARAND
+
+10 #rc
+[Entity] rc  new #rocks
+
+"boo " print newline
+0#i loop 
+
+    i rocks size >= if break end
+    i print newline
+    
+    
+    0.0 GW RandomReal rocks i[].x=
+    0.0 GH RandomReal rocks i[].y=
+    0.0 360.0 RandomReal rocks i[].angle=
+    
+    MAXVRAND.- MAXVRAND RandomReal rocks i[].vx=
+    MAXVRAND.- MAXVRAND RandomReal rocks i[].vy=
+    MAXVRAND.- MAXARAND RandomReal rocks i[].vangle=
+       
+    64.0 rocks i[].w=
+    64.0 rocks i[].h=   
+       
+    
+    rocksprites   RandomZ32 rocksprites count mod[]  keep      rocks i[].sprite=
+        
+    i&++
+end
+
+"boo2 " print newline
+
+
+
+
     
 loop
 
     loop
         
         window ev GetEvent  not if break end
-        "Event " print ev.eventType print newline
+        "Event " print ev.eventType print  "    " print     newline
         
-        ev.eventType ZEVENT_WINDOWSIZE == if 
-            //90.0   ev.A.Real ev.B.Real/  0.1   1000.0 Setup3D 
-            ev.A print " " print ev.B print " <- resize \n" print
+        ev.eventType   ZEVENT_KEY ZEVENT_DOWN or == if 
+            1 Keys ev.A[] =
+        ev.eventType   ZEVENT_KEY ZEVENT_UP or == elseif
+            0 Keys ev.A[] =
         end
     end
     
@@ -196,15 +331,42 @@ loop
         break
     end
 
-  //  0.001 gfx_rotate_z
-   
+
+    0.1 #SPEED
+     ZKEY_LEFT IsPressed if
+                       -2.0 ship.vangle=
+    end
+    ZKEY_RIGHT IsPressed if
+                        2.0 ship.vangle=
+    end
+    ZKEY_UP IsPressed if
+        ship.angle 180.0/ TAU* cos SPEED* ship.vx + ship.vx=
+        ship.angle 180.0/ TAU* sin SPEED* ship.vy + ship.vy=
+    end
     
     1:Bit 1:Bit FrameClear
     
     
     
-    ship 600.0 300.0 64.0 64.0  angle Draw
-    angle 0.01+angle=
+    ship Move
+    ship Draw
+    
+    
+    
+    0i= loop 
+    
+    
+    
+        i rocks size >= if break end
+        rocks i[]& Move
+    
+        rocks i[]&      Draw
+        i&++
+    end
+    
+
     window UpdatePixels
+    
+   
 
 end

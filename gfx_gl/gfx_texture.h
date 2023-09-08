@@ -17,7 +17,7 @@ typedef struct
 #define GFX_TEXTURE_SCALER_SMOOTH 0
 #define GFX_TEXTURE_SCALER_BLOCKY 1
 
-#define Procmap_gfx_texture_mk CreateTexture
+#define Procmap_gfx_texture_mk CreateTexture:(bitmap:ZBitmap%trash->Texture%); //callee indicates the function being called adds a reference and stores the pointer, or returns without freeing the pointer.  WHen function returns, a reference will be taken away.
 gfx_textureT* gfx_texture_mk(zbitmapT* bmp);
 
 #define Procmap_gfx_texture_scaler Scaler

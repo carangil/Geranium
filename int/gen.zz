@@ -5,6 +5,11 @@ primitive C_fopen File_Open:(c_filename:String&;c_mode:String&->File);
 primitive C_fclose Close:(c_f:File->Z32);
 primitive C_fwrite fwrite:(c_ptr:Void;c_size:Z32;c_nmemb:Z32;c_stream:File->Z32);
 primitive C_fread fread:(c_ptr:Void;c_size:Z32;c_nmemb:Z32;c_stream:File->Z32);
+primitive C_zrand RandomZ32:(->Z32);
+primitive C_zrandf RandomReal:(c_min:Real;c_max:Real->Real);
+cdata @zuint16 N16;
+primitive C_store16 =:(c_val:Z32;c_zp:N16&->);
+primitive C_load16 @:(c_z:N16&->Z32);
 type @zeventT ZEvent
 	@zeventT_type	eventType:Z32;
 	@zeventT_a	A:Z32;
@@ -165,9 +170,12 @@ primitive C_gfx_projection2d gfx_projection2d:(c_left:Real;c_right:Real;c_top:Re
 4 #ZBITMAP_BGRA 
 255 #ZBITMAP_PXSIZE 
 256 #ZBITMAP_FAKEA 
-cdata ZBitmap;
+type @zbitmapT ZBitmap
+	@zbitmapT_w	width:N16;
+	@zbitmapT_h	height:N16;
+end
 primitive C_zbitmap_cleanup zbitmap_cleanup:(c_bmp:ZBitmap&->Bit);
-primitive C_zbitmap_mk zbitmap_mk:(c_w:Z32;c_h:Z32;c_format:Z32->ZBitmap%);
+primitive C_zbitmap_mk zbitmap_mk:(c_w:Z32;c_h:Z32;c_format:Z32->ZBitmap&);
 primitive C_zpset4 zpset4:(c_bmp:ZBitmap&;c_x:Z32;c_y:Z32;c_color:Z32->);
 primitive C_zpget4 zpget4:(c_bmp:ZBitmap&;c_x:Z32;c_y:Z32->Z32);
 primitive C_zline4 zline4:(c_bmp:ZBitmap&;c_x:Z32;c_y:Z32;c_x2:Z32;c_y2:Z32;c_color:Z32->);
@@ -177,14 +185,14 @@ primitive C_zpblit4c zpblit4c:(c_bmp:ZBitmap&;c_x:Z32;c_y:Z32;c_src:ZBitmap&;c_s
 512 #ZBLIT_ALPHATEST 
 primitive C_zpblit4adebug zpblit4adebug:(c_bmp:ZBitmap&;c_x:Z32;c_y:Z32;c_src:ZBitmap&;c_srcx:Z32;c_srcy:Z32;c_srcw:Z32;c_srch:Z32->);
 primitive C_zdrawtext4 zdrawtext4:(c_dest:ZBitmap&;c_font:ZBitmap&;c_text:String&;c_px:Z32;c_py:Z32;c_color:Z32;c_flags:Z32->);
-primitive C_zbitmap_load_tga BitmapLoadTGA:(c_f:String&;c_flags:Z32->ZBitmap%);
+primitive C_zbitmap_load_tga BitmapLoadTGA:(f:String&;flags:Z32->ZBitmap%);
 1 #ZTGA_TOP 
 256 #ZTGA_GRAY_AS_ALPHA 
 512 #ZTGA_COPY_GRAY_TO_ALPHA 
 cdata Texture;
 0 #GFX_TEXTURE_SCALER_SMOOTH 
 1 #GFX_TEXTURE_SCALER_BLOCKY 
-primitive C_gfx_texture_mk CreateTexture:(c_bmp:ZBitmap&->Texture%);
+primitive C_gfx_texture_mk CreateTexture:(bitmap:ZBitmap%trash->Texture%);
 primitive C_gfx_texture_scaler Scaler:(c_image:Texture&;c_scaler:Z32->);
 primitive C_gxi_new_texture_set gxi_new_texture_set:(->);
 primitive C_gxi_add_texture gxi_add_texture:(c_tex:Texture&->Z32);

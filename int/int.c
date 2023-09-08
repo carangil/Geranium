@@ -22,7 +22,7 @@ int parseDebugFlag = 0;
 #endif
 void boo() {
 
-   	           	printf("breakpoint here\n");
+       	           	printf("breakpoint here\n");
 }
  
 #define ERR( ...) { fprintf(stderr,__VA_ARGS__);fflush(stderr);boo();  exit(1);}
@@ -159,7 +159,7 @@ typedef struct tokenS{
 #define KSETCOUNT   0x8017
 #define KCDATA		0x8018
 
-char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0", "count", "size", "setcount","cdata", NULL};
+char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0", "count", "size", "setcount","cdata",  NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -282,7 +282,7 @@ zbool tokenize(tokenT* insert, char* in){
 			line++;
 
 		//find twochar patterns like ->,etc. including comment start/end markers
-		if ((p = findPair("<<>>--++->==/**///[]>=<=!=", c, next))){
+		if ((p = findPair("<<>>--++->==/**///[]>=<=!=.-", c, next))){
 			if (  p == PAIR('/','/')  ) { //special handling for // comments
 				while(*in!= '\n')
 					in++;
@@ -402,8 +402,8 @@ typedef struct typeS{
 	struct typeS* ref; //array or pointer types, or function return type
 	zvecT* members;  //(typeT*) structs or function parameters
 	zvecT* selectors; //(symbolT*)  function selectors
+	int trashAfterPrimitive; //only for function args, only when passing %pointer
 	int tid;
-	zbool pending;
 }typeT;
 
 zvecT* types;
@@ -541,7 +541,10 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 		
 		if (ty->name)
 			xprintf("%s%c", ty->name, ty->category == MEMBER? ':':' ');
-		
+	
+		if (ty->trashAfterPrimitive)
+			xprintf(" trash  ");
+
 		/*
 		if (!skipmembers && (ty->selectors)) {
 			printSymbols(ty->selectors, "\n~SELECTORS:\n");
@@ -1374,7 +1377,7 @@ tokenT* hprintfloat (exectxT* ex, tokenT* t) {
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
 	ex->sp--;
 
-	xprintf("%.10g", ex->stack[ex->sp].as.f);
+	printf("%.10g", ex->stack[ex->sp].as.f);
 
 	return tnext(t);
 }
@@ -1383,7 +1386,7 @@ tokenT* hprintfloat (exectxT* ex, tokenT* t) {
 tokenT* hfload (exectxT* ex, tokenT* t) {
 	
 	exe(ex, tsub(t));
-
+	
 	FLOAT f = DEREF(FLOAT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
 	
 	ex->stack[ex->sp-1].as.ptr.block=NULL;
@@ -1501,6 +1504,9 @@ BINOP(hfdiv, f,f, / )
 UNOP(hfneg, f,f, -)
 
 BINOP(hflesse, z32, f, <= )
+BINOP(hfless, z32, f, < )
+BINOP(hfgreatere, z32, f, >= )
+BINOP(hfgreater, z32, f, > )
 
 //functions, but easily called 'like' a unary op
 UNOP(hfabs, f,f, MATH_FUNC_SUFFIX(fabs))
@@ -1522,7 +1528,7 @@ UNOP(hreal2int, z32,f, (zint32) )
 #endif
 
 
-#define HANDLER(CONTEXT, NAME)	mkSymbol( CONTEXT, #NAME, tPrimitive, h ## NAME)
+#define HANDLER(CONTEXT, NAME)	mkSymbol( CONTEXT,  #NAME, tPrimitive, h ## NAME)
 
 void addhandlers(struct parsectxS* pctx){
 
@@ -1579,7 +1585,10 @@ void addhandlers(struct parsectxS* pctx){
 	HANDLER(pctx, fpow);	
 	HANDLER(pctx, fneg);	
 	
-	HANDLER(pctx, flesse);	
+	HANDLER(pctx, flesse);
+	HANDLER(pctx, fgreatere);
+	HANDLER(pctx, fless);
+	HANDLER(pctx, fgreater);
 	
 	HANDLER(pctx, fsin);
 	HANDLER(pctx, fcos);
@@ -1696,16 +1705,19 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 		for (i=0;i<  count; i++) {
 			typeT* m = zvec_get_at(t->sym->type->members, i);
 			//xprintf(" ARG %d is ", i);
-			//printType(m->ref, ZTRUE, ZFALSE);
+			//printType(m, ZTRUE, ZFALSE);
+
 			if (m->ref->category == POINTERPOSSESSIVE) {
 				//xprintf(" freeing poss pointer also has track %p\n", tv->trackpossptr);
 				ram_free( ex->stack[ex->fp-count+i].as.ptr.block );
 				
-			}
-			else if (tv->trackpossptr){
+			} else if (tv->trackpossptr){
 				//xprintf(" free trackpossptr\n");
 				ram_free( ex->stack[ex->fp-count+i].as.ptr.block );
 			}
+
+			
+
 			tv = tnext(tv);
 			
 		}
@@ -2223,7 +2235,16 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 				parent->ref= type ;
 			}
 		} else	if (parent && parent->members) {
-			zvec_add(parent->members, (mkType(MEMBER, type, name, offset)));
+			typeT* mty = mkType(MEMBER, type, name, offset);
+			
+			if (t->tok == KTRASH) {
+				//todo: only applicable to primitive parameter lists, but at this part of the code, we don't know that's what we are doing.
+				t = tnext(t);
+				ram_free(tremove(tprev(t)));
+				mty->trashAfterPrimitive = 1;
+			}
+
+			zvec_add(parent->members, mty);
 		}
 
 		offset += (zuint32) (type->size);  //TODO:  alignment
@@ -2445,6 +2466,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 	//printList( t, t, 0,0);
 	
 	int local=0;//true when a found symbol is from the local context
+	int csize = 0;
 	
 	//xprintf(" PARSE IN SYM %s %p\n", t->sym? t->sym->name : "none", t->sym? t->sym->type : NULL);
 	//if (t->sym)
@@ -2466,10 +2488,16 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		handler = NULL;
 		
 		ts = t;
-			
+		if (parseDebugFlag)
+			boo();
+
 		switch (t->tok) {
 
-
+		case '!':
+			parseDebugFlag = 1;
+			t = tnext(t);
+			tremove(tprev(t));
+			continue;
 
 
 
@@ -2486,6 +2514,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		case KCDATA:
 		case KCPOINTER:
 		case KVIRTUAL:
+
+			csize = 0;
+			if (tnext(t)->tok == '@' && tnext(tnext(t))->tok == NAME) {
+				t = tnext(tnext(t));
+				csize = getCSize(t->str);
+			}
+
 
 			t = tnext(t);
 
@@ -2544,7 +2579,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 
 
-			}
+			} 
 			name = tnext(t)->str;
 
 			t = parseVar(tnext(t), &name, &type); //parse variable; name is required
@@ -2553,6 +2588,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			printType(type, 1, 1);
 			if (!name) {
 				ERR("Expected name and ':'\n");
+			}
+
+			if (type->category == PENDING) {
+				ERR("Cannot create 'pending' type variable... unknown size\n");
 			}
 
 			s = NULL;
@@ -2776,7 +2815,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 
 		case KTYPE:
-			int csize = 0;
+			csize = 0;
 
 			if (tnext(t)->tok == '@' && tnext(tnext(t))->tok == NAME) {
 				t = tnext(tnext(t));
@@ -2821,7 +2860,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (t->tok == KEND) {
 				t = tnext(t);
 				lfold(ts, t); //includes 'end' in the fold
-				continue;
+				continue;	
 			}
 
 			ERR(" Expected 'end' for type\n");
@@ -2884,9 +2923,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			ts = t; //ts is colon
 
-			if (parseDebugFlag) {
-				printf("to debug\n");
-			}
+			
 
 			t = parseType(tnext(t));
 
@@ -2897,9 +2934,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			ty = tnext(ts)->ty;
 
 
-			if (parseDebugFlag) {
-				printf("to debug\n");
-			}
+		
 
 
 
@@ -3067,9 +3102,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (tnext(t)->str && tnext(t)->str[0] == '.'
 				&& tprev(t)->ty
 				&& tprev(t)->ty->ref
-				&& tprev(t)->ty->ref->category == STRUCT
+				&& tprev(t)->ty->ref->category == STRUCT 
 				&& tprev(t)->tok != STACKARG
 				) {
+				
 				//access struct member:  
 				//remove the @ token, since accessing the struct member is just pointer addition
 				t = tnext(t);
@@ -3178,6 +3214,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			break;
 
 		case '=':  //try to handle storing ptr to ptr.  Top of stack has a pointer to the pointer var
+			if (parseDebugFlag)
+				boo();
 
 			//handle     @= case.... if '@' a pointer to get a variable, and store to the variable...
 			//  pointervar =         //writes a pointer to a pointer variable
@@ -3579,12 +3617,34 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 	return NULL;
 }
 
+void cleanCCall(exectxT* ex, tokenT* t, void* first) {
+
+ 	if (t->sym->type->members) {
+		int i;
+		int count = zvec_count(t->sym->type->members);
+		for (i = 0; i < count; i++) {
+			typeT* m = zvec_get_at(t->sym->type->members, i);
+
+			if (m->trashAfterPrimitive) {
+				if (i == 0)
+					ram_free(first); //first arg is passed seperately because the C return value has already overwritten it
+				else
+					ram_free(ex->stack[ex->sp - count + i].as.ptr.block);
+			}
+
+			
+
+		}
+	}
+}
+
 #ifdef EXTENSION_H
 #include "gen_extension.h"
 #endif
 
 #include "zwindow.h";
 #include "gfx_gl.h"
+#include "cextra.c";
 #include "gen.c";
 
 

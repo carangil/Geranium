@@ -1,9 +1,12 @@
 tokenT* hc_zstrdup (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 	ex->stack[ex->sp-1].as.ptr.block= zstrdup(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
 	ex->stack[ex->sp-1].as.ptr.level=0; 
 	ex->stack[ex->sp-1].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+1);
 
@@ -11,11 +14,14 @@ tokenT* hc_zstrdup (exectxT* ex, tokenT* t) {
 }
 tokenT* hc_fopen (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
 	ex->stack[ex->sp-2].as.ptr.block= fopen(
 			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
 	ex->stack[ex->sp-2].as.ptr.level=0; 
 	ex->stack[ex->sp-2].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-2+1);
 
@@ -23,9 +29,12 @@ tokenT* hc_fopen (exectxT* ex, tokenT* t) {
 }
 tokenT* hc_fclose (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 	ex->stack[ex->sp-1].as.z32 =
 		fclose(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+1);
 
@@ -33,6 +42,7 @@ tokenT* hc_fclose (exectxT* ex, tokenT* t) {
 }
 tokenT* hc_fwrite (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
 	ex->stack[ex->sp-4].as.z32 =
 		fwrite(
 			(void*)((ex->stack[ex->sp-4].as.ptr.block)+(ex->stack[ex->sp-4].as.ptr.offset)),
@@ -40,12 +50,15 @@ tokenT* hc_fwrite (exectxT* ex, tokenT* t) {
 			ex->stack[ex->sp-2].as.z32,
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
 
+	cleanCCall(ex, t, firstArg);
+
 	ex->sp+= (-4+1);
 
 	return tnext(t); 
 }
 tokenT* hc_fread (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
 	ex->stack[ex->sp-4].as.z32 =
 		fread(
 			(void*)((ex->stack[ex->sp-4].as.ptr.block)+(ex->stack[ex->sp-4].as.ptr.offset)),
@@ -53,19 +66,81 @@ tokenT* hc_fread (exectxT* ex, tokenT* t) {
 			ex->stack[ex->sp-2].as.z32,
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
 
+	cleanCCall(ex, t, firstArg);
+
 	ex->sp+= (-4+1);
+
+	return tnext(t); 
+}
+zuint32 zrand();
+tokenT* hc_zrand (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-0].as.ptr.block;
+	ex->stack[ex->sp-0].as.z32 =
+		zrand(
+			);
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-0+1);
+
+	return tnext(t); 
+}
+zfloat32 zrandf(zfloat32 min, zfloat32 max);
+tokenT* hc_zrandf (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
+	ex->stack[ex->sp-2].as.f =
+		zrandf(
+			ex->stack[ex->sp-2].as.f,
+			ex->stack[ex->sp-1].as.f);
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-2+1);
+
+	return tnext(t); 
+}
+void store16(zint32 val, zuint16* zp);
+tokenT* hc_store16 (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
+		store16(
+			ex->stack[ex->sp-2].as.z32,
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-2+0);
+
+	return tnext(t); 
+}
+zint32 load16(zuint16* z);
+tokenT* hc_load16 (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
+	ex->stack[ex->sp-1].as.z32 =
+		load16(
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-1+1);
 
 	return tnext(t); 
 }
 void zw_enqueue(zwindowT* zw, zuint32 type, zuint32 a, zuint32 b, void* ptr);
 tokenT* hc_zw_enqueue (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-5].as.ptr.block;
 		zw_enqueue(
 			(void*)((ex->stack[ex->sp-5].as.ptr.block)+(ex->stack[ex->sp-5].as.ptr.offset)),
 			ex->stack[ex->sp-4].as.z32,
 			ex->stack[ex->sp-3].as.z32,
 			ex->stack[ex->sp-2].as.z32,
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-5+0);
 
@@ -74,10 +149,13 @@ tokenT* hc_zw_enqueue (exectxT* ex, tokenT* t) {
 zbool zw_queued(zwindowT* zw, zeventT* ev);
 tokenT* hc_zw_queued (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
 	ex->stack[ex->sp-2].as.z32 =
 		zw_queued(
 			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-2+1);
 
@@ -86,10 +164,13 @@ tokenT* hc_zw_queued (exectxT* ex, tokenT* t) {
 zbool zw_event(zwindowT* zw, zeventT* ev);
 tokenT* hc_zw_event (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
 	ex->stack[ex->sp-2].as.z32 =
 		zw_event(
 			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-2+1);
 
@@ -98,8 +179,11 @@ tokenT* hc_zw_event (exectxT* ex, tokenT* t) {
 void zw_close(zwindowT* zw);
 tokenT* hc_zw_close (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		zw_close(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -108,9 +192,12 @@ tokenT* hc_zw_close (exectxT* ex, tokenT* t) {
 void zw_pixels(zwindowT* zw, void* v);
 tokenT* hc_zw_pixels (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
 		zw_pixels(
 			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-2+0);
 
@@ -119,8 +206,11 @@ tokenT* hc_zw_pixels (exectxT* ex, tokenT* t) {
 void zprintevent(zeventT* ev);
 tokenT* hc_zprintevent (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		zprintevent(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -129,11 +219,14 @@ tokenT* hc_zprintevent (exectxT* ex, tokenT* t) {
 void checkGLfunc(char* file, int line, char* hint, zbool tolerable );
 tokenT* hc_checkGLfunc (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
 		checkGLfunc(
 			(void*)((ex->stack[ex->sp-4].as.ptr.block)+(ex->stack[ex->sp-4].as.ptr.offset)),
 			ex->stack[ex->sp-3].as.z32,
 			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
 			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-4+0);
 
@@ -142,6 +235,7 @@ tokenT* hc_checkGLfunc (exectxT* ex, tokenT* t) {
 struct zwindow_s* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags);
 tokenT* hc_gfx_mkwindow (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
 	ex->stack[ex->sp-4].as.ptr.block= gfx_mkwindow(
 			(void*)((ex->stack[ex->sp-4].as.ptr.block)+(ex->stack[ex->sp-4].as.ptr.offset)),
 			ex->stack[ex->sp-3].as.z32,
@@ -150,6 +244,8 @@ tokenT* hc_gfx_mkwindow (exectxT* ex, tokenT* t) {
 	ex->stack[ex->sp-4].as.ptr.level=0; 
 	ex->stack[ex->sp-4].as.ptr.offset=0; 
 
+	cleanCCall(ex, t, firstArg);
+
 	ex->sp+= (-4+1);
 
 	return tnext(t); 
@@ -157,11 +253,14 @@ tokenT* hc_gfx_mkwindow (exectxT* ex, tokenT* t) {
  void gfx_background_color(float r, float g, float b, float a);
 tokenT* hc_gfx_background_color (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
 		gfx_background_color(
 			ex->stack[ex->sp-4].as.f,
 			ex->stack[ex->sp-3].as.f,
 			ex->stack[ex->sp-2].as.f,
 			ex->stack[ex->sp-1].as.f);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-4+0);
 
@@ -170,9 +269,12 @@ tokenT* hc_gfx_background_color (exectxT* ex, tokenT* t) {
 void gfx_frame_clear(zbool color, zbool depth);
 tokenT* hc_gfx_frame_clear (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
 		gfx_frame_clear(
 			ex->stack[ex->sp-2].as.z32,
 			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-2+0);
 
@@ -181,9 +283,12 @@ tokenT* hc_gfx_frame_clear (exectxT* ex, tokenT* t) {
 void gfx_depth_buffer(zbool test, zbool write);
 tokenT* hc_gfx_depth_buffer (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
 		gfx_depth_buffer(
 			ex->stack[ex->sp-2].as.z32,
 			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-2+0);
 
@@ -192,11 +297,14 @@ tokenT* hc_gfx_depth_buffer (exectxT* ex, tokenT* t) {
 void gfx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist);
 tokenT* hc_gfx_setup_3d (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
 		gfx_setup_3d(
 			ex->stack[ex->sp-4].as.f,
 			ex->stack[ex->sp-3].as.f,
 			ex->stack[ex->sp-2].as.f,
 			ex->stack[ex->sp-1].as.f);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-4+0);
 
@@ -205,11 +313,14 @@ tokenT* hc_gfx_setup_3d (exectxT* ex, tokenT* t) {
 void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom);
 tokenT* hc_gfx_setup_2d (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
 		gfx_setup_2d(
 			ex->stack[ex->sp-4].as.f,
 			ex->stack[ex->sp-3].as.f,
 			ex->stack[ex->sp-2].as.f,
 			ex->stack[ex->sp-1].as.f);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-4+0);
 
@@ -218,10 +329,13 @@ tokenT* hc_gfx_setup_2d (exectxT* ex, tokenT* t) {
 gfx_styleT* gfx_style_mk();
 tokenT* hc_gfx_style_mk (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-0].as.ptr.block;
 	ex->stack[ex->sp-0].as.ptr.block= gfx_style_mk(
 			);
 	ex->stack[ex->sp-0].as.ptr.level=0; 
 	ex->stack[ex->sp-0].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-0+1);
 
@@ -230,6 +344,7 @@ tokenT* hc_gfx_style_mk (exectxT* ex, tokenT* t) {
 void gfx_style_set_property(gfx_styleT* st, int idORtype, char* name_in, int index, int val, void* ptr, int action);
 tokenT* hc_gfx_style_set_property (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-7].as.ptr.block;
 		gfx_style_set_property(
 			(void*)((ex->stack[ex->sp-7].as.ptr.block)+(ex->stack[ex->sp-7].as.ptr.offset)),
 			ex->stack[ex->sp-6].as.z32,
@@ -239,6 +354,8 @@ tokenT* hc_gfx_style_set_property (exectxT* ex, tokenT* t) {
 			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
 			ex->stack[ex->sp-1].as.z32);
 
+	cleanCCall(ex, t, firstArg);
+
 	ex->sp+= (-7+0);
 
 	return tnext(t); 
@@ -246,8 +363,11 @@ tokenT* hc_gfx_style_set_property (exectxT* ex, tokenT* t) {
 void gfx_style(gfx_styleT* st);
 tokenT* hc_gfx_style (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gfx_style(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -256,11 +376,14 @@ tokenT* hc_gfx_style (exectxT* ex, tokenT* t) {
   gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount, char* spec);
 tokenT* hc_gfx_vertex_buffer_mk (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
 	ex->stack[ex->sp-2].as.ptr.block= gfx_vertex_buffer_mk(
 			ex->stack[ex->sp-2].as.z32,
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
 	ex->stack[ex->sp-2].as.ptr.level=0; 
 	ex->stack[ex->sp-2].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-2+1);
 
@@ -269,12 +392,15 @@ tokenT* hc_gfx_vertex_buffer_mk (exectxT* ex, tokenT* t) {
 zuint16 gfx_index_triangle(gfx_vertex_bufferT* vb, zuint16 a, zuint16 b, zuint16 c);
 tokenT* hc_gfx_index_triangle (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
 	ex->stack[ex->sp-4].as.z32 =
 		gfx_index_triangle(
 			(void*)((ex->stack[ex->sp-4].as.ptr.block)+(ex->stack[ex->sp-4].as.ptr.offset)),
 			ex->stack[ex->sp-3].as.z32,
 			ex->stack[ex->sp-2].as.z32,
 			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-4+1);
 
@@ -283,6 +409,7 @@ tokenT* hc_gfx_index_triangle (exectxT* ex, tokenT* t) {
 void gfx_vertex_data(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d);
 tokenT* hc_gfx_vertex_data (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-6].as.ptr.block;
 		gfx_vertex_data(
 			(void*)((ex->stack[ex->sp-6].as.ptr.block)+(ex->stack[ex->sp-6].as.ptr.offset)),
 			ex->stack[ex->sp-5].as.z32,
@@ -291,6 +418,8 @@ tokenT* hc_gfx_vertex_data (exectxT* ex, tokenT* t) {
 			ex->stack[ex->sp-2].as.f,
 			ex->stack[ex->sp-1].as.f);
 
+	cleanCCall(ex, t, firstArg);
+
 	ex->sp+= (-6+0);
 
 	return tnext(t); 
@@ -298,6 +427,7 @@ tokenT* hc_gfx_vertex_data (exectxT* ex, tokenT* t) {
 zuint16 gfx_vertex_done(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d);
 tokenT* hc_gfx_vertex_done (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-6].as.ptr.block;
 	ex->stack[ex->sp-6].as.z32 =
 		gfx_vertex_done(
 			(void*)((ex->stack[ex->sp-6].as.ptr.block)+(ex->stack[ex->sp-6].as.ptr.offset)),
@@ -307,6 +437,8 @@ tokenT* hc_gfx_vertex_done (exectxT* ex, tokenT* t) {
 			ex->stack[ex->sp-2].as.f,
 			ex->stack[ex->sp-1].as.f);
 
+	cleanCCall(ex, t, firstArg);
+
 	ex->sp+= (-6+1);
 
 	return tnext(t); 
@@ -314,9 +446,12 @@ tokenT* hc_gfx_vertex_done (exectxT* ex, tokenT* t) {
 void gfx_vertex_buffer_add_index(gfx_vertex_bufferT* vb, int num);
 tokenT* hc_gfx_vertex_buffer_add_index (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
 		gfx_vertex_buffer_add_index(
 			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
 			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-2+0);
 
@@ -325,8 +460,11 @@ tokenT* hc_gfx_vertex_buffer_add_index (exectxT* ex, tokenT* t) {
 void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb);
 tokenT* hc_gfx_vertex_buffer_update (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gfx_vertex_buffer_update(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -335,12 +473,15 @@ tokenT* hc_gfx_vertex_buffer_update (exectxT* ex, tokenT* t) {
 void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end, zbool indexed);
 tokenT* hc_gfx_vertex_buffer_draw (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-5].as.ptr.block;
 		gfx_vertex_buffer_draw(
 			(void*)((ex->stack[ex->sp-5].as.ptr.block)+(ex->stack[ex->sp-5].as.ptr.offset)),
 			ex->stack[ex->sp-4].as.z32,
 			ex->stack[ex->sp-3].as.z32,
 			ex->stack[ex->sp-2].as.z32,
 			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-5+0);
 
@@ -349,11 +490,14 @@ tokenT* hc_gfx_vertex_buffer_draw (exectxT* ex, tokenT* t) {
 gfx_vertex_bufferT* gfx_vertex_temp(struct zwindow_s* gw ,char* spec);
 tokenT* hc_gfx_vertex_temp (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
 	ex->stack[ex->sp-2].as.ptr.block= gfx_vertex_temp(
 			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
 	ex->stack[ex->sp-2].as.ptr.level=0; 
 	ex->stack[ex->sp-2].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-2+1);
 
@@ -362,9 +506,12 @@ tokenT* hc_gfx_vertex_temp (exectxT* ex, tokenT* t) {
 void gfx_vertex_buffer_draw_clear(gfx_vertex_bufferT* vb, zuint32 prim);
 tokenT* hc_gfx_vertex_buffer_draw_clear (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
 		gfx_vertex_buffer_draw_clear(
 			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
 			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-2+0);
 
@@ -373,10 +520,13 @@ tokenT* hc_gfx_vertex_buffer_draw_clear (exectxT* ex, tokenT* t) {
 void gfx_vertex_buffer_continue(gfx_vertex_bufferT* vb, zuint32 prim, zuint32 count);
 tokenT* hc_gfx_vertex_buffer_continue (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-3].as.ptr.block;
 		gfx_vertex_buffer_continue(
 			(void*)((ex->stack[ex->sp-3].as.ptr.block)+(ex->stack[ex->sp-3].as.ptr.offset)),
 			ex->stack[ex->sp-2].as.z32,
 			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-3+0);
 
@@ -385,10 +535,13 @@ tokenT* hc_gfx_vertex_buffer_continue (exectxT* ex, tokenT* t) {
 void gfx_arrow(vec3* p1, vec3* p2, vec4* color);
 tokenT* hc_gfx_arrow (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-3].as.ptr.block;
 		gfx_arrow(
 			(void*)((ex->stack[ex->sp-3].as.ptr.block)+(ex->stack[ex->sp-3].as.ptr.offset)),
 			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-3+0);
 
@@ -397,9 +550,12 @@ tokenT* hc_gfx_arrow (exectxT* ex, tokenT* t) {
 zbool gfx_free_mesh(gfx_meshT* m);
 tokenT* hc_gfx_free_mesh (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 	ex->stack[ex->sp-1].as.z32 =
 		gfx_free_mesh(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+1);
 
@@ -408,11 +564,14 @@ tokenT* hc_gfx_free_mesh (exectxT* ex, tokenT* t) {
 void gfx_spin_matrix(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gfx_mat_3x3* rot);
 tokenT* hc_gfx_spin_matrix (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
 		gfx_spin_matrix(
 			ex->stack[ex->sp-4].as.f,
 			ex->stack[ex->sp-3].as.f,
 			ex->stack[ex->sp-2].as.f,
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-4+0);
 
@@ -421,8 +580,11 @@ tokenT* hc_gfx_spin_matrix (exectxT* ex, tokenT* t) {
 void gfx_camera_init(gfx_cameraT* cam);
 tokenT* hc_gfx_camera_init (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gfx_camera_init(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -431,8 +593,11 @@ tokenT* hc_gfx_camera_init (exectxT* ex, tokenT* t) {
 void gfx_trans_init(gfx_transformT* cam);
 tokenT* hc_gfx_trans_init (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gfx_trans_init(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -441,6 +606,7 @@ tokenT* hc_gfx_trans_init (exectxT* ex, tokenT* t) {
 void gfx_camera_motion_6dof(gfx_cameraT* cam, float forward, float right, float up, float yaw, float pitch, float roll);
 tokenT* hc_gfx_camera_motion_6dof (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-7].as.ptr.block;
 		gfx_camera_motion_6dof(
 			(void*)((ex->stack[ex->sp-7].as.ptr.block)+(ex->stack[ex->sp-7].as.ptr.offset)),
 			ex->stack[ex->sp-6].as.f,
@@ -450,6 +616,8 @@ tokenT* hc_gfx_camera_motion_6dof (exectxT* ex, tokenT* t) {
 			ex->stack[ex->sp-2].as.f,
 			ex->stack[ex->sp-1].as.f);
 
+	cleanCCall(ex, t, firstArg);
+
 	ex->sp+= (-7+0);
 
 	return tnext(t); 
@@ -457,8 +625,11 @@ tokenT* hc_gfx_camera_motion_6dof (exectxT* ex, tokenT* t) {
 void gfx_camera_view(gfx_cameraT* cam);
 tokenT* hc_gfx_camera_view (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gfx_camera_view(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -467,8 +638,11 @@ tokenT* hc_gfx_camera_view (exectxT* ex, tokenT* t) {
 void gfx_load_transform(gfx_transformT* trans);
 tokenT* hc_gfx_load_transform (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gfx_load_transform(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -477,8 +651,11 @@ tokenT* hc_gfx_load_transform (exectxT* ex, tokenT* t) {
 void gfx_save_transform(gfx_transformT* s);
 tokenT* hc_gfx_save_transform (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gfx_save_transform(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -487,10 +664,13 @@ tokenT* hc_gfx_save_transform (exectxT* ex, tokenT* t) {
 void gfx_blend_transform(float a, float b, gfx_transformT* trans);
 tokenT* hc_gfx_blend_transform (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-3].as.ptr.block;
 		gfx_blend_transform(
 			ex->stack[ex->sp-3].as.f,
 			ex->stack[ex->sp-2].as.f,
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-3+0);
 
@@ -499,8 +679,11 @@ tokenT* hc_gfx_blend_transform (exectxT* ex, tokenT* t) {
 void gfx_translate(vec3* delta) ;
 tokenT* hc_gfx_translate (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gfx_translate(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -509,10 +692,13 @@ tokenT* hc_gfx_translate (exectxT* ex, tokenT* t) {
 void gfx_translate3(float x, float y, float z);
 tokenT* hc_gfx_translate3 (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-3].as.ptr.block;
 		gfx_translate3(
 			ex->stack[ex->sp-3].as.f,
 			ex->stack[ex->sp-2].as.f,
 			ex->stack[ex->sp-1].as.f);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-3+0);
 
@@ -521,8 +707,11 @@ tokenT* hc_gfx_translate3 (exectxT* ex, tokenT* t) {
 void gfx_identity();
 tokenT* hc_gfx_identity (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-0].as.ptr.block;
 		gfx_identity(
 			);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-0+0);
 
@@ -531,8 +720,11 @@ tokenT* hc_gfx_identity (exectxT* ex, tokenT* t) {
 void gfx_rotate_x(float rad);
 tokenT* hc_gfx_rotate_x (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gfx_rotate_x(
 			ex->stack[ex->sp-1].as.f);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -541,8 +733,11 @@ tokenT* hc_gfx_rotate_x (exectxT* ex, tokenT* t) {
 void gfx_rotate_y(float rad);
 tokenT* hc_gfx_rotate_y (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gfx_rotate_y(
 			ex->stack[ex->sp-1].as.f);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -551,8 +746,11 @@ tokenT* hc_gfx_rotate_y (exectxT* ex, tokenT* t) {
 void gfx_rotate_z(float rad);
 tokenT* hc_gfx_rotate_z (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gfx_rotate_z(
 			ex->stack[ex->sp-1].as.f);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -561,8 +759,11 @@ tokenT* hc_gfx_rotate_z (exectxT* ex, tokenT* t) {
 void gfx_rotate_3x3(gfx_mat_3x3* rot);
 tokenT* hc_gfx_rotate_3x3 (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gfx_rotate_3x3(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -571,10 +772,13 @@ tokenT* hc_gfx_rotate_3x3 (exectxT* ex, tokenT* t) {
 void gfx_scale3(float x,float y, float z);
 tokenT* hc_gfx_scale3 (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-3].as.ptr.block;
 		gfx_scale3(
 			ex->stack[ex->sp-3].as.f,
 			ex->stack[ex->sp-2].as.f,
 			ex->stack[ex->sp-1].as.f);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-3+0);
 
@@ -583,8 +787,11 @@ tokenT* hc_gfx_scale3 (exectxT* ex, tokenT* t) {
 void gxi_refresh_matrix( struct gx_shader_variant_s* shader);
 tokenT* hc_gxi_refresh_matrix (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gxi_refresh_matrix(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -593,8 +800,11 @@ tokenT* hc_gxi_refresh_matrix (exectxT* ex, tokenT* t) {
 void gfx_trans_vec3(vec3* po);
 tokenT* hc_gfx_trans_vec3 (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gfx_trans_vec3(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -603,8 +813,11 @@ tokenT* hc_gfx_trans_vec3 (exectxT* ex, tokenT* t) {
 void gfx_trans_dir_vec3(vec3* pd);
 tokenT* hc_gfx_trans_dir_vec3 (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gfx_trans_dir_vec3(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+0);
 
@@ -613,11 +826,14 @@ tokenT* hc_gfx_trans_dir_vec3 (exectxT* ex, tokenT* t) {
 void gfx_projection3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fardist);
 tokenT* hc_gfx_projection3d (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
 		gfx_projection3d(
 			ex->stack[ex->sp-4].as.f,
 			ex->stack[ex->sp-3].as.f,
 			ex->stack[ex->sp-2].as.f,
 			ex->stack[ex->sp-1].as.f);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-4+0);
 
@@ -626,11 +842,14 @@ tokenT* hc_gfx_projection3d (exectxT* ex, tokenT* t) {
 void gfx_projection2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom);
 tokenT* hc_gfx_projection2d (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
 		gfx_projection2d(
 			ex->stack[ex->sp-4].as.f,
 			ex->stack[ex->sp-3].as.f,
 			ex->stack[ex->sp-2].as.f,
 			ex->stack[ex->sp-1].as.f);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-4+0);
 
@@ -639,9 +858,12 @@ tokenT* hc_gfx_projection2d (exectxT* ex, tokenT* t) {
 zbool zbitmap_cleanup(zbitmapT* bmp);
 tokenT* hc_zbitmap_cleanup (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 	ex->stack[ex->sp-1].as.z32 =
 		zbitmap_cleanup(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+1);
 
@@ -650,12 +872,15 @@ tokenT* hc_zbitmap_cleanup (exectxT* ex, tokenT* t) {
 zbitmapT* zbitmap_mk(zuint32 w, zuint32 h, zuint16 format);
 tokenT* hc_zbitmap_mk (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-3].as.ptr.block;
 	ex->stack[ex->sp-3].as.ptr.block= zbitmap_mk(
 			ex->stack[ex->sp-3].as.z32,
 			ex->stack[ex->sp-2].as.z32,
 			ex->stack[ex->sp-1].as.z32);
 	ex->stack[ex->sp-3].as.ptr.level=0; 
 	ex->stack[ex->sp-3].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-3+1);
 
@@ -664,11 +889,14 @@ tokenT* hc_zbitmap_mk (exectxT* ex, tokenT* t) {
 void zpset4(zbitmapT* bmp, zuint32 x, zuint32 y, zuint32 color);
 tokenT* hc_zpset4 (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
 		zpset4(
 			(void*)((ex->stack[ex->sp-4].as.ptr.block)+(ex->stack[ex->sp-4].as.ptr.offset)),
 			ex->stack[ex->sp-3].as.z32,
 			ex->stack[ex->sp-2].as.z32,
 			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-4+0);
 
@@ -677,11 +905,14 @@ tokenT* hc_zpset4 (exectxT* ex, tokenT* t) {
 zuint32 zpget4(zbitmapT* bmp, zuint32 x, zuint32 y);
 tokenT* hc_zpget4 (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-3].as.ptr.block;
 	ex->stack[ex->sp-3].as.z32 =
 		zpget4(
 			(void*)((ex->stack[ex->sp-3].as.ptr.block)+(ex->stack[ex->sp-3].as.ptr.offset)),
 			ex->stack[ex->sp-2].as.z32,
 			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-3+1);
 
@@ -690,6 +921,7 @@ tokenT* hc_zpget4 (exectxT* ex, tokenT* t) {
 void zline4(zbitmapT *bmp, zuint32 x, zuint32 y, zuint32 x2, zuint32 y2, zuint32 color);
 tokenT* hc_zline4 (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-6].as.ptr.block;
 		zline4(
 			(void*)((ex->stack[ex->sp-6].as.ptr.block)+(ex->stack[ex->sp-6].as.ptr.offset)),
 			ex->stack[ex->sp-5].as.z32,
@@ -698,6 +930,8 @@ tokenT* hc_zline4 (exectxT* ex, tokenT* t) {
 			ex->stack[ex->sp-2].as.z32,
 			ex->stack[ex->sp-1].as.z32);
 
+	cleanCCall(ex, t, firstArg);
+
 	ex->sp+= (-6+0);
 
 	return tnext(t); 
@@ -705,6 +939,7 @@ tokenT* hc_zline4 (exectxT* ex, tokenT* t) {
 void zpblit4(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zuint32 srcw,zuint32 srch);
 tokenT* hc_zpblit4 (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-8].as.ptr.block;
 		zpblit4(
 			(void*)((ex->stack[ex->sp-8].as.ptr.block)+(ex->stack[ex->sp-8].as.ptr.offset)),
 			ex->stack[ex->sp-7].as.z32,
@@ -715,6 +950,8 @@ tokenT* hc_zpblit4 (exectxT* ex, tokenT* t) {
 			ex->stack[ex->sp-2].as.z32,
 			ex->stack[ex->sp-1].as.z32);
 
+	cleanCCall(ex, t, firstArg);
+
 	ex->sp+= (-8+0);
 
 	return tnext(t); 
@@ -722,6 +959,7 @@ tokenT* hc_zpblit4 (exectxT* ex, tokenT* t) {
 void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zuint32 srcw,zuint32 srch, zuint32 color, zuint32 flags);
 tokenT* hc_zpblit4c (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-10].as.ptr.block;
 		zpblit4c(
 			(void*)((ex->stack[ex->sp-10].as.ptr.block)+(ex->stack[ex->sp-10].as.ptr.offset)),
 			ex->stack[ex->sp-9].as.z32,
@@ -734,6 +972,8 @@ tokenT* hc_zpblit4c (exectxT* ex, tokenT* t) {
 			ex->stack[ex->sp-2].as.z32,
 			ex->stack[ex->sp-1].as.z32);
 
+	cleanCCall(ex, t, firstArg);
+
 	ex->sp+= (-10+0);
 
 	return tnext(t); 
@@ -741,6 +981,7 @@ tokenT* hc_zpblit4c (exectxT* ex, tokenT* t) {
 void zpblit4adebug(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zuint32 srcw,zuint32 srch);
 tokenT* hc_zpblit4adebug (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-8].as.ptr.block;
 		zpblit4adebug(
 			(void*)((ex->stack[ex->sp-8].as.ptr.block)+(ex->stack[ex->sp-8].as.ptr.offset)),
 			ex->stack[ex->sp-7].as.z32,
@@ -751,6 +992,8 @@ tokenT* hc_zpblit4adebug (exectxT* ex, tokenT* t) {
 			ex->stack[ex->sp-2].as.z32,
 			ex->stack[ex->sp-1].as.z32);
 
+	cleanCCall(ex, t, firstArg);
+
 	ex->sp+= (-8+0);
 
 	return tnext(t); 
@@ -758,6 +1001,7 @@ tokenT* hc_zpblit4adebug (exectxT* ex, tokenT* t) {
 void zdrawtext4(zbitmapT* dest, zbitmapT* font, char* text, int px, int py, zuint32 color, zuint32 flags);
 tokenT* hc_zdrawtext4 (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-7].as.ptr.block;
 		zdrawtext4(
 			(void*)((ex->stack[ex->sp-7].as.ptr.block)+(ex->stack[ex->sp-7].as.ptr.offset)),
 			(void*)((ex->stack[ex->sp-6].as.ptr.block)+(ex->stack[ex->sp-6].as.ptr.offset)),
@@ -767,6 +1011,8 @@ tokenT* hc_zdrawtext4 (exectxT* ex, tokenT* t) {
 			ex->stack[ex->sp-2].as.z32,
 			ex->stack[ex->sp-1].as.z32);
 
+	cleanCCall(ex, t, firstArg);
+
 	ex->sp+= (-7+0);
 
 	return tnext(t); 
@@ -774,11 +1020,14 @@ tokenT* hc_zdrawtext4 (exectxT* ex, tokenT* t) {
 zbitmapT* zbitmap_load_tga( zchar* f, zuint32 flags);
 tokenT* hc_zbitmap_load_tga (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
 	ex->stack[ex->sp-2].as.ptr.block= zbitmap_load_tga(
 			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
 			ex->stack[ex->sp-1].as.z32);
 	ex->stack[ex->sp-2].as.ptr.level=0; 
 	ex->stack[ex->sp-2].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-2+1);
 
@@ -787,10 +1036,13 @@ tokenT* hc_zbitmap_load_tga (exectxT* ex, tokenT* t) {
 gfx_textureT* gfx_texture_mk(zbitmapT* bmp);
 tokenT* hc_gfx_texture_mk (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 	ex->stack[ex->sp-1].as.ptr.block= gfx_texture_mk(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
 	ex->stack[ex->sp-1].as.ptr.level=0; 
 	ex->stack[ex->sp-1].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+1);
 
@@ -799,9 +1051,12 @@ tokenT* hc_gfx_texture_mk (exectxT* ex, tokenT* t) {
 void gfx_texture_scaler(gfx_textureT* image, int scaler);
 tokenT* hc_gfx_texture_scaler (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
 		gfx_texture_scaler(
 			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
 			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-2+0);
 
@@ -810,8 +1065,11 @@ tokenT* hc_gfx_texture_scaler (exectxT* ex, tokenT* t) {
 void gxi_new_texture_set();
 tokenT* hc_gxi_new_texture_set (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-0].as.ptr.block;
 		gxi_new_texture_set(
 			);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-0+0);
 
@@ -820,9 +1078,12 @@ tokenT* hc_gxi_new_texture_set (exectxT* ex, tokenT* t) {
 zuint32 gxi_add_texture(gfx_textureT* tex);
 tokenT* hc_gxi_add_texture (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 	ex->stack[ex->sp-1].as.z32 =
 		gxi_add_texture(
 			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+1);
 
@@ -831,8 +1092,11 @@ tokenT* hc_gxi_add_texture (exectxT* ex, tokenT* t) {
 void gxi_texture_complete();
 tokenT* hc_gxi_texture_complete (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-0].as.ptr.block;
 		gxi_texture_complete(
 			);
+
+	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-0+0);
 
@@ -845,6 +1109,10 @@ void set_handlers(){
 	mkSymbol(global, "C_fclose", tPrimitive, hc_fclose);
 	mkSymbol(global, "C_fwrite", tPrimitive, hc_fwrite);
 	mkSymbol(global, "C_fread", tPrimitive, hc_fread);
+	mkSymbol(global, "C_zrand", tPrimitive, hc_zrand);
+	mkSymbol(global, "C_zrandf", tPrimitive, hc_zrandf);
+	mkSymbol(global, "C_store16", tPrimitive, hc_store16);
+	mkSymbol(global, "C_load16", tPrimitive, hc_load16);
 	mkSymbol(global, "C_zw_enqueue", tPrimitive, hc_zw_enqueue);
 	mkSymbol(global, "C_zw_queued", tPrimitive, hc_zw_queued);
 	mkSymbol(global, "C_zw_event", tPrimitive, hc_zw_event);
@@ -909,8 +1177,12 @@ void set_handlers(){
 	mkSymbol(global, "C_gxi_new_texture_set", tPrimitive, hc_gxi_new_texture_set);
 	mkSymbol(global, "C_gxi_add_texture", tPrimitive, hc_gxi_add_texture);
 	mkSymbol(global, "C_gxi_texture_complete", tPrimitive, hc_gxi_texture_complete);
+	addCSize("zuint16", sizeof(zuint16));
 	addCSize("zeventT", sizeof(zeventT));
 	addCSize("zeventT_type", offsetof(zeventT,type));
 	addCSize("zeventT_a", offsetof(zeventT,a));
 	addCSize("zeventT_b", offsetof(zeventT,b));
+	addCSize("zbitmapT", sizeof(zbitmapT));
+	addCSize("zbitmapT_w", offsetof(zbitmapT,w));
+	addCSize("zbitmapT_h", offsetof(zbitmapT,h));
 }
