@@ -1100,7 +1100,7 @@ tokenT* hstoreptr (exectxT* ex, tokenT* t) {  //store a pointer
 #ifdef EXEDEBUG
 		xprintf(" storeptr: free block in destination address  %p\n", DEREF(vptrT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset).block);
 #endif
-		(DEREF(vptrT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset).block);
+		ram_free(DEREF(vptrT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset).block);
 	}
 
 
@@ -3068,13 +3068,21 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			//xprintf(" array element size %d\n", t->val.as.n32);
 
-			insert_after(t, mkToken('@', "@", 1)); //read the item ( The next parsed token, might remove this, if it wants to store or manipulate the pointer)
+			if (t->ty->ref->category != STRUCT) {
+				//if t->ty->ref is a STRUCT< then t->ty is a pointer to a struct... we have an array of structs.  Can't load a struct, so don't load it. [] on an array of structs returns a pointer to the nth element
+				//If it was an array of pointers to structs, then ty->ref->category is a pointer to pointer to a struct, 
+
+				insert_after(t, mkToken('@', "@", 1)); //read the item ( The next parsed token, might remove this, if it wants to store or manipulate the pointer)
+			}
 
 			t = tnext(t);
 			continue;
 
 
 		case '@':
+
+			if (parseDebugFlag)
+				boo();
 
 			//if next token is &, remove both (cancels to just leave the pointer)
 			//varname  puts varname
@@ -3087,11 +3095,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				continue;
 			}
 
-			//if next token is assignment, remove the '@' token
+			
 			switch (tnext(t)->tok) {
 
 
-
+				//if next token is assignment, remove the '@' token
 			case '=':
 				t = tnext(t);
 				ram_free(tremove(ts));
@@ -3099,6 +3107,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			}
 
+			//next token is struct member
 			if (tnext(t)->str && tnext(t)->str[0] == '.'
 				&& tprev(t)->ty
 				&& tprev(t)->ty->ref
@@ -3112,6 +3121,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				ram_free(tremove(ts));
 				continue;
 			}
+
+			
 
 			//read function arguments from the stack (Note: function args are READONLY...)
 			if (tprev(t)->tok == STACKARG) {
@@ -3214,8 +3225,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			break;
 
 		case '=':  //try to handle storing ptr to ptr.  Top of stack has a pointer to the pointer var
-			if (parseDebugFlag)
-				boo();
+			
 
 			//handle     @= case.... if '@' a pointer to get a variable, and store to the variable...
 			//  pointervar =         //writes a pointer to a pointer variable

@@ -18,6 +18,10 @@ type Sprite
     ph:     Z32;
 end
 
+
+
+
+
 proc LoadSprite:(filename:String&; left:Z32; top:Z32; w:Z32; h:Z32  ->Sprite%)
 
     MkStyle                             #style
@@ -190,6 +194,9 @@ proc Draw:(e:Entity&->)
 end
 
 
+
+
+
 [Z32] ZKEY_LASTKEY new #Keys
 proc IsPressed:(key:Z32->Bit)
     Keys key[] 1 == return
@@ -208,65 +215,36 @@ var ev:ZEvent;
 window  "color:4|position:3|texcoord:2" TempVBuffer #vb
 
 "../../Zcore-data/font32.tga" ZTGA_TOP BitmapLoadTGA #bbb
+
 bbb keep CreateTexture  #fonttexture
 
 
-
-    type vec2
-        x:Real;
-        y:Real;
-    end
-
-        type matrix2
-            topRow:vec2;
-            bottomRow:vec2;
-        end
-        
-          type matrix2p
-            topRow:vec2%;
-            bottomRow:vec2%;
-        end
-    
-      proc print:(v:vec2&->)
-      
-      
-      
-            "(" print v.x print "," print v.y print ")" print
-            return
-        end
-        
-        
-        var mmm:matrix2;  //make a matrix2 variable.
-
-        mmm
-        10.0 mmm.bottomRow.x =
-        22.0 mmm.bottomRow.y =
-        
-        mmm.bottomRow print
-        
-        var ppp:matrix2p;
-        vec2 new ppp.topRow=
-        300.0 ppp.topRow.x=
-        400.0 ppp.topRow.y=
-        
-        ppp.topRow print
-        
         
        
 "asteroids/ship.tga" 0 0 64 64  LoadSprite #shipsprite
 var ship:Entity;
 
 shipsprite keep ship.sprite =
-20.0 ship.r=
+
+16.0 ship.r=
 64.0 ship.w=
 64.0 ship.h=
-500.0 ship.x=
-350.0 ship.y=
+
 0.1  ship.adampening=  
 
-1.0 ship.vx=
--2.0 ship.vy=
--1.0 ship.vangle=
+proc ResetShip:(->)
+    500.0 ship.x=
+    350.0 ship.y=
+    0.0 ship.vx=
+    0.0 ship.vy=
+    0.0 ship.vangle=
+    0.0 ship.angle=
+    return
+end
+
+ResetShip
+
+
 
 [Sprite%] 3 new #rocksprites
 
@@ -278,14 +256,15 @@ shipsprite keep ship.sprite =
 1.0 #MAXVRAND
 1.0 #MAXARAND
 
+100 #mr
 10 #rc
-[Entity] rc  new #rocks
+[Entity] mr  new0 #rocks
 
 "boo " print newline
 0#i loop 
 
-    i rocks size >= if break end
-    i print newline
+    i rc >= if break end
+
     
     
     0.0 GW RandomReal rocks i[].x=
@@ -298,12 +277,13 @@ shipsprite keep ship.sprite =
        
     64.0 rocks i[].w=
     64.0 rocks i[].h=   
-       
+    24.0 rocks i[].r=
     
     rocksprites   RandomZ32 rocksprites count mod[]  keep      rocks i[].sprite=
         
     i&++
 end
+i rocks setcount
 
 "boo2 " print newline
 
@@ -351,22 +331,134 @@ loop
     ship Move
     ship Draw
     
+    proc Square:(a:Real->Real)
+        a a * return
+    end
+    
+    proc Collide:(a:Entity&; b:Entity& ->Bit)
+    
+        a.x b.x - Square
+        a.y b.y - Square + sqrt 
+                      a.r b.r +  < if
+                                        1:Bit return
+        end
+        
+        0:Bit return
+    
+    end
+   
+   proc EntCopy:(last: Entity&; nth: Entity& ->)
+   
+        last.w nth.w=
+        last.h nth.h=
+        last.x nth.x=
+        last.y nth.y=
+        last.vx nth.vx=
+        last.vy nth.vy=
+        last.angle nth.angle=
+        last.vangle nth.vangle=
+//        nth.sprite take trash
+        last.sprite take nth.sprite=
+
+        return
+    end
+    
+   proc RockRemove:(n:Z32->)
+   
+   
+   
+   
+        rocks rocks count 1- []
+        rocks n[] EntCopy
+   
+        rocks rocks count 1 - rocks setcount
+   
+        //todo:last rock, wins
+        return
+   end
+  
+    
+    proc RockSplit:(n:Z32->)
+    
+
+        rocks n[].r  2.0/ #r r 5.0 <= if
+            n RockRemove
+            return
+        end
+        
+        r rocks n[].r=
+        
+        
+        
+        10.0 rocks n[].r=
+        
+        rocks n[].w  2.0/ #hx hx  rocks n[].w =
+        rocks n[].h  2.0/ #hy hy rocks n[].h =
+       
+        rocks count  1+  rocks size >= if
+            return
+        end
+       
+        r rocks rocks count [].r=
+         
+    
+    
+        rocks n[].x rocks rocks count [].x=        
+        rocks n[].y rocks rocks count [].y=
+        
+        hx rocks rocks count[].w=
+        hy rocks rocks count[].h=
+        
+        
+        MAXVRAND.- MAXVRAND RandomReal rocks rocks count[].vx=
+        MAXVRAND.- MAXVRAND RandomReal rocks rocks count[].vy=
+        MAXVRAND.- MAXARAND RandomReal rocks rocks count[].vangle=
+    
+        
+        
+        rocks n[].sprite keep rocks rocks count[].sprite= 
+        
+        
+        rocks count 1 + rocks setcount
+        return
+    
+    end
     
     
     0i= loop 
     
     
     
-        i rocks size >= if break end
-        rocks i[]& Move
     
-        rocks i[]&      Draw
+       
+        i rocks count >= if break end
+    
+        //check against player
+        
+        rocks i[] ship Collide if
+            1 #die
+            i RockSplit
+            break
+        end
+    
+                
+        
+        rocks i [] Move
+        
+    
+        //draw
+        rocks i[]  Draw
         i&++
+        
     end
     
-
+    die 1 == if
+        ResetShip
+    end
+    0 die=
+    
+    
     window UpdatePixels
     
    
-
 end
