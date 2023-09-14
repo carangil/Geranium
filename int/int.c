@@ -827,7 +827,7 @@ typedef struct symbolS{
 	tokenT* tokens;
 	struct parsectxS* subctx; //procs have their own parsecontext for their local vars
 	int isPrototype;// true if this symbol is just a function prototype
-	int isSelector;// true if this symbol is a function selector
+	int isSelector;// 1 if symbol is a function selector, 2 is is a data selector
 	int selectorArg; //if this is a selector, which arg does the function lookup
 	int selectorNum;  //which selector (nth) is this?
 } symbolT;
@@ -903,13 +903,16 @@ symbolT* findSymbol(zvecT* table, char* name, zvecT* typelist){
 
 
 symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction handler){
-	zvecT* table = pctx->symbols;
+	zvecT* table = NULL;
+	
+	if (pctx)
+		table = pctx->symbols;
 	
 	symbolT* sym;
 		
 	if (type->category == FUNCTION){
-		//search for function of same name, same inputs
-	} else if (findSymbol(table, name, NULL)){
+		//todo search for function of same name, same inputs
+	} else if (table &&  findSymbol(table, name, NULL)){
 			ERR(" Attempt to redefine %s in same context\n", name);
 	}	
 	
@@ -925,13 +928,16 @@ symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction h
 	sym->name = zstrdup(name);
 	sym->type = type;
 	sym->handler = handler;
-	sym->offset = pctx->size;
-	
-	pctx->size += type->size; //add context u
-	
-	xprintf(" SYMBOL %s at offset %d  , total symbols %d bytes\n", sym->name, sym->offset, pctx->size);
-	
-	return zvec_add_or_free(table, sym);
+	if (pctx) {
+		sym->offset = pctx->size;
+		pctx->size += type->size; //add context u
+
+		xprintf(" SYMBOL %s at offset %d  , total symbols %d bytes\n", sym->name, sym->offset, pctx->size);
+	}
+	if (table)
+		return zvec_add_or_free(table, sym);
+	else
+		return sym;
 }
 
 void printSymbols(zvecT* table , char* label){
@@ -1192,6 +1198,20 @@ tokenT* hoffsetptr (exectxT* ex, tokenT* t) { //add constant offset to pointer
 
 	ex->stack[ex->sp-1].as.ptr.offset += t->val.as.n32;
 	
+	return tnext(t);
+}
+
+tokenT* hselectorptr(exectxT* ex, tokenT* t) { //add constant offset to pointer by selector
+
+	exe(ex, tsub(t));
+
+	typeT* seltable = ex->stack[ex->sp - 1].typeselector;
+	symbolT* selected = zvec_get_at(seltable->selectors, t->val.as.n32); //grab the nth function from the selector table
+
+
+	ex->stack[ex->sp - 1].as.ptr.offset += selected->offset;
+
+
 	return tnext(t);
 }
 
@@ -2354,7 +2374,7 @@ void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmemb
 		return; //already found all the functions for it
 	
 	real_type_vmember->selectors = zvec_mk(NULL, zvec_count(vtype->selectors)); 
-	zvec_disown(real_type_vmember->selectors);
+	//zvec_disown(real_type_vmember->selectors);
 
 	int n;
 	for (n = 0; n < zvec_count(vtype->selectors); n++) {
@@ -2362,6 +2382,35 @@ void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmemb
 		xprintf(" Need to find member %s implementation of %s ",
 			real_type->name,
 			vselector->name);
+
+		if (vselector->isSelector == 2) {  //if data selector
+			
+			//find offset in real type member
+			int j;
+			for (j = 0; j < zvec_count(real_type->members); j++) {
+				typeT* member = zvec_get_at(real_type->members, j);
+				if (!strcmp(member->name, vselector->name)) {
+					if (member->ref == vselector->type) {
+						printf(" found\n");
+						//make a symbol for it.
+						symbolT* s = mkSymbol(NULL, member->name, vselector->type, NULL); //todo: instruction handler for access?
+						s->offset = member->offset;
+						zvec_add(real_type_vmember->selectors, s); //add the found function to the real type's virtual field for the virtual type
+						break;
+					}
+					else
+					{
+						ERR(" Type of %s mismatch in %s and %s\n", vselector->name, real_type->name, vtype->name);
+					}
+
+				}
+			}
+			if (j == zvec_count(real_type->members))
+				ERR("Type %s does not contain %s's field %s\n", real_type->name, vtype->name, vselector->name);
+
+			continue;
+		}
+
 		xprintf(" subst arg %d\n", vselector->selectorArg);
 		printType(vselector->type, ZTRUE, ZFALSE);
 		int arg;
@@ -2394,7 +2443,7 @@ void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmemb
 				ERR("");
 			}
 
-			zvec_add(real_type_vmember->selectors, s); //add the found function to the real type's virtual field for the virtual type
+			zvec_add(real_type_vmember->selectors, ram_addref(s)); //add the found function to the real type's virtual field for the virtual type
 
 		}
 		else {
@@ -2491,6 +2540,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		if (parseDebugFlag)
 			boo();
 
+		int dataselector = 0;
 		switch (t->tok) {
 
 		case '!':
@@ -2530,8 +2580,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//When calling a virtual proc, The 'selector' argument the one whose method table is searched
 			if ((t->tok == NAME) && (t->str) && (tnext(t)->tok == ';')) {
 
-				if (ts->tok == KVIRTUAL)
-					mkType(VIRTUAL, NULL, t->str, 0);
+				if (ts->tok == KVIRTUAL) {
+					typeT* vt = mkType(VIRTUAL, NULL, t->str, 0);			
+						vt->selectors = zvec_mk(NULL, 4);
+						//zvec_disown(vt->selectors);
+				}
 				else if (ts->tok == KCDATA)
 					mkType(CDATA, NULL, t->str, 0); //CDATA has  no size AND  possessive/user pointers to Cdata are vptrs like any other
 				else
@@ -2546,10 +2599,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			continue;
 
 
-			//
-
-
-
+		
 
 		case KSELECTOR:		//proc selector
 		case KPRIMITIVE:	//primitive declaration
@@ -2557,11 +2607,17 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			xprintf(" Alias is %s\n", tnext(t)->str);
 			name2 = ram_addref(tnext(t)->str);
 
+			
 
 			typeT* type = NULL;
 
-			ram_free(tremove(tnext(t))); //remove '/'
+ 			ram_free(tremove(tnext(t))); 
+			
+			if ( t->tok == KSELECTOR &&  tnext(t)->tok == NAME && tnext(t)->str[0]=='.') {
+				printf(" data selector for %s\n", name2);
 
+				dataselector = 1;
+			}
 
 			//fall through to var/proc decl
 		case KVAR:		//variable declaration
@@ -2580,9 +2636,15 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 
 			} 
+
 			name = tnext(t)->str;
+			
 
 			t = parseVar(tnext(t), &name, &type); //parse variable; name is required
+
+			if (dataselector)
+				name++;
+
 
 			xprintf("proc/var %s   %s is type ", ts->str, name);
 			printType(type, 1, 1);
@@ -2624,15 +2686,16 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			}
 
-			if (!s)
+			if (!s && !dataselector) {
 				s = mkSymbol(pc, name, type, handler);
+			}
 
 			if (ts->tok == KPROTO) {
 				s->isPrototype = 1;
 				s->handler = hcall;	//will eventually be a function call
 			}
 
-			if (ts->tok == KSELECTOR) {
+			if (ts->tok == KSELECTOR && !dataselector) {
 				s->isSelector = 1;
 				s->handler = hcall;	//will eventually be a function call
 				//find which argument is the selector type
@@ -2647,12 +2710,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							ERR(" Virtual types can only by passed by pointer\n");
 						}
 
-						if (!pt->ref->selectors) {
-							pt->ref->selectors = zvec_mk(NULL, 4);
-							zvec_disown(pt->ref->selectors);
-						}
+						
 						s->selectorNum = zvec_count(pt->ref->selectors); //track which selector this is
-						zvec_add(pt->ref->selectors, s);
+						zvec_add(pt->ref->selectors, ram_addref(s));
 						s->selectorArg = i;
 						printType(pt->ref, ZTRUE, ZTRUE);
 
@@ -2661,6 +2721,19 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				}
 				if (i == zvec_count(s->type->members))
 					ERR("No such arg %s\n", name2);
+			}
+			if (dataselector) {
+ 				//char* stmp = zstrdup2(name2, name);
+				//s = mkSymbol(pc, stmp, type, handler);
+ 				s = mkSymbol(NULL, name, type, handler);
+				//add to the selector table
+				s->isSelector = 2;
+			//	s->handler = hdataselect;
+
+				typeT* vt = findType(VIRTUAL, NULL, name2, 0);
+
+				s->selectorNum = zvec_count(vt->selectors); //track which selector this is
+				zvec_add(vt->selectors, s);
 			}
 
 			if (ts->tok == KPROC)
@@ -2687,7 +2760,12 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				ERR(" missing ;\n");
 			}
 
+			if (t->tok == KEND) {
+				
+			}
+
 			t = tnext(t); //skip past semicolon (or 'end')
+			
 			lfold(ts, t);  //everything up to an including semicolon folded
 			if (!s->isPrototype)
 				s->tokens = ram_addref(ts); //symbol has this tokenstream
@@ -2967,13 +3045,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						}
 					}
 					if (j == zvec_count(from->ref->members)) {
-						ERR("Not supported\n");
+						ERR("Struct does not contain selector member for \n" );
 					}
 					continue;
 
 				}
 				else
-					ERR(" only pointers can be casted to virtual\n");
+					ERR(" only pointers (of the same pointers can be casted to virtual, & to & and % to %\n");
 
 
 			}
@@ -3554,7 +3632,52 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				//xprintf(" dot\n");
 							
 				typeT* ptype = tprev(t)->ty;
+
+				//if we have a pointer to virtual
+				if (ptype && (ptype->category == POINTERUSER) && (ptype->ref) && (ptype->ref->category == VIRTUAL)) {
+
+					printf(" access in virtual type \n");
+					int j;
+					int found = 0;
+					for (j = 0; j < zvec_count(ptype->ref->selectors); j++) {
+						symbolT* s = zvec_get_at(ptype->ref->selectors, j);
+						//todo: check it really is a data selector
+						if (!strcmp(s->name, t->str + 1)) {
+							//get real type selector table
+							t->handler =  hselectorptr;
+
+							t->val.as.n32 = s->selectorNum;
+							t->ty = findType(POINTERUSER, s->type, NULL, 0);//
+							found = 1;
+							break;
+										
+
 						
+
+						}
+
+					}
+
+					if (found) {
+
+						/* This part is copied from below for struct members */
+						t->trackpossptr = tprev(t)->trackpossptr;  //if was tracking from a possessive pointer, still track this pointer is derived from that
+						fold(tprev(t), t);
+
+						//for static arrays or substructs (that are embedded (not pointers)) then the pointer addition already made a pointer to the substruct/array.  For other cases (it is a pointer to a struct, integer, etc) then insert a load token.  
+						if ((t->ty->ref->category != ARRAYSTATIC) && (t->ty->ref->category != STRUCT)) {
+							tokenT* tn = mkToken('@', "@", 1);  //load the variable
+							insert_after(t, tn);
+						}
+						/* end copy*/
+
+						t = tnext(t);
+						continue;
+					}
+
+				}
+
+
 				//if we have a pointer to a struct..
 				if (ptype && (ptype->category == POINTERUSER)   && (ptype->ref) && (ptype->ref->category==STRUCT)){
 				
@@ -3572,6 +3695,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						t->val.as.n32 = m->offset;
 						t->ty = findType(POINTERUSER, m->ref, NULL,0); //find pointer to the member type
 						
+						/* This part is copied above for data selectors */
 						t->trackpossptr = tprev(t)->trackpossptr;  //if was tracking from a possessive pointer, still track this pointer is derived from that
 						fold(tprev(t),t);
 						
@@ -3580,7 +3704,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							tokenT* tn = mkToken('@', "@", 1);  //load the variable
 							insert_after(t, tn);
 						}
-						
+						/* end copy*/
 						t=tnext(t);
 						
 						//printList(tprev(tprev(tpis& :[Z32]& :any& printrev(ts))), t, NULL, 3);

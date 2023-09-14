@@ -124,6 +124,11 @@ char* zstrcombine(char* left, char* right){
 	return newleft;
 }
 
+char* zstrdup2(char* left, char* right) {
+	char* ns = zstrndup(left, strlen(left) + strlen(right));
+	ns = zstrcat(ns, right);
+	return ns;
+}
 
 //split string into vector of string, by delim.
 //if delim not found, returns vector of 1 string

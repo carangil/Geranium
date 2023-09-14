@@ -1,0 +1,249 @@
+"base/base.zz" include
+cpointer Void;
+"gen.zz" include
+
+//"gfxgl.zz" include
+
+//using virtual type as a function pointer
+
+virtual Op;
+selector op Do:(a:Z32; op:Op& ; b:Z32 ->Z32);   //the type of 'op' ... the selector arg, 
+
+
+type Plus
+    o:Op;
+end
+proc Do:(a:Z32; op:Plus&; b:Z32 -> Z32)
+    a b + return
+end
+
+
+type Times
+    o:Op;
+end
+proc Do:(a:Z32; op:Times&; b:Z32 -> Z32)
+    a b * return
+end
+
+//These aren't actually necesssary, since Plus and Times types don't actually contain any information.  The selcetor
+//var P:Plus;
+//var T:Times;
+
+
+
+0:Plus&:Op& #f      //Here, 0 is cast into a lLus&... which is a NULL pointer to a Plus struct.  :Op& then casts the NULL pointer to on Op&.  The NULL pointer now contains a 
+
+
+0:Plus&:Op& #g
+
+
+5 f 10 Do g 20 Do print newline
+
+0:Times&:Op& f=
+
+5 f 10 Do g 20 Do print newline
+
+
+//make it make more sense:
+
+virtual FuncPointer; selector p Call:(a:Z32; p: FuncPointer&     -> Z32); 
+
+type Add10 add10:FuncPointer; end proc Call:(a:Z32; p:Add10& -> Z32)
+    a 10 + return
+end
+
+type Square square:FuncPointer; end proc Call:(a:Z32; p:Square& -> Z32)
+    a a * return
+end
+
+var fp:FuncPointer&;
+var gp:FuncPointer&;
+
+0:Add10&:FuncPointer&   fp=
+0:Square&:FuncPointer&  gp=
+
+5 fp Call print newline
+9 gp Call print newline
+
+////////
+
+
+//double dispatch
+
+virtual V;
+selector v F:( v:V&; v2:V& ->);
+
+type A
+    v:V;
+end
+type B
+    v:V;
+end
+
+
+
+//second level dispatch
+
+//A first case
+
+selector v G:(a:A&;v:V& -> );
+proc G:(a:A&; a2:A& -> )
+    "first a; second a" print newline
+    return
+end
+ 
+
+proc G:(a:A&; b:B& -> )
+    "first a; second b" print newline
+    return
+end
+
+
+//B first case
+selector v G:(b:B&;v:V& -> );
+proc G:(a:B&; b2:B& -> )
+    "first b; second b" print newline
+    return
+end
+ 
+
+proc G:(a:B&; a:A& -> )
+    "first b; second a" print newline
+    return
+end
+    
+
+
+//first level dispatch
+
+proc F:(a:A&; v:V& ->)
+    "first A " print
+    a v G
+    return
+end
+
+
+
+proc F:(b:B&; v:V& ->)
+    "first B " print 
+    b v G
+    return
+end
+
+    
+0:A&:V& #aa
+0:B&:V& #bb
+
+aa aa F
+aa bb F
+bb aa F
+bb bb F
+
+
+virtual E;
+selector e FF:(e:E&->);
+
+
+//Data selectors
+
+
+virtual D;
+
+selector d F:( d:D& -> );  //proc selector
+selector D.xx:Z32;    ///every D object has the field xx
+
+
+type P
+    
+    a:Z32;
+    xx:Z32;
+    d:D; 
+    e:E;    //also supports E
+end
+
+
+
+type Q
+    
+    xx:Z32;
+    d:D;
+end
+
+
+proc F:(p:P&->)
+    55 p.xx=
+    "F called on P xx=" print  p.xx print newline
+    
+    return
+end
+
+
+
+
+var p:P;
+
+
+proc FF:(pi:P&->)
+
+ 
+        
+    
+    "call FF " print newline
+    return
+end
+
+
+
+Q new #q    //create the variable
+
+
+var Dq: D%;
+
+proc F:(qi:Q&->) //method added after variable created! (as long as it exists before the first call or cast to virtual type, its ok
+    66 qi.xx=
+    "F called on Q xx=" print  qi.xx print newline
+    
+    //free the global Q (which would make the qi reference invalid BUT it was addreffed before calling this function
+    "Dq is valid   " print Dq :any& print newline
+    Dq take trash
+    "Dq is now null  in F" print Dq :any& print newline
+    " qi = " print qi:any& print newline  //this function (actualler the caller's addref on the pointer on the stack) has the last remaining reference.  Object released when this function returns
+    
+    return
+end
+
+
+
+
+p:D& F
+
+p:D& #Dp
+q take:D%  Dq=  // #Dq
+
+Dp F
+Dq F
+
+"Dq is now null  " print Dq :any& print newline
+
+0:Bit if
+
+    Dp.xx  print newline
+    Dq.xx  print newline
+
+    proc G:(d:D&->)
+
+        "call G on virtual D .xx=" print
+        d.xx print newline 
+        d F //call into the different versions of this function
+        " ^^ called through D selector" print newline
+        return
+    end
+
+    Dp G
+    Dq G
+
+
+
+    p:E& FF
+
+end

@@ -37,3 +37,5 @@ char* zstrcatsub(char* dest, char* src, zsize start, zsize count);
 //like zstrcat, but frees the right hand side (combines a zstring on the left with any allocated string on the right (can be a zstring or a cstring that was allocated with the same malloc)
 char* zstrcombine(char* left, char* right);
 
+//creates a new zstring from 2 C strings together
+char* zstrdup2(char* left, char* right);
