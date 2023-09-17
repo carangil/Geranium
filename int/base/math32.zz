@@ -16,6 +16,7 @@ primitive equal32	==:(a:Z32; b:Z32 -> Bit);
 primitive notequal32	!=:(a:Z32; b:Z32 -> Bit);
 primitive load32	@:(a:Z32& 	-> Z32);
 primitive store32	=:(v:Z32; a:Z32&-> );
+primitive store32np	#=:(v:Z32; a:Z32&->Z32);
 primitive neg32		.-:(v:Z32 -> Z32 );
 primitive invert32	not:(v:Z32 -> Z32 );
 primitive boolnot	not:(a:Bit -> Bit);

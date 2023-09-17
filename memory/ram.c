@@ -276,7 +276,7 @@ void ram_free(void* thing)
 void* ram_addref(void* thing)
 {
 	mem_headerT* header = (mem_headerT*) thing;
-
+	char* asStringForDebuggerView = thing;
 	if (thing == flagged && thing && abyss)
 		abyss(thing);
 

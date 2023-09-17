@@ -282,7 +282,7 @@ zbool tokenize(tokenT* insert, char* in){
 			line++;
 
 		//find twochar patterns like ->,etc. including comment start/end markers
-		if ((p = findPair("<<>>--++->==/**///[]>=<=!=.-", c, next))){
+		if ((p = findPair("--++==->/**///[]>=<=!=.-###=", c, next))){
 			if (  p == PAIR('/','/')  ) { //special handling for // comments
 				while(*in!= '\n')
 					in++;
@@ -1130,6 +1130,18 @@ tokenT* hstoreptr (exectxT* ex, tokenT* t) {  //store a pointer
 	return tnext(t);
 }
 
+tokenT* hstoreptrnp(exectxT* ex, tokenT* t) {
+
+	//store the pointer
+	tokenT* nt = hstoreptr(ex, t);
+	ex->sp++;  //unpop the value stored
+
+	if (t->val.as.n32 & 1) {	//was storing possessive, so addref the value that was stored
+		ram_addref(ex->stack[ex->sp - 1].as.ptr.block);
+	}
+
+	return nt;
+}
 
 //tokenT* hcall (exectxT* ex, tokenT* t);
 //tokenT* hreturn (exectxT* ex, tokenT* t);
@@ -1324,6 +1336,12 @@ tokenT* hstore32 (exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
+tokenT* hstore32np(exectxT* ex, tokenT* t) {
+
+	tokenT* next = hstore32(ex, t);
+	ex->sp++; //put item back on stack
+	return next;
+}
 
 tokenT* hloadcptr(exectxT* ex, tokenT* t) {
 
@@ -1581,6 +1599,7 @@ void addhandlers(struct parsectxS* pctx){
 	//special
 	HANDLER(pctx, load32);
 	HANDLER(pctx, store32);
+	HANDLER(pctx, store32np);
 	HANDLER(pctx, load8);
 	HANDLER(pctx, store8);
 	HANDLER(pctx, fload);
@@ -2541,6 +2560,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			boo();
 
 		int dataselector = 0;
+		int nopop = 0;
 		switch (t->tok) {
 
 		case '!':
@@ -2774,6 +2794,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			continue;
 
 		case '#':	//create variable of whaatever type is on the stack, and store 
+		case PAIR('#', '#'):
 			t = tnext(t); //is variable name
 
 			if (pc == global)
@@ -2785,7 +2806,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//don't do t=tnext(t). This way t, which contains the name of the var,
 			//will be parsed again, and that will make a 'load' token.
 			//so insert a token after this so that it makes it a store
-			zlist_insert_node_after(t, mkToken('=', "=", 0));
+
+			if (ts->tok == PAIR('#','#'))
+				zlist_insert_node_after(t, mkToken('#=', "#=", 0));
+			else
+				zlist_insert_node_after(t, mkToken('=', "=", 0));
 			fold(ts, t);
 			continue;
 		case KRETURN:
@@ -3179,6 +3204,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 				//if next token is assignment, remove the '@' token
 			case '=':
+			case PAIR('#', '='):
 				t = tnext(t);
 				ram_free(tremove(ts));
 				continue;
@@ -3302,7 +3328,12 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//other '@' cases that aren't handled where are done via primitive handlers
 			break;
 
-		case '=':  //try to handle storing ptr to ptr.  Top of stack has a pointer to the pointer var
+		case PAIR('#', '='): //store without pop
+			nopop = 1;
+		case '=': //store
+		
+			
+			//try to handle storing ptr to ptr.  Top of stack has a pointer to the pointer var
 			
 
 			//handle     @= case.... if '@' a pointer to get a variable, and store to the variable...
@@ -3316,9 +3347,15 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						t->val.as.n32 = 8; //save virtual part too
 
 					fold(tprev(tprev(t)), t);
-					t->handler = hstoreptr;
-
+					if (nopop)
+						t->handler = hstoreptrnp;
+					else
+						t->handler = hstoreptr;
+					
 					//TODO check level
+					
+					if (nopop)
+						t->ty = tprev(tprev(t))->ty;
 
 					t = tnext(t);
 					continue;
@@ -3334,8 +3371,14 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 
 					fold(tprev(tprev(t)), t);
-					t->handler = hstoreptr;
-					t->val.as.n32 |= 1; //flag to free the pointer being overwritten
+					if (nopop)
+						t->handler = hstoreptrnp;
+					else
+						t->handler = hstoreptr;
+					t->val.as.n32 |= 1; //flag to free the pointer being overwritten.
+
+					if (nopop)
+						t->ty = tprev(tprev(t))->ty;
 
 					t = tnext(t);
 					continue;
@@ -3346,8 +3389,15 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (tprev(t)->ty && (tprev(t)->ty->category == POINTERUSER) && (tprev(t)->ty->ref->category == CPOINTER)) { //pointer to Cpointer
 				if (tprev(tprev(t))->ty->category == CPOINTER) {  //cpointer
 					fold(tprev(tprev(t)), t);
-					t->handler = hstorecptr;
+					if (nopop)
+						t->handler = hstoreptrnp;
+					else
+						t->handler = hstoreptr;
 					t = tnext(t);
+
+					if (nopop)
+						t->ty = tprev(tprev(t))->ty;
+
 					continue;
 				}
 			}

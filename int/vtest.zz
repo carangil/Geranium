@@ -218,7 +218,7 @@ end
 p:D& F
 
 p:D& #Dp
-q take:D%  Dq=  // #Dq
+q take:D%  Dq=  
 
 Dp F
 Dq F
@@ -247,3 +247,7 @@ Dq F
     p:E& FF
 
 end
+
+10 ##x  print
+newline
+
