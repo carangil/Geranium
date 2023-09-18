@@ -400,6 +400,7 @@ typedef struct typeS{
 	zuint32 len; //for definite arrays, 0 for indefinite arrays
 	zuint32 offset; //for struct members (byte position)
 	struct typeS* ref; //array or pointer types, or function return type
+	struct typeS* parent;	//'parent' type, only for members, only in certain situations (currently when finding the 'real' type behind a virtual)
 	zvecT* members;  //(typeT*) structs or function parameters
 	zvecT* selectors; //(symbolT*)  function selectors
 	int trashAfterPrimitive; //only for function args, only when passing %pointer
@@ -1136,7 +1137,7 @@ tokenT* hstoreptrnp(exectxT* ex, tokenT* t) {
 	tokenT* nt = hstoreptr(ex, t);
 	ex->sp++;  //unpop the value stored
 
-	if (t->val.as.n32 & 1) {	//was storing possessive, so addref the value that was stored
+	if (t->val.as.n32 & 16) {	//was storing possessive, so addref the value that was stored
 		ram_addref(ex->stack[ex->sp - 1].as.ptr.block);
 	}
 
@@ -1220,6 +1221,10 @@ tokenT* hselectorptr(exectxT* ex, tokenT* t) { //add constant offset to pointer 
 	typeT* seltable = ex->stack[ex->sp - 1].typeselector;
 	symbolT* selected = zvec_get_at(seltable->selectors, t->val.as.n32); //grab the nth function from the selector table
 
+	printf(" Data selector %d for virtual type %s is  %d for real type %s\n",
+		t->val.as.n32, seltable->ref->name,
+		selected->offset, seltable->parent->name);
+	
 
 	ex->stack[ex->sp - 1].as.ptr.offset += selected->offset;
 
@@ -1352,6 +1357,7 @@ tokenT* hloadcptr(exectxT* ex, tokenT* t) {
 	ex->stack[ex->sp - 1].as.ptr.block = i;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
+	return tnext(t);
 	return tnext(t);
 }
 
@@ -1676,9 +1682,13 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	symbolT* selected = t->sym;
 
 	if (t->sym->isSelector) {
- 		xprintf(" CALL SELECTOR\n");
+ 		
 		typeT* seltable = ex->stack[ex->sp  - zvec_count(t->sym->type->members) + t->sym->selectorArg].typeselector;
+		
+		printf(" CALL SELECTOR %d from %s's table for %s\n", t->sym->selectorNum, seltable->parent->name, seltable->ref->name);
+
 		selected = zvec_get_at(seltable->selectors, t->sym->selectorNum); //grab the nth function from the selector table
+		
 	}
 
 	ex->fp=ex->sp;
@@ -2377,7 +2387,12 @@ void checkUsage(tokenT* start, tokenT* end){
 			printList(t, t, -1,1);
 			
 			printType(t->ty, ZFALSE, ZFALSE);
-			xprintf(" not used \n");
+			
+			printf(" value not used \n");
+
+			if (t->ty->category == POINTERPOSSESSIVE) {
+				ERR(" Abandoning possessive pointer will cause a memory leak\n");
+			}
 			
 		}
 		t = tnext(t);
@@ -2393,6 +2408,7 @@ void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmemb
 		return; //already found all the functions for it
 	
 	real_type_vmember->selectors = zvec_mk(NULL, zvec_count(vtype->selectors)); 
+	real_type_vmember->parent = real_type;
 	//zvec_disown(real_type_vmember->selectors);
 
 	int n;
@@ -2793,6 +2809,24 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			ts->handler = hnop;
 			continue;
 
+		/*case '?':
+			if (tprev(t)->ty) {
+				if (tprev(t)->ty->ref && tprev(t)->ty->ref->category == VIRTUAL) {
+					printf(" Virtual type %s \n", tprev(t)->ty->ref->name);
+					//need the real type
+
+				}
+				else {
+					printf("Known type of size %d\n", tprev(t)->ty->size);
+					
+				}
+
+
+			}
+			
+			t = tnext(t);
+			continue;
+			*/
 		case '#':	//create variable of whaatever type is on the stack, and store 
 		case PAIR('#', '#'):
 			t = tnext(t); //is variable name
@@ -3052,7 +3086,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					int j;
 
 					for (j = 0; j < zvec_count(from->ref->members); j++) {
-						typeT* t2 = zvec_get_at(from->ref->members, j);  //look at the type's members (t2 is the memer; t2->ref is thr type of the member)
+						typeT* t2 = zvec_get_at(from->ref->members, j);  //look at the type's members (t2 is the memer; t2->ref is the type of the member)
 						if (ty->ref && t2->ref && (ty->ref->tid == t2->ref->tid)) { //check the type the member refers to to the virtual type we are casting to
 							xprintf(" Type %s supports virtual %s\n", from->ref->name, t2->name);
 							//need to make sure all of ty->ref's selectors are 1)implemented on t2->ref AND are in t2's selector list
@@ -3330,6 +3364,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 		case PAIR('#', '='): //store without pop
 			nopop = 1;
+
 		case '=': //store
 		
 			
@@ -3347,9 +3382,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						t->val.as.n32 = 8; //save virtual part too
 
 					fold(tprev(tprev(t)), t);
-					if (nopop)
+					if (nopop) {	
 						t->handler = hstoreptrnp;
-					else
+					} else
 						t->handler = hstoreptr;
 					
 					//TODO check level
@@ -3370,17 +3405,37 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						t->val.as.n32 = 8; //save virtual part too
 
 
-					fold(tprev(tprev(t)), t);
+					
 					if (nopop)
 						t->handler = hstoreptrnp;
 					else
 						t->handler = hstoreptr;
+
+
 					t->val.as.n32 |= 1; //flag to free the pointer being overwritten.
 
-					if (nopop)
-						t->ty = tprev(tprev(t))->ty;
+					if (nopop) {
 
-					t = tnext(t);
+						//if next is keep, keep it a possessive pointer
+
+  						if (tnext(t)->tok == KKEEP) {
+							ram_free(tremove(tnext(t)));
+							t->val.as.n32 |= 16; //addref
+							t->ty = tprev(tprev(t))->ty;
+						}
+						else
+						{
+							//don't addref... demote to regular user pointer
+							t->ty = findType(POINTERUSER, tprev(tprev(t))->ty->ref, NULL, 0);
+
+							t->trackpossptr = t; //have the nonpossessive pointer and all their derivatives track this
+
+						}
+												
+					}
+					fold(tprev(tprev(t)), t);
+
+ 					t = tnext(t);
 					continue;
 				}
 			}
@@ -3620,8 +3675,15 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 								if (tv->trackpossptr->handler == hloadptr){
 									tv->trackpossptr->val.as.n32 |=2;
 									
-								}	
+								} else if (tv->trackpossptr->handler == hstoreptrnp){
+									
+									tv->trackpossptr->val.as.n32 |= 16;
+								}
+								else {
+									printf(" trackpossptr unknown handler\n");
+								}
 							}
+							
 							
 							//getc(stdin);
 							//	xprintf(" addref %p +%d\n", ex->stack[ex->fp-count+i].as.ptr.block, ex->stack[ex->fp-count+i].as.ptr.offset);
@@ -3912,6 +3974,8 @@ int main(int argc, char** args){
 	
 	parse( global, tnext((tokenT*)zlist_head(tokens)) );
 	
+	checkUsage(zlist_head(tokens), zlist_tail(tokens));
+
 
 	xprintf("Types:\n");
 	int i;

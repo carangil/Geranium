@@ -221,11 +221,17 @@ p:D& #Dp
 q take:D%  Dq=  
 
 Dp F
+
+
 Dq F
 
 "Dq is now null  " print Dq :any& print newline
 
-0:Bit if
+
+//recreate 
+Q new :D% Dq=
+
+1:Bit if
 
     Dp.xx  print newline
     Dq.xx  print newline
@@ -248,6 +254,93 @@ Dq F
 
 end
 
-10 ##x  print
-newline
+//composite interfaces
+
+virtual Reader;
+virtual Writer;
+virtual ReaderWriter;
+
+selector x Read:(x:Reader& ->);
+selector x Write:(x:Writer& ->);
+
+
+selector x Read:(x:ReaderWriter& ->);
+selector x Write:(x:ReaderWriter& ->);
+
+
+selector ReaderWriter.r:Reader;
+
+
+
+type Test
+    r:Reader;
+    w:Writer;
+    rw:ReaderWriter;
+end
+
+proc Read:(a:Test&->)
+     " Read called on Test" print newline
+     return
+end
+
+proc Write:(a:Test&->)
+     " Write called on Test" print newline
+     return
+end
+
+
+
+var t:Test;
+
+t:Reader& Read
+t:Writer& Write
+
+
+proc ww:(w:Writer&->)
+     "Calling Write on a Writer&" print
+    w Write
+    return
+end
+
+
+proc frw:( rw:ReaderWriter& ->)
+    "Calling Read on ReaderWriter& " print
+    rw Read
+    "Calling Write on ReaderWriter& " print
+    rw Write
+    
+    
+    "Caling ww on ReaderWriter&.. ww expects a Writer not a ReaderWriter "print
+    
+    
+    
+//    rw:Writer& ww
+    
+    return
+end
+
+t:ReaderWriter& frw
+
+"Whatever" strdup ##sss print newline
+
+"Test" strdup ##sss0 keep ##sss1 print newline
+sss0 print newline sss1 print newline
+
+"Stuff" strdup sss0 #= print newline
+sss0 print newline
+
+"Cat" strdup sss0#= keep sss1#= print
+sss0 print newline sss1 print newline
+
+
+proc test1:(->)
+    "butt" strdup trash
+    return 
+end
+
+
+test1
+
+
+
 
