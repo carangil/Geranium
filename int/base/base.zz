@@ -101,6 +101,9 @@ proc strlen:(s:String& -> Z32)
 		end
 		i&++
 	end
+	
+	0 return
+	
 end
 
 proc strdup:(s:String& -> String%)
@@ -116,7 +119,7 @@ proc strdup:(s:String& -> String%)
 		end
 		i&++
 	end
-
+    0:String% return
 end
 
 

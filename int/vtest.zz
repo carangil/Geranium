@@ -256,19 +256,23 @@ end
 
 //composite interfaces
 
+
+//create a couple types and their function selectors
 virtual Reader;
 virtual Writer;
-virtual ReaderWriter;
 
+
+
+selector x Rtest:(x:Reader& ->);
 selector x Read:(x:Reader& ->);
 selector x Write:(x:Writer& ->);
+selector x Wtest:(x:Writer& ->);
 
 
-selector x Read:(x:ReaderWriter& ->);
+virtual ReaderWriter;
 selector x Write:(x:ReaderWriter& ->);
+selector x Read:(x:ReaderWriter& ->);
 
-
-selector ReaderWriter.r:Reader;
 
 
 
@@ -278,8 +282,19 @@ type Test
     rw:ReaderWriter;
 end
 
+type T2
+    
+     r:Reader;
+    w:Writer;
+    rw:ReaderWriter;
+end
+
 proc Read:(a:Test&->)
      " Read called on Test" print newline
+     return
+end
+proc Rtest:(a:Test&->)
+     " Rtest called on Test" print newline
      return
 end
 
@@ -288,9 +303,50 @@ proc Write:(a:Test&->)
      return
 end
 
+proc Wtest:(a:Test&->)
+     " Wtest called on Test" print newline
+     return
+end
+
+proc Read:(a:T2&->)
+     " Read called on T2" print newline
+     return
+end
+proc Rtest:(a:T2&->)
+     " Rtest called on T2" print newline
+     return
+end
+
+proc Write:(a:T2&->)
+     " Write called on T2" print newline
+     return
+end
+
+proc Wtest:(a:T2&->)
+     " Wtest called on T2" print newline
+     return
+end
+
+
+//Adding a data selector to ReaderWriter.  But instead of a real type, the fields 'r' and 'w' are virtual types 'Reader' and 'Writer'  What this does is create a data selector r (or w) which points to the object's Reader or Writer selector table.  This means an instance of a Type that implements Reader and Writer must also include a Reader named r and a Writer named w.
+
+selector ReaderWriter.r:Reader;
+selector ReaderWriter.w:Writer; //adding a Writer selector to ReaderWriter
 
 
 var t:Test;
+
+proc G:(t:Test&->)
+    "G called on Test " print 
+    t :any& print newline
+end
+
+proc H:(t:T2&->)
+    "H called on T2 " print 
+    t :any& print newline
+end
+
+
 
 t:Reader& Read
 t:Writer& Write
@@ -302,45 +358,54 @@ proc ww:(w:Writer&->)
     return
 end
 
+proc rr:(r:Reader&->)
+     "Calling Read on a Reader&" print
+    r Read
+    return
+end
+    
+proc frw:(rw:ReaderWriter&->)
 
-proc frw:( rw:ReaderWriter& ->)
-    "Calling Read on ReaderWriter& " print
+    
+
+    "Calling Read and Write on rw" print newline
     rw Read
-    "Calling Write on ReaderWriter& " print
     rw Write
+
+
     
     
-    "Caling ww on ReaderWriter&.. ww expects a Writer not a ReaderWriter "print
+    //use the writer or reader part directly
+    
+    rw:Writer& ww
+    rw:Reader& rr
     
     
     
-//    rw:Writer& ww
+    "---" print newline
+    
+    rw:Test& ##s if
+        "rw is Test" print 
+        s Write
+        newline
+    end
+    
+    rw:Test&  G //convert to real type Need to check its the correct type
+    rw:T2&    H //convert to real type Need to check its the correct type
+  
+   "===" print newline
+    
+    
+ //   rw?Test :any& print newline
+  //  rw?T2   :any& print newline
     
     return
 end
 
-t:ReaderWriter& frw
+    
+t:ReaderWriter&  frw
 
-"Whatever" strdup ##sss print newline
+var t2:T2;
 
-"Test" strdup ##sss0 keep ##sss1 print newline
-sss0 print newline sss1 print newline
-
-"Stuff" strdup sss0 #= print newline
-sss0 print newline
-
-"Cat" strdup sss0#= keep sss1#= print
-sss0 print newline sss1 print newline
-
-
-proc test1:(->)
-    "butt" strdup trash
-    return 
-end
-
-
-test1
-
-
-
+t2:ReaderWriter&  frw
 

@@ -828,7 +828,7 @@ typedef struct symbolS{
 	tokenT* tokens;
 	struct parsectxS* subctx; //procs have their own parsecontext for their local vars
 	int isPrototype;// true if this symbol is just a function prototype
-	int isSelector;// 1 if symbol is a function selector, 2 is is a data selector
+	int isSelector;// 1 if symbol is a function selector, 2 is is a data selector, 4 if virtual selector
 	int selectorArg; //if this is a selector, which arg does the function lookup
 	int selectorNum;  //which selector (nth) is this?
 } symbolT;
@@ -1232,6 +1232,49 @@ tokenT* hselectorptr(exectxT* ex, tokenT* t) { //add constant offset to pointer 
 	return tnext(t);
 }
 
+tokenT* htesttype(exectxT* ex, tokenT* t) { //convert a virtual pointer to real pointer, if its the correct type.  returns NULL if not. frees possessive pointers if NULLing them
+
+	exe(ex, tsub(t));
+	typeT* tsel = ex->stack[ex->sp - 1].typeselector;
+
+	if ( !tsel    //not virtual
+		|| tsel->parent != t->val.as.type->ref //type selector table isn't of the correct type
+		){
+
+		if (t->val.as.type->category == POINTERPOSSESSIVE) {
+			ram_free(ex->stack[ex->sp - 1].as.ptr.block);
+		}
+
+		ex->stack[ex->sp - 1].as.ptr.block = NULL;
+
+	}
+
+	ex->stack[ex->sp - 1].typeselector = NULL;
+
+	//todo: check if this is the correct type, and if it isn't, null it.  also might have to addref
+	//also, maybe instead of putting it in this instruction, push a typeT*, then later do a test
+
+
+	return tnext(t);
+}
+
+tokenT* hchselector(exectxT* ex, tokenT* t) {  
+	exe(ex, tsub(t));
+
+
+	typeT* seltable = ex->stack[ex->sp - 1].typeselector;
+	symbolT* selected = zvec_get_at(seltable->selectors, t->val.as.n32); //grab the nth item from the selector table
+
+	printf(" selector %d for virtual  %s is  %d for  virtual %s\n",
+		t->val.as.n32, seltable->ref->name,
+		selected->offset, seltable->parent->name);
+	
+	ex->stack[(ex->sp) - 1].typeselector = selected->type; //load other selector
+
+ 	return tnext(t);
+}
+
+
 tokenT* hindex(exectxT* ex, tokenT* t) {	//index into array
 	exe(ex, tsub(t) );
 	
@@ -1310,7 +1353,7 @@ tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP i
 }
 
 
-typeT *tType, *tPrimitive, *tZ32, *tN32, *tN8, *tBit, *tString, *tReal;
+typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany;
 
 
 
@@ -2400,7 +2443,7 @@ void checkUsage(tokenT* start, tokenT* end){
 	}
 	
 	
-}
+} 
 //checks that real_type implements all the selectors of vtype
 void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmember) {
 
@@ -2417,8 +2460,13 @@ void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmemb
 		xprintf(" Need to find member %s implementation of %s ",
 			real_type->name,
 			vselector->name);
+		
+		if (vselector->isSelector == 4) {
+			printf(" virtual to virtual selector\n");
+		}
 
-		if (vselector->isSelector == 2) {  //if data selector
+
+		if ((vselector->isSelector == 2)  || (vselector->isSelector == 4)) {  //if data selector
 			
 			//find offset in real type member
 			int j;
@@ -2428,8 +2476,19 @@ void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmemb
 					if (member->ref == vselector->type) {
 						printf(" found\n");
 						//make a symbol for it.
-						symbolT* s = mkSymbol(NULL, member->name, vselector->type, NULL); //todo: instruction handler for access?
-						s->offset = member->offset;
+						symbolT* s;
+
+						if (vselector->isSelector == 4) { //virtual selector
+							//need to check the real type supports this other type
+							check_implementation(vselector->type, real_type, member);
+							s = mkSymbol(NULL, member->name, member, NULL); 
+						}
+						else {
+
+							s = mkSymbol(NULL, member->name, vselector->type, NULL); 
+							s->offset = member->offset;
+						}
+
 						zvec_add(real_type_vmember->selectors, s); //add the found function to the real type's virtual field for the virtual type
 						break;
 					}
@@ -2588,6 +2647,16 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 
 		case KEND:
+
+			if ( (pc->endable == 1) && pc->type && (pc->type->category == FUNCTION) ) {
+
+				if( pc->type->ref && (tprev(t)->tok != KRETURN))
+					ERR("End of proc without returning a value\n");
+
+				t->handler = hreturn;
+
+			}
+			
 
 			if (pc->endable) {
 				pc->endable--;
@@ -2763,7 +2832,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				//s = mkSymbol(pc, stmp, type, handler);
  				s = mkSymbol(NULL, name, type, handler);
 				//add to the selector table
-				s->isSelector = 2;
+				if (type->category == VIRTUAL)
+					s->isSelector = 4;			
+				else
+					s->isSelector = 2;
 			//	s->handler = hdataselect;
 
 				typeT* vt = findType(VIRTUAL, NULL, name2, 0);
@@ -2909,7 +2981,16 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			ts = t;
 			ts->handler = hgroup;
 			ts->val.as.n32 = 1;  //continue after group
+			
+			typeT* ct = tprev(t)->ty;
 
+			if (!ct)
+				ERR(" If: no type input\n");
+
+			if (  (ct->category != POINTERUSER) && (ct!=tBit)  && (ct!=tZ32) )
+				ERR(" if needs Bit or Pointer datatype\n");
+				
+						
 			tokenT* cond;
 			insert_after(tprev(t), cond = mkToken(COND, "cond", 4));
 			fold(tprev(tprev(t)), tprev(t)); //condition statrment inside 'cond' wrapper
@@ -2949,7 +3030,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			continue;
 
-
+		
 
 		case KTYPE:
 			csize = 0;
@@ -3055,6 +3136,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 			break;
 
+	
+
+			
 		case ':': //typecast
 
 
@@ -3070,10 +3154,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//special case cast to virtual pointer type
 			ty = tnext(ts)->ty;
 
-
 		
-
-
 
 			if (ty
 				&& ((ty->category == POINTERUSER) || (ty->category == POINTERPOSSESSIVE))
@@ -3081,15 +3162,42 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 				//check that this type supports this virtual type
 				typeT* from = tprev(ts)->ty;
+
+				//virtual to virtual 
 				if ((from->category == ty->category) && from->ref) {
-
 					int j;
+					if (from->ref->category == VIRTUAL) {
+						//from virtual to virtual
+						for (j = 0; j < zvec_count(from->ref->selectors); j++) {
+							symbolT* sel = zvec_get_at(from->ref->selectors, j);
+							if (sel->type == ty->ref) {
+								printf(" Found selector %d\n", sel->selectorNum);
+								
 
+								ram_free(tremove(tnext(ts)));
+								ts->handler = hchselector;	//changeselector
+								ts->val.as.n32 = sel->selectorNum;
+								ts->ty = ty;
+								fold(tprev(ts), ts);
+								printList(tprev(ts), ts, -5, 3);
+								break;
+
+							}
+						}
+						if (j == zvec_count(from->ref->selectors)) {
+							ERR("Struct does not contain selector member for \n");
+						}
+						continue;
+					}
+
+					//real to virtual
 					for (j = 0; j < zvec_count(from->ref->members); j++) {
 						typeT* t2 = zvec_get_at(from->ref->members, j);  //look at the type's members (t2 is the memer; t2->ref is the type of the member)
 						if (ty->ref && t2->ref && (ty->ref->tid == t2->ref->tid)) { //check the type the member refers to to the virtual type we are casting to
 							xprintf(" Type %s supports virtual %s\n", from->ref->name, t2->name);
 							//need to make sure all of ty->ref's selectors are 1)implemented on t2->ref AND are in t2's selector list
+							if (!strcmp(from->ref->name, "Test"))
+								boo();
 
 							check_implementation(ty->ref, from->ref, t2);
 
@@ -3114,6 +3222,28 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 
 			}
+
+			//virtual to real:
+				//virtual to real
+			//
+			if (ty->ref && !strcmp(ty->ref->name, "Test"))
+				boo();
+
+			if (  (ty->ref)
+				  && (tprev(ts)->ty && tprev(ts)->ty->ref && tprev(ts)->ty->ref->category == VIRTUAL)  
+				  && (ty->ref != tany)
+				) {
+				ram_free(tremove(tnext(ts)));
+				ts->handler = htesttype;	//check if its the right type
+				ts->val.as.type = ty;
+				ts->ty = ty;
+				fold(tprev(ts), ts);
+
+				continue;
+			}
+
+			//
+
 
 			tprev(ts)->tyorig = tprev(ts)->ty;
 			tprev(ts)->ty = tprev(t)->ty;
@@ -3362,7 +3492,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//other '@' cases that aren't handled where are done via primitive handlers
 			break;
 
-		case PAIR('#', '='): //store without pop
+		case PAIR('#','='): //store without pop
 			nopop = 1;
 
 		case '=': //store
@@ -3381,7 +3511,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					if (tprev(tprev(t))->ty->ref->category == VIRTUAL)
 						t->val.as.n32 = 8; //save virtual part too
 
-					fold(tprev(tprev(t)), t);
+					
 					if (nopop) {	
 						t->handler = hstoreptrnp;
 					} else
@@ -3392,6 +3522,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					if (nopop)
 						t->ty = tprev(tprev(t))->ty;
 
+					fold(tprev(tprev(t)), t);
 					t = tnext(t);
 					continue;
 				}
@@ -3923,7 +4054,10 @@ int main(int argc, char** args){
 		printf("Debug output is to file\n");
 
 	tType = mkType( SIMPLE, NULL, "Type", 0 ); //datatype about "types"
-	mkType( SIMPLE, NULL, "any", 0 ); //not really a type, but for plain pointers (any*)
+	
+	tany = mkType(SIMPLE, NULL, "any", 0); //not really a type, but for plain pointers (any*)
+	
+
 	tPrimitive = mkType( PRIMITIVE, NULL, "Primitive", 0 ); //allows lookup of C functions by name
 	tZ32 = mkType( SIMPLE, NULL, "Z32", sizeof(zint32));
 	tN32 = mkType( SIMPLE, NULL, "N32", sizeof(zuint32));
