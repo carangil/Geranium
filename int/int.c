@@ -2447,8 +2447,24 @@ void checkUsage(tokenT* start, tokenT* end){
 //checks that real_type implements all the selectors of vtype
 void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmember) {
 
-	if (real_type_vmember->selectors)
+	if (real_type_vmember->selectors) {
+
+		int a = zvec_count(real_type_vmember->selectors);
+		int b = zvec_count(vtype->selectors);
+		
+
+
+		printf(" Implementation of %s has %d selectors and virtual type %s has %d selectors. \n",
+			real_type->name, a, vtype->name, b);
+	
+
+		if (a != b) {
+			ERR(" Implementation of %s has %d selectors but virtual type %s has %d selectors.  Extra selectors were added to virtual type after usage\n",
+				real_type->name, a, vtype->name, b);
+		}
+
 		return; //already found all the functions for it
+	}
 	
 	real_type_vmember->selectors = zvec_mk(NULL, zvec_count(vtype->selectors)); 
 	real_type_vmember->parent = real_type;
@@ -3154,6 +3170,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//special case cast to virtual pointer type
 			ty = tnext(ts)->ty;
 
+			if (parseDebugFlag)
+				boo();
 		
 
 			if (ty
@@ -3194,7 +3212,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					for (j = 0; j < zvec_count(from->ref->members); j++) {
 						typeT* t2 = zvec_get_at(from->ref->members, j);  //look at the type's members (t2 is the memer; t2->ref is the type of the member)
 						if (ty->ref && t2->ref && (ty->ref->tid == t2->ref->tid)) { //check the type the member refers to to the virtual type we are casting to
-							xprintf(" Type %s supports virtual %s\n", from->ref->name, t2->name);
+							printf(" Type %s supports virtual %s\n", from->ref->name, t2->name);
 							//need to make sure all of ty->ref's selectors are 1)implemented on t2->ref AND are in t2's selector list
 							if (!strcmp(from->ref->name, "Test"))
 								boo();
