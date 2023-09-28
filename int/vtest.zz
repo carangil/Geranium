@@ -409,3 +409,36 @@ var t2:T2;
 
 t2:ReaderWriter&  frw
 
+
+30#xx
+
+
+
+immediate
+
+    "in immediate" print newline
+    var y:Z32;
+    10 20 + print   //io during compilation
+    50  y =  //assign to variable during compilation
+   
+    "done immediate" print newline
+    
+  
+   "really done immediate" print newline
+   
+   "321" strdup return
+end
+#aaaa
+
+aaaa print newline
+
+
+
+
+
+
+
+
+
+
+

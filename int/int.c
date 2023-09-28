@@ -25,7 +25,7 @@ void boo() {
        	           	printf("breakpoint here\n");
 }
  
-#define ERR( ...) { fprintf(stderr,__VA_ARGS__);fflush(stderr);boo();  exit(1);}
+#define ERR( ...)  do { fprintf(stderr,__VA_ARGS__);fflush(stderr);boo();  exit(1);} while(0)
  
 //uncommenting below will log a LOT while running.
 //#define EXEDEBUG 
@@ -82,6 +82,10 @@ typedef struct parsectxS{
 	struct typeS* type;  //if in a procedure, we need to know about its return type and args
 	struct parsectxS* parent;
 	int endable;
+	exectxT* exec;
+
+	struct parsectxS* immediate_parse;
+	zbool no_global_vars;	//set to true to prevent compiling access to global variables (global functions ok)
 }parsectxT;
 
 /**** Tokenizer ****/
@@ -158,8 +162,9 @@ typedef struct tokenS{
 #define KSIZE		0x8016	
 #define KSETCOUNT   0x8017
 #define KCDATA		0x8018
+#define KIMMEDIATE	0x8019
 
-char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0", "count", "size", "setcount","cdata",  NULL};
+char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0", "count", "size", "setcount","cdata","immediate",  NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -289,8 +294,23 @@ zbool tokenize(tokenT* insert, char* in){
 				line++;
 				continue;
 			}
+
+			if (p == PAIR('/', '*')) { //special handling for /* comments
+				char oin = 0;
+				while (*in && ( (oin != '*') || (*in != '/'))  ) {
+					oin = *in;
+					if (*in == '\n')
+						line++;
+					in++;
+
+				}
+				in++;//skip past /
+				
+				continue;
+			}
 	
 			t = mkToken( PAIR(c, next) , in, 2);
+			t->line = line;
 			zlist_insert_node_after(&insert->zlistnode,&t->zlistnode);
 			insert = t;
 			
@@ -934,6 +954,14 @@ symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction h
 		pctx->size += type->size; //add context u
 
 		xprintf(" SYMBOL %s at offset %d  , total symbols %d bytes\n", sym->name, sym->offset, pctx->size);
+
+		if (type->size > 0 && pctx->exec && pctx->exec->vars) {
+			int* asize = ram_shadow(pctx->exec->vars);
+			if (pctx->size > *asize) {
+				ERR(" Cannot add variables to context after execution has began\n");
+			}
+		}
+
 	}
 	if (table)
 		return zvec_add_or_free(table, sym);
@@ -1044,6 +1072,10 @@ tokenT* haddselector(exectxT* ex, tokenT* t) {  //adds selectors to item on poin
 
 
 tokenT* hglobal (exectxT* ex, tokenT* t) {	//push pointer to global variable on stack
+
+	if (!ex->globalvars)
+		ERR("No access to global variables in current scope");
+
  	ex->stack[(ex->sp)].as.ptr.block = ex->globalvars;
 	ex->stack[(ex->sp)].as.ptr.level = 0; 
 	ex->stack[(ex->sp)++].as.ptr.offset = t->val.as.ptr.offset;
@@ -1353,7 +1385,7 @@ tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP i
 }
 
 
-typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany;
+typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany, * tImmediate;
 
 
 
@@ -2080,17 +2112,50 @@ tokenT* haddref(exectxT* ex, tokenT* t) {
 }
 
 
+zbool exectx_cleanup(void* v) {
+	exectxT* e = v;
+	
+	ram_free(e->globalvars);
+	ram_free(e->vars);
+	ram_free(e->stack);
+	return ZTRUE;
+}
+
+
+parsectxT* global = NULL;
 
 
 void start(parsectxT* pctx, tokenT* t){
-	exectxT* exectx = ram_alloc(sizeof(exectxT), NULL);
-	exectx->stack = ram_alloc( sizeof(valueT)*100, NULL);
 
-	exectx->sp = 0;
+
+	if (!pctx->exec) {
+		pctx->exec = ram_alloc(sizeof(exectxT), exectx_cleanup);
+		pctx->exec->stack = ram_alloc(sizeof(valueT) * 100, NULL);
+		pctx->exec->sp = 0;
+		
+		
+		
+		if (pctx == global) {
+			pctx->exec->globalvars = ram_alloc(pctx->size, NULL);
+		}
+		else {
+			pctx->exec->vars = ram_alloc_shadow(pctx->size, NULL, sizeof(int));
+			//store vars size in the shadow allocation.  TODO: consider adding ram_getsize to zmem
+			int* asize = ram_shadow(pctx->exec->vars);
+			*asize = pctx->size;
+			
+		}
+	}
+
+	
 #ifdef EXEDEBUG	
 	xprintf(" PCTX %d bytes\n", pctx->size);
 #endif	
-	exectx->globalvars = ram_alloc(pctx->size , NULL);
+
+	
+
+	
+
 #ifdef EXEDEBUG	
 	xprintf("EXE\n");
 #endif	
@@ -2101,13 +2166,13 @@ void start(parsectxT* pctx, tokenT* t){
 	}
 	xprintf(" \n");*/
 	 
-	exe(exectx, t);
+	exe(pctx->exec, t);
 	
-	ram_free(exectx->stack);
+	//ram_free(exectx->stack);
 
-	clean_context_pointers(pctx->symbols, exectx->globalvars);
-	ram_free(exectx->globalvars);
-	ram_free(exectx);
+	//clean_context_pointers(pctx->symbols, exectx->globalvars);
+	//ram_free(exectx->globalvars);
+	//ram_free(exectx);
 } 
 
 
@@ -2407,6 +2472,8 @@ tokenT*  parseVar(tokenT* t,  char** nameOut, typeT** typeOut) {
 zbool parsectx_cleanup(void* v){
 	parsectxT* pc = v;
 	ram_free(pc->symbols);
+	ram_free(pc->exec);
+	ram_free(pc->immediate_parse);
 	return ZTRUE;
 }
 
@@ -2417,7 +2484,7 @@ parsectxT* mkcontext()
 	return c;
 }
 
-parsectxT* global = NULL;
+
 
 void checkUsage(tokenT* start, tokenT* end){
 	
@@ -2434,6 +2501,8 @@ void checkUsage(tokenT* start, tokenT* end){
 			printf(" value not used \n");
 
 			if (t->ty->category == POINTERPOSSESSIVE) {
+				xprintf("  Abandoning possessive pointer will cause a memory leak\n");
+				printList(start, t, 0, 20);
 				ERR(" Abandoning possessive pointer will cause a memory leak\n");
 			}
 			
@@ -2655,9 +2724,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		switch (t->tok) {
 
 		case '!':
-			parseDebugFlag = 1;
+			parseDebugFlag = 1; 
 			t = tnext(t);
-			tremove(tprev(t));
+			ram_free(tremove(tprev(t)));
 			continue;
 
 
@@ -2672,6 +2741,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				t->handler = hreturn;
 
 			}
+
+		
 			
 
 			if (pc->endable) {
@@ -2719,8 +2790,52 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			ts->handler = hnop;
 			continue;
 
+		case KIMMEDIATE:
+				
+			ts = t;
 
-		
+			if (!pc->immediate_parse) {
+				//create parse context for immediate blocks
+				pc->immediate_parse = mkcontext();
+ 				
+			}
+
+			pc->immediate_parse->type = tImmediate;
+
+			if (!pc->exec || !pc->exec->globalvars)
+				pc->immediate_parse->no_global_vars = ZTRUE;
+			
+			pc->immediate_parse->endable++;
+			t = parse(pc->immediate_parse, tnext(t));
+			t = tnext(t);
+
+			ram_free(tremove(tprev(t)));//remove 'end'
+			lfold(ts, t);
+			tokenT* sub = tsub(ts);
+			printList(sub, NULL, 0, 10);
+
+			
+			printSymbols(pc->immediate_parse->symbols, "immediate symbols");
+			checkUsage(sub, NULL);//check all values are used up
+			
+
+			//run it
+			
+
+			start(pc->immediate_parse, sub);
+			
+			if (pc->immediate_parse->type != tImmediate) {
+				ts->handler = hconstant;
+				ts->ty = pc->immediate_parse->type;
+				ts->val = pc->immediate_parse->exec->stack[pc->immediate_parse->exec->sp-1];
+				if (ts->ty->category == POINTERPOSSESSIVE)
+					ts->val_to_free = ZTRUE;
+			} else 
+				ts->handler = hnop;		
+						
+
+
+			continue;
 
 		case KSELECTOR:		//proc selector
 		case KPRIMITIVE:	//primitive declaration
@@ -2870,6 +2985,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (ts->tok == KPROC) {
 				//procedures go into a body of statements
 				s->subctx = mkcontext();
+				s->subctx->immediate_parse = ram_addref(pc->immediate_parse);
+				
+
 				s->subctx->parent = pc;
 				s->subctx->endable++; //its a subcontext
 				s->subctx->type = s->type;
@@ -2941,9 +3059,23 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//allow return no value
 
 			t->handler = hreturn;
+			
+			if (pc->type == tImmediate) {
+				
+				printf(" compiling return for immediate\n");
+				if (tprev(t)->ty) {
+					pc->type = tprev(t)->ty;
+					fold(tprev(t), t);
+					t = tnext(t);
+				}
+				continue;
+
+			}
+			
 			if (pc->type && pc->type->ref) {
 				xprintf(" RETURN a value\n");
 				printType(pc->type->ref, ZTRUE, ZFALSE);
+			
 
 				if (tprev(t)->ty != pc->type->ref) {
 					xprintf("Type mismatch expected:\n");
@@ -3691,7 +3823,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		//if didn't match anything above, continue on
 				
 		//check local variables
-		if (pc->type){	 //set to function type if inside function
+		if (pc->type && pc->type->members){	 //set to function type if inside function
 			int count =0;
 			int pos=0;
 			
@@ -3863,8 +3995,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					t->ty = findType(POINTERUSER, s->type, NULL, 0);  //pointer to the symbol's type
 					if (local)
 						t->handler = hlocal;
+					else if (pc->no_global_vars)
+						ERR("Cannot access global variables at this time");
 					else
 						t->handler = hglobal;
+
 					t->val.as.ptr.block = 0;
 					t->val.as.ptr.offset= s->offset;
 					
@@ -4082,6 +4217,7 @@ int main(int argc, char** args){
 	tN8 = mkType( SIMPLE, NULL, "N8", sizeof(zbyte));
 	tBit = mkType( SIMPLE, NULL, "Bit", sizeof(zbyte));
 	tString = mkType(SIMPLE, NULL, "String", sizeof(char*));
+	tImmediate = mkType(SIMPLE, NULL, "Immediate", sizeof(FLOAT));
 #ifdef FLOAT
 	tReal = mkType(SIMPLE, NULL, "Real", sizeof(FLOAT));
 #endif
@@ -4138,6 +4274,7 @@ int main(int argc, char** args){
  	printList(zlist_head(tokens),NULL,ENDFILE, 0);
 	//getc(stdin);
 	//start(global, (tokenT*)tokens->head->next   );//run
+	
 	start(global, tnext((tokenT*)zlist_head(tokens))   );//run
 	
 	ram_free(tokens);
