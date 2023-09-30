@@ -954,13 +954,14 @@ symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction h
 		pctx->size += type->size; //add context u
 
 		xprintf(" SYMBOL %s at offset %d  , total symbols %d bytes\n", sym->name, sym->offset, pctx->size);
-
+		/*
 		if (type->size > 0 && pctx->exec && pctx->exec->vars) {
 			int* asize = ram_shadow(pctx->exec->vars);
 			if (pctx->size > *asize) {
 				ERR(" Cannot add variables to context after execution has began\n");
 			}
 		}
+		*/
 
 	}
 	if (table)
@@ -2131,8 +2132,6 @@ void start(parsectxT* pctx, tokenT* t){
 	if (!pctx->exec) {
 		pctx->exec = ram_alloc(sizeof(exectxT), exectx_cleanup);
 		pctx->exec->stack = ram_alloc(sizeof(valueT) * 100, NULL);
-		pctx->exec->sp = 0;
-		
 		
 		
 		if (pctx == global) {
@@ -2144,6 +2143,22 @@ void start(parsectxT* pctx, tokenT* t){
 			int* asize = ram_shadow(pctx->exec->vars);
 			*asize = pctx->size;
 			
+		}
+	}
+
+	pctx->exec->sp = 0;
+	pctx->exec->stop = 0;
+
+	if (pctx->exec->vars) {
+		//check vars space is large enough
+		int* asize = ram_shadow(pctx->exec->vars);
+		if (pctx->size > *asize) {
+				printf(" Resizing context vars from %d to %d\n", *asize, pctx->size);
+
+			pctx->exec->vars = ram_resize(pctx->exec->vars, pctx->size, NULL);
+			asize = ram_shadow(pctx->exec->vars);
+			*asize = pctx->size;
+
 		}
 	}
 

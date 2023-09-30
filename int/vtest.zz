@@ -423,21 +423,33 @@ immediate
    
     "done immediate" print newline
     
+    
   
    "really done immediate" print newline
    
-   "321" strdup return
+  // "321" strdup return
+  321 return
 end
-#aaaa
+print
+//#aaaa
 
-aaaa print newline
+"back" print newline
+
+immediate
+    "--------------resized vars " print newline
+    30 #aa
+    40 #bb
+
+    
+    aa print newline
+    bb print newline
+    y print newline
+end
 
 
 
 
-
-
-
+//aaaa print newline
 
 
 
