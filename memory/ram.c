@@ -277,6 +277,10 @@ void* ram_addref(void* thing)
 {
 	mem_headerT* header = (mem_headerT*) thing;
 	char* asStringForDebuggerView = thing;
+	
+	if (!thing)
+		return NULL;
+
 	if (thing == flagged && thing && abyss)
 		abyss(thing);
 

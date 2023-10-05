@@ -451,6 +451,72 @@ end
 
 //aaaa print newline
 
+"stringval" #z1
+3 #ti
+
+proc rc:(->Code%)
 
 
+    "print" #printfuncname
+
+    code \
+        
+        0#i
+        loop
+            $z1 'printfuncname newline
+            i $ti >= if break end
+            i&++
+        end
+        
+    \ return
+    
+end
+
+
+rc #qu
+rc #qu2
+
+
+
+
+"what" print newline
+
+0 #mm
+loop
+
+    mm 10 < not if break end
+
+    immediate    //the immediate block is executed once, and gets 'baked' as a constant, which gets put on the stack each time the immediate block is encountered
+
+        "Stuff" strdup return
+
+    end  #s
+    
+    s :any& print
+    s print newline
+
+    
+    mm 1 + mm =
+
+end
+
+
+immediate
+
+    7 #a
+    
+    code \
+
+        immediate 
+            5 5 + return
+        end
+        
+        $a +
+    
+    \ return
+    
+end
+
+
+#cc
 

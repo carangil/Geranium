@@ -134,6 +134,7 @@ typedef struct tokenS{
 #define STARTFILE	0x700
 #define COND		0x9001
 #define STACKARG	0x9002
+#define PASSTHRU	0x9003
 
 //Token values that are also user-accessible keywords:
 #define KWORDS		0x8000
@@ -163,8 +164,9 @@ typedef struct tokenS{
 #define KSETCOUNT   0x8017
 #define KCDATA		0x8018
 #define KIMMEDIATE	0x8019
+#define KCODE		0x801a
 
-char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0", "count", "size", "setcount","cdata","immediate",  NULL};
+char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0", "count", "size", "setcount","cdata","immediate", "code", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -345,7 +347,7 @@ zbool tokenize(tokenT* insert, char* in){
 		
 		//names can start with a dot(struct member reference)
 		int name = acceptPatterns(in, 
-				"'.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_",  //start with ._alpha
+				".abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_",  //start with ._alpha
 				"",
 				"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789"); //numbers can be in the name after the first character
 		int digits  = 0;
@@ -762,7 +764,7 @@ int printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indentin){
 		
 	//if stop_tok is set to a negative number (like -3) then up to 3 tokens will be printed (and their subs)
 	
-	for ( ;t;  t = zlist_next(t)  ){
+	while(t){
 		
 		
 		if (  ( (zint32)stop_tok < 0) && (count == stop_tok))
@@ -832,6 +834,13 @@ int printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indentin){
 		
 		if (t->tok == PASTENDFILE)
 			break;
+
+		if (!t->zlistnode.next)
+			break;
+
+		t = tnext(t);
+		
+
 	}
 
 	return indent;
@@ -930,7 +939,10 @@ symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction h
 		table = pctx->symbols;
 	
 	symbolT* sym;
-		
+	
+	if (!type)
+		ERR("no type for symbol\n");
+
 	if (type->category == FUNCTION){
 		//todo search for function of same name, same inputs
 	} else if (table &&  findSymbol(table, name, NULL)){
@@ -1063,6 +1075,14 @@ tokenT* hconstant (exectxT* ex, tokenT* t) {  //push constant on stack
 	ex->stack[(ex->sp)++] = t->val;
 	return tnext(t);
 }
+
+tokenT* hconstantaddref(exectxT* ex, tokenT* t) {  //push constant on stack
+	ex->stack[(ex->sp)++] = t->val;
+
+	ram_addref(t->val.as.ptr.block);
+	return tnext(t);
+}
+
 #define tsub(TTT)  ((tokenT*)zlist_head(&(TTT)->subs))
 
 tokenT* haddselector(exectxT* ex, tokenT* t) {  //adds selectors to item on pointer stack
@@ -1071,6 +1091,55 @@ tokenT* haddselector(exectxT* ex, tokenT* t) {  //adds selectors to item on poin
 	return tnext(t);
 }
 
+tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
+	
+	tokenT* tcode = mkToken(KCODE, "code", 4);
+	
+	tokenT* t2 = tsub(t);
+	while (t2) {
+		tokenT* newtok = NULL;
+
+		if ( (t2->tok == '$') || (t2->tok == '\'') ) {
+			if (t2->tok == '\'')
+				boo();
+
+			exe(ex, tsub(t2)); //this code puts an item on the stack; this item is the constant value to be baked into the code
+			char str[100];
+
+			tokenT* last = zlist_tail(&t2->subs);
+			tokenT* first = zlist_head(&t2->subs);
+
+			if (t2->tok == '$') {
+				newtok = mkToken(PASSTHRU, NULL, 0);	 //PASSTHRU tokens will not be processed by the compiler; in this case the value is compiled now as a constant
+				newtok->ty = last->ty;
+				newtok->val = ex->stack[--(ex->sp)];
+				newtok->handler = hconstant;
+			}
+			else {
+				char* name = ex->stack[--(ex->sp)].as.ptr.block;
+				name += ex->stack[(ex->sp)].as.ptr.offset;
+				newtok = mkToken(NAME,  name  , 0);	 //use string value from stack as token text
+			}
+
+
+		} else 
+			newtok = mkToken(t2->tok, t2->str, strlen(t2->str)); //copy the token
+
+		zlist_addtail(&tcode->subs, newtok);
+		t2 = tnext(t2);
+	}
+
+
+	printList(tcode, NULL, 0, 20);
+	
+	//ram_free(tcode);
+	
+	//tcode = NULL;
+	ex->stack[(ex->sp)].as.ptr.block = tcode;
+	ex->stack[(ex->sp)++].as.ptr.offset = 0;
+
+	return tnext(t);
+}
 
 tokenT* hglobal (exectxT* ex, tokenT* t) {	//push pointer to global variable on stack
 
@@ -1386,7 +1455,7 @@ tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP i
 }
 
 
-typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany, * tImmediate;
+typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany, * tImmediate, *tCode;
 
 
 
@@ -2239,7 +2308,7 @@ void lfold(tokenT* under, tokenT* end){
  * Functions (a:Z32; b:Z32 -> Z32)
  * Arrays [10 Z32]    */
 tokenT*  parseType(tokenT* t) {
-
+	
 	char* count=NULL;
 	zbool named=ZFALSE;
 	tokenT* next=NULL;
@@ -2744,7 +2813,46 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			ram_free(tremove(tprev(t)));
 			continue;
 
+		case KCODE:
+			
+			t = tnext(t);
+			char* endString = t->str;
+			t = tnext(t);
+			while (!t->str || strcmp(t->str, endString)) {
 
+				if ((t->tok == '$') || (t->tok=='\'')) {
+					
+					tokenT* dollar = t;
+
+
+					t = tnext(t); //variable name
+					zlist_insert_node_after(t, mkToken(KEND, "end", 3));
+					pc->endable++;
+					t = parse(pc, t); //t is 'end'
+					t = tnext(t);   //move past 'end
+					ram_free(tremove(tprev(t))); //delete 'end'
+					lfold(dollar, t);
+					continue;
+				}
+
+				t = tnext(t);
+
+			}
+			
+			t = tnext(t);
+			
+			ram_free(tremove(tprev(t))); //remove end delimiter token
+			ram_free(tremove(tnext(ts)));//remove start delimiter token
+
+			lfold(ts, t);
+			
+			ts->handler = hsubst;
+			ts->val.as.ptr.block = tsub(t);
+			ts->val.as.ptr.offset = 0;
+			ts->ty = findType(POINTERPOSSESSIVE, tCode, NULL, 0);
+			
+
+			continue;
 
 		case KEND:
 
@@ -2836,15 +2944,17 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			//run it
 			
-
+			 
 			start(pc->immediate_parse, sub);
 			
 			if (pc->immediate_parse->type != tImmediate) {
 				ts->handler = hconstant;
 				ts->ty = pc->immediate_parse->type;
 				ts->val = pc->immediate_parse->exec->stack[pc->immediate_parse->exec->sp-1];
-				if (ts->ty->category == POINTERPOSSESSIVE)
+				if (ts->ty->category == POINTERPOSSESSIVE) {
 					ts->val_to_free = ZTRUE;
+					ts->handler = hconstantaddref; //need to add ref when putting on the stack
+				}
 			} else 
 				ts->handler = hnop;		
 						
@@ -3248,6 +3358,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			continue;
 
+		case PASSTHRU:
+			t = tnext(t);
+			continue;
 		case NUMBER:
 
 			if (strchr(t->str, '.')) {  //decimal point makes it a float
@@ -3908,10 +4021,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				if (pc != global) {
 
 					
-					if (!strcmp(t->str, "gg")) {
-						xprintf(" parsing subctx\n");
-					}
-
+					
 					local = 1;
 					s = findSymbol(pc->symbols, t->str, v);
 					//xprintf(" LOCAL SYMBOL %p  %s\n", s, t->str);
@@ -4233,6 +4343,7 @@ int main(int argc, char** args){
 	tBit = mkType( SIMPLE, NULL, "Bit", sizeof(zbyte));
 	tString = mkType(SIMPLE, NULL, "String", sizeof(char*));
 	tImmediate = mkType(SIMPLE, NULL, "Immediate", sizeof(FLOAT));
+	tCode = mkType(SIMPLE, NULL, "Code", 0);
 #ifdef FLOAT
 	tReal = mkType(SIMPLE, NULL, "Real", sizeof(FLOAT));
 #endif
@@ -4292,6 +4403,8 @@ int main(int argc, char** args){
 	
 	start(global, tnext((tokenT*)zlist_head(tokens))   );//run
 	
+	clean_context_pointers(global->symbols, global->exec->globalvars);
+
 	ram_free(tokens);
 	ram_free(global);
 	ram_free(types);
