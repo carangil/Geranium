@@ -632,3 +632,46 @@ end #gen12
 10 gen12 exec print newline
 
 24 genfunc #gen24
+
+
+proc mkType:(name:String&; elementType: String&-> myType%)
+
+    code (->myType%) \
+        "whatever" print newline
+    
+        type myType
+            a:Z32;
+            val: 'elementType%;
+        end
+    
+    
+        myType new #oo
+        12345 oo.a=
+        "string stored in type" strdup oo.val=
+        oo.val  print newline
+        oo take return
+        
+    \ ##c exec return
+
+
+end
+
+
+//create a type
+"myType" "String" mkType #f44
+
+f44
+code (z:myType&->) /\
+    "in dyn handler" print newline
+    z.a print newline
+    z.val print newline
+  
+/\ ##boo22 exec
+
+
+
+
+
+
+
+

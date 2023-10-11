@@ -1497,19 +1497,18 @@ tokenT* h_compile(exectxT* ex, tokenT* t) {
 		parsectxT* pc = mkcontext();
 		symbolT* s = mkSymbol(NULL, "dynamic", code->ty, NULL);
 		s->subctx = pc;
-		s->tokens = ram_addref(code);
+		s->tokens = code; // ram_addref(code); NOT addred, because the symbol's tokens now is the only reference to this code block
 		
-		code->sym = s;
-
-		//store the symbol s in the value, flagged to free.  This is just to free it (sym usually is not because those pointers are kept alive elsewhere)
-		code->val.as.ptr.block = s;
-		code->val_to_free = ZTRUE;
-
+		code->sym = s;  //toek syms are not freed; they are freed by whatever owns the symbol, usually sumbol table.  in this case, since its an anonymous function, the symbol is passed back to the user as a possessive pointer to keep track of
 		pc->type = code->ty;
 		pc->endable = 1;
 		pc->parent = t->val.as.ptr.block;
 		parse(pc, tsub(code));
 	}
+
+	ex->stack[ex->sp - 1].as.ptr.block = code->sym;  //track sym instead
+	ex->stack[ex->sp - 1].as.ptr.offset = 0;
+
 	return tnext(t);
 }
 
@@ -1939,7 +1938,10 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 		//calling indirectly.  
 		indirect = 1;
 		ex->sp--;
-		t = ex->stack[ex->sp].as.ptr.block; //call the thing pointed to instead
+		symbolT* s = ex->stack[ex->sp].as.ptr.block;
+		t = s->tokens;
+		//t = ex->stack[ex->sp].as.ptr.block; //call the thing pointed to instead
+
 	}
 	
 	//xprintf(" CALLING PROC %s\n", t->str);
@@ -4181,6 +4183,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					printType(rt, ZTRUE, ZTRUE);
 					ERR(" Cannot allocate array with '[type] new' ; must use dynamic syntax: [type] count new\n");
 				}
+				if (rt->category == PENDING)
+					ERR("Cannot allocate pending type\n");
 				
 				t->ty = findType(POINTERPOSSESSIVE, rt, NULL, 0);
 				xprintf(" new will return \n");
