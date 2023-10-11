@@ -453,7 +453,7 @@ end
 
 "stringval" #z1
 3 #ti
-
+/*
 proc rc:(->Code%)
 
 
@@ -476,7 +476,7 @@ end
 rc #qu
 rc #qu2
 
-
+*/
 
 
 "what" print newline
@@ -501,22 +501,134 @@ loop
 end
 
 
-immediate
 
-    7 #a
-    
-    code \
 
-        immediate 
-            5 5 + return
-        end
-        
-        $a +
-    
-    \ return
-    
+3 #a
+
+
+proc foo:(->Z32)
+    "Global foo" print newline
+    9000 return
 end
 
 
-#cc
 
+
+
+/*
+
+code \
+
+
+
+
+
+    proc foo:(->Z32)
+        "Code \ foo" print newline
+        9000 return
+    end
+
+
+    immediate 
+    
+    
+        proc foo:(->Z32)
+           "Immediate foo" print newline
+            9000 return
+        end
+
+        10 foo return 
+        
+    end print newline
+
+    
+    $a foo + print newline
+
+    
+    
+\ ##cc compile 
+
+
+
+proc test000:(->)
+
+    proc foo:(->Z32)
+        "test000 \ foo" print newline
+        9000 return
+    end
+
+ 
+    
+    cc exec
+   
+
+end
+
+
+test000
+
+//cc exec
+
+*/
+
+
+10 #hhh
+/*
+code (->Z32) XX
+    6 return
+XX
+*/
+
+
+"precompile " print newline
+
+var ZZZ004:Z32%;
+var ZZZ000:(->)%;
+
+proto ZZZ001:(->);
+var ZZZ002:(->)%;
+
+
+var cc:(a:Z32->Z32)%;
+
+123 20 + #te
+
+code (aa:Z32->Z32) X
+
+    type created
+        boo:Z32;
+    end
+    
+
+    aa  print "in dyn function " print newline
+    1111 return
+     
+X cc =
+
+
+"done" print newline
+
+
+333 cc exec print
+
+10 print newline
+
+//20 10 cc exec
+
+
+proc genfunc:(a:Z32-> (aa:Z32->Z32)%)
+
+    code (aa:Z32->Z32) \
+        aa $a+ return
+    \ return
+
+end
+
+immediate
+    12 genfunc return
+end #gen12
+
+
+10 gen12 exec print newline
+
+24 genfunc #gen24
