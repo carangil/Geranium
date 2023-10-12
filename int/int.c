@@ -1110,6 +1110,9 @@ tokenT* haddselector(exectxT* ex, tokenT* t) {  //adds selectors to item on poin
 	return tnext(t);
 }
 
+typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany, * tImmediate, * tCode;
+
+
 tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 	
 	tokenT* tcode = mkToken(KCODE, "code", 4);
@@ -1136,16 +1139,42 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 				newtok->handler = hconstant;
 			}
 			else {
-				char* name = ex->stack[--(ex->sp)].as.ptr.block;
-				name += ex->stack[(ex->sp)].as.ptr.offset;
-				newtok = mkToken(NAME,  name  , 0);	 //use string value from stack as token text
+								
+				if (last->ty && (last->ty->category == POINTERUSER)) {
+				
+					//string turns into a token
+					if (last->ty->ref == tString) {
+						char* name = ex->stack[--(ex->sp)].as.ptr.block;
+						name += ex->stack[(ex->sp)].as.ptr.offset;
+						tokenize(zlist_tail(&tcode->subs), name);
+						//newtok = mkToken(NAME, name, 0);	 //use string value from stack as token text
+
+					}
+
+					if (last->ty->ref == tCode) {
+						//inserting raw list of tokens
+						
+						
+						tokenT* from = ex->stack[(ex->sp)].as.ptr.offset + (char*)ex->stack[--(ex->sp)].as.ptr.block;
+						from = tsub(from);
+						while (from ) {  
+							
+							zlist_addtail(&tcode->subs, mkToken(from->tok, from->str, 0));
+							from = tnext(from);
+
+						}
+					}
+
+				}
+			
 			}
 
 
 		} else 
 			newtok = mkToken(t2->tok, t2->str, strlen(t2->str)); //copy the token
 
-		zlist_addtail(&tcode->subs, newtok);
+		if (newtok)
+			zlist_addtail(&tcode->subs, newtok);
 		t2 = tnext(t2);
 	}
 
@@ -1567,8 +1596,6 @@ tokenT* h_exec(exectxT* ex, tokenT* t) {
 						*/
 
 
-typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany, * tImmediate, *tCode;
-
 
 
 tokenT* hload32 (exectxT* ex, tokenT* t) {
@@ -1924,8 +1951,10 @@ tokenT* hgroup (exectxT* ex, tokenT* t){
 
 tokenT* hcall (exectxT* ex, tokenT* t) {
 
-	if (t->val.as.n32 == 1)
+	if (!strcmp(t->str, "RotXY"))
 		printf(" debug me\n");
+
+
 
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
 	
@@ -3005,9 +3034,12 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t = quote(pc, t, endString);
 			t = tnext(t);
 						
-			tprev(t)->tok = KEND; //turn the end delimiter token into an END token.  Now the quote can be parsed similar to a function body
+			if (codetype)
+				tprev(t)->tok = KEND; //turn the end delimiter token into an END token.  Now the quote can be parsed similar to a function body
+			else
+				ram_free(tremove(tprev(t))); //no untyped code (raw token snippets), delete this 
 						
-			//re-use the start token as a way to keep the original parsecontext
+			
 			
 			lfold(ts, t);
 			
@@ -3015,7 +3047,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			ts->handler = hsubst;
 			ts->val.as.ptr.block = tsub(t);
 			ts->val.as.ptr.offset = 0;
-
+			
 			if (codetype) {
 				//code assigned a proc type.  This needs to be compiled into a function
 				ts->ty = codetype;

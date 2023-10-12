@@ -660,14 +660,30 @@ end
 //create a type
 "myType" "String" mkType #f44
 
+"print" #pri
+
+"10 23 +" #num
+
+
+code \\ "This is a snippet"  print newline  \\ #sn
+
 f44
-code (z:myType&->) /\
+code (z:myType&->) \\
     "in dyn handler" print newline
-    z.a print newline
+    z.a 'pri newline
+    
+    'sn  
+    
+    immediate
+        "immediate inside code block is deferred until actual compilation" print newline
+        "Num is " return
+    end print num print newline
+        
+    'num   print newline
+    
     z.val print newline
   
-/\ ##boo22 exec
-
+\\ ##boo22 exec
 
 
 
