@@ -4137,9 +4137,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				if (tprev(tprev(t))->ty->category == CPOINTER) {  //cpointer
 					fold(tprev(tprev(t)), t);
 					if (nopop)
-						t->handler = hstoreptrnp;
+						ERR("nopop not supported on cpointer\n");
 					else
-						t->handler = hstoreptr;
+						t->handler = hstorecptr;
 					t = tnext(t);
 
 					if (nopop)
