@@ -515,69 +515,11 @@ end
 
 
 
-/*
 
-code \
-
-
-
-
-
-    proc foo:(->Z32)
-        "Code \ foo" print newline
-        9000 return
-    end
-
-
-    immediate 
-    
-    
-        proc foo:(->Z32)
-           "Immediate foo" print newline
-            9000 return
-        end
-
-        10 foo return 
-        
-    end print newline
-
-    
-    $a foo + print newline
-
-    
-    
-\ ##cc compile 
-
-
-
-proc test000:(->)
-
-    proc foo:(->Z32)
-        "test000 \ foo" print newline
-        9000 return
-    end
-
- 
-    
-    cc exec
-   
-
-end
-
-
-test000
-
-//cc exec
-
-*/
 
 
 10 #hhh
-/*
-code (->Z32) XX
-    6 return
-XX
-*/
+
 
 
 "precompile " print newline
@@ -588,6 +530,8 @@ var ZZZ000:(->)%;
 proto ZZZ001:(->);
 var ZZZ002:(->)%;
 
+
+immediate "compiling CC" print newline end
 
 var cc:(a:Z32->Z32)%;
 
@@ -639,7 +583,7 @@ proc mkType:(name:String&; elementType: String&-> myType%)
     code (->myType%) \
         "whatever" print newline
     
-        type myType
+        type 'name
             a:Z32;
             val: 'elementType%;
         end
@@ -657,6 +601,8 @@ proc mkType:(name:String&; elementType: String&-> myType%)
 end
 
 
+
+
 //create a type
 "myType" "String" mkType #f44
 
@@ -666,6 +612,9 @@ end
 
 
 code \\ "This is a snippet"  print newline  \\ #sn
+
+
+
 
 f44
 code (z:myType&->) \\
@@ -686,8 +635,55 @@ code (z:myType&->) \\
 \\ ##boo22 exec
 
 
+code  \ 
+    "whatever" print newline
+    \ #K1
+    
+    
+ 
+
+proc mkWhatever:(amount:Z32  ; opfunc:(a:Z32;b:Z32->Z32)%   -> (a:Z32->Z32)%)
 
 
+    
+
+    code (a:Z32->Z32) \
+        a $amount   $opfunc take exec     #g
+        g print "<< in mkAdder" print newline
+        g return
+    \ return
+
+end
+
+ 
+
+ 
+ //add10
+
+ 
+ code (a:Z32;b:Z32->Z32)\ a b + return \   #opcallback
+ 
+10   opcallback take    mkWhatever #Add10
+
+
+//11 20 mkAdder ##Add20 exec print newline
+
+
+5 Add10 exec print newline
+10 Add10 exec print newline
+
+
+immediate
+
+   "whatever" strdup #jjj
+    5 return
+
+end
+
+immediate 
+    jjj print newline
+    
+end
 
 
 

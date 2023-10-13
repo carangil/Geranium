@@ -140,6 +140,7 @@ typedef struct tokenS{
 #define COND		0x9001
 #define STACKARG	0x9002
 #define PASSTHRU	0x9003
+#define COMPILE		0x9004
 
 //Token values that are also user-accessible keywords:
 #define KWORDS		0x8000
@@ -171,9 +172,9 @@ typedef struct tokenS{
 #define KIMMEDIATE	0x8019
 #define KCODE		0x801a
 #define KEXEC		0x801b
-#define KCOMPILE	0x801c
 
-char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0", "count", "size", "setcount","cdata","immediate", "code", "exec", "compile", NULL};
+
+char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0", "count", "size", "setcount","cdata","immediate", "code", "exec", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -1126,16 +1127,32 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 			if (t2->tok == '\'')
 				boo();
 
-			exe(ex, tsub(t2)); //this code puts an item on the stack; this item is the constant value to be baked into the code
-			char str[100];
+			
 
 			tokenT* last = zlist_tail(&t2->subs);
 			tokenT* first = zlist_head(&t2->subs);
+		
+
+			exe(ex, tsub(t2)); //this code puts an item on the stack; this item is the constant value to be baked into the code
+			char str[100];
+
 
 			if (t2->tok == '$') {
+
+				if (last->ty->category == POINTERUSER) {
+					ERR(" Cannot bake non-possessive pointers into code!\n");
+				}
+
 				newtok = mkToken(PASSTHRU, NULL, 0);	 //PASSTHRU tokens will not be processed by the compiler; in this case the value is compiled now as a constant
 				newtok->ty = last->ty;
 				newtok->val = ex->stack[--(ex->sp)];
+				
+
+				if (last->ty->category == POINTERPOSSESSIVE) {
+					printf(" baking a possessive pointer into code\n");
+					newtok->val_to_free = 1;
+				}
+				
 				newtok->handler = hconstant;
 			}
 			else {
@@ -1144,11 +1161,9 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 				
 					//string turns into a token
 					if (last->ty->ref == tString) {
-						char* name = ex->stack[--(ex->sp)].as.ptr.block;
-						name += ex->stack[(ex->sp)].as.ptr.offset;
-						tokenize(zlist_tail(&tcode->subs), name);
-						//newtok = mkToken(NAME, name, 0);	 //use string value from stack as token text
-
+						char* str = ex->stack[--(ex->sp)].as.ptr.block;
+						str += ex->stack[(ex->sp)].as.ptr.offset;
+						tokenize(zlist_tail(&tcode->subs), str);
 					}
 
 					if (last->ty->ref == tCode) {
@@ -1184,8 +1199,10 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 	//ram_free(tcode);
 	
 	//tcode = NULL;
+	ex->stack[(ex->sp)].as.ptr.level = 0; //heap object
 	ex->stack[(ex->sp)].as.ptr.block = tcode;
 	ex->stack[(ex->sp)++].as.ptr.offset = 0;
+	
 
 	return tnext(t);
 }
@@ -1535,6 +1552,7 @@ tokenT* h_compile(exectxT* ex, tokenT* t) {
 		parse(pc, tsub(code));
 	}
 
+	//ex->stack[ex->sp-1].as.ptr.level = 0; //heap object  NOT doing this, since this should only be fed possessive code pointers directly from a subst token
 	ex->stack[ex->sp - 1].as.ptr.block = code->sym;  //track sym instead
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
@@ -1950,10 +1968,6 @@ tokenT* hgroup (exectxT* ex, tokenT* t){
 }
 
 tokenT* hcall (exectxT* ex, tokenT* t) {
-
-	if (!strcmp(t->str, "RotXY"))
-		printf(" debug me\n");
-
 
 
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
@@ -2386,11 +2400,18 @@ void start(parsectxT* pctx, tokenT* t){
 		//check vars space is large enough
 		int* asize = ram_shadow(pctx->exec->vars);
 		if (pctx->size > *asize) {
-				printf(" Resizing context vars from %d to %d\n", *asize, pctx->size);
+			printf(" Resizing context vars from %d to %d\n", *asize, pctx->size);
+
+			int oldsize = *asize;
 
 			pctx->exec->vars = ram_resize(pctx->exec->vars, pctx->size, NULL);
 			asize = ram_shadow(pctx->exec->vars);
 			*asize = pctx->size;
+
+			//clear the additional space (in case it has garbage possessive pointers)
+			memset(oldsize + (char*)pctx->exec->vars, 0, pctx->size - oldsize );
+
+			
 
 		}
 	}
@@ -2754,11 +2775,12 @@ void checkUsage(tokenT* start, tokenT* end){
 	
 		if (t->ty){
 			
-			printList(t, t, -1,1);
+			printList(t, t, -5,1);
 			
 			printType(t->ty, ZFALSE, ZFALSE);
 			
 			printf(" value not used \n");
+			
 
 			if (t->ty->category == POINTERPOSSESSIVE) {
 				xprintf("  Abandoning possessive pointer will cause a memory leak\n");
@@ -2935,7 +2957,7 @@ int getCSize(char* name) {
 	}
 
 	ERR("Unknown csize: %s\n", name);
-	return 0;
+	return 0; 
 
 }
 
@@ -2945,12 +2967,15 @@ tokenT* quote(parsectxT* pc, tokenT* t, char* endString) {
 		if ((t->tok == '$') || (t->tok == '\'')) {
 
 			tokenT* dollar = t;
-
+			
 
 			t = tnext(t); //variable name
+			if (tnext(t)->tok == KKEEP || tnext(t)->tok == KTAKE) {  //allow possessive pointers to be quoted
+				t = tnext(t);
+			}
 			zlist_insert_node_after(t, mkToken(KEND, "end", 3));
 			pc->endable++;
-			t = parse(pc, t); //t is 'end'
+			t = parse(pc, tnext(dollar)); //t is 'end' after this call
 			t = tnext(t);   //move past 'end
 			ram_free(tremove(tprev(t))); //delete 'end'
 			lfold(dollar, t);
@@ -3027,11 +3052,12 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 
 			
-			char* endString = t->str;
+			char* endString = ram_addref(t->str);
 			t = tnext(t);
 			ram_free(tremove(tprev(t))); //remove start delimiter token
-
 			t = quote(pc, t, endString);
+			ram_free(endString);
+
 			t = tnext(t);
 						
 			if (codetype)
@@ -3051,7 +3077,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (codetype) {
 				//code assigned a proc type.  This needs to be compiled into a function
 				ts->ty = codetype;
-				tokenT* comp = mkToken(KCOMPILE, "compile", 0);
+				tokenT* comp = mkToken(COMPILE, "SYScompile", 0);
 				zlist_insert_node_after(&ts->zlistnode, comp);
 				t = tnext(ts);
 				
@@ -3073,25 +3099,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t = tnext(t);
 
 			continue;
-		case KCOMPILE:
-
-			/*
-			if (tprev(t)->ty && (tprev(t)->ty->category == POINTERUSER) && tprev(t)->ty->ref && tprev(t)->ty->ref == tCode) {
-				fold(tprev(ts), t);
-				t = tnext(t);
-
-				if (ts->tok == KCOMPILE) {
-					ts->handler = h_compile;
-					ts->val.as.ptr.block = ram_addref(pc);
-					ts->val_to_free = ZTRUE;
-					ts->ty = tprev->ty;  
-				}
-				else {
-					ts->handler = h_exec;
-				}
-
-				continue;
-			} */
+		case COMPILE:
+			
 
 
 			if (tprev(t)->ty && (tprev(t)->ty->category == FUNCTION)) {
@@ -3202,7 +3211,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			//run it
 			
-			 
+			if (parseDebugFlag)
+				printf(" boo\n");
+
 			start(pc->immediate_parse, sub);
 			
 			if (pc->immediate_parse->type != tImmediate) {
@@ -3446,6 +3457,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			*/
 		case '#':	//create variable of whaatever type is on the stack, and store 
 		case PAIR('#', '#'):
+
+			if (parseDebugFlag)
+				printf("debug me\n");
+
 			t = tnext(t); //is variable name
 
 			if (pc == global)
@@ -3693,7 +3708,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					continue;
 				}
 				else {
-					ERR("cannot open %s\n", tprev(t)->val.as.ptr.block);
+					ERR("cannot open file %s\n", tprev(t)->val.as.ptr.block);
 				}
 			}
 			break;
@@ -4703,6 +4718,9 @@ int main(int argc, char** args){
 	start(global, tnext((tokenT*)zlist_head(tokens))   );//run
 	
 	clean_context_pointers(global->symbols, global->exec->globalvars);
+	if (global->immediate_parse->exec) {
+		clean_context_pointers(global->immediate_parse->symbols, global->immediate_parse->exec->vars);
+	}
 
 	ram_free(tokens);
 	ram_free(global);
