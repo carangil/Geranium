@@ -174,6 +174,7 @@ typedef struct tokenS{
 #define KEXEC		0x801b
 
 
+
 char*  keywords[] = {"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", "new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0", "count", "size", "setcount","cdata","immediate", "code", "exec", NULL};
 
 zuint32 findKeyword(char* c){
@@ -1955,6 +1956,12 @@ void addhandlers(struct parsectxS* pctx){
 tokenT* hreturn (exectxT* ex, tokenT* t){
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
 	ex->stop=STOPFUNC;  //returning from function
+	if (t->ty) {  
+		//if returning from an immediate block, put the return type on the stack too
+		//if the immediate block is not returning a value, t->ty should have been set to tImmediate anyway
+		//because returning from here is expecting to take the type off of the stack
+		ex->stack[ex->sp++].as.type = t->ty;
+	}
 	return NULL; //stop instructions stream (process subs first, as they might be return values or something)
 }
 
@@ -2773,15 +2780,17 @@ void checkUsage(tokenT* start, tokenT* end){
 				
 	while (t && t != end){
 	
-		if (t->ty){
+		if (t->ty && t->tok != KRETURN && t->tok != KEND){  //if value on this level has a type, its an unused value.  Exception for KEND and KRETURN; that ty is the return type
 			
 			printList(t, t, -5,1);
 			
 			printType(t->ty, ZFALSE, ZFALSE);
 			
+			
 			printf(" value not used \n");
 			
-
+			
+				
 			if (t->ty->category == POINTERPOSSESSIVE) {
 				xprintf("  Abandoning possessive pointer will cause a memory leak\n");
 				printList(start, t, 0, 20);
@@ -3121,20 +3130,26 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 		case KEND:
 
-			if ( (pc->endable == 1) && pc->type && (pc->type->category == FUNCTION) ) {
+			if (pc->endable && pc->type == tImmediate) {
+				t->handler = hreturn;
+				t->ty = tImmediate;
+			}
+
+
+			if ( (pc->endable == 1) && pc->type && (pc->type->category == FUNCTION)  ) {
 
 				if( pc->type->ref && (tprev(t)->tok != KRETURN))
 					ERR("End of proc without returning a value\n");
 
 				t->handler = hreturn;
-
+		
 			}
 						
 
 			if (pc->endable) {
 				pc->endable--;
 				//xprintf(" 'end' block \n");
-				t->handler = hnop; //for now
+				
 				return t;
 			}
 
@@ -3199,7 +3214,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t = parse(pc->immediate_parse, tnext(t));
 			t = tnext(t);
 
-			ram_free(tremove(tprev(t)));//remove 'end'
+			
 			lfold(ts, t);
 			tokenT* sub = tsub(ts);
 			printList(sub, NULL, 0, 10);
@@ -3215,11 +3230,12 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				printf(" boo\n");
 
 			start(pc->immediate_parse, sub);
-			
-			if (pc->immediate_parse->type != tImmediate) {
+			typeT* rettype = pc->immediate_parse->exec->stack[pc->immediate_parse->exec->sp - 1].as.type;
+
+			if (rettype != tImmediate) {
 				ts->handler = hconstant;
-				ts->ty = pc->immediate_parse->type;
-				ts->val = pc->immediate_parse->exec->stack[pc->immediate_parse->exec->sp-1];
+				ts->ty = rettype;
+				ts->val = pc->immediate_parse->exec->stack[pc->immediate_parse->exec->sp-2];
 				if (ts->ty->category == POINTERPOSSESSIVE) {
 					ts->val_to_free = ZTRUE;
 					ts->handler = hconstantaddref; //need to add ref when putting on the stack
@@ -3490,10 +3506,17 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				
 				printf(" compiling return for immediate\n");
 				if (tprev(t)->ty) {
-					pc->type = tprev(t)->ty;
+				//	pc->type = tprev(t)->ty;
+					t->ty = tprev(t)->ty;
 					fold(tprev(t), t);
 					t = tnext(t);
 				}
+				else {
+					t->ty = tImmediate; //must return tImmediate type if returning no value (so there is something to pop off the stack)
+					t = tnext(t);
+				}
+			
+
 				continue;
 
 			}
