@@ -72,6 +72,7 @@ typedef struct exectxS{
 	zuint32 fp;
 	char* vars; 	//local data space
 	char* globalvars; //global data space
+	char* immediatevars; //global data space for immediate blocks
 	int stop;
 	int level;//stackframe level
 }exectxT;
@@ -88,8 +89,6 @@ typedef struct parsectxS{
 	struct parsectxS* parent;
 	int endable;
 	exectxT* exec;
-
-	struct parsectxS* immediate_parse;
 	zbool no_global_vars;	//set to true to prevent compiling access to global variables (global functions ok)
 }parsectxT;
 
@@ -108,8 +107,9 @@ typedef struct tokenS{
 	struct symbolS* sym;  //for things like procs that have a bunch of context info
 	int line;	//line number from source file
 	zbool val_to_free; //if true, free val's ptr block when destroying token
-	struct tokenS* trackpossptr;
+	zbool useslocal; //if true this code (or its subtrees) refers to local variables (as opposed to global or immediate space)
 
+	struct tokenS* trackpossptr;
 	struct tokenS** debug_subs;
 	struct tokenS** debug_next;
 	struct tokenS** debug_prev;
@@ -172,6 +172,7 @@ typedef struct tokenS{
 #define KIMMEDIATE	0x8019
 #define KCODE		0x801a
 #define KEXEC		0x801b
+
 
 
 
@@ -290,6 +291,10 @@ zbool tokenize(tokenT* insert, char* in){
 	tokenT* t=NULL;
 	
 	int line=1;
+
+	if (insert == NULL) {
+		printf(" boo\n");
+	}
 
 	while ((c = *in)){
 		next = *(in+1);
@@ -876,6 +881,7 @@ typedef struct symbolS{
 	tokenT* tokens;
 	struct parsectxS* subctx; //procs have their own parsecontext for their local vars
 	int isPrototype;// true if this symbol is just a function prototype
+	int isImmediate; //function runs whenever it is compiled
 	int isSelector;// 1 if symbol is a function selector, 2 is is a data selector, 4 if virtual selector
 	int selectorArg; //if this is a selector, which arg does the function lookup
 	int selectorNum;  //which selector (nth) is this?
@@ -1115,6 +1121,16 @@ tokenT* haddselector(exectxT* ex, tokenT* t) {  //adds selectors to item on poin
 typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany, * tImmediate, * tCode;
 
 
+void* zlist_tail_for_insert(zlistT* list) {
+
+	if (!list)
+		return NULL;
+	zlist_check_init(list);
+
+	return list->sentinal_tail.prev;  //if list is empty, the sentinal_head is returned
+	
+}
+
 tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 	
 	tokenT* tcode = mkToken(KCODE, "code", 4);
@@ -1164,7 +1180,17 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 					if (last->ty->ref == tString) {
 						char* str = ex->stack[--(ex->sp)].as.ptr.block;
 						str += ex->stack[(ex->sp)].as.ptr.offset;
-						tokenize(zlist_tail(&tcode->subs), str);
+						tokenT* stub = NULL;
+						
+						if (!tsub(tcode)) { //tokenize below only works if there are already tokens in the subs list
+					//		zlist_addtail(&tcode->subs, stub = mkToken(0, "JUNK", 0));
+							printf(" empty list\n");
+						}
+
+						tokenize(zlist_tail_for_insert(&tcode->subs), str);
+
+						//tremove(stub); //remove it
+
 					}
 
 					if (last->ty->ref == tCode) {
@@ -1219,6 +1245,19 @@ tokenT* hglobal (exectxT* ex, tokenT* t) {	//push pointer to global variable on 
 	//xprintf(" Global block %p +%d\n", ex->globalvars  ,   t->val.as.ptr.offset);
 	return tnext(t);
 }
+
+tokenT* himmvar(exectxT* ex, tokenT* t) {	//push pointer to immediate scope variable on stack (immediate scope is the 'global' scope for immediate blocks
+
+	if (!ex->immediatevars)
+		ERR("No access to immediate  variables in current scope");
+
+	ex->stack[(ex->sp)].as.ptr.block = ex->immediatevars;
+	ex->stack[(ex->sp)].as.ptr.level = 0;
+	ex->stack[(ex->sp)++].as.ptr.offset = t->val.as.ptr.offset;
+	//xprintf(" Global block %p +%d\n", ex->globalvars  ,   t->val.as.ptr.offset);
+	return tnext(t);
+}
+
 
 tokenT* hlocal (exectxT* ex, tokenT* t) {	//push pointer to local variable on stack
 	ex->stack[(ex->sp)].as.ptr.block = ex->vars;
@@ -1529,6 +1568,9 @@ tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP i
 //executes the list of tokene
 
 parsectxT* global = NULL;
+parsectxT* immediate_parse = NULL;
+
+
 parsectxT* mkcontext();
 tokenT* parse(parsectxT* pc, tokenT* t);
 
@@ -1582,38 +1624,6 @@ tokenT* h_exec(exectxT* ex, tokenT* t) {
 	return tnext(t);
 	
 }
-
-/*pc->immediate_parse->endable++;
-			t = parse(pc->immediate_parse, tnext(t));
-			t = tnext(t);		
-
-			ram_free(tremove(tprev(t)));//remove 'end'
-			lfold(ts, t);
-			tokenT* sub = tsub(ts);
-			printList(sub, NULL, 0, 10);
-
-			
-			printSymbols(pc->immediate_parse->symbols, "immediate symbols");
-			checkUsage(sub, NULL);//check all values are used up
-			
-
-			//run it
-			
-			 
-			start(pc->immediate_parse, sub);
-			
-			if (pc->immediate_parse->type != tImmediate) {
-				ts->handler = hconstant;
-				ts->ty = pc->immediate_parse->type;
-				ts->val = pc->immediate_parse->exec->stack[pc->immediate_parse->exec->sp-1];
-				if (ts->ty->category == POINTERPOSSESSIVE) {
-					ts->val_to_free = ZTRUE;
-					ts->handler = hconstantaddref; //need to add ref when putting on the stack
-				}
-			} else 
-				ts->handler = hnop;		
-						*/
-
 
 
 
@@ -2371,6 +2381,7 @@ tokenT* haddref(exectxT* ex, tokenT* t) {
 zbool exectx_cleanup(void* v) {
 	exectxT* e = v;
 	
+	ram_free(e->immediatevars);
 	ram_free(e->globalvars);
 	ram_free(e->vars);
 	ram_free(e->stack);
@@ -2386,37 +2397,37 @@ void start(parsectxT* pctx, tokenT* t){
 	if (!pctx->exec) {
 		pctx->exec = ram_alloc(sizeof(exectxT), exectx_cleanup);
 		pctx->exec->stack = ram_alloc(sizeof(valueT) * 100, NULL);
-		
-		
+	
 		if (pctx == global) {
 			pctx->exec->globalvars = ram_alloc(pctx->size, NULL);
 		}
-		else {
-			pctx->exec->vars = ram_alloc_shadow(pctx->size, NULL, sizeof(int));
+		else if (pctx == immediate_parse) {
+			pctx->exec->immediatevars = ram_alloc_shadow(pctx->size, NULL, sizeof(int));
 			//store vars size in the shadow allocation.  TODO: consider adding ram_getsize to zmem
-			int* asize = ram_shadow(pctx->exec->vars);
+			int* asize = ram_shadow(pctx->exec->immediatevars);
 			*asize = pctx->size;
-			
+		} else {//local variable frame for functions
+			pctx->exec->vars = ram_alloc(pctx->size, NULL);
 		}
 	}
 
 	pctx->exec->sp = 0;
 	pctx->exec->stop = 0;
 
-	if (pctx->exec->vars) {
+	if (pctx == immediate_parse &&  pctx->exec->immediatevars) {
 		//check vars space is large enough
-		int* asize = ram_shadow(pctx->exec->vars);
+		int* asize = ram_shadow(pctx->exec->immediatevars);
 		if (pctx->size > *asize) {
 			printf(" Resizing context vars from %d to %d\n", *asize, pctx->size);
 
 			int oldsize = *asize;
 
-			pctx->exec->vars = ram_resize(pctx->exec->vars, pctx->size, NULL);
-			asize = ram_shadow(pctx->exec->vars);
+			pctx->exec->immediatevars = ram_resize(pctx->exec->immediatevars, pctx->size, NULL);
+			asize = ram_shadow(pctx->exec->immediatevars);
 			*asize = pctx->size;
 
 			//clear the additional space (in case it has garbage possessive pointers)
-			memset(oldsize + (char*)pctx->exec->vars, 0, pctx->size - oldsize );
+			memset(oldsize + (char*)pctx->exec->immediatevars, 0, pctx->size - oldsize );
 
 			
 
@@ -2476,7 +2487,9 @@ void fold(tokenT* start, tokenT* under){
 		next = zlist_next(t);
 		tremove(t);
 		zlist_addtail(&under->subs, &(t->zlistnode));
-				
+		
+		//propagate uselocal
+		under->useslocal |= t->useslocal;
 	}
 }
 
@@ -2490,7 +2503,8 @@ void lfold(tokenT* under, tokenT* end){
 		next = zlist_next(t);
 		tremove( t  );
 		zlist_addtail(&under->subs, &(t->zlistnode));
-	
+		//propagate uselocal
+		under->useslocal |= t->useslocal;
 	}
 }
 
@@ -2761,7 +2775,6 @@ zbool parsectx_cleanup(void* v){
 	parsectxT* pc = v;
 	ram_free(pc->symbols);
 	ram_free(pc->exec);
-	ram_free(pc->immediate_parse);
 	return ZTRUE;
 }
 
@@ -3020,7 +3033,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 	//	printType(t->sym->type, 1,1);
 	
 	while ( t) {
-		if (t->tok==ENDFILE)
+ 		if (t->tok==ENDFILE)
 			t->handler = hbreakblock; //don't really do anything
 
 		if (t->tok==ENDFILE || t->tok== PASTENDFILE)
@@ -3196,31 +3209,27 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				
 			ts = t;
 
-			if (!pc->immediate_parse) {
+			if (!immediate_parse) {
 				//create parse context for immediate blocks
-				pc->immediate_parse = mkcontext();
- 				
+				immediate_parse = mkcontext();
+				immediate_parse->type = tImmediate;
 			}
 
-			pc->immediate_parse->type = tImmediate;
-
 			if (!pc->exec || !pc->exec->globalvars)
-				pc->immediate_parse->no_global_vars = ZTRUE;
-			
-			if (pc != global)
-				pc->immediate_parse->parent = pc;
-
-			pc->immediate_parse->endable++;
-			t = parse(pc->immediate_parse, tnext(t));
+				immediate_parse->no_global_vars = ZTRUE;
+			else
+				immediate_parse->no_global_vars = ZFALSE; //enable global variables for immediate blocks that are created after program is running?
+						
+			immediate_parse->endable++;
+			t = parse(immediate_parse, tnext(t));
 			t = tnext(t);
-
-			
+						
 			lfold(ts, t);
 			tokenT* sub = tsub(ts);
 			printList(sub, NULL, 0, 10);
 
 			
-			printSymbols(pc->immediate_parse->symbols, "immediate symbols");
+			printSymbols(immediate_parse->symbols, "immediate symbols");
 			checkUsage(sub, NULL);//check all values are used up
 			
 
@@ -3229,17 +3238,48 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (parseDebugFlag)
 				printf(" boo\n");
 
-			start(pc->immediate_parse, sub);
-			typeT* rettype = pc->immediate_parse->exec->stack[pc->immediate_parse->exec->sp - 1].as.type;
+			start(immediate_parse, sub);
+			typeT* rettype = immediate_parse->exec->stack[immediate_parse->exec->sp - 1].as.type;
+
 
 			if (rettype != tImmediate) {
 				ts->handler = hconstant;
 				ts->ty = rettype;
-				ts->val = pc->immediate_parse->exec->stack[pc->immediate_parse->exec->sp-2];
+				ts->val = immediate_parse->exec->stack[immediate_parse->exec->sp-2];
+
+
 				if (ts->ty->category == POINTERPOSSESSIVE) {
 					ts->val_to_free = ZTRUE;
 					ts->handler = hconstantaddref; //need to add ref when putting on the stack
 				}
+				
+				//special case if code is returned: just insert it
+				//the above setting of val_to_free will clear out the empty code token
+				
+				if (rettype->category == POINTERPOSSESSIVE && rettype->ref == tCode) {
+					//if an immediate block returns code, the code is inserted directly into the token list
+					printf(" Insert code here\n");
+					
+					tokenT* t2=  ts->val.as.token;
+					t2 = tsub(t2);
+					tokenT* t2next;
+					tokenT* prev = ts;  //start inserting after ts
+					while(t2){
+				
+						t2next = tnext(t2);
+						tremove(t2);
+						insert_after(prev,t2); //remove and insert after the previous one
+						prev = t2;
+						t2 = t2next;
+
+					}
+					t = tnext(ts); //continue parsing with the first token inserted
+					ram_free(tremove(ts)); //remove the immediate token
+					continue;
+				}
+
+
+				
 			} else 
 				ts->handler = hnop;		
 						
@@ -3267,9 +3307,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			//fall through to var/proc decl
 		case KVAR:		//variable declaration
+			if (t->tok == KVAR)
+ 				printf(" making var\n");
 		case KPROC:		//proc body definition
 		case KPROTO:		//proc prototype
-
+			int isImmediate = 0;
 
 			if (ts->tok == KPRIMITIVE) {
 
@@ -3283,7 +3325,17 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			} 
 
-			name = tnext(t)->str;
+			if (t->tok == KPROC && tnext(t)->tok == KIMMEDIATE) {  //proc flagged as immediate
+				
+				ram_free(tremove(tnext(t)));
+
+				isImmediate = 1;  
+			}
+
+		//	if (pc->type == tImmediate)	//proc is defined inside an immediate context
+			//	isImmediate = 1;  
+
+			//name = tnext(t)->str;
 			
 		
 			t = parseVar(tnext(t), &name, &type); //parse variable; name is required
@@ -3358,6 +3410,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					s = mkSymbol(NULL, NULL, type, handler); //noname symbol in no context
 			}
 
+			if (s)
+				s->isImmediate = isImmediate;
+
 			if (ts->tok == KPROTO) {
 				s->isPrototype = 1;
 				s->handler = hcall;	//will eventually be a function call
@@ -3416,11 +3471,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			if (ts->tok == KPROC) {
 				//procedures go into a body of statements
-				s->subctx = mkcontext();
-				s->subctx->immediate_parse = ram_addref(pc->immediate_parse);
-				
-
+				s->subctx = mkcontext();		
 				s->subctx->parent = pc;
+				
 				s->subctx->endable++; //its a subcontext
 				s->subctx->type = s->type;
 				t->sym = s;
@@ -3479,12 +3532,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			t = tnext(t); //is variable name
 
-			if (pc == global)
-				handler = hglobal;
-			else
-				handler = hlocal;
+			//variables don't need a handler set
+			//if (pc == global)
+			//	handler = hglobal;
+			//else
+				//handler = hlocal;
 
-			s = mkSymbol(pc, t->str, tprev(ts)->ty, handler);
+			s = mkSymbol(pc, t->str, tprev(ts)->ty, NULL);
 			//don't do t=tnext(t). This way t, which contains the name of the var,
 			//will be parsed again, and that will make a 'load' token.
 			//so insert a token after this so that it makes it a store
@@ -4346,18 +4400,17 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				if (!strcmp(t->str, "cc"))
 					printf(" finding cc\n");
 
-				if (pc != global) {
+				if ((pc != global) && (pc != immediate_parse)) {
 
-					
-					
 					local = 1;
 					s = findSymbol(pc->symbols, t->str, v);
 					//xprintf(" LOCAL SYMBOL %p  %s\n", s, t->str);
 
 					if (s)
 						break;
-
-					if (pc->parent && pc->parent != global) {
+					
+					//took to parent's symbols (siblings) for functions that could be called
+					if ( pc->parent && pc->parent != global && pc->parent != immediate_parse ) {
 						s = findSymbol(pc->parent->symbols, t->str, v);
 
 						if (s && s->type->category != FUNCTION) {
@@ -4371,8 +4424,18 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 				}
 				
+
+				//try global immediate parse
+				if (immediate_parse) {
+					s = findSymbol(immediate_parse->symbols, t->str, v);
+					if (s) {
+						local = -1;
+						break;
+					}
+				}
+
+				//global
 				local=0;
-				
 				s= findSymbol(global->symbols, t->str, v);
 				  
 				//xprintf(" GLOBAL SYMBOL %p  %s\n", s, t->str);
@@ -4441,6 +4504,30 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							//xprintf("using handler %s %p\n", s->name, s->handler);
 							t->handler = s->handler;
 						}
+						if (s->isImmediate) {
+							//add kimmediate token
+							tokenT* timm = mkToken(KIMMEDIATE, "X_immediate", 0);
+							tokenT* ret = mkToken(KRETURN, "X_return", 0);
+							tokenT* en = mkToken(KEND, "X_end", 0);
+							
+							//todo: if immediate function needs global/local variables, it should kick an error
+
+							zlist_insert_node_after(tprev(ts), timm);
+							zlist_insert_node_after(t, ret);
+							zlist_insert_node_after(ret, en);
+
+
+							
+
+							t->tok = PASSTHRU; //already parsed the function call
+
+							if (t->useslocal)
+								ERR("Subexpression uses local variables that don't exist at compile time:  Cannot move proc call into immediate context.\n");
+
+							t = tprev(ts); //backtrack to the immediate block just created
+							continue;
+
+						}
 					}
 
 				}
@@ -4454,8 +4541,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					//for static arrays, this is not needed
 											
 					t->ty = findType(POINTERUSER, s->type, NULL, 0);  //pointer to the symbol's type
-					if (local)
+					if (local== 1) {
 						t->handler = hlocal;
+						t->useslocal = ZTRUE;
+					}
+					else if (local == -1) {
+						t->handler = himmvar;
+					}
 					else if (pc->no_global_vars)
 						ERR("Cannot access global variables at this time");
 					else
@@ -4739,14 +4831,15 @@ int main(int argc, char** args){
 	//start(global, (tokenT*)tokens->head->next   );//run
 	
 	start(global, tnext((tokenT*)zlist_head(tokens))   );//run
-	
+	 
 	clean_context_pointers(global->symbols, global->exec->globalvars);
-	if (global->immediate_parse->exec) {
-		clean_context_pointers(global->immediate_parse->symbols, global->immediate_parse->exec->vars);
+	if (immediate_parse ) {
+		clean_context_pointers(immediate_parse->symbols, immediate_parse->exec->vars);
 	}
-
+	
 	ram_free(tokens);
 	ram_free(global);
+	ram_free(immediate_parse);
 	ram_free(types);
 	ram_free(csizes);
 	

@@ -431,6 +431,7 @@ immediate
   321 return
 end
 print
+
 //#aaaa
 
 "back" print newline
@@ -444,6 +445,7 @@ immediate
     aa print newline
     bb print newline
     y print newline
+    
 end
 
 
@@ -657,33 +659,131 @@ end
 
  
 
- 
- //add10
 
  
- code (a:Z32;b:Z32->Z32)\ a b + return \   #opcallback
- 
-10   opcallback take    mkWhatever #Add10
+//code (a:Z32;b:Z32->Z32)\ a b + return \   #addcallback
+//code (a:Z32;b:Z32->Z32)\ a b * return \   #mulcallback
 
 
-//11 20 mkAdder ##Add20 exec print newline
+proc makeCallback:( op:String& ->  callback:(a:Z32;b:Z32->Z32)% )
 
 
-5 Add10 exec print newline
-10 Add10 exec print newline
+    code (a:Z32;b:Z32->Z32)\ 
+        a b 'op return 
+    \ return
 
-
-immediate
-
-   "whatever" strdup #jjj
-    5 return
 
 end
 
-immediate 
-    jjj print newline
+ 
+"+" makeCallback #addcallback
+"*" makeCallback #mulcallback
+ 
+ 
+proc useCallback:( a:Z32; b:Z32   ; callback:(a:Z32;b:Z32->Z32)% ->Z32)
+
+    a print  "  " print  b print "  ->    "  print
+    a b callback exec return
     
 end
 
+5 7 addcallback keep useCallback  print newline
+5 7 mulcallback take useCallback  print newline
 
 
+immediate
+   
+   0 if             //type returned by this immediate block can vary
+        1 return
+   end
+
+    "stuff" return  
+ 
+   
+end  print  newline
+
+
+0 #counter
+loop
+
+    code (->String%) \
+
+        immediate 
+            "pointer" strdup return
+        end return
+    
+    \ #callme
+    
+    callme exec     #j
+    
+    j print  "  " print j:any& print newline
+    
+    counter&++
+    counter 3 == if break end
+    
+end    
+"done" print newline 
+    
+//procs flagged as immediate run during compilation
+
+
+immediate 
+    12345 #immvar
+  
+    
+    
+    proc immf:(a:Z32->)
+        a print " in immediate:immf" print newline
+        10 #g 
+        g print newline
+        
+      "immvar:" print immvar print newline
+       
+    end
+    
+    44  immf
+    
+    
+      
+end
+
+
+immediate
+  
+  immvar print newline
+  
+end
+
+
+proc immediate BOO:( x:Z32 -> )
+    //immediate procs can use variables defined in the immediate context
+  
+    "BOO " print x print immvar print     newline
+end
+
+
+77 BOO
+
+
+
+proc immediate Ten:(->Code%)  //when am immediate proc returns Code%, the code is inlined
+    code \ "Ten" \ return
+end
+
+Ten print
+
+
+proc immediate twice:(a:Code%->Code%)
+     code \'a 'a \ return
+end
+
+
+code \ 100 print "-" print \ twice
+
+newline
+immediate
+    "100 200 +" #f
+    code\  'f   \ return 
+end
+print
+newline
