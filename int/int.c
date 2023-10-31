@@ -141,6 +141,7 @@ typedef struct tokenS{
 #define STACKARG	0x9002
 #define PASSTHRU	0x9003
 #define COMPILE		0x9004
+#define REDIRECT	0x9005
 
 //Token values that are also user-accessible keywords:
 #define KWORDS		0x8000
@@ -428,6 +429,7 @@ zbool tokenize(tokenT* insert, char* in){
 //PENDING not a type, but is for when a type is mentioned in another declaration but not yet defined.  You can't 'make' or size a PENDING type, but can have pointers to them
 #define PENDING  22
 
+#define SUBTREE 23
 
 typedef struct typeS{
 	char* name;
@@ -721,6 +723,7 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 			case ARRAYSTATIC:
 			case ARRAYDYNAMIC:
 			case FUNCTION:
+			case SUBTREE:
 
 				if (cmpType(category, ref, NULL, len, ty))
 					return ty;
@@ -734,7 +737,7 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 
 	//did not find.
 
-	if (ref &&((category == ARRAYDYNAMIC)||(category==ARRAYSTATIC) || (category == POINTERUSER)|| (category == POINTERPOSSESSIVE))) {
+	if (ref &&((category == ARRAYDYNAMIC)||(category==ARRAYSTATIC) || (category == POINTERUSER)|| (category == POINTERPOSSESSIVE) || (category==SUBTREE)) ) {
 
 		//If array or pointer, find the type 'underneath' and make it
 
@@ -913,10 +916,14 @@ zbool cmpTypeListToFunc(zvecT* f, zvecT* b){
 			typeT* memberf = zvec_get_at(f,i);
 			typeT* memberb = zvec_get_at(b,i);
 
-		
+			memberf = memberf->ref;  //past MEMBER 
+
+			if (memberf->category == SUBTREE) {	//function expects CODE that generates the given type
+				memberf = memberf->ref;
+			}
 
 			//compare types of members
-			if (memberf->ref != memberb){
+			if (memberf != memberb){
 			//	xprintf("arg %d to function is of different type\n", i);
 				return ZFALSE;
 			}
@@ -1131,6 +1138,13 @@ void* zlist_tail_for_insert(zlistT* list) {
 	
 }
 
+tokenT* hredirectsub(exectxT* ex, tokenT* t) {
+	tokenT* redirect = t->val.as.token;
+	exe(ex, tsub(redirect));
+	return tnext(t);
+}
+
+
 tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 	
 	tokenT* tcode = mkToken(KCODE, "code", 4);
@@ -1149,6 +1163,12 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 			tokenT* last = zlist_tail(&t2->subs);
 			tokenT* first = zlist_head(&t2->subs);
 		
+			if (tsub(tsub(t2)) && !strcmp(tsub(tsub(t2))->str, "a44"))
+				boo();
+
+			xprintf(" Executing this to get value:\n");
+			printList(tsub(t2),NULL,0,0);
+
 
 			exe(ex, tsub(t2)); //this code puts an item on the stack; this item is the constant value to be baked into the code
 			char str[100];
@@ -1196,8 +1216,8 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 					if (last->ty->ref == tCode) {
 						//inserting raw list of tokens
 						
-						
-						tokenT* from = ex->stack[(ex->sp)].as.ptr.offset + (char*)ex->stack[--(ex->sp)].as.ptr.block;
+						--(ex->sp);
+						tokenT* from = ex->stack[(ex->sp)].as.ptr.offset + (char*)ex->stack[(ex->sp)].as.ptr.block;
 						from = tsub(from);
 						while (from ) {  
 							
@@ -1206,7 +1226,22 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 
 						}
 					}
+				}
 
+
+				if (last->ty->category == SUBTREE) {
+					printf(" inserting subtree \n");
+
+					--(ex->sp);
+					tokenT* subtree = ex->stack[(ex->sp)].as.ptr.offset + (char*)ex->stack[(ex->sp)].as.ptr.block;
+		
+					printList(subtree, NULL, 0, 2);
+					printf("%x\n", subtree);
+					newtok= mkToken(PASSTHRU, "callredirect", 0); //PASSTHRU token so this isn't repared
+					newtok->handler = hredirectsub;  //hredirectsub runs the 
+					newtok->val.as.token = ram_addref(subtree);
+					newtok->val_to_free = ZTRUE;
+					newtok->ty = subtree->ty->ref;
 				}
 			
 			}
@@ -1984,6 +2019,8 @@ tokenT* hgroup (exectxT* ex, tokenT* t){
 	return NULL;
 }
 
+
+
 tokenT* hcall (exectxT* ex, tokenT* t) {
 
 
@@ -2669,6 +2706,18 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 			
 			t = tnext(tnext(t));
 		}
+
+		int argIsCode = 0;
+
+		if (t->tok == KCODE) {
+			
+			argIsCode = 1;
+
+			t = tnext(t); 
+			//compile function arg to match on expression type (like Z32), but call with the subtree (Code%)
+		}
+
+		 
 		
 		t = parseVar(t, &name, &type  );
 		//printList((tokenT*)t->zlistnode.prev->prev->prev, t, ENDFILE,0);
@@ -2687,8 +2736,13 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 				parent->ref= type ;
 			}
 		} else	if (parent && parent->members) {
+
+			if (argIsCode)
+				type = findType(SUBTREE, type, NULL, 0);
+
 			typeT* mty = mkType(MEMBER, type, name, offset);
-			
+					
+
 			if (t->tok == KTRASH) {
 				//todo: only applicable to primitive parameter lists, but at this part of the code, we don't know that's what we are doing.
 				t = tnext(t);
@@ -3076,7 +3130,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			char* endString = ram_addref(t->str);
 			t = tnext(t);
-			ram_free(tremove(tprev(t))); //remove start delimiter token
+			ram_free(tremove(tprev(t))); //remove  start delimiter token
 			t = quote(pc, t, endString);
 			ram_free(endString);
 
@@ -3220,6 +3274,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			else
 				immediate_parse->no_global_vars = ZFALSE; //enable global variables for immediate blocks that are created after program is running?
 						
+			if (immediate_parse->endable) {
+				ERR("Nested immediate blocks:  This makes adding immediate variables (growing immediate space) impossible on-the-fly\n");
+			}
+
 			immediate_parse->endable++;
 			t = parse(immediate_parse, tnext(t));
 			t = tnext(t);
@@ -3873,7 +3931,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 				}
 				else
-					ERR(" only pointers (of the same pointers can be casted to virtual, & to & and % to %\n");
+					ERR(" only pointers (of the same pointers can be casted to virtual, & to & and %% to %%\n");
 
 
 			}
@@ -4465,6 +4523,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					//if any parameters are tracked from a possessive pointer, flag for addref
 
 					tokenT* tv = startfold;
+					startfold = NULL;//
+					int argnum = 0;
 
 					while (tv) {
 						if (tv->trackpossptr) {
@@ -4491,10 +4551,27 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 								//ram_addref( ex->stack[ex->fp-count+i].as.ptr.block );
 						}
 
+						if (s->type->members) {
+							typeT* argtype = zvec_get_at(s->type->members, argnum);
+							if (argtype&& argtype->ref && argtype->ref->category == SUBTREE) {
+								printf(" Wrap %dth arg with redirect\n", argnum);
+								tokenT* redirect = mkToken(REDIRECT, "redirect", 0);
+								redirect->handler = hconstant;	
+								redirect->ty = argtype->ref;
+								redirect->val.as.token = redirect;  //push self on stack
+								insert_after(tv, redirect);
+								tv = tnext(tv);	//tv is at 'follow'
+								fold(tprev(tv), tv); //
+								
+							}
+						}
+						
 						tv = tnext(tv);
+						argnum++;
 
 					}
-
+					//xprintf(" fcall args:\n");
+					//printList(t,t,NULL, 0);
 
 					if (!toexec) {  //regular function call
 
@@ -4689,6 +4766,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			t->zlistnode.next=NULL;//end it
 			printList(tprev(ts),t,0,1);
+
 			ERR("Undefined symbol:%s\n\n", t->str);
 			
 			

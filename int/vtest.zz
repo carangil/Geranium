@@ -778,7 +778,12 @@ proc immediate twice:(a:Code%->Code%)
 end
 
 
-code \ 100 print "-" print \ twice
+
+
+code \ 
+    immediate 50 50 + return end
+    print "-" print 
+\ twice
 
 newline
 immediate
@@ -787,3 +792,85 @@ immediate
 end
 print
 newline
+
+
+proc peek:(a:Z32->Z32)
+    "(a" print a print ")"print newline
+    a return
+end
+
+//define immediate proc that re the code the generates its arguments twice:
+
+
+proc fib:(n:Z32->Z32)
+
+    n 2<= if
+        1 return
+    end
+    
+    
+
+    n 1 - fib
+    n 2 - fib + return
+
+end
+
+proc announce:(n:Z32; s:String&->Z32)
+    s print n print newline 
+    n return
+end
+
+proc immediate repeat:(code a:Z32 -> Code%)  // code a:Z32 is NOT a Z32, but represents the code the calculates that arg
+
+    code \
+    
+        'a  print newline  // the code passed in is substed for 'a
+        'a  print newline
+    
+    \ return
+
+end
+
+7 fib "calc fib" announce repeat
+
+
+//consider disallowing the following:  a non-immediate function that takes in a code subtree
+proc runtimerepeat:(code a:Z32 ->)
+
+    code (->Z32) \ 
+        'a print newline
+        'a print newline
+        'a return
+        \ #g
+       
+    "compiled function using callee's code\n" print newline
+    
+    g exec print
+
+end
+
+7 fib "calc fib runtime" announce runtimerepeat
+
+proc immediate twicez:(b:Z32; code t:Z32; c:Z32 -> Code%)
+      " b is " print b print 
+      " and c is " print c print newline
+
+      code \ 't 't  \ return
+end
+
+111 400 peek 404 peek +  peek 222 twicez   + print    newline
+
+!
+immediate
+
+    10 #m0
+    
+    
+    m0
+    m0
+    
+    + return
+end 
+
+print
+    
