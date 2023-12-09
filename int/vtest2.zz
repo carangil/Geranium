@@ -1,0 +1,110 @@
+"base/base.zz" include
+cpointer Void;
+"gen.zz" include
+
+
+proc exchange:( a:Z32& ; b:Z32& ->)
+    a@ #t
+    b@ a@=
+    t b@=
+end
+
+proc printArray:(a:[Z32]&->)
+  0 #i loop i a count<while
+    
+        a i[] print " " print
+        i&++
+    end
+    newline
+end
+
+proc findSmallest:(a:[Z32]&; start:Z32->Z32)
+    start #smallest
+    start 1+ #i loop i a count< while
+        a i[] a smallest[] < if
+            i smallest=
+        end
+        i&++
+    end
+    smallest return
+end
+
+proc selectionSort:(a:[Z32]&->)
+
+    0 #i loop i a count < while
+        a i findSmallest #p
+        
+        a p[]& 
+        a i[]& exchange
+            
+        i&++
+    end
+
+end
+
+
+[Z32] 5 new #nums
+
+0 #i loop i nums count < while
+    RandomZ32 100 mod nums i[]=
+    i&++
+end
+
+nums printArray
+nums selectionSort
+nums printArray
+
+5 #globalvar
+var fx:(a:Z32->Z32)%;   
+
+code (a:Z32->Z32)\
+    a 33 + return
+
+\  10 fx&& =
+
+11 fx print newline
+
+
+//overloaded function pointer variables:
+
+code (b:Real->Real)\
+    b b * return
+\ # square
+
+code (b:Z32->Z32)\
+   "(square " print b print ")" print
+    b b * return
+\ # square
+
+//print the function pointers
+1.0 square&& :any& print newline
+1   square&& :any& print newline
+
+//print address of function pointer variable
+1.0 square&&& :any& print newline
+1 square&&& :any& print newline
+
+
+
+3 square print 
+"  "  print
+0.9 square print newline
+
+
+1.0 square&&& #tos
+
+30.0 tos @take #tt
+
+//11.0 tt print newline
+
+
+proc takefunc:(  f:(b:Z32->Z32)& ; x:Z32 -> )
+    "takefunc called "print newline
+    f #ff
+    x ff print newline
+
+end
+
+
+1 square && 3 takefunc
+
