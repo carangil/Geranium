@@ -2,12 +2,19 @@
 // ProjectZ is (C) 2018 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
+
+//TODO: move to vectormath, to better support using vectors in z
+#define Structmap_namedv3 Vec3:x=x:Real;y=y:Real;z=z:Real;
+
+
+
 typedef struct gfx_mat_3x3_s {
 	vec3 x_axis;  /*RIGHT vector */
 	vec3 y_axis;  /*UP vector*/
 	vec3 z_axis;  /* Forward Vector (-z) */
 } gfx_mat_3x3;
 
+#define Structmap_gfx_mat_3x3 Matrix33:x_axis=XAxis:Vec3;y_axis=YAxis:Vec3;z_axis=ZAxis:Vec3;
 
 //camera relative to itself
 void gfx_spin_matrix(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gfx_mat_3x3* rot);
@@ -19,6 +26,7 @@ typedef struct gfx_transform_s {
 
 typedef	gfx_transformT gfx_cameraT;
 
+#define Structmap_gfx_transformT Transform:pos=Position:Vec3;rot=Rotation:Matrix33;
 
 void gfx_camera_init(gfx_cameraT* cam);
 void gfx_trans_init(gfx_transformT* cam);

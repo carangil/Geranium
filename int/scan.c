@@ -561,7 +561,8 @@ int process_define(char* buf) {
 		*definition = 0;
 		definition++;
 		definition = eat_chars(definition, " \t");
-		char* defend = to_chars(definition, "\n\r \t");
+		char* defend = to_chars(definition, "\n\r");
+		//char* defend = to_chars(definition, "\n\r \t");
 		*defend = 0;
 	}
 

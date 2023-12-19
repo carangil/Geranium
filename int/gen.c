@@ -1102,6 +1102,133 @@ tokenT* hc_gxi_texture_complete (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
+gfx_meshT* gfx_mesh_load_objmm(zchar* filename, float scale, vec3* min, vec3* max);
+tokenT* hc_gfx_mesh_load_objmm (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
+	ex->stack[ex->sp-4].as.ptr.block= gfx_mesh_load_objmm(
+			(void*)((ex->stack[ex->sp-4].as.ptr.block)+(ex->stack[ex->sp-4].as.ptr.offset)),
+			ex->stack[ex->sp-3].as.f,
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+	ex->stack[ex->sp-4].as.ptr.level=0; 
+	ex->stack[ex->sp-4].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-4+1);
+
+	return tnext(t); 
+}
+tokenT* hc_gfx_mesh_load_obj (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
+	ex->stack[ex->sp-2].as.ptr.block= gfx_mesh_load_obj(
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			ex->stack[ex->sp-1].as.f);
+	ex->stack[ex->sp-2].as.ptr.level=0; 
+	ex->stack[ex->sp-2].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-2+1);
+
+	return tnext(t); 
+}
+gfx_jointT* load_bvh(char* filename, float scale, zvecT* ignorelist);
+tokenT* hc_load_bvh (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-3].as.ptr.block;
+	ex->stack[ex->sp-3].as.ptr.block= load_bvh(
+			(void*)((ex->stack[ex->sp-3].as.ptr.block)+(ex->stack[ex->sp-3].as.ptr.offset)),
+			ex->stack[ex->sp-2].as.f,
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+	ex->stack[ex->sp-3].as.ptr.level=0; 
+	ex->stack[ex->sp-3].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-3+1);
+
+	return tnext(t); 
+}
+void recurse_skeleton(gfx_jointT* joint, int frame, int op);
+tokenT* hc_recurse_skeleton (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-3].as.ptr.block;
+		recurse_skeleton(
+			(void*)((ex->stack[ex->sp-3].as.ptr.block)+(ex->stack[ex->sp-3].as.ptr.offset)),
+			ex->stack[ex->sp-2].as.z32,
+			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-3+0);
+
+	return tnext(t); 
+}
+void debug_print_skeleton(gfx_jointT* joint, int indent);
+tokenT* hc_debug_print_skeleton (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
+		debug_print_skeleton(
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-2+0);
+
+	return tnext(t); 
+}
+gx_shadergroupT* gx_shader_source(char* vsource, char* fsource);
+tokenT* hc_gx_shader_source (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
+	ex->stack[ex->sp-2].as.ptr.block= gx_shader_source(
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+	ex->stack[ex->sp-2].as.ptr.level=0; 
+	ex->stack[ex->sp-2].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-2+1);
+
+	return tnext(t); 
+}
+void gx_set_basic_shader(char* vsource, char* fsource);
+tokenT* hc_gx_set_basic_shader (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
+		gx_set_basic_shader(
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-2+0);
+
+	return tnext(t); 
+}
+gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT* st, gfx_vertex_bufferT* vb);
+tokenT* hc_gx_shader_variant (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
+	ex->stack[ex->sp-4].as.ptr.block= gx_shader_variant(
+			(void*)((ex->stack[ex->sp-4].as.ptr.block)+(ex->stack[ex->sp-4].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-3].as.ptr.block)+(ex->stack[ex->sp-3].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+	ex->stack[ex->sp-4].as.ptr.level=0; 
+	ex->stack[ex->sp-4].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-4+1);
+
+	return tnext(t); 
+}
 #define SET_EXTENSIONS set_handlers
 void set_handlers(){
 	mkSymbol(global, "C_zstrdup", tPrimitive, hc_zstrdup);
@@ -1177,11 +1304,30 @@ void set_handlers(){
 	mkSymbol(global, "C_gxi_new_texture_set", tPrimitive, hc_gxi_new_texture_set);
 	mkSymbol(global, "C_gxi_add_texture", tPrimitive, hc_gxi_add_texture);
 	mkSymbol(global, "C_gxi_texture_complete", tPrimitive, hc_gxi_texture_complete);
+	mkSymbol(global, "C_gfx_mesh_load_objmm", tPrimitive, hc_gfx_mesh_load_objmm);
+	mkSymbol(global, "C_gfx_mesh_load_obj", tPrimitive, hc_gfx_mesh_load_obj);
+	mkSymbol(global, "C_load_bvh", tPrimitive, hc_load_bvh);
+	mkSymbol(global, "C_recurse_skeleton", tPrimitive, hc_recurse_skeleton);
+	mkSymbol(global, "C_debug_print_skeleton", tPrimitive, hc_debug_print_skeleton);
+	mkSymbol(global, "C_gx_shader_source", tPrimitive, hc_gx_shader_source);
+	mkSymbol(global, "C_gx_set_basic_shader", tPrimitive, hc_gx_set_basic_shader);
+	mkSymbol(global, "C_gx_shader_variant", tPrimitive, hc_gx_shader_variant);
 	addCSize("zuint16", sizeof(zuint16));
 	addCSize("zeventT", sizeof(zeventT));
 	addCSize("zeventT_type", offsetof(zeventT,type));
 	addCSize("zeventT_a", offsetof(zeventT,a));
 	addCSize("zeventT_b", offsetof(zeventT,b));
+	addCSize("namedv3", sizeof(namedv3));
+	addCSize("namedv3_x", offsetof(namedv3,x));
+	addCSize("namedv3_y", offsetof(namedv3,y));
+	addCSize("namedv3_z", offsetof(namedv3,z));
+	addCSize("gfx_mat_3x3", sizeof(gfx_mat_3x3));
+	addCSize("gfx_mat_3x3_x_axis", offsetof(gfx_mat_3x3,x_axis));
+	addCSize("gfx_mat_3x3_y_axis", offsetof(gfx_mat_3x3,y_axis));
+	addCSize("gfx_mat_3x3_z_axis", offsetof(gfx_mat_3x3,z_axis));
+	addCSize("gfx_transformT", sizeof(gfx_transformT));
+	addCSize("gfx_transformT_pos", offsetof(gfx_transformT,pos));
+	addCSize("gfx_transformT_rot", offsetof(gfx_transformT,rot));
 	addCSize("zbitmapT", sizeof(zbitmapT));
 	addCSize("zbitmapT_w", offsetof(zbitmapT,w));
 	addCSize("zbitmapT_h", offsetof(zbitmapT,h));

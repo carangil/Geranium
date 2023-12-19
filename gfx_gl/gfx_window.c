@@ -317,6 +317,9 @@ zvecT* gxi_window_tempbuffers(gfx_windowT* gw) {
 zbool window_cleanup(void* v) {
 	gfx_windowT* gw = v;
 	ram_free(gw->tempvbufs);
+	ram_free(gw->basic_shader);
+	if (gxi_current_window == gw)
+		gxi_current_window = NULL;
 	return ZTRUE;
 }
 

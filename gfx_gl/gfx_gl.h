@@ -29,6 +29,7 @@ void checkGLfunc(char* file, int line, char* hint, zbool tolerable );
 #include "gx_trans.h"
 #include "gfx_texture.h"
 
+
 //#define DISABLE_FIXED_FUNCTION
 
 //creates a zwindowT object that gives UI zevents
@@ -69,7 +70,7 @@ typedef struct gfxstyleS {
 
 #define Counted_gfx_styleT *Style
 
-#define Procmap_gfx_style_mk MkStyle
+#define Procmap_gfx_style_mk NewStyle
 gfx_styleT* gfx_style_mk();
 
 //set properties.  Pass GFX_DELETE if need to remove a value
@@ -81,7 +82,7 @@ gfx_styleT* gfx_style_mk();
 void gfx_style_set_property(gfx_styleT* st, int idORtype, char* name_in, int index, int val, void* ptr, int action);
 
 //selects a style to use for rendering
-#define Procmap_gfx_style UseStyle
+#define Procmap_gfx_style Use
 void gfx_style(gfx_styleT* st);
 
 
@@ -133,10 +134,10 @@ typedef struct gfx_VertexBufferS {
 
 #define Typemap_gfx_vertex_bufferT *VBuffer
 
-#define Procmap_gfx_vertex_buffer_mk MkVBuffer
+#define Procmap_gfx_vertex_buffer_mk NewVBuffer
 gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount, char* spec);
 
-#define Procmap_gfx_index_triangle IndexTriangle
+#define Procmap_gfx_index_triangle AddTriangle
 zuint16 gfx_index_triangle(gfx_vertex_bufferT* vb, zuint16 a, zuint16 b, zuint16 c);
 
 #define Procmap_gfx_vertex_data Data
@@ -156,6 +157,7 @@ zuint16 gfx_vertex_done(gfx_vertex_bufferT* vb, int attr, float a, float b, floa
 #define Procmap_gfx_vertex_buffer_add_index AddIndexBuffer
 void gfx_vertex_buffer_add_index(gfx_vertex_bufferT* vb, int num);
 
+#define Procmap_gfx_vertex_buffer_update Update
 #define Procmap_gfx_vertex_buffer_update Update
 void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb);
 
@@ -235,8 +237,8 @@ typedef struct gfx_propertyS {
 	union {
 		float f;	//single float  
 		float fa[4]; //up to 4, for color, etc
-		vec3 v; //3 component vector (position)
-		vec4 v4; //3 component vector (position)
+		vec3 v;  //3 component vector (position)
+		vec4 v4; //4 component vector (position)
 		int i;
 		gfx_textureT* tex;
 
@@ -248,6 +250,7 @@ typedef struct gfx_windowS {
 	zwindowT iface;	//the zevent window interface
 	GLFWwindow* fwindow;
 	zvecT* tempvbufs;	//additional objects to free when window is closed
+	struct shadergroup_s* basic_shader;
 }gfx_windowT;
 
 

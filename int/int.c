@@ -22,7 +22,7 @@ int parseDebugFlag = 0;
 #endif
 void boo() {
 
-           	           	printf("breakpoint here\n");
+            	           	printf("breakpoint here\n");
 }
  
 #define ERR( ...)  do {xprintf(__VA_ARGS__); fprintf(stderr,__VA_ARGS__);fflush(stderr);boo();  exit(1);} while(0)
@@ -175,10 +175,11 @@ typedef struct tokenS{
 #define KCDATA		0x8018
 #define KIMMEDIATE	0x8019
 #define KCODE		0x801a
+#define KSTACKED	0x801b
 
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
 						"new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0",
-						"count", "size", "setcount","cdata","immediate", "code", NULL};
+						"count", "size", "setcount","cdata","immediate", "code", "stacked", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -442,8 +443,9 @@ typedef struct typeS{
 	struct typeS* parent;	//'parent' type, only for members, only in certain situations (currently when finding the 'real' type behind a virtual)
 	zvecT* members;  //(typeT*) structs or function parameters
 	zvecT* selectors; //(symbolT*)  function selectors
-	int trashAfterPrimitive; //only for function args, only when passing %pointer
+	int trashAfterPrimitive; //only for function args (members), only when passing %pointer
 	int tid;
+	zbool stacked;
 }typeT;
 
 zvecT* types;
@@ -1378,6 +1380,23 @@ tokenT* hstackread (exectxT* ex, tokenT* t) {	//read a stack variable (really fu
 	return tnext(t);
 }
 
+tokenT* hstackptr(exectxT* ex, tokenT* t) {	//get pointer to nth item on stack (only for structs kept on the stack)
+
+	
+
+ 	ex->stack[ex->sp].as.ptr.block = &ex->stack[ex->fp + t->val.as.z32];
+	ex->stack[ex->sp].as.ptr.offset = 0;
+
+
+	
+	ex->stack[ex->sp].as.ptr.level = ex->level + 1; //add level to source (so it must be used or passed but not locally stored)
+
+	(ex->sp)++;
+
+	return tnext(t);
+}
+
+
 #define DEREF(TYPE,BASE,OFFSET)      (*((TYPE*)(((char*)(BASE))+(OFFSET))))
 
 
@@ -1812,7 +1831,30 @@ tokenT* hstore8 (exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
+tokenT* hloadbytes(exectxT* ex, tokenT* t) {
 
+	exe(ex, tsub(t));
+	
+	void* thing = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+
+	memcpy(&ex->stack[ex->sp - 1], thing, t->val.as.n32);
+	
+	return tnext(t);
+}
+
+tokenT* hstorebytes(exectxT* ex, tokenT* t) {
+
+	exe(ex, tsub(t));
+
+	void* thing = &ex->stack[ex->sp - 2];
+	void* destination = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+
+	memcpy(destination, thing, t->val.as.n32);
+
+	ex->sp -= 2;
+
+	return tnext(t);
+}
 
 
 tokenT* hprint32 (exectxT* ex, tokenT* t) {
@@ -3948,7 +3990,23 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			break;
 
 	
+		case KSTACKED:
 
+			t = tnext(t); //t at name now
+			ty = findType(NAMED, NULL, t->str, 0);
+			if (!ty)
+				ERR("No type named %s\n", t->str);
+			ty->stacked = ZTRUE;
+			t = tnext(t);
+			
+			if (t->tok != ';')
+				ERR("expected stacked <typename>;");
+
+			
+			fold(ts, t);
+			t->handler = hnop;
+			t = tnext(t);
+			continue;
 			
 		case ':': //typecast
 
@@ -4187,14 +4245,19 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			}
 
+			
+
+
 			//next token is struct member
 			if (tnext(t)->str && tnext(t)->str[0] == '.'
 				&& tprev(t)->ty
 				&& tprev(t)->ty->ref
 				&& tprev(t)->ty->ref->category == STRUCT 
-				&& tprev(t)->tok != STACKARG
-				) {
+				&& (tprev(t)->tok != STACKARG || tprev(t)->ty->ref->stacked) ) {
 				
+				if (tprev(t)->ty->ref->stacked && tprev(t)->tok == STACKARG)
+					tprev(t)->handler = hstackptr; //get the stack pointer
+
 				//access struct member:  
 				//remove the @ token, since accessing the struct member is just pointer addition
 				t = tnext(t);
@@ -4207,12 +4270,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//read function arguments from the stack (Note: function args are READONLY...)
 			if (tprev(t)->tok == STACKARG) {
 
-				t->ty = tprev(t)->ty;
+				t->ty = tprev(t)->ty->ref;
 				tprev(t)->ty = NULL;
 
 				fold(tprev(t), t);
+				
 				t->handler = hstackread;
-
+				
 				if (t->ty->category == POINTERPOSSESSIVE) {
 
 					if (tnext(t)->tok == KTAKE) {
@@ -4233,6 +4297,21 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					}
 
 				}
+				t = tnext(t);
+				continue;
+			}
+
+
+
+			//user pointer to stacked value
+			if (tprev(t)->ty && (tprev(t)->ty->category == POINTERUSER) && (tprev(t)->ty->ref->stacked)) {
+
+				t->handler = hloadbytes;
+				t->val.as.n32 = tprev(t)->ty->ref->size;
+				t->ty=tprev(t)->ty->ref;
+				if (t->val.as.n32 > sizeof(valueT))
+					ERR(" Type %s does not fit in a stack slot\n", tprev(t)->ty->ref->name);
+				fold(tprev(t), t);
 				t = tnext(t);
 				continue;
 			}
@@ -4399,6 +4478,23 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				}
 			}
 
+
+			//store stacked value
+			//user pointer to stacked value
+			if (tprev(t)->ty && (tprev(t)->ty->category == POINTERUSER) && (tprev(t)->ty->ref->stacked)
+				&& tprev(tprev(t))->ty->stacked) {
+
+				t->handler = hstorebytes;
+				t->val.as.n32 = tprev(tprev(t))->ty->size;
+				
+				if (t->val.as.n32 > sizeof(valueT))
+					ERR(" Type %s does not fit in a stack slot\n", tprev(t)->ty->ref->name);
+
+				fold(ts, t);
+				t = tnext(t);
+				continue;
+			}
+
 			break;
 			
 		case KTRASH: //item destruction
@@ -4498,10 +4594,14 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				int so = -count+pos;
 				xprintf("Found %s  stack pos fp+%d, of type   ", m->name, so);
 				printType(m->ref,ZTRUE, ZFALSE);
-				t->ty = m->ref;
+				t->ty = findType(POINTERUSER, m->ref, NULL, 0);
 				t->tok = STACKARG;
+
+			
+
 				tokenT* tn = mkToken('@', "@", 1);  //load the variable
 				insert_after(t, tn);
+				
 				
 				t->val.as.z32=so;
 				t=tnext(t);
@@ -4810,7 +4910,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				}
 
 
-				else if ((s->type->category!=ARRAYSTATIC)&&(s->type->category!=STRUCT)) {  
+				else if ((s->type->category!=ARRAYSTATIC)&&(   s->type->category!=STRUCT || s->type->stacked  )) {  
 					tokenT* tn = mkToken('@', "@", 1);  //load the variable					
 					insert_after(t, tn);
 				}
@@ -4937,7 +5037,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 			 
 			t->zlistnode.next=NULL;//end it
-			xprintf(" \nFinding in:\n");
+			xprintf(" \nFinding in:\n"); 
 			printList(tprev(tprev(tprev(tprev(tprev(tprev(tprev(tprev(tprev(ts))))))))),t,0,1);
 
 			ERR("Undefined symbol:%s\n\n", t->str); 

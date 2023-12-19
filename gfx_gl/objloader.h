@@ -32,13 +32,17 @@ typedef struct gx_mesh_s
 
 } gfx_meshT;
 
+
 //defines a mesh
 //gx_mesh_t*  gx_mesh_def(gx_vbuffer_t* v, gx_drawstyle_t* s, zuint32 drawstart, zuint32 drawend, zbool indexed);
-
+//#define Counted_gfx_meshT *Mesh
 
 gfx_meshT* gfx_mesh_load_objmm(zchar* filename, float scale, vec3* min, vec3* max);
 
+#define Noproto_gfx_mesh_load_obj MeshLoadObj:(filename:String&; scale:Real->Mesh%);
+gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale);  //fictitous function
 #define gfx_mesh_load_obj(A,B) gfx_mesh_load_objmm(A,B,NULL,NULL)
+
 
 #define MAX_CHANNELS 6
 

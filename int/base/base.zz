@@ -2,6 +2,25 @@
 "base/float.zz" include
 
 
+//define some language extensions by using immediate procs
+
+// 'until' will break a for loop if the value is true
+
+proc immediate until:(code b:Bit->Code%)
+    code \
+        'b if break end
+    \ return
+end
+
+
+//while will break a for loop if the value is false.  Can appear anywhere in the loop, or multiple until/whiles
+proc immediate while:(code b:Bit->Code%)
+    code \
+        'b not if break end
+    \ return
+end
+
+
 //basic console io
 
 primitive printchar print:(a:N8 ->);
@@ -11,6 +30,7 @@ primitive print32   print:(a:Bit ->);
 primitive printptr  print:(a:any& ->);
 primitive readchar  getch:(->N8);
 primitive equal32   ==:(a:N8; b:N8 -> Bit);
+
 
 proc newline:(->)
 	10 :N8 print

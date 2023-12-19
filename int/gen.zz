@@ -93,20 +93,20 @@ primitive C_gfx_setup_2d Setup2D:(c_left:Real;c_right:Real;c_top:Real;c_bottom:R
 3 #GFX_BLEND_ADD 
 4 #GFX_BLEND_MUL 
 cdata Style;
-primitive C_gfx_style_mk MkStyle:(->Style%);
+primitive C_gfx_style_mk NewStyle:(->Style%);
 1 #GFX_DELETE 
 2 #GFX_TRANSFORM_POINT 
 3 #GFX_TRANSFORM_DIRECTION 
 primitive C_gfx_style_set_property Set:(c_st:Style&;c_idORtype:Z32;c_name_in:String&;c_index:Z32;c_val:Z32;c_ptr:Void;c_action:Z32->);
-primitive C_gfx_style UseStyle:(c_st:Style&->);
+primitive C_gfx_style Use:(c_st:Style&->);
 8 #MAX_ATTRIBUTE 
 1 #GFX_POINT 
 2 #GFX_LINE 
 3 #GFX_TRIANGLE 
 6 #GFX_QUAD 
 cpointer VBuffer;
-primitive C_gfx_vertex_buffer_mk MkVBuffer:(c_vcount:Z32;c_spec:String&->VBuffer);
-primitive C_gfx_index_triangle IndexTriangle:(c_vb:VBuffer;c_a:Z32;c_b:Z32;c_c:Z32->Z32);
+primitive C_gfx_vertex_buffer_mk NewVBuffer:(c_vcount:Z32;c_spec:String&->VBuffer);
+primitive C_gfx_index_triangle AddTriangle:(c_vb:VBuffer;c_a:Z32;c_b:Z32;c_c:Z32->Z32);
 primitive C_gfx_vertex_data Data:(c_vb:VBuffer;c_attr:Z32;c_a:Real;c_b:Real;c_c:Real;c_d:Real->);
 primitive C_gfx_vertex_done Done:(c_vb:VBuffer;c_attr:Z32;c_a:Real;c_b:Real;c_c:Real;c_d:Real->Z32);
 0 #gfx_vertex_data4 
@@ -142,21 +142,35 @@ primitive C_gfx_arrow gfx_arrow:(c_p1:cpointer vec3;c_p2:vec3;c_color:cpointer v
 0 #GXI_FOG_DENSITY 
 4 #MAX_FF_LIGHTS 
 primitive C_gfx_free_mesh gfx_free_mesh:(c_m:cpointer gfx_meshT->Bit);
-primitive C_gfx_spin_matrix gfx_spin_matrix:(c_yaw:Real;c_pitch:Real;c_roll:Real;c_rot:cpointer gfx_mat_3x3->);
+type @namedv3 Vec3
+	@namedv3_x	x:Real;
+	@namedv3_y	y:Real;
+	@namedv3_z	z:Real;
+end
+type @gfx_mat_3x3 Matrix33
+	@gfx_mat_3x3_x_axis	XAxis:Vec3;
+	@gfx_mat_3x3_y_axis	YAxis:Vec3;
+	@gfx_mat_3x3_z_axis	ZAxis:Vec3;
+end
+primitive C_gfx_spin_matrix gfx_spin_matrix:(c_yaw:Real;c_pitch:Real;c_roll:Real;c_rot:Matrix33&->);
+type @gfx_transformT Transform
+	@gfx_transformT_pos	Position:Vec3;
+	@gfx_transformT_rot	Rotation:Matrix33;
+end
 primitive C_gfx_camera_init gfx_camera_init:(c_cam:cpointer gfx_cameraT->);
-primitive C_gfx_trans_init gfx_trans_init:(c_cam:cpointer gfx_transformT->);
+primitive C_gfx_trans_init gfx_trans_init:(c_cam:Transform&->);
 primitive C_gfx_camera_motion_6dof gfx_camera_motion_6dof:(c_cam:gfx_cameraT;c_forward:Real;c_right:Real;c_up:Real;c_yaw:Real;c_pitch:Real;c_roll:Real->);
 primitive C_gfx_camera_view gfx_camera_view:(c_cam:gfx_cameraT->);
-primitive C_gfx_load_transform gfx_load_transform:(c_trans:gfx_transformT->);
-primitive C_gfx_save_transform gfx_save_transform:(c_s:gfx_transformT->);
-primitive C_gfx_blend_transform gfx_blend_transform:(c_a:Real;c_b:Real;c_trans:gfx_transformT->);
+primitive C_gfx_load_transform gfx_load_transform:(c_trans:Transform&->);
+primitive C_gfx_save_transform gfx_save_transform:(c_s:Transform&->);
+primitive C_gfx_blend_transform gfx_blend_transform:(c_a:Real;c_b:Real;c_trans:Transform&->);
 primitive C_gfx_translate gfx_translate:(c_delta:vec3->);
 primitive C_gfx_translate3 gfx_translate3:(c_x:Real;c_y:Real;c_z:Real->);
 primitive C_gfx_identity gfx_identity:(->);
 primitive C_gfx_rotate_x gfx_rotate_x:(c_rad:Real->);
 primitive C_gfx_rotate_y gfx_rotate_y:(c_rad:Real->);
 primitive C_gfx_rotate_z gfx_rotate_z:(c_rad:Real->);
-primitive C_gfx_rotate_3x3 gfx_rotate_3x3:(c_rot:gfx_mat_3x3->);
+primitive C_gfx_rotate_3x3 gfx_rotate_3x3:(c_rot:Matrix33&->);
 primitive C_gfx_scale3 gfx_scale3:(c_x:Real;c_y:Real;c_z:Real->);
 primitive C_gxi_refresh_matrix gxi_refresh_matrix:(c_shader:cpointer gx_shader_variant_s->);
 primitive C_gfx_trans_vec3 gfx_trans_vec3:(c_po:vec3->);
@@ -192,8 +206,22 @@ primitive C_zbitmap_load_tga BitmapLoadTGA:(f:String&;flags:Z32->ZBitmap%);
 cdata Texture;
 0 #GFX_TEXTURE_SCALER_SMOOTH 
 1 #GFX_TEXTURE_SCALER_BLOCKY 
-primitive C_gfx_texture_mk CreateTexture:(bitmap:ZBitmap%trash->Texture%);
+primitive C_gfx_texture_mk CreateTexture:(bitmap:ZBitmap%trash->Texture%); //callee indicates the function being called adds a reference and stores the pointer, or returns without freeing the pointer.  WHen function returns, a reference will be taken away.
 primitive C_gfx_texture_scaler Scaler:(c_image:Texture&;c_scaler:Z32->);
 primitive C_gxi_new_texture_set gxi_new_texture_set:(->);
 primitive C_gxi_add_texture gxi_add_texture:(c_tex:Texture&->Z32);
 primitive C_gxi_texture_complete gxi_texture_complete:(->);
+4 #MAX_BONE 
+10 #s 
+primitive C_gfx_mesh_load_objmm gfx_mesh_load_objmm:(c_filename:String&;c_scale:Real;c_min:vec3;c_max:vec3->gfx_meshT);
+primitive C_gfx_mesh_load_obj MeshLoadObj:(filename:String&; scale:Real->Mesh%);
+6 #MAX_CHANNELS 
+primitive C_load_bvh load_bvh:(c_filename:String&;c_scale:Real;c_ignorelist:cpointer zvecT->cpointer gfx_jointT);
+1 #SKEL_OP_DRAW 
+primitive C_recurse_skeleton recurse_skeleton:(c_joint:gfx_jointT;c_frame:Z32;c_op:Z32->);
+primitive C_debug_print_skeleton debug_print_skeleton:(c_joint:gfx_jointT;c_indent:Z32->);
+0 #GXGLSLH 
+cdata ShaderGroup;
+primitive C_gx_shader_source ShaderSource:(vertexShader:String&;fragmentShader:String&->ShaderGroup%);
+primitive C_gx_set_basic_shader DefaultShader:(vertexShader:String&; fragmentShader:String&->);
+primitive C_gx_shader_variant gx_shader_variant:(c_sg:cpointer gx_shadergroupT;c_key:String&;c_st:Style&;c_vb:VBuffer->cpointer gx_shader_variantT);

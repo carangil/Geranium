@@ -65,6 +65,8 @@ var gp:FuncPointer&;
 5 fp Call print newline
 9 gp Call print newline
 
+
+
 ////////
 
 
@@ -449,8 +451,6 @@ immediate
 end
 
 
-
-
 //aaaa print newline
 
 "stringval" #z1
@@ -535,7 +535,7 @@ var ZZZ002:(->)%;
 
 immediate "compiling CC" print newline end
 
-var cc:(a:Z32->Z32)%;
+
 
 123 20 + #te
 
@@ -549,13 +549,13 @@ code (aa:Z32->Z32) X
     aa  print "in dyn function " print newline
     1111 return
      
-X cc =
+X #cc
 
 
 "done" print newline
 
 
-333 cc exec print
+333 cc  print
 
 10 print newline
 
@@ -597,7 +597,7 @@ proc mkType:(name:String&; elementType: String&-> myType%)
         oo.val  print newline
         oo take return
         
-    \ ##c exec return
+    \ #c c  return
 
 
 end
@@ -634,7 +634,7 @@ code (z:myType&->) \\
     
     z.val print newline
   
-\\ ##boo22 exec
+\\ #boo22 boo22
 
 
 code  \ 
@@ -835,21 +835,59 @@ end
 
 
 //consider disallowing the following:  a non-immediate function that takes in a code subtree
-proc runtimerepeat:(code a:Z32 ->)
+proc  runtimerepeat:(code a:Z32 -> Code%)
 
-    code (->Z32) \ 
+    code \ 
+        //'a print newline
         'a print newline
-        'a print newline
-        'a return
-        \ #g
-       
-    "compiled function using callee's code\n" print newline
-    
-    g exec print
+        //'a return 0
+        \  return
+      
 
 end
 
-7 fib "calc fib runtime" announce runtimerepeat
+7 fib "calc fib runtime" announce runtimerepeat #rtr
+
+//code (->Z32) \ 'rtr  \ 
+
+
+//#rtrc
+
+
+proc immediate for:(code cond:Bit; inc:Code% ; body:Code% -> Code%)
+
+
+    code \
+        loop
+       
+       
+        
+        loop
+        
+            'cond while
+            
+            'body
+            
+            
+            'inc
+        end
+        
+         end
+    
+    \ return
+
+end
+
+0 #lv
+
+//lv 10 < code \ lv 1 + lv = \ code \  lv print  " lv" print newline \  for
+
+
+
+
+
+
+ //th3 exec print
 
 proc immediate twicez:(b:Z32; code t:Z32; c:Z32 -> Code%)
       " b is " print b print 
@@ -860,7 +898,7 @@ end
 
 111 400 peek 404 peek +  peek 222 twicez   + print    newline
 
-!
+
 immediate
 
     10 #m0

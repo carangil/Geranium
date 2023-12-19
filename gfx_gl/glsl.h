@@ -7,13 +7,16 @@ typedef struct shadergroup_s {
 	char* fsource;
 	zlistT variants;
 } gx_shadergroupT;
-
+#define Counted_gx_shadergroupT ShaderGroup
+#define Procmap_gx_shader_source ShaderSource:(vertexShader:String&;fragmentShader:String&->ShaderGroup%);
 //gives source code for a shader group
 gx_shadergroupT* gx_shader_source(char* vsource, char* fsource);
 
+#define Procmap_gx_set_basic_shader DefaultShader:(vertexShader:String&; fragmentShader:String&->);
+
 void gx_set_basic_shader(char* vsource, char* fsource);
 
-void gfx_free_basic_shader();  //todo: make the basic_shader part of the window struct or something else that gets freed already
+
 
 
 

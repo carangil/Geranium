@@ -26,20 +26,16 @@ zbool gxi_delete_shadergroup(void* v) {
 	return ZTRUE;
 }
 
-gx_shadergroupT* basic_shader = NULL;  //This is set to a very basic vertex-lighting shader similar to fixed function opengl
+//gx_shadergroupT* basic_shader = NULL;  //This is set to a very basic vertex-lighting shader similar to fixed function opengl
 										//for quick and dirty protyping, debug drawing, etc
 
 void gx_set_basic_shader(char* vsource, char* fsource) {
-	
-	basic_shader = gx_shader_source(vsource, fsource);
-}
-
-void gfx_free_basic_shader() {
-	ram_free(basic_shader);
+	if (gxi_current_window->basic_shader)
+		ram_free(gxi_current_window->basic_shader);
+	gxi_current_window->basic_shader = gx_shader_source(vsource, fsource);
 }
 
 gx_shadergroupT* gx_shader_source(char* vsource, char* fsource) {
-
 
 	gx_shadergroupT* sg = ram_alloc(sizeof(gx_shadergroupT), gxi_delete_shadergroup);
 
@@ -122,7 +118,7 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 
 
 	if (!sg)
-		sg = basic_shader;
+		sg = gxi_current_window->basic_shader;
 
 	if (!sg) {
 		if (shader_active) {

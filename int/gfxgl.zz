@@ -8,294 +8,64 @@ proc Data:(vb:VBuffer; attr:Z32;x:Real; y:Real; z:Real->)   vb attr x y z 0.0 Da
 proc Done:(vb:VBuffer; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Done return end
 proc Data:(vb:VBuffer; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Data return end
 
-type Sprite
-    style:  Style%;
-    left:   Z32;
-    top:    Z32;
-    width:  Z32;
-    height: Z32;
-    pw:     Z32;
-    ph:     Z32;
-end
 
-
-
-
-
-proc LoadSprite:(filename:String&; left:Z32; top:Z32; w:Z32; h:Z32  ->Sprite%)
-
-    MkStyle                             #style
-        
+proc LoadTexture:(filename:String&->Texture%)
     filename ZTGA_TOP BitmapLoadTGA #img
-    img keep CreateTexture  #texture               
-    texture GFX_TEXTURE_SCALER_BLOCKY   Scaler
-    
-    style GFX_TEXTURE "texture_diffuse" 0 0               texture:Void  0 Set
-    style 0            "blend"          0 GFX_BLEND_ALPHA 0:Void        0 Set
-
-    Sprite new #s
-    
-    style take  s.style=
-    left        s.left=
-    top         s.top=
-    w           s.width=
-    h           s.height=
-    img.width   s.pw=
-    img.height  s.ph=
-
-    s take return   
+    img keep CreateTexture  return
 end
-
-
-
-type Entity
-
-    sprite: Sprite%; //what to draw
-    angle:Real;  
-    vangle:Real;
-    adampening:Real;
-    
-    x:Real;
-    y:Real;
-    h:Real;
-    w:Real;
-    
-    vx:Real;
-    vy:Real;   
-    r:Real;
-end
-
-
 
 
 
 var window:ZWindow;
 
 
-
-
-6.28318 #TAU
-
-
-1024.0 #GW
-768.0 #GH
-
-proc Wrap:(x:Real;w:Real->Real)
-
-    x 0.0 < if
-        x w + return
-    end
-    
-    x w >= if
-        x w - return
-    end
-    
-    x return
-
-end
-
-
-proc Move:(e:Entity&->)
-
-
-    e.angle e.vangle+ e.angle=
-    
-    
-    e.vangle 1.0 e.adampening- * e.vangle=
-    
-    
-    e.x e.vx + GW Wrap e.x=
-    e.y e.vy + GH Wrap e.y=
-        
-    
-    return
-end
-
-
-
-
-
-proc Draw:(sprite:Sprite& ; x:Real; y:Real; w:Real; h:Real ; angle:Real ->)
-
-    //testing nested helper procedure
-    proc RotXY:(x:Real&;y:Real&;angle:Real->)
-
-        angle 180.0/ TAU* cos x@*
-        angle 180.0/ TAU* sin y@ * - 
-                                  #nx
-
-        angle 180.0/ TAU* sin x@*
-        angle 180.0/ TAU* cos y@*+   y@=
-
-                                  nx x@=
-        
-        return
-        
-    end
-    
-    proc Texel:(x:Z32; w:Z32 -> Real)
-        x:Real w:Real / return
-    end
-
-    sprite.style UseStyle
-    sprite.left sprite.width  +  #sprite_right
-    sprite.top  sprite.height +  #sprite_bottom
-    
-
-    window  "position:3|texcoord:2" TempVBuffer 
-      #vb
-        
-
-            
-            
-                w 0.5* .-  #xx         h 0.5* .- #yy                               
-                            xx&                   yy& angle RotXY
-            vb   0          xx x+                 yy y+             0.0  Data 
-            vb   1                                                            sprite.left sprite.pw Texel     sprite.top sprite.ph Texel    Done          
-            
-            
-            
-            
-                w 0.5*      xx=        h 0.5* .-  yy=                              
-                            xx&                   yy& angle RotXY
-            vb  0           xx x+                 yy y+             0.0  Data 
-            vb  1                                                              sprite_right sprite.pw Texel    sprite.top sprite.ph Texel    Done          
-            
-            
-            
-                w 0.5*      xx=            h 0.5* yy=                              
-                            xx&                   yy& angle RotXY
-            vb  0           xx x+                 yy y+             0.0  Data 
-            vb  1                                                              sprite_right sprite.pw Texel    sprite_bottom sprite.ph Texel    Done          
-            
-                                            
-                    
-                                                
-            
-                w 0.5*  .-  xx=            h 0.5* yy=                              
-                            xx&                   yy& angle RotXY
-            vb  0           xx x+                 yy y+            0.0  Data 
-            vb  1                                                              sprite.left sprite.pw Texel    sprite_bottom sprite.ph Texel    Done          
-    
-           
-      vb GFX_QUAD DrawReset
-   
-  
-  
-    return
-end
-
-
-
-
-proc Draw:(e:Entity&->)
-    e.sprite e.x e.y e.w e.h e.angle Draw
-    return
-end
-
-
-
-
-
+//tracks keys (todo move to C)
 [Z32] ZKEY_LASTKEY new #Keys
 proc IsPressed:(key:Z32->Bit)
     Keys key[] 1 == return
 end
 
 //create an opengl window
-"Space Rocks" 1024 768 0 GLWindow window=
+"Testing" 1024 768 0 GLWindow window=
 
-var ev:ZEvent;
 
 0.0 0.0 0.1 1.1 BackgroundColor
 
-//left right top bottom
-0.0 1024.0 0.0 768.0  Setup2D
+
+
+//load assets
+
+"../../Zcore-data/web/Rock_044_SD/Rock_044_BaseColor.tga"   LoadTexture #Rock_Diffuse
+"../../Zcore-data/web/Rock_044_SD/Rock_044_Normal.tga"      LoadTexture #Rock_Normal
+"../../Zcore-data/web/Rock_044_SD/Rock_044_Height.tga"      LoadTexture #Rock_Height
+
+
+
+"../../Zcore-data/cube.obj" 1.0 MeshLoadObj #CubeMesh
+
+"@../gfxtest/vertex.glsl" "@../gfxtest/fragment.glsl" DefaultShader 
 
 window  "color:4|position:3|texcoord:2" TempVBuffer #vb
 
-"../../Zcore-data/font32.tga" ZTGA_TOP BitmapLoadTGA #bbb
+        
 
-bbb keep CreateTexture  #fonttexture
+
+
+
+
+
+//"../../Zcore-data/font32.tga" ZTGA_TOP BitmapLoadTGA #bbb
+//bbb keep CreateTexture  #fonttexture
 
 
         
-       
-"asteroids/ship.tga" 0 0 64 64  LoadSprite #shipsprite
-var ship:Entity;
-
-shipsprite keep ship.sprite =
-
-16.0 ship.r=
-64.0 ship.w=
-64.0 ship.h=
-
-0.1  ship.adampening=  
-
-proc ResetShip:(->)
-    500.0 ship.x=
-    350.0 ship.y=
-    0.0 ship.vx=
-    0.0 ship.vy=
-    0.0 ship.vangle=
-    0.0 ship.angle=
-    return
-end
-
-ResetShip
-
-
-
-[Sprite%] 3 new #rocksprites
-
-"asteroids/rock0.tga" 0 0 64 64  LoadSprite rocksprites 0[] =
-"asteroids/rock1.tga" 0 0 128 128  LoadSprite rocksprites 1[] =
-"asteroids/rock2.tga" 0 0 128 128  LoadSprite rocksprites 2[] =
-
-
-1.0 #MAXVRAND
-1.0 #MAXARAND
-
-100 #mr
-10 #rc
-[Entity] mr  new0 #rocks
-
-"boo " print newline
-0#i loop 
-
-    i rc >= if break end
-
-    
-    
-    0.0 GW RandomReal rocks i[].x=
-    0.0 GH RandomReal rocks i[].y=
-    0.0 360.0 RandomReal rocks i[].angle=
-    
-    MAXVRAND.- MAXVRAND RandomReal rocks i[].vx=
-    MAXVRAND.- MAXVRAND RandomReal rocks i[].vy=
-    MAXVRAND.- MAXARAND RandomReal rocks i[].vangle=
-       
-    64.0 rocks i[].w=
-    64.0 rocks i[].h=   
-    24.0 rocks i[].r=
-    
-    rocksprites   RandomZ32 rocksprites count mod[]  keep      rocks i[].sprite=
-        
-    i&++
-end
-i rocks setcount
-
-"boo2 " print newline
-
-
-
-
-    
+     
 loop
-
-    loop
+     // WindowEventLoop
+     var ev:ZEvent;
+     loop
         
-        window ev GetEvent  not if break end
+        window ev GetEvent  while
         "Event " print ev.eventType print  "    " print     newline
         
         ev.eventType   ZEVENT_KEY ZEVENT_DOWN or == if 
@@ -310,155 +80,127 @@ loop
         window zw_close
         break
     end
-
-
-    0.1 #SPEED
-     ZKEY_LEFT IsPressed if
-                       -2.0 ship.vangle=
-    end
-    ZKEY_RIGHT IsPressed if
-                        2.0 ship.vangle=
-    end
-    ZKEY_UP IsPressed if
-        ship.angle 180.0/ TAU* cos SPEED* ship.vx + ship.vx=
-        ship.angle 180.0/ TAU* sin SPEED* ship.vy + ship.vy=
-    end
     
+            
+    80.0     4.0 3.0/   0.01 1000.0 Setup3D
     1:Bit 1:Bit FrameClear
+    gfx_identity
+    0.0 0.0 -5.0 gfx_translate3
     
     
+    //(cube_mesh->vb, GFX_TRIANGLE, 0, zarray_count(cube_mesh->vb->index_buffer), ZTRUE);
     
-    ship Move
-    ship Draw
     
-    proc Square:(a:Real->Real)
-        a a * return
-    end
+    //add function that can draw cubemesh
     
-    proc Collide:(a:Entity&; b:Entity& ->Bit)
     
-        a.x b.x - Square
-        a.y b.y - Square + sqrt 
-                      a.r b.r +  < if
-                                        1:Bit return
-        end
-        
-        0:Bit return
-    
-    end
-   
-   proc EntCopy:(last: Entity&; nth: Entity& ->)
-   
-        last.w nth.w=
-        last.h nth.h=
-        last.x nth.x=
-        last.y nth.y=
-        last.vx nth.vx=
-        last.vy nth.vy=
-        last.angle nth.angle=
-        last.vangle nth.vangle=
-//        nth.sprite take trash
-        last.sprite take nth.sprite=
-
-        return
-    end
-    
-   proc RockRemove:(n:Z32->)
-   
-   
-   
-   
-        rocks rocks count 1- []
-        rocks n[] EntCopy
-   
-        rocks rocks count 1 - rocks setcount
-   
-        //todo:last rock, wins
-        return
-   end
-  
-    
-    proc RockSplit:(n:Z32->)
-    
-
-        rocks n[].r  2.0/ #r r 5.0 <= if
-            n RockRemove
-            return
-        end
-        
-        r rocks n[].r=
-        
-        
-        
-        10.0 rocks n[].r=
-        
-        rocks n[].w  2.0/ #hx hx  rocks n[].w =
-        rocks n[].h  2.0/ #hy hy rocks n[].h =
+    //CubeMesh.
        
-        rocks count  1+  rocks size >= if
-            return
-        end
-       
-        r rocks rocks count [].r=
-         
-    
-    
-        rocks n[].x rocks rocks count [].x=        
-        rocks n[].y rocks rocks count [].y=
-        
-        hx rocks rocks count[].w=
-        hy rocks rocks count[].h=
-        
-        
-        MAXVRAND.- MAXVRAND RandomReal rocks rocks count[].vx=
-        MAXVRAND.- MAXVRAND RandomReal rocks rocks count[].vy=
-        MAXVRAND.- MAXARAND RandomReal rocks rocks count[].vangle=
-    
-        
-        
-        rocks n[].sprite keep rocks rocks count[].sprite= 
-        
-        
-        rocks count 1 + rocks setcount
-        return
-    
-    end
-    
-    
-    0i= loop 
-    
-    
-    
-    
-       
-        i rocks count >= if break end
-    
-        //check against player
-        
-        rocks i[] ship Collide if
-            1 #die
-            i RockSplit
-            break
-        end
-    
-                
-        
-        rocks i [] Move
-        
-    
-        //draw
-        rocks i[]  Draw
-        i&++
-        
-    end
-    
-    die 1 == if
-        ResetShip
-    end
-    0 die=
     
     
     window UpdatePixels
     
    
 end
+
+
+
+var a:Transform;
+
+
+proc print:(point:Vec3&->)
+    "<" print point.x print  "," print point.y print  "," print point.z print ">" print
+end
+
+proc print:(aa:Transform&->)
+
+    "pos:" print aa.Position print
+    ",x:" print aa.Rotation.XAxis print
+    ",y:" print aa.Rotation.YAxis print 
+    ",z:" print aa.Rotation.ZAxis print
+
+end
+
+a gfx_trans_init
+a print
+
+
+
+
+//todo: need to import all the vector math operations
+proc =:(x:Real; y:Real;z:Real;v:Vec3&->)
+    x v.x=
+    y v.y=
+    z v.z=
+end
+
+
+stacked Vec3;  //Vec3 structs are put on the stack
+
+proc print:(point:Vec3->)
+    "byval " print
+    
+       
+   
+    
+    point #p        //access by value
+    
+    p& print
+    
+   
+    "<b " print point.x print  "," print point.y print  "," print point.z print ">" print
+   "byval end" print
+end
+
+proc mkvec3:(a:Real;b:Real;c:Real->Vec3)
+
+    var v:Vec3;
+    a v&.x=
+    b v&.y=
+    c v&.z=
+    
+    v return
+end
+
+
+var v:Vec3;
+
+1.1 2.2 3.3 v=
+
+v #v2 //& print
+
+newline
+
+"v " print
+v& print newline
+
+"v2 " print
+v2& print newline
+newline
+
+6.6 v2.x=
+
+"v " print
+v& print newline
+
+"v2 " print
+v2& print newline
+newline
+
+v2 print
+v2 &print
+
+1111. 2222. 33333. mkvec3 #h   //todo:##var for stacked structs
+h print
+
+
+5.5 10.0 121.0 mkvec3 print
+
+v2.x print newline
+v2& #vp
+"vp.x " print vp.x print newline
+"v.x  " print v.x print newline
+
+
+222.0 333.0 444.0 mkvec3 print
+
