@@ -90,7 +90,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>H:\projects\external\glfw-3.3.8.bin.WIN64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)\..\gfx_gl;$(SolutionDir)\hcopy</IncludePath>
+    <IncludePath>$(SolutionDir)\..\..\external\glfw-3.3.8.bin.WIN64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)\..\gfx_gl;$(SolutionDir)\hcopy</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -98,12 +98,12 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>H:\projects\Zcore\gfx_gl\glad\include;H:\projects\external\glfw-3.3.8.bin.WIN64\include\GLFW;H:\projects\external\glfw-3.3.8.bin.WIN64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)\..\gfx_gl;$(SolutionDir)\hcopy</IncludePath>
-    <LibraryPath>H:\projects\external\glfw-3.3.8.bin.WIN64\lib-vc2019;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(SolutionDir)\..\gfx_gl\glad\include;$(SolutionDir)\..\..\external\glfw-3.3.8.bin.WIN64\include\GLFW;$(SolutionDir)\..\..\external\glfw-3.3.8.bin.WIN64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)\..\gfx_gl;$(SolutionDir)\hcopy</IncludePath>
+    <LibraryPath>$(SolutionDir)\..\..\external\glfw-3.3.8.bin.WIN64\lib-vc2019;$(WindowsSDK_LibraryPath_x64);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>H:\projects\Zcore\gfx_gl\glad\include;H:\projects\external\glfw-3.3.8.bin.WIN64\include\GLFW;H:\projects\external\glfw-3.3.8.bin.WIN64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)\..\gfx_gl;$(SolutionDir)\hcopy</IncludePath>
+    <IncludePath>$(SolutionDir)..gfx_gl\glad\include;$(SolutionDir)\..\..\external\glfw-3.3.8.bin.WIN64\include\GLFW;$(SolutionDir)\..\..\external\glfw-3.3.8.bin.WIN64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)\..\gfx_gl;$(SolutionDir)\hcopy</IncludePath>
     <LibraryPath>H:\projects\external\glfw-3.3.8.bin.WIN64\lib-vc2019;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -120,6 +120,9 @@
     <PostBuildEvent>
       <Command>copy $(SolutionDir)..\gfx_gl\*.h $(solutiondir)\hcopy</Command>
     </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>echo solution dir is $(SolutionDir)</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -155,7 +158,7 @@
       <Command>copy $(SolutionDir)..\gfx_gl\*.h $(solutiondir)\hcopy</Command>
     </PostBuildEvent>
     <Lib>
-      <AdditionalDependencies>opengl32.lib;glfw3.lib;glu32.lib</AdditionalDependencies>
+      <AdditionalDependencies>glfw3.lib;glu32.lib</AdditionalDependencies>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
