@@ -1313,6 +1313,10 @@ void set_handlers(){
 	mkSymbol(global, "C_gx_set_basic_shader", tPrimitive, hc_gx_set_basic_shader);
 	mkSymbol(global, "C_gx_shader_variant", tPrimitive, hc_gx_shader_variant);
 	addCSize("zuint16", sizeof(zuint16));
+	mkSymbol(global, "C_vec3add", tPrimitive, h_vec3add);
+	mkSymbol(global, "C_vec3sub", tPrimitive, h_vec3sub);
+	mkSymbol(global, "C_vec3cross", tPrimitive, h_vec3cross);
+	mkSymbol(global, "C_vec3dot", tPrimitive, h_vec3dot);
 	addCSize("zeventT", sizeof(zeventT));
 	addCSize("zeventT_type", offsetof(zeventT,type));
 	addCSize("zeventT_a", offsetof(zeventT,a));

@@ -577,9 +577,10 @@ int process_define(char* buf) {
 	int np = 0;
 	int is_counted = 0;
 	int is_byteobj = 0;
+	int is_handler = 0;
 	char tmp[100];
 
-	if ((is_byteobj = !strncmp(word, "ByteObj_", 8)) || (is_tm = !strncmp(word, "Typemap_", 8)) || (is_counted = !strncmp(word, "Counted_", 8)) || (!strncmp(word, "Procmap_", 8)) || (np = !strncmp(word, "Noproto_", 8))) {
+	if ((is_byteobj = !strncmp(word, "ByteObj_", 8)) || (is_tm = !strncmp(word, "Typemap_", 8)) || (is_counted = !strncmp(word, "Counted_", 8)) || (is_handler = !strncmp(word, "Handler_", 8)) || (!strncmp(word, "Procmap_", 8)) || (np = !strncmp(word, "Noproto_", 8))) {
 		int ptr = 0;
 		word += 8;
 
@@ -597,6 +598,15 @@ int process_define(char* buf) {
 			return;
 		}
 
+		if (is_handler) {
+			fprintf(outz, "primitive C_%s %s\n", word, definition);
+
+			snprintf(tmp, sizeof(tmp), "\tmkSymbol(global, \"C_%s\", tPrimitive, h_%s);\n", word, word);
+			
+
+			zvec_add(collected, zstrdup(tmp));
+
+		}
 
 		if (is_tm)
 			fprintf(outz, "cpointer %s;\n", definition);

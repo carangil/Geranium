@@ -10,6 +10,10 @@ primitive C_zrandf RandomReal:(c_min:Real;c_max:Real->Real);
 cdata @zuint16 N16;
 primitive C_store16 =:(c_val:Z32;c_zp:N16&->);
 primitive C_load16 @:(c_z:N16&->Z32);
+primitive C_vec3add +:(a:Vec3;b:Vec3->Vec3);
+primitive C_vec3sub -:(a:Vec3;b:Vec3->Vec3);
+primitive C_vec3cross Cross:(a:Vec3;b:Vec3->Vec3);
+primitive C_vec3dot Dot:(a:Vec3;b:Vec3->Real);
 type @zeventT ZEvent
 	@zeventT_type	eventType:Z32;
 	@zeventT_a	A:Z32;

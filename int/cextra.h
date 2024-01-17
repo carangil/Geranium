@@ -42,3 +42,10 @@ void store16(zint32 val, zuint16* zp);
 
 #define Procmap_load16 @
 zint32 load16(zuint16* z); 
+
+//vector math functions
+
+#define Handler_vec3add     +:(a:Vec3;b:Vec3->Vec3);
+#define Handler_vec3sub     -:(a:Vec3;b:Vec3->Vec3);
+#define Handler_vec3cross   Cross:(a:Vec3;b:Vec3->Vec3);
+#define Handler_vec3dot     Dot:(a:Vec3;b:Vec3->Real);

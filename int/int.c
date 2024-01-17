@@ -2849,6 +2849,9 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 		} 
 		 
 		if (type->category > LAST_REAL_TYPE){
+			if ((type->category == PENDING) && (type->stacked))
+				printf("allowing stacked struct in struct/fcall\n");
+			else
 			ERR("Name '%s' category %d cannot be in struct/fcall\n",  safestr(type->name),   type->category);
 		}
 
@@ -3512,7 +3515,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				else
 					ERR("No primitive named %s\n", name2);
 
-
+				 
 
 			} 
 
@@ -3994,8 +3997,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			t = tnext(t); //t at name now
 			ty = findType(NAMED, NULL, t->str, 0);
-			if (!ty)
-				ERR("No type named %s\n", t->str);
+			if (!ty) {
+				ty = mkType(PENDING, NULL, t->str, 0);
+				ty->stacked = ZTRUE;
+				//ERR("No type named %s\n", t->str);
+			}
 			ty->stacked = ZTRUE;
 			t = tnext(t);
 			

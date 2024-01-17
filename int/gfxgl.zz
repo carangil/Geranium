@@ -1,5 +1,6 @@
 "base/base.zz" include
 cpointer Void;
+stacked Vec3;   
 "gen.zz" include
 
 proc UpdatePixels:(w:ZWindow -> )    w 0:Void UpdatePixels  return end
@@ -155,9 +156,9 @@ end
 proc mkvec3:(a:Real;b:Real;c:Real->Vec3)
 
     var v:Vec3;
-    a v&.x=
-    b v&.y=
-    c v&.z=
+    a v.x=
+    b v.y=
+    c v.z=
     
     v return
 end
@@ -202,5 +203,10 @@ v2& #vp
 "v.x  " print v.x print newline
 
 
-222.0 333.0 444.0 mkvec3 print
+10.0 20.0 30.0 mkvec3 0.55 0.066 0.77 mkvec3 + print
 
+1.0 2.0 3.0 mkvec3
+-1.0 2.0 3.0 mkvec3 Cross print newline
+
+1.0 2.0 3.0 mkvec3
+-1.0 2.0 3.0 mkvec3 Dot print newline
