@@ -129,6 +129,36 @@ tokenT* hc_load16 (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
+void boo();
+tokenT* hc_boo (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-0].as.ptr.block;
+		boo(
+			);
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-0+0);
+
+	return tnext(t); 
+}
+tokenT* hc_findType (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
+	ex->stack[ex->sp-4].as.ptr.block= findType(
+			ex->stack[ex->sp-4].as.z32,
+			(void*)((ex->stack[ex->sp-3].as.ptr.block)+(ex->stack[ex->sp-3].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			ex->stack[ex->sp-1].as.z32);
+	ex->stack[ex->sp-4].as.ptr.level=0; 
+	ex->stack[ex->sp-4].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-4+1);
+
+	return tnext(t); 
+}
 void zw_enqueue(zwindowT* zw, zuint32 type, zuint32 a, zuint32 b, void* ptr);
 tokenT* hc_zw_enqueue (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
@@ -1240,6 +1270,8 @@ void set_handlers(){
 	mkSymbol(global, "C_zrandf", tPrimitive, hc_zrandf);
 	mkSymbol(global, "C_store16", tPrimitive, hc_store16);
 	mkSymbol(global, "C_load16", tPrimitive, hc_load16);
+	mkSymbol(global, "C_boo", tPrimitive, hc_boo);
+	mkSymbol(global, "C_findType", tPrimitive, hc_findType);
 	mkSymbol(global, "C_zw_enqueue", tPrimitive, hc_zw_enqueue);
 	mkSymbol(global, "C_zw_queued", tPrimitive, hc_zw_queued);
 	mkSymbol(global, "C_zw_event", tPrimitive, hc_zw_event);
@@ -1317,6 +1349,9 @@ void set_handlers(){
 	mkSymbol(global, "C_vec3sub", tPrimitive, h_vec3sub);
 	mkSymbol(global, "C_vec3cross", tPrimitive, h_vec3cross);
 	mkSymbol(global, "C_vec3dot", tPrimitive, h_vec3dot);
+	addCSize("typeT", sizeof(typeT));
+	addCSize("typeT_name", offsetof(typeT,name));
+	addCSize("typeT_size", offsetof(typeT,size));
 	addCSize("zeventT", sizeof(zeventT));
 	addCSize("zeventT_type", offsetof(zeventT,type));
 	addCSize("zeventT_a", offsetof(zeventT,a));

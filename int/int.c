@@ -6,9 +6,6 @@
 #include "zlist.h"
 #include "zvector.h"
 
-
-
-
 #define xprintf(a,...) fprintf(logfile, a, __VA_ARGS__),fflush(logfile)
 FILE* logfile;
 int parseDebugFlag = 0;
@@ -176,10 +173,13 @@ typedef struct tokenS{
 #define KIMMEDIATE	0x8019
 #define KCODE		0x801a
 #define KSTACKED	0x801b
+#define KTYPEOF		0x801c
+#define KNOEXEC		0x801d
+#define KOPAQUE		0x801e
 
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
 						"new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0",
-						"count", "size", "setcount","cdata","immediate", "code", "stacked", NULL};
+						"count", "size", "setcount","cdata","immediate", "code", "stacked", "typeof", "noexec", "opaque", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -306,7 +306,7 @@ zbool tokenize(tokenT* insert, char* in){
 			line++;
 
 		//find twochar patterns like ->,etc. including comment start/end markers
-		if ((p = findPair("&&--++==->/**///[]>=<=!=.-###=\\\\/\\\\/", c, next))){
+		if ((p = findPair("--++==->/**///[]>=<=!=.-###=\\\\/\\\\/", c, next))){
 			if (  p == PAIR('/','/')  ) { //special handling for // comments
 				while(*in!= '\n')
 					in++;
@@ -373,7 +373,7 @@ zbool tokenize(tokenT* insert, char* in){
 			digits  = acceptPatterns(in,
 					"-.0123456789", //start with digit or decimal point
 					"e-E-e+E+",  //- and + only accepted after an e or E
-					"0123456789abcde.fABCDEFxlLuUfF"); //continues with digits, deccimal point, hex letters, type suffix letters
+					"0123456789.abcdefABCDEFx"); //continues with digits, deccimal point, hex letters, type suffix letters
 			
 			//special case: if number starts with '-', but has only 1 character, this isn't a negative number, but just a minus sign
 			if ((digits == 1) && (in[0] == '-'))
@@ -403,7 +403,7 @@ zbool tokenize(tokenT* insert, char* in){
 
 /**** Data Types ****/
 
-/* Simple type system*/
+/* type categories */
 #define SIMPLE	1
 #define POINTERUSER 2
 #define STRUCT 	3
@@ -414,12 +414,13 @@ zbool tokenize(tokenT* insert, char* in){
 #define POINTERPOSSESSIVE 8
 #define CPOINTER 9
 #define CDATA 10
-#define VIRTUAL 11
+#define OPAQUE 11
+#define VIRTUAL 12
 #define LAST_REAL_TYPE 11
 //letting virtual types be 'real' when parsing a struct type definition makes the code easier
-//CPOINTER is an opaque value.  Different CPOINTERS can have different names for some type safety, but they are all treated the same
-//CDATA is also an opaque value, but is never manipulated directly, only by pointers (% or &).  For structures allocated by C, but by using the interpreter's memory allocator.  Possessive CDATA pointers particpate in the normal reference tracking... keep, trash, take, auto free on out of scope, etc.
-//CDATA is also an opaque value, but is never manipulated directly, only by pointers (% or &).  For structures allocated by C, but by using the interpreter's memory allocator.  Possessive CDATA pointers particpate in the normal reference tracking... keep, trash, take, auto free on out of scope, etc.
+//OPAQUE is an opaque value. 
+//CPOINTER is a machine-sized pointer compatible with C.  Not reference counted, etc. Using Z pointers is preferred, but when a pointer needs to be stored in a C struct, it has to be C-sized
+//CDATA is also an opaque value, but is never manipulated directly, only by pointers (% or &).  For structures allocated by/for C, but by using the same memory allocator as the interpreter.  Possessive CDATA pointers particpate in the normal reference tracking... keep, trash, take, auto free on out of scope, etc.
 
 //ARRAYSTATIC have a fixed size.  To be embedded directly in structs, etc
 //ARRAYDYNAMIC are heap allocated
@@ -463,9 +464,14 @@ zbool type_cleanup(void* v){
 //creates a type and returns a pointer do it.  Caller does not need to free the pointer
 typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
 	
-	
 	typeT* ty= ram_alloc(sizeof(typeT), type_cleanup); //todo: destructor
 	
+
+	if (name) {
+		xprintf(" Type %s struct def is at memory %p  %p\n", name, ty, name);
+	}
+
+
 	ty->tid = tid++;
 	ty->category = category;
 	ty->name = zstrdup(name);
@@ -482,7 +488,7 @@ typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
 	}
 
 	//pointer or indefinite array
-	if ((category == POINTERUSER)|| (category == ARRAYDYNAMIC)||(category == POINTERPOSSESSIVE) ){
+	if ((category == POINTERUSER)|| (category == ARRAYDYNAMIC)||(category == POINTERPOSSESSIVE)||(category==CPOINTER) ){
 		if (ty->size)
 			ERR("Cannot specify size of pointer or dynamic array (it is automatically calculated)\n");
 		if ((category == POINTERUSER) || (category == POINTERPOSSESSIVE)) {
@@ -494,6 +500,9 @@ typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
 			}
 
 		}
+
+		if (category == CPOINTER)
+			ty->size = sizeof(void*);
 		
 		if (category == ARRAYDYNAMIC) 
 			ty->size = ref->size; //size of 1 element
@@ -566,11 +575,15 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 			xprintf(".");
 			break;
 		case VIRTUAL:
-			xprintf("virt. ");
+			xprintf("(virt) ");
+			break;
+
+		case OPAQUE:
+			xprintf("opaque ");
 			break;
 
 		case CPOINTER:
-			xprintf("C*  ");
+			end = " cpointer";
 			break;
 		case CDATA:
 			xprintf("CDATA  ");
@@ -716,7 +729,7 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 			case SIMPLE: //simple types matched by name only
 			case STRUCT: 
 			case PENDING:
-			case CPOINTER:
+			case OPAQUE:
 			case CDATA:
 				if (!strcmp(name, ty->name)){
 					//found on name
@@ -730,6 +743,7 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 			case ARRAYDYNAMIC:
 			case FUNCTION:
 			case SUBTREE:
+			case CPOINTER:
 
 				if (cmpType(category, ref, NULL, len, ty))
 					return ty;
@@ -743,7 +757,7 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 
 	//did not find.
 
-	if (ref &&((category == ARRAYDYNAMIC)||(category==ARRAYSTATIC) || (category == POINTERUSER)|| (category == POINTERPOSSESSIVE) || (category==SUBTREE)) ) {
+	if (ref &&((category == ARRAYDYNAMIC)||(category==ARRAYSTATIC) || (category == POINTERUSER)|| (category == POINTERPOSSESSIVE) || (category==SUBTREE) ||(category == CPOINTER) ) ) {
 
 		//If array or pointer, find the type 'underneath' and make it
 
@@ -1215,8 +1229,8 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 
 			if (t2->tok == '$') {
 
-				if (last->ty->category == POINTERUSER) {
-					ERR(" Cannot bake non-possessive pointers into code!\n");
+				if (last->ty->category == POINTERUSER && last->ty!=tType) { 
+					ERR(" Cannot bake non-possessive pointers into code!\n"); //except: can bake 'types' into code
 				}
 
 				newtok = mkToken(PASSTHRU, NULL, 0);	 //PASSTHRU tokens will not be processed by the compiler; in this case the value is compiled now as a constant
@@ -1783,8 +1797,8 @@ tokenT* hloadcptr(exectxT* ex, tokenT* t) {
 	//xprintf(" Loaded 32 %d   from +%x\n", i,ex->stack[ex->sp-1].as.ptr.offset );
 	ex->stack[ex->sp - 1].as.ptr.block = i;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
+	ex->stack[ex->sp - 1].as.ptr.level = 9999; //
 
-	return tnext(t);
 	return tnext(t);
 }
 
@@ -1793,7 +1807,9 @@ tokenT* hstorecptr(exectxT* ex, tokenT* t) {
 
 	exe(ex, tsub(t));
 
-	DEREF(void*, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset) = ex->stack[ex->sp - 2].as.ptr.block;
+	//store block+offset as a flattened c pointer
+
+	DEREF(void*, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset) = ex->stack[ex->sp - 2].as.ptr.block + ex->stack[ex->sp - 2].as.ptr.offset;
 
 	ex->sp -= 2;
 
@@ -2262,8 +2278,8 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 				
 		ex->stack[ex->fp++] = ex->stack[ex->sp-1];  
 		
-		if (t->sym->type->ref->category == POINTERUSER){
-			ERR("Can't return non-possessive pointer!\n");
+		if (t->sym->type->ref->category == POINTERUSER && t->sym->type->ref != tType){ 
+			ERR("Can't return non-possessive pointer!\n"); //exception above for types
 		}
 		
 		
@@ -2678,12 +2694,12 @@ tokenT*  parseType(tokenT* t) {
 	char* count=NULL;
 	zbool named=ZFALSE;
 	tokenT* next=NULL;
-	int iscptr = 0;
+	//int iscptr = 0;
 
-	if (t->tok == KCPOINTER) {
-		t = tnext(t);
-		iscptr = 1;
-	}
+//	if (t->tok == KCPOINTER) {
+	//	t = tnext(t);
+		//iscptr = 1;
+//	}
 	/*else if (t->tok == KCDATA) {
 		t = tnext(t);
 		iscptr = 2;
@@ -2735,22 +2751,33 @@ tokenT*  parseType(tokenT* t) {
 			named=ZTRUE;
 			t->ty = findType(NAMED, NULL, t->str, 0);
 			if (!t->ty){
-				if (iscptr == 1)
-					t->ty = mkType(CPOINTER, NULL, t->str, 0);
-				else if (iscptr == 2)
-					t->ty = mkType(CDATA, NULL, t->str, 0);
-				else
+				//if (iscptr == 1)
+					//t->ty = mkType(CPOINTER, NULL, t->str, 0);
+				//else 
+				
+		//		if (iscptr == 2)
+			//		t->ty = mkType(CDATA, NULL, t->str, 0);
+				//else
 					t->ty = mkType(PENDING, NULL, t->str, 0);
 			}
 			next = zlist_next(t);
 			continue;
 		}
+
+		if (t->tok == KCPOINTER) { //pointer type
+			t->ty = findType(CPOINTER, tprev(t)->ty, NULL, 0);
+			next = zlist_next(t);
+			fold(tprev(t), t);
+			continue;
+		}
+
 		if (t->tok == '&'){ //pointer type
 			t->ty = findType( POINTERUSER, tprev(t)->ty, NULL,0);
 			next = zlist_next(t);
 			fold(tprev(t),t);
 			continue;
 		}
+
 		if (t->tok == '%'){ //pointer type
 			xprintf("Making pointer for type:\n");
 			printType(tprev(t)->ty, 1, 0);
@@ -2767,9 +2794,11 @@ tokenT*  parseType(tokenT* t) {
 		if (t->tok =='(' && !named){ //type list for function parameters & return value
 			tokenT* S = t;
 
-			typeT* ty = mkType( PENDING, NULL, NULL, 0); 
-
+			typeT* ty = mkType(FUNCTION, NULL, NULL, 0); 
+			
 			t = parseTypeList(tnext(t), ty);
+
+		
 
 			if (t->tok !=')'){
 				ERR("Expected )\n");
@@ -2803,7 +2832,7 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 	size_t offset=0;
 
 	zbool reqname=ZTRUE; //parameters must be named
-
+	
 	for(;t;t=next){
 		char* name = NULL;
 		typeT* type = NULL;
@@ -2811,8 +2840,11 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 		if (t->tok == KEND)
 			break;
 		
-		if (t->tok == ')')
-			break;  
+		if (t->tok == ')') {
+			if (parent->category != FUNCTION)
+				ERR("Unexpected )\n");
+			break;
+		}
 
 		
 		if ( (t->tok == PAIR('-','>'))){
@@ -2855,7 +2887,7 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 			ERR("Name '%s' category %d cannot be in struct/fcall\n",  safestr(type->name),   type->category);
 		}
 
-		if (parent && parent->category == FUNCTION){
+		if (parent && !reqname){ // !reqname means past the arrow ->
 			if (parent->ref){
 				ERR("Functions can only return 1 value\n");
 			} else {
@@ -3351,8 +3383,19 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			ERR(" Cannot 'end' in the global context\n");
 
+		case KOPAQUE:
+			t = tnext(t);
+			mkType(OPAQUE, NULL, t->str, 0 );
+			t = tnext(t);
+			if (t->tok != ';')
+				ERR("Expected ; after opaque\n");
+			t = tnext(t);
+			lfold(ts, t);
+			ts->handler = hnop;
+			continue;
+
+
 		case KCDATA:
-		case KCPOINTER:
 		case KVIRTUAL:
 
 			csize = 0;
@@ -3377,11 +3420,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				}
 				else if (ts->tok == KCDATA)
 					mkType(CDATA, NULL, t->str, 0); //CDATA has  no size AND  possessive/user pointers to Cdata are vptrs like any other
-				else
-					mkType(CPOINTER, NULL, t->str, sizeof(void*));
 			}
 			else
-				ERR(" Expected virtual/cpointer NAME, then ';'\n");
+				ERR(" Expected virtual NAME, then ';'\n");
 
 			t = tnext(tnext(t)); //skip over name and semicolon
 			lfold(ts, t);
@@ -3435,7 +3476,14 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				ts->handler = hconstant;
 				ts->ty = rettype;
 				ts->val = immediate_parse->exec->stack[immediate_parse->exec->sp-2];
-
+				//TODO: if returning a String&, why not just return is as a constant?
+				if (rettype != tType && (rettype->category == POINTERUSER)) {
+					//Don't return user pointers from immediate blocks.
+					//Exception is tType, which is a pointer to a type
+					//That's ok, because all types are 'owned' by the type system
+					//and won't be freed while a program is running
+					ERR("Cannot return a non-possessive pointer in immediate block\n");
+				}
 
 				if (ts->ty->category == POINTERPOSSESSIVE) {
 					ts->val_to_free = ZTRUE;
@@ -3745,7 +3793,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (t->sym) {
 				if (((t->sym->type->category == POINTERUSER) || (t->sym->type->category == POINTERPOSSESSIVE))
 					&& t->sym->type->ref->category == FUNCTION) {
-					zlist_insert_node_after(t, mkToken(PAIR('&', '&'), "auto&&", 0));
+					zlist_insert_node_after(t, mkToken(KNOEXEC , "autonoexec", 0));
 				}
 			}
 			fold(ts, t);
@@ -3968,6 +4016,17 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t->ty = findType(POINTERUSER, tString, NULL, 0); //findType(ARRAYDYNAMIC, tN8, NULL, 0);
 			t->handler = hconstant;
 			t->val.as.ptr.block = zstrndup(t->str + 1, strlen(t->str) - 2); //t->str already a zstring
+			//unescape slashes
+			char* rpos = t->val.as.ptr.block;
+			char* wpos = rpos;
+			do {
+				if (*rpos == '\\')
+					rpos++;
+				*wpos = *rpos;
+				rpos++; wpos++;
+			} while (*rpos);
+			*wpos = 0;
+
 			t->val.as.ptr.offset = 0;
 			t->val_to_free = ZTRUE;
 			t = tnext(t);
@@ -4127,6 +4186,15 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			ram_free(tremove(ts));
 
 			printList(tprev(tprev(t)), t, -5, 3);
+			continue;
+		
+		case KTYPEOF:
+			t->handler = hconstant;
+			t->val.as.ptr.block = tprev(t)->ty;
+			t->ty = tType;
+			fold(tprev(t), t);
+
+			t = tnext(t);
 			continue;
 
 		case KSIZE:
@@ -4375,7 +4443,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//user pointer to cpointer
 			if (tprev(t)->ty && (tprev(t)->ty->category == POINTERUSER) && (tprev(t)->ty->ref->category == CPOINTER)) {
 			
-				t->ty = tprev(t)->ty->ref;
+				//t->ty = tprev(t)->ty->ref;  //instead of putting cpointer on stack, promote to userpointer
+				t->ty = findType(POINTERUSER, tprev(t)->ty->ref->ref, NULL, 0);
 
 			
 				fold(tprev(t), t);
@@ -4396,6 +4465,26 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			//try to handle storing ptr to ptr.  Top of stack has a pointer to the pointer var
 			
+			if (!tprev(t)->ty || ! tprev(t)->ty->ref || ! tprev(t)->ty->ref->ref)
+				break;
+			
+			if (!tprev(tprev(t))->ty || !tprev(tprev(t))->ty->ref)
+				break;
+
+			if (tprev(tprev(t))->ty->ref != tprev(t)->ty->ref->ref)
+				break;
+
+		//	xprintf(" COMPARE ");
+			//printType(tprev(t)->ty->ref->ref, ZFALSE, ZTRUE);
+		//	xprintf(" TO ");
+		//	printType(tprev(tprev(t))->ty->ref, ZTRUE, ZTRUE);
+
+
+		//	if (tprev(t)->ty->ref->ref != tprev(tprev(t))->ty->ref) {
+			//	printf("type mismatch \n");
+				//break;
+		//	}
+
 
 			//handle     @= case.... if '@' a pointer to get a variable, and store to the variable...
 			//  pointervar =         //writes a pointer to a pointer variable
@@ -4467,9 +4556,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				}
 			}
 
-		
+			//storing a cpointer or user pointer into a pointer
 			if (tprev(t)->ty && (tprev(t)->ty->category == POINTERUSER) && (tprev(t)->ty->ref->category == CPOINTER)) { //pointer to Cpointer
-				if (tprev(tprev(t))->ty->category == CPOINTER) {  //cpointer
+				if ((tprev(tprev(t))->ty->category == CPOINTER)|| (tprev(tprev(t))->ty->category == POINTERUSER)) {  //cpointer
 					fold(tprev(tprev(t)), t);
 					if (nopop)
 						ERR("nopop not supported on cpointer\n");
@@ -4482,6 +4571,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 					continue;
 				}
+				
 			}
 
 
@@ -4530,14 +4620,15 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		
 
 			if    ((tprev(t)->ty == tZ32) && (tprev(tprev(t))->ty == tType))		{//Type Z32{
-						
-								
+							
 				fold(  tprev(t), t); //put array size as sub
 					
 				typeT* rt = (void*) tprev(t)->val.as.type;  //value of item
-				
+				if (tprev(t)->handler != hconstant) {
+					ERR("alloction requires a constant type\n");
+
+				}
 			
-				
 				if(rt->category != ARRAYDYNAMIC){
 					xprintf(" allocating array for type ");
 					printType(rt, NULL, NULL);
@@ -4605,6 +4696,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			
 
+
 				tokenT* tn = mkToken('@', "@", 1);  //load the variable
 				insert_after(t, tn);
 				
@@ -4621,7 +4713,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			int fpointer=0;//found symbol is fpointer
 			int noexec = 0;//do not execute found item
 
-			if (tnext(t)->tok == PAIR('&','&')) {
+			if (tnext(t)->tok == KNOEXEC) {
 				ram_free(tremove(tnext(t))); //get rid of it
 				noexec = 1;
 			}
@@ -5038,6 +5130,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				xprintf("Found type %s\n", ty->name);
 				ts->ty = tType;
 				ts->val.as.type = ty;
+				ts->handler = hconstant;
 				t=tn;
 				continue;
 			}
@@ -5046,7 +5139,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			xprintf(" \nFinding in:\n"); 
 			printList(tprev(tprev(tprev(tprev(tprev(tprev(tprev(tprev(tprev(ts))))))))),t,0,1);
 
-			ERR("Undefined symbol:%s\n\n", t->str); 
+ 			ERR("Undefined symbol:%s\n\n", t->str); 
 				
 			
 		}//end str
@@ -5104,6 +5197,7 @@ void cleanCCall(exectxT* ex, tokenT* t, void* first) {
 
 int main(int argc, char** args){
 	
+
 	if ((argc > 1) && !strcmp(args[1] , "-scan")) {
 		return scanmain(argc - 1, args + 1);
 	}
@@ -5117,7 +5211,8 @@ int main(int argc, char** args){
 	else
 		printf("Debug output is to file\n");
 
-	tType = mkType( SIMPLE, NULL, "Type", 0 ); //datatype about "types"
+	//typeT* type = mkType(PENDING, NULL, 
+	tType = findType( POINTERUSER, mkType(PENDING,NULL, "Type", 0 ), NULL,0); //datatype about "types"
 	
 	tany = mkType(SIMPLE, NULL, "any", 0); //not really a type, but for plain pointers (any*)
 	

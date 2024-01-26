@@ -1,7 +1,9 @@
 "base/base.zz" include
 cpointer Void;
+cpointer chars;
 stacked Vec3;   
 "gen.zz" include
+
 
 proc UpdatePixels:(w:ZWindow -> )    w 0:Void UpdatePixels  return end
 proc Done:(vb:VBuffer; attr:Z32; x:Real; y:Real; z:Real->)  vb attr x y z 0.0 Done return end
@@ -95,6 +97,7 @@ loop
     //add function that can draw cubemesh
     
     
+
     //CubeMesh.
        
     
@@ -210,3 +213,86 @@ v2& #vp
 
 1.0 2.0 3.0 mkvec3
 -1.0 2.0 3.0 mkvec3 Dot print newline
+
+proc immediate .name:(code t:Type&->Code%)
+    code \
+        't ._name :String&
+    \ return
+end
+
+//Vec3 .name print newline
+
+"^ type name" print newline
+
+
+type delim x:Z32; end 
+stacked delim;
+var begin:delim;
+
+proc prints:(code d:delim)
+    
+end
+
+proc immediate mkprints:( code typename:Type&  -> Code%)
+
+    "'" #'
+    
+    code \\
+
+        proc immediate prints:(code a: 'typename  ->Code%)
+
+            "returning prints code" print newline 
+            code \
+    
+                 prints ''a print
+        
+            \ return
+
+        end
+
+
+    \\return
+
+end
+
+
+Z32     mkprints
+//Real    mkprints
+//String& mkprints
+//N8      mkprints
+
+//10:N8 #lf
+
+//begin 123 " Whatever "10.0 2.1 + lf prints
+ begin 123 456 prints
+
+proc peek:(a:Real->Real)
+    begin "<" a  ">" prints
+    a return
+end
+
+1.0 peek 3.0 peek + peek typeof .name print newline
+
+2 #category_reference
+8 #category_possessive
+5 #category_array
+
+
+proc immediate arrayof :(t:Type&->Type&)
+    5 t 0:String& 0 ZFindType return
+end
+
+proc immediate &:(t:Type&->Type&)
+    5 t 0:String& 0 ZFindType return
+end
+
+
+Real arrayof 20 new #arr
+
+arr typeof 10 new #arr2
+arr typeof 
+
+
+arr typeof& 40 #toarrtype
+arr typeof #arrtype
+

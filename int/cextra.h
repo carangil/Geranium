@@ -49,3 +49,12 @@ zint32 load16(zuint16* z);
 #define Handler_vec3sub     -:(a:Vec3;b:Vec3->Vec3);
 #define Handler_vec3cross   Cross:(a:Vec3;b:Vec3->Vec3);
 #define Handler_vec3dot     Dot:(a:Vec3;b:Vec3->Real);
+
+#define Procmap_boo boo
+void boo();
+
+#define Structmap_typeT	Type:name=_name:chars;size=size:Z32;category=category:Z32;
+
+#define Noproto_findType  ZFindType:(categoty:Z32; ref:Type&; name:String&; size:Z32->Type&);
+typeT* findType(zuint32 category, typeT* ref, char* name, size_t len);
+

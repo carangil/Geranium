@@ -14,6 +14,12 @@ primitive C_vec3add +:(a:Vec3;b:Vec3->Vec3);
 primitive C_vec3sub -:(a:Vec3;b:Vec3->Vec3);
 primitive C_vec3cross Cross:(a:Vec3;b:Vec3->Vec3);
 primitive C_vec3dot Dot:(a:Vec3;b:Vec3->Real);
+primitive C_boo boo:(->);
+type @typeT Type
+	@typeT_name	_name:chars;
+	@typeT_size	size:Z32;
+end
+primitive C_findType ZFindType:(categoty:Z32; ref:Type&; name:String&; size:Z32->Type&);
 type @zeventT ZEvent
 	@zeventT_type	eventType:Z32;
 	@zeventT_a	A:Z32;
