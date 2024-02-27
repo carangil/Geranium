@@ -1,28 +1,12 @@
+//Zdef   struct		typeT	Type:name=name:String&;size=size:Z32;category=category:Z32;
 
-
-#define Counted_cstring *CString
-
-
-#define Noproto_zstrdup Zstrdup:(c:String&->CString%);
+//Zdef    noproto zstrdup  Strdup
 char* zstrdup(char*);
 
+//Zdef type FILE	File
 
-
-
-#define Typemap_FILE *File
-#define Noproto_fopen File_Open
+//Zdef noproto fopen File_Open
 FILE* fopen(char* filename, char* mode);
-
-#define Noproto_fclose Close
-int fclose(FILE* f);
-
-
-#define Noproto_fwrite
-int fwrite( void* ptr, int size, int nmemb, FILE* stream);
-
-#define Noproto_fread
-int fread( void* ptr, int size, int nmemb, FILE* stream);
-
 
 #define Procmap_zrand RandomZ32
 zuint32 zrand();
@@ -34,27 +18,29 @@ zfloat32 zrandf(zfloat32 min, zfloat32 max);
 //try to make 16-bit integers as an 'extension' instead of the core language
 //the language still has 32-bit integers, but can now load/store 16-bit values
 
-//ByteObj_name directive creates a simple type of sizeof(name) bytes.
-#define ByteObj_zuint16 *N16
+#Zdef opaque zuint16 N16
 
-#define Procmap_store16 =
-void store16(zint32 val, zuint16* zp);
+#Zdef store16 =
+void store16(zuint16 val, zuint16* zp);
 
-#define Procmap_load16 @
-zint32 load16(zuint16* z); 
+#Zdef load16 @
+zint32 load16(zuint16  * z); 
 
 //vector math functions
 
-#define Handler_vec3add     +:(a:Vec3;b:Vec3->Vec3);
-#define Handler_vec3sub     -:(a:Vec3;b:Vec3->Vec3);
-#define Handler_vec3cross   Cross:(a:Vec3;b:Vec3->Vec3);
-#define Handler_vec3dot     Dot:(a:Vec3;b:Vec3->Real);
+//Zdef stacked Vec3
+//Zdef struct namedv3	Vec3:x=x:Real;y=y:Real;z=z:Real;
+//Zdef handler vec3add     +:(a:Vec3;b:Vec3->Vec3);
+//Zdef handler vec3sub     -:(a:Vec3;b:Vec3->Vec3);
+//Zdef handler vec3cross   Cross:(a:Vec3;b:Vec3->Vec3);
+//Zdef handler vec3dot     Dot:(a:Vec3;b:Vec3->Real);
 
-#define Procmap_boo boo
-void boo();
+//Zdef type size_t Z32
 
-#define Structmap_typeT	Type:name=_name:chars;size=size:Z32;category=category:Z32;
-
-#define Noproto_findType  ZFindType:(categoty:Z32; ref:Type&; name:String&; size:Z32->Type&);
+//Zdef noproto findType ZFindType:(category:Z32; ref:Type&; name:String&; size:Z32->Type&);
 typeT* findType(zuint32 category, typeT* ref, char* name, size_t len);
+
+
+
+
 

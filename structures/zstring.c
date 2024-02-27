@@ -198,5 +198,51 @@ char* zstrbuild(zvecT* v, char delim){
 }
 
 
+char* zstrprintf(char* initial, char* format, ...) {
+	va_list args, copy;
+	va_start(args, format);
+	va_copy(copy, args);
 
+	int offset = 0;
+	int s = vsnprintf(NULL, 0, format, copy);
+	char* str;
+
+	if (initial == NULL) {
+		str = zstr_mk(s);
+	}
+	else {
+		printf(" %d count, %d size, %d more\n", zarray_count(initial), zarray_size(initial), s);
+		
+		offset = zarray_count(initial) - 1; 
+
+		if (!zarray_space(initial, s)) {
+			int olds = zarray_size(initial);
+			
+			int ns = olds * 2;  //double size 
+			if (ns < (   zarray_count(initial) +s  ) ) {  //if not enough, 
+				ns = zarray_count(initial) + s  ;   //exactly size
+				offset = zarray_count(initial) - 1; //offset will overwrite the null terminator
+				if (offset < 0) {
+					printf("string error: element count should be at least 1 (for the terminator) it is %d\n", offset);
+					offset = 0;
+				}
+ 			}
+
+			str = zarray_resize(initial, ns, NULL);
+
+		}
+		else
+			str = initial;
+
+	}
+
+	vsnprintf(str+offset, s + 1, format, args);
+
+	zarray_use(str, offset + s + 1);
+
+	va_end(args);
+	va_end(copy);
+
+	return str;
+}
 

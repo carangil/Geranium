@@ -340,10 +340,16 @@ struct zwindow_s* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags)
 
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+	//glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_SAMPLES, 4);  //enable antialiasing buffers
 
 	win->fwindow = glfwCreateWindow(w, h, title, NULL, NULL);
 	glfwSetWindowUserPointer(win->fwindow, win); //so glfw can give us back our own struct
+
+	int majorVersion = glfwGetWindowAttrib(win->fwindow,GLFW_CONTEXT_VERSION_MAJOR);
+	int minorVersion = glfwGetWindowAttrib(win->fwindow, GLFW_CONTEXT_VERSION_MINOR);
+
+	printf("OpenGL Version: %d.%d\n", majorVersion, minorVersion);
 
 	//set callbacks
 	glfwSetKeyCallback(win->fwindow, keyHandler);

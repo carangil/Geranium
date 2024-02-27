@@ -10,6 +10,9 @@ typedef struct bone_weights {
 }gfx_bone_weightT;
 
 
+
+//Zdef struct gfx_meshT Mesh:style=style:Style%;vb=vb:VBuffer%;drawstart=start:N32;drawend=stop:N32;
+
 typedef struct gx_mesh_s
 {
 	
@@ -37,10 +40,14 @@ typedef struct gx_mesh_s
 //gx_mesh_t*  gx_mesh_def(gx_vbuffer_t* v, gx_drawstyle_t* s, zuint32 drawstart, zuint32 drawend, zbool indexed);
 //#define Counted_gfx_meshT *Mesh
 
+
+//Zdef proc gfx_mesh_load_objmm MeshLoadObjMM
 gfx_meshT* gfx_mesh_load_objmm(zchar* filename, float scale, vec3* min, vec3* max);
 
-#define Noproto_gfx_mesh_load_obj MeshLoadObj:(filename:String&; scale:Real->Mesh%);
+
+//Zdef noproto gfx_mesh_load_obj MeshLoadObj
 gfx_meshT* gfx_mesh_load_obj(zchar* filename, float scale);  //fictitous function
+
 #define gfx_mesh_load_obj(A,B) gfx_mesh_load_objmm(A,B,NULL,NULL)
 
 

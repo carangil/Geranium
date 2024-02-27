@@ -39,3 +39,5 @@ char* zstrcombine(char* left, char* right);
 
 //creates a new zstring from 2 C strings together
 char* zstrdup2(char* left, char* right);
+
+char* zstrprintf(char* initial, char* format, ...);

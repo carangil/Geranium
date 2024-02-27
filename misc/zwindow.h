@@ -2,7 +2,8 @@
 
 //General window interface struct
 
-#define Structmap_zeventT ZEvent:type=eventType:Z32;a=A:Z32;b=B:Z32;
+
+//Zdef struct zeventT ZEvent:type=eventType:Z32;a=A:Z32;b= B:Z32;
 typedef struct zevent_s {
 	zuint32 type;
 	zuint32 a, b;
@@ -113,9 +114,10 @@ typedef struct zevent_s {
 
 #define ZKEY_LASTKEY	0xff
 
+//Zdef type zwindow_s ZWindow
+//Zdef type zwindowT ZWindow
 
-#define Typemap_zwindow_s *ZWindow
-#define Typemap_zwindowT *ZWindow
+
 
 #define MAXEVENT 10
 typedef struct zwindow_s {
@@ -138,12 +140,13 @@ typedef struct zwindow_s {
 void zw_enqueue(zwindowT* zw, zuint32 type, zuint32 a, zuint32 b, void* ptr);
 zbool zw_queued(zwindowT* zw, zeventT* ev);
 
-#define Procmap_zw_event GetEvent
+//Zdef proc zw_event GetEvent
 zbool zw_event(zwindowT* zw, zeventT* ev);
 
+//Zdef proc zw_close Close:(w:ZWindow%->);
 void zw_close(zwindowT* zw);
 
-#define Procmap_zw_pixels UpdatePixels
+//Zdef proc zw_pixels UpdatePixels
 void zw_pixels(zwindowT* zw, void* v);
 
 void zprintevent(zeventT* ev);  //debug function

@@ -1,15 +1,14 @@
 "base/base.zz" include
-cpointer Void;
-cpointer chars;
-stacked Vec3;   
+
+
 "gen.zz" include
 
 
-proc UpdatePixels:(w:ZWindow -> )    w 0:Void UpdatePixels  return end
-proc Done:(vb:VBuffer; attr:Z32; x:Real; y:Real; z:Real->)  vb attr x y z 0.0 Done return end
-proc Data:(vb:VBuffer; attr:Z32;x:Real; y:Real; z:Real->)   vb attr x y z 0.0 Data return end
-proc Done:(vb:VBuffer; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Done return end
-proc Data:(vb:VBuffer; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Data return end
+proc UpdatePixels:(w:ZWindow& -> )    w 0:Void& UpdatePixels   end
+proc Done:(vb:VBuffer&; attr:Z32;x:Real; y:Real; z:Real->)   vb attr x y z 0.0 Done  end
+proc Data:(vb:VBuffer&; attr:Z32;x:Real; y:Real; z:Real->)   vb attr x y z 0.0 Data  end
+proc Done:(vb:VBuffer&; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Done  end
+proc Data:(vb:VBuffer&; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Data  end
 
 
 proc LoadTexture:(filename:String&->Texture%)
@@ -19,7 +18,7 @@ end
 
 
 
-var window:ZWindow;
+var window:ZWindow%;
 
 
 //tracks keys (todo move to C)
@@ -29,6 +28,7 @@ proc IsPressed:(key:Z32->Bit)
 end
 
 //create an opengl window
+
 "Testing" 1024 768 0 GLWindow window=
 
 
@@ -80,7 +80,7 @@ loop
     
     ev.eventType ZEVENT_CLOSE == if 
         "Closing window" print newline
-        window zw_close
+        window take Close
         break
     end
     
@@ -90,6 +90,13 @@ loop
     gfx_identity
     0.0 0.0 -5.0 gfx_translate3
     
+    
+    CubeMesh.vb GFX_TRIANGLE 0 19 1:Bit Draw
+
+    //#define Procmap_gfx_vertex_buffer_draw Draw
+//void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end, zbool indexed);
+
+
     
     //(cube_mesh->vb, GFX_TRIANGLE, 0, zarray_count(cube_mesh->vb->index_buffer), ZTRUE);
     
@@ -140,6 +147,9 @@ end
 
 
 stacked Vec3;  //Vec3 structs are put on the stack
+
+var vv:Vec3;
+1.0 vv.x=
 
 proc print:(point:Vec3->)
     "byval " print
@@ -214,18 +224,12 @@ v2& #vp
 1.0 2.0 3.0 mkvec3
 -1.0 2.0 3.0 mkvec3 Dot print newline
 
-proc immediate .name:(code t:Type&->Code%)
-    code \
-        't ._name :String&
-    \ return
-end
-
-//Vec3 .name print newline
+Vec3 .name print newline
 
 "^ type name" print newline
 
 
-type delim x:Z32; end 
+type delim  end 
 stacked delim;
 var begin:delim;
 
@@ -233,12 +237,12 @@ proc prints:(code d:delim)
     
 end
 
-proc immediate mkprints:( code typename:Type&  -> Code%)
+proc immediate mkprints:(typename:String&  -> Code%)
 
     "'" #'
-    
-    code \\
 
+    code \\
+        
         proc immediate prints:(code a: 'typename  ->Code%)
 
             "returning prints code" print newline 
@@ -256,14 +260,14 @@ proc immediate mkprints:( code typename:Type&  -> Code%)
 end
 
 
-Z32     mkprints
-//Real    mkprints
-//String& mkprints
-//N8      mkprints
+"Z32"     mkprints
+"Real"    mkprints
+"String&" mkprints
+"N8"      mkprints
 
-//10:N8 #lf
+10:N8 #lf
 
-//begin 123 " Whatever "10.0 2.1 + lf prints
+ begin 123 " Whatever "10.0 2.1 + lf prints
  begin 123 456 prints
 
 proc peek:(a:Real->Real)
@@ -277,7 +281,6 @@ end
 8 #category_possessive
 5 #category_array
 
-
 proc immediate arrayof :(t:Type&->Type&)
     5 t 0:String& 0 ZFindType return
 end
@@ -286,13 +289,39 @@ proc immediate &:(t:Type&->Type&)
     5 t 0:String& 0 ZFindType return
 end
 
-
 Real arrayof 20 new #arr
 
-arr typeof 10 new #arr2
-arr typeof 
+//arr typeof 10 new #arr2
 
 
-arr typeof& 40 #toarrtype
-arr typeof #arrtype
+
+//arr typeof& 40 #toarrtype
+//arr typeof #arrtype
+
+
+code (a:Z32->Z32)\
+
+    a 1 + return
+
+\  #fptr
+
+
+code (a:Real->Real)\
+
+    a 0.1 + return
+
+\  #fptr
+
+
+
+100 fptr print newline
+100.0 fptr print newline
+
+proc usefptr:( f:(a:Z32->Z32)&    )
+    f #ff
+    333 ff print newline
+    333 ff print newline
+end
+
+0 fptr noexec usefptr
 

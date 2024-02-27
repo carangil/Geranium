@@ -14,7 +14,7 @@ typedef struct gfx_mat_3x3_s {
 	vec3 z_axis;  /* Forward Vector (-z) */
 } gfx_mat_3x3;
 
-#define Structmap_gfx_mat_3x3 Matrix33:x_axis=XAxis:Vec3;y_axis=YAxis:Vec3;z_axis=ZAxis:Vec3;
+//Zdef struct gfx_mat_3x3 Matrix33:x_axis=XAxis:Vec3;y_axis=YAxis:Vec3;z_axis=ZAxis:Vec3;
 
 //camera relative to itself
 void gfx_spin_matrix(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gfx_mat_3x3* rot);
@@ -25,8 +25,10 @@ typedef struct gfx_transform_s {
 } gfx_transformT;
 
 typedef	gfx_transformT gfx_cameraT;
+//Zdef struct gfx_transformT Transform:pos=Position:Vec3;rot=Rotation:Matrix33;
+//Zdef type gfx_cameraT Transform
 
-#define Structmap_gfx_transformT Transform:pos=Position:Vec3;rot=Rotation:Matrix33;
+
 
 void gfx_camera_init(gfx_cameraT* cam);
 void gfx_trans_init(gfx_transformT* cam);
