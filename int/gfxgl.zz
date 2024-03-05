@@ -18,20 +18,13 @@ proc :Vec3:(a:Real;b:Real;c:Real->Vec3)
     v return
 end
 
-
-
-
 proc LoadTexture:(filename:String&->Texture%)
     filename ZTGA_TOP BitmapLoadTGA #img
     img keep CreateTexture  return
 end
 
 
-
-var window:ZWindow%;
-
-
-//tracks keys (todo move to C)
+//Keep track if a key is being held down
 [Z32] ZKEY_LASTKEY new #Keys
 proc IsPressed:(key:Z32->Bit)
     Keys key[] 1 == return
@@ -40,60 +33,45 @@ end
 //create an opengl window
 "make window" print newline
 
-"Testing" 1024 768 0 GLWindow window=
-
+"Test Window" 1024 768 0 GLWindow #window
 
 0.0 0.0 0.1 1.1 BackgroundColor
 
-
 //load assets
-
 "../../Zcore-data/web/Rock_044_SD/Rock_044_BaseColor.tga"   LoadTexture #Rock_Diffuse
 "../../Zcore-data/web/Rock_044_SD/Rock_044_Normal.tga"      LoadTexture #Rock_Normal
 "../../Zcore-data/web/Rock_044_SD/Rock_044_Height.tga"      LoadTexture #Rock_Height
 
-
-
 "../../Zcore-data/cube.obj" 1.0 MeshLoadObj #CubeMesh
 
 //"@../gfxtest/vertex.glsl" "@../gfxtest/fragment.glsl" DefaultShader 
-
 "@../gfxtest/finevertex.glsl" "@../gfxtest/finefragment.glsl" DefaultShader 
 
+NewStyle    #st 
 
-NewStyle #st 
+            st GFX_TEXTURE "texture_diffuse" 0 0        Rock_Diffuse:Void&  0 Set
+            st GFX_TEXTURE "texture_height" 0 0         Rock_Height:Void&  0 Set
+            st GFX_TEXTURE "texture_normal_tangent" 0 0 Rock_Normal:Void&  0 Set
 
-st GFX_TEXTURE "texture_diffuse" 0 0       Rock_Diffuse:Void&  0 Set
-st GFX_TEXTURE "texture_height" 0 0       Rock_Height:Void&  0 Set
-st GFX_TEXTURE "texture_normal_tangent" 0 0       Rock_Normal:Void&  0 Set
+            -1.0 2.0 3.0 :Vec3 #lightPos
 
--1.0 2.0 3.0 :Vec3 #lightPos
-
-//gfx_style_set_property(st_grid, GFX_FLOAT3, "light_position", 0, 0, &lpcam, GFX_TRANSFORM_POINT);
-st GFX_FLOAT3 "light_position" 0 0 lightPos&:Void& GFX_TRANSFORM_POINT Set
+            st GFX_FLOAT3 "light_position" 0 0 lightPos&:Void& GFX_TRANSFORM_POINT Set
 
 st Use
-window  "color:4|position:3|texcoord:2" TempVBuffer #vb
 
-        
-
-
-
-
-
+//window  "color:4|position:3|texcoord:2" TempVBuffer #vb
+      
 
 //"../../Zcore-data/font32.tga" ZTGA_TOP BitmapLoadTGA #bbb
 //bbb keep CreateTexture  #fonttexture
 
-var camera:Transform;
-
-camera gfx_camera_init
+//var camera:Transform;
+Transform new ##camera gfx_camera_init
 
 -1.0 0.0 5.0 :Vec3   camera.Position=
-    
-    
-    
-    
+            
+0.001 #step
+  
 loop
      // WindowEventLoop
      var ev:ZEvent;
@@ -101,12 +79,23 @@ loop
         
         window ev GetEvent  while
         "Event " print ev.eventType print  "    " print     newline
-        
+      
+        //key up/down events
         ev.eventType   ZEVENT_KEY ZEVENT_DOWN or == if 
             1 Keys ev.A[] =
         ev.eventType   ZEVENT_KEY ZEVENT_UP or == elseif
             0 Keys ev.A[] =
         end
+
+        // char events
+        ev.eventType ZEVENT_CHAR == if
+            ev.A "+"0[]:N32 == if
+                step 1.05 * step=
+            ev.A "-"0[]:N32==  elseif
+                step 0.95 * step=
+            end
+        end
+
     end
     
     ev.eventType ZEVENT_CLOSE == if 
@@ -114,31 +103,16 @@ loop
         window take Close
         break
     end
-    
-
-            
+                
     80.0     4.0 3.0/   0.01 1000.0 Setup3D
     1:Bit 1:Bit FrameClear
-    
-
-    proc immediate gfx_translate:(code v:Vec3->Code%)
-        code \
-         'v & gfx_translate
-        \ return
-    end
-    
-    //transform the camera motion
-    0.01 #step
-    
-   
-   
+        
     proc IsPressed:(s:String& -> Bit)
         Keys s 0[] :Z32 []1 == return
     end
 
-
     0.0 #dx 0.0 #dy 0.0 #dz
-
+    
     "a" IsPressed if   step.- dx=     end
     "d" IsPressed if   step   dx=     end
     "w" IsPressed if   step   dz=     end
@@ -146,23 +120,15 @@ loop
     "r" IsPressed if   step   dy=     end
     "f" IsPressed if   step.- dy=     end
 
-
-
     camera dz dx dy 0.0 0.0 0.0 gfx_camera_motion_6dof
-    
-    gfx_identity
-//    0.0 0.0 -5.0 :Vec3 #pos
-  //  pos gfx_translate
-
     camera gfx_camera_view
 
-    CubeMesh.vb GFX_TRIANGLE 0 19 1:Bit Draw
+   // CubeMesh.vb GFX_TRIANGLE 0 24:N32 1:Bit Draw
+    
+    CubeMesh.vb GFX_TRIANGLE CubeMesh.start CubeMesh.stop  1:Bit Draw
 
-    
-    
-    window UpdatePixels
-    
-   
+    window UpdatePixels  
+  
 end
 
 
@@ -170,12 +136,12 @@ end
 var a:Transform;
 
 
-proc print:(point:Vec3&->)
+proc print:(point:Vec3->)
     "<" print point.x print  "," print point.y print  "," print point.z print ">" print
 end
 
 proc print:(aa:Transform&->)
-
+    "Transform " print
     "pos:" print aa.Position print
     ",x:" print aa.Rotation.XAxis print
     ",y:" print aa.Rotation.YAxis print 
@@ -186,8 +152,6 @@ end
 a gfx_trans_init
 a print
 
-
-//todo: need to import all the vector math operations
 proc =:(x:Real; y:Real;z:Real;v:Vec3&->)
     x v.x=
     y v.y=
@@ -195,54 +159,35 @@ proc =:(x:Real; y:Real;z:Real;v:Vec3&->)
 end
 
 
-
 var vv:Vec3;
 1.0 vv.x=
-
-proc print:(point:Vec3->)
-    "byval " print
-    
-       
-   
-    
-    point #p        //access by value
-    
-    p& print
-    
-   
-    "<b " print point.x print  "," print point.y print  "," print point.z print ">" print
-   "byval end" print
-end
-
-
-
 
 var v:Vec3;
 
 1.1 2.2 3.3 v=
 
-v #v2 //& print
+v #v2 
 
 newline
 
 "v " print
-v& print newline
+v print newline
 
 "v2 " print
-v2& print newline
+v2 print newline
 newline
 
 6.6 v2.x=
 
 "v " print
-v& print newline
+v print newline
 
 "v2 " print
-v2& print newline
+v2 print newline
 newline
 
 v2 print
-v2 &print
+v2 print
 
 1111. 2222. 33333. :Vec3 #h   //todo:##var for stacked structs
 h print
@@ -318,9 +263,6 @@ end
 1.0 peek 3.0 peek + peek typeof .name print newline
 
 
-
-
-
 code (a:Z32->Z32)\
 
     a 1 + return
@@ -333,8 +275,6 @@ code (a:Real->Real)\
     a 0.1 + return
 
 \  #fptr
-
-
 
 100 fptr print newline
 100.0 fptr print newline
@@ -353,8 +293,6 @@ begin
 123.4 :Z32 " " 
 //123.4 :any :Z32
 prints
-
-
 
 1.0 2.0 3.0 :Vec3
 100.1 100.22 100.33 :Vec3 + print
@@ -382,8 +320,8 @@ proc immediate .%:(t:Type&->Type&)
 end
 
 "type->" print
-10 typeof .name print newline
+10 typeof.name print newline
 10 typeof.& arrayof 20 new #saa
 
 10 typeof arrayof 20 new #yyy
-10 typeof arrayof.& new #yyu
+10 typeof arrayof.% new #yyu

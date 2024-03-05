@@ -5079,6 +5079,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				//and then follow it with '@' to get it
 				//for static arrays, this is not needed
 
+
 				loaderToken->ty = findType(POINTERUSER, s->type, NULL, 0);  //pointer to the symbol's type
 				if (local == 1) {
 					loaderToken->handler = hlocal;
@@ -5163,7 +5164,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						fold(tprev(t), t);
 
 						//for static arrays or substructs (that are embedded (not pointers)) then the pointer addition already made a pointer to the substruct/array.  For other cases (it is a pointer to a struct, integer, etc) then insert a load token.  
-						if ((t->ty->ref->category != ARRAYSTATIC) && (t->ty->ref->category != STRUCT)) {
+						if ((t->ty->ref->category != ARRAYSTATIC) && (t->ty->ref->category != STRUCT)) { //todo maybe also type->stacked
 							tokenT* tn = mkToken('@', "@", 1);  //load the variable
 							tn->generated = 1;
 							insert_after(t, tn);
@@ -5199,7 +5200,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						fold(tprev(t),t);
 						
 						//for static arrays or substructs (that are embedded (not pointers)) then the pointer addition already made a pointer to the substruct/array.  For other cases (it is a pointer to a struct, integer, etc) then insert a load token.  
-						if (( m->ref->category!=ARRAYSTATIC)&&( m->ref->category!=STRUCT)) {  
+						if (( m->ref->category!=ARRAYSTATIC)&&( m->ref->category!=STRUCT || m->ref->stacked)) {  
 							tokenT* tn = mkToken('@', "@", 1);  //load the variable
 							insert_after(t, tn);
 						}
