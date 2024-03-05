@@ -579,7 +579,7 @@ gfx_meshT* gfx_mesh_load_objmm(zchar* filename, float scale, vec3* min, vec3* ma
 
 			if ((vu + new_points > va) || (iu + new_index > vi)) {
 
-
+				mesh->drawend = iu;
 				mesh->next = ram_alloc(sizeof(gfx_meshT), gfx_free_mesh);
 
 				mesh = mesh->next;
@@ -640,7 +640,7 @@ gfx_meshT* gfx_mesh_load_objmm(zchar* filename, float scale, vec3* min, vec3* ma
 			}
 			
 		}
-
+		mesh->drawend = iu;
 		/*mesh is finished */
 
 		//delete all the intermin objects created and stored in these vectors:
