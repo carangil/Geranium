@@ -1,6 +1,4 @@
 "base/base.zz" include
-
-
 "gen.zz" include
 
 
@@ -9,6 +7,18 @@ proc Done:(vb:VBuffer&; attr:Z32;x:Real; y:Real; z:Real->)   vb attr x y z 0.0 D
 proc Data:(vb:VBuffer&; attr:Z32;x:Real; y:Real; z:Real->)   vb attr x y z 0.0 Data  end
 proc Done:(vb:VBuffer&; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Done  end
 proc Data:(vb:VBuffer&; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Data  end
+
+stacked Vec3;  //Vec3 structs are put on the stack
+
+proc :Vec3:(a:Real;b:Real;c:Real->Vec3)     
+   var v:Vec3;
+    a v.x=
+    b v.y=
+    c v.z=  
+    v return
+end
+
+
 
 
 proc LoadTexture:(filename:String&->Texture%)
@@ -28,12 +38,12 @@ proc IsPressed:(key:Z32->Bit)
 end
 
 //create an opengl window
+"make window" print newline
 
 "Testing" 1024 768 0 GLWindow window=
 
 
 0.0 0.0 0.1 1.1 BackgroundColor
-
 
 
 //load assets
@@ -46,8 +56,23 @@ end
 
 "../../Zcore-data/cube.obj" 1.0 MeshLoadObj #CubeMesh
 
-"@../gfxtest/vertex.glsl" "@../gfxtest/fragment.glsl" DefaultShader 
+//"@../gfxtest/vertex.glsl" "@../gfxtest/fragment.glsl" DefaultShader 
 
+"@../gfxtest/finevertex.glsl" "@../gfxtest/finefragment.glsl" DefaultShader 
+
+
+NewStyle #st 
+
+st GFX_TEXTURE "texture_diffuse" 0 0       Rock_Diffuse:Void&  0 Set
+st GFX_TEXTURE "texture_height" 0 0       Rock_Height:Void&  0 Set
+st GFX_TEXTURE "texture_normal_tangent" 0 0       Rock_Normal:Void&  0 Set
+
+-1.0 2.0 3.0 :Vec3 #lightPos
+
+//gfx_style_set_property(st_grid, GFX_FLOAT3, "light_position", 0, 0, &lpcam, GFX_TRANSFORM_POINT);
+st GFX_FLOAT3 "light_position" 0 0 lightPos&:Void& GFX_TRANSFORM_POINT Set
+
+st Use
 window  "color:4|position:3|texcoord:2" TempVBuffer #vb
 
         
@@ -60,9 +85,15 @@ window  "color:4|position:3|texcoord:2" TempVBuffer #vb
 //"../../Zcore-data/font32.tga" ZTGA_TOP BitmapLoadTGA #bbb
 //bbb keep CreateTexture  #fonttexture
 
+var camera:Transform;
 
-        
-     
+camera gfx_camera_init
+
+-1.0 0.0 5.0 :Vec3   camera.Position=
+    
+    
+    
+    
 loop
      // WindowEventLoop
      var ev:ZEvent;
@@ -84,29 +115,49 @@ loop
         break
     end
     
+
             
     80.0     4.0 3.0/   0.01 1000.0 Setup3D
     1:Bit 1:Bit FrameClear
+    
+
+    proc immediate gfx_translate:(code v:Vec3->Code%)
+        code \
+         'v & gfx_translate
+        \ return
+    end
+    
+    //transform the camera motion
+    0.01 #step
+    
+   
+   
+    proc IsPressed:(s:String& -> Bit)
+        Keys s 0[] :Z32 []1 == return
+    end
+
+
+    0.0 #dx 0.0 #dy 0.0 #dz
+
+    "a" IsPressed if   step.- dx=     end
+    "d" IsPressed if   step   dx=     end
+    "w" IsPressed if   step   dz=     end
+    "s" IsPressed if   step.- dz=     end
+    "r" IsPressed if   step   dy=     end
+    "f" IsPressed if   step.- dy=     end
+
+
+
+    camera dz dx dy 0.0 0.0 0.0 gfx_camera_motion_6dof
+    
     gfx_identity
-    0.0 0.0 -5.0 gfx_translate3
-    
-    
+//    0.0 0.0 -5.0 :Vec3 #pos
+  //  pos gfx_translate
+
+    camera gfx_camera_view
+
     CubeMesh.vb GFX_TRIANGLE 0 19 1:Bit Draw
 
-    //#define Procmap_gfx_vertex_buffer_draw Draw
-//void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end, zbool indexed);
-
-
-    
-    //(cube_mesh->vb, GFX_TRIANGLE, 0, zarray_count(cube_mesh->vb->index_buffer), ZTRUE);
-    
-    
-    //add function that can draw cubemesh
-    
-    
-
-    //CubeMesh.
-       
     
     
     window UpdatePixels
@@ -136,8 +187,6 @@ a gfx_trans_init
 a print
 
 
-
-
 //todo: need to import all the vector math operations
 proc =:(x:Real; y:Real;z:Real;v:Vec3&->)
     x v.x=
@@ -146,7 +195,6 @@ proc =:(x:Real; y:Real;z:Real;v:Vec3&->)
 end
 
 
-stacked Vec3;  //Vec3 structs are put on the stack
 
 var vv:Vec3;
 1.0 vv.x=
@@ -166,15 +214,7 @@ proc print:(point:Vec3->)
    "byval end" print
 end
 
-proc mkvec3:(a:Real;b:Real;c:Real->Vec3)
 
-    var v:Vec3;
-    a v.x=
-    b v.y=
-    c v.z=
-    
-    v return
-end
 
 
 var v:Vec3;
@@ -204,11 +244,11 @@ newline
 v2 print
 v2 &print
 
-1111. 2222. 33333. mkvec3 #h   //todo:##var for stacked structs
+1111. 2222. 33333. :Vec3 #h   //todo:##var for stacked structs
 h print
 
 
-5.5 10.0 121.0 mkvec3 print
+5.5 10.0 121.0 :Vec3 print
 
 v2.x print newline
 v2& #vp
@@ -216,13 +256,13 @@ v2& #vp
 "v.x  " print v.x print newline
 
 
-10.0 20.0 30.0 mkvec3 0.55 0.066 0.77 mkvec3 + print
+10.0 20.0 30.0 :Vec3 0.55 0.066 0.77 :Vec3 + print
 
-1.0 2.0 3.0 mkvec3
--1.0 2.0 3.0 mkvec3 Cross print newline
+1.0 2.0 3.0 :Vec3
+-1.0 2.0 3.0 :Vec3 Cross print newline
 
-1.0 2.0 3.0 mkvec3
--1.0 2.0 3.0 mkvec3 Dot print newline
+1.0 2.0 3.0 :Vec3
+-1.0 2.0 3.0 :Vec3 Dot print newline
 
 Vec3 .name print newline
 
@@ -277,26 +317,8 @@ end
 
 1.0 peek 3.0 peek + peek typeof .name print newline
 
-2 #category_reference
-8 #category_possessive
-5 #category_array
-
-proc immediate arrayof :(t:Type&->Type&)
-    5 t 0:String& 0 ZFindType return
-end
-
-proc immediate &:(t:Type&->Type&)
-    5 t 0:String& 0 ZFindType return
-end
-
-Real arrayof 20 new #arr
-
-//arr typeof 10 new #arr2
 
 
-
-//arr typeof& 40 #toarrtype
-//arr typeof #arrtype
 
 
 code (a:Z32->Z32)\
@@ -325,3 +347,43 @@ end
 
 0 fptr noexec usefptr
 
+begin
+10 :Real " " 
+123.4 " "
+123.4 :Z32 " " 
+//123.4 :any :Z32
+prints
+
+
+
+1.0 2.0 3.0 :Vec3
+100.1 100.22 100.33 :Vec3 + print
+
+newline
+//arr typeof .name print newline
+
+
+immediate
+    2 #category_reference
+    8 #category_possessive
+    5 #category_array
+end
+
+proc immediate arrayof:(t:Type&->Type&)
+    category_array t 0:String& 0 ZFindType return
+end
+
+proc immediate .&:(t:Type&->Type&)
+    category_reference t 0:String& 0 ZFindType return
+end
+
+proc immediate .%:(t:Type&->Type&)
+    category_possessive t 0:String& 0 ZFindType return
+end
+
+"type->" print
+10 typeof .name print newline
+10 typeof.& arrayof 20 new #saa
+
+10 typeof arrayof 20 new #yyy
+10 typeof arrayof.& new #yyu

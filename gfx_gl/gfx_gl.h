@@ -82,7 +82,7 @@ gfx_styleT* gfx_style_mk();
 void gfx_style_set_property(gfx_styleT* st, int idORtype, char* name_in, int index, int val, void* ptr, int action);
 
 //selects a style to use for rendering
-//Zdef proc _gfx_style Use
+//Zdef proc gfx_style Use
 void gfx_style(gfx_styleT* st);
 
 
@@ -166,7 +166,7 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 
 //temporary vertex buffers:
 //these do not need to be freed, and are automatically recycled as needed
-//Zdef proc gfx_vertex_temp TempVBuffer
+//Zdef proc gfx_vertex_temp TempVBuffer:(w:ZWindow&; spec:String& ->VBuffer&);
 gfx_vertex_bufferT* gfx_vertex_temp(struct zwindow_s* gw ,char* spec);  //returns a vertex buffer in speficed format.  CAn hold MAX_GFX_TEMP vertices
 //Zdef proc gfx_vertex_buffer_draw_clear	 DrawReset
 void gfx_vertex_buffer_draw_clear(gfx_vertex_bufferT* vb, zuint32 prim);  //draws the temporary vertex buffer's contents with the currently selected style.

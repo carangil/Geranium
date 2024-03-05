@@ -147,7 +147,7 @@ char* get_zz(char* c, int proc) {
 	//check for explicit mapping at each level
 	do {
 
-		printf("looking for %s stars:%d proc:%d\n", c, stars, proc);
+		printf("looking for %s stars:%d fproc:%d\n", c, stars, proc);
 
 		selected = get_zz_map(c, proc);
 
@@ -543,10 +543,10 @@ int process_define(char* buf) {
 		num = strtol(definition, NULL, 16);
 	}
 	
-	//instead of making a constant, just make it variable for now
-	if (num)
-		fprintf(outz, "%d #%s //constant\n", num, word);
-
+	//instead of making a constKant, just make it variable for now
+	//		fprintf(outz, "%d #%s //constant\n", num, word);
+	fprintf(outz, "%d constant %s\n", num, word);
+	
 }
 
 void process_zdef(char* zdef) {

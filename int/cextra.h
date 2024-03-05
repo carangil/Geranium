@@ -1,4 +1,4 @@
-//Zdef   struct		typeT	Type:name=name:String&;size=size:Z32;category=category:Z32;
+//Zdef   struct		typeT	Type:name=name:String cpointer;size=size:Z32;category=category:Z32;
 
 //Zdef    noproto zstrdup  Strdup
 char* zstrdup(char*);
@@ -30,6 +30,7 @@ zint32 load16(zuint16  * z);
 
 //Zdef stacked Vec3
 //Zdef struct namedv3	Vec3:x=x:Real;y=y:Real;z=z:Real;
+//Zdef type	vec3		Vec3
 //Zdef handler vec3add     +:(a:Vec3;b:Vec3->Vec3);
 //Zdef handler vec3sub     -:(a:Vec3;b:Vec3->Vec3);
 //Zdef handler vec3cross   Cross:(a:Vec3;b:Vec3->Vec3);

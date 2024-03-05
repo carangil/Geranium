@@ -105,7 +105,7 @@ typedef struct tokenS{
 	int line;	//line number from source file
 	zbool val_to_free; //if true, free val's ptr block when destroying token
 	int useslocal; // INSTEAD OF TRUE/FALSE, THIS IS A COUNT. if true this code (or its subtrees) refers to local variables (as opposed to global or immediate space)
-
+	int generated;
 	parsectxT* restrict_parse_context; //for SUBTREEs... only can be included in the same context they were created
 
 	struct tokenS* trackpossptr;
@@ -142,6 +142,7 @@ typedef struct tokenS{
 #define COMPILE		0x9004
 #define REDIRECT	0x9005
 #define LOADEXEC	0x9006
+#define TYPECAST	0x9007
 
 //Token values that are also user-accessible keywords:
 #define KWORDS		0x8000
@@ -175,11 +176,12 @@ typedef struct tokenS{
 #define KSTACKED	0x801b
 #define KTYPEOF		0x801c
 #define KNOEXEC		0x801d
+#define KCONSTANT	0x801e
 
 
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
 						"new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0",
-						"count", "size", "setcount","opaque","immediate", "code", "stacked", "typeof", "noexec", NULL};
+						"count", "size", "setcount","opaque","immediate", "code", "stacked", "typeof", "noexec", "constant", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -306,7 +308,7 @@ void  tokenize(tokenT* insert, char* in){
 			line++;
 
 		//find twochar patterns like ->,etc. including comment start/end markers
-		if ((p = findPair("--++==->/**///[]>=<=!=.-###=\\\\/\\\\/", c, next))){
+		if ((p = findPair(".&.%.@--++==->/**///[]>=<=!=.-###=\\\\/\\\\/", c, next))){
 			if (  p == PAIR('/','/')  ) { //special handling for // comments
 				while(*in!= '\n')
 					in++;
@@ -917,7 +919,8 @@ typedef struct symbolS{
 	int selectorNum;  //which selector (nth) is this?
 	zbool isPrototype;// true if this symbol is just a function prototype
 	zbool isImmediate; //function runs whenever it is compiled
-	zbool isSelector;// 1 if symbol is a function selector, 2 is is a data selector, 4 if virtual selector
+	int   isSelector;// 1 if symbol is a function selector, 2 is is a data selector, 4 if virtual selector
+	zbool isConstant; //1 if symbol is just a constant.  tokens points to the constant handler
 } symbolT;
 
 zbool symbol_cleanup(void* v){
@@ -1211,9 +1214,7 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 			tokenT* last = zlist_tail(&t2->subs);
 			tokenT* first = zlist_head(&t2->subs);
 		
-			if (tsub(tsub(t2)) && !strcmp(tsub(tsub(t2))->str, "a44"))
-				boo();
-
+			
 			xprintf(" Executing this to get value:\n");
 			printList(tsub(t2),NULL,0,0);
 
@@ -1285,11 +1286,28 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 		
 					printList(subtree, NULL, 0, 2);
 					printf("%x\n", subtree);
+					
+					typeT* rt = subtree->ty->ref;
+
+					if (subtree->tok == REDIRECT) {
+						printf("implied insert\n");
+						tokenT* redirected = tsub(subtree);
+						if ((redirected->tok == '@')&&(redirected->generated)) {
+				
+							if (tnext(t2)->tok == '&') {
+								//
+								subtree = redirected;
+								rt = tsub(subtree)->ty;
+								ram_free(tremove(tnext(t2)));
+							}
+						}
+					}
+
 					newtok= mkToken(PASSTHRU, "callredirect", 0); //PASSTHRU token so this isn't reparsed
 					newtok->handler = hredirectsub;  //hredirectsub runs the 
 					newtok->val.as.token = ram_addref(subtree);
 					newtok->val_to_free = ZTRUE;
-					newtok->ty = subtree->ty->ref;
+					newtok->ty = rt;
 
 					if (subtree->restrict_parse_context) {
 
@@ -3004,13 +3022,13 @@ void checkUsage(tokenT* start, tokenT* end){
 	while (t && t != end){
 	
 		if (t->ty && t->tok != KRETURN && t->tok != KEND){  //if value on this level has a type, its an unused value.  Exception for KEND and KRETURN; that ty is the return type
-			
-			printList(t, t, -5,1);
+
+			xprintf("\n value not used:{{{ \n");
+
+			printList(t, t, -1,1);
 			
 			printType(t->ty, ZFALSE, ZFALSE);
-			
-			
-			printf(" value not used \n");
+			xprintf("\n}}}\n");
 			
 			
 				
@@ -3582,13 +3600,24 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			//name = tnext(t)->str;
 			
+			char* tmpstring = NULL;
+
+			if (tnext(t)->tok == ':') {
+				ram_free(tremove(tnext(t))); //delete colon
+					
+				
+				char* tmpstring = zstrndup(":", 32);
+				tmpstring = zstrcat(tmpstring, tnext(t)->str);
+				ram_free(tnext(t)->str);
+				tnext(t)->str = tmpstring;
+			}
 		
 			t = parseVar(tnext(t), &name, &type); //parse variable; name is required
 
 			if (dataselector)
 				name++;
 
-
+			
 			xprintf("proc/var %s   %s is type ", ts->str, name);
 			printType(type, 1, 1);
 						
@@ -4037,6 +4066,24 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t = tnext(t);
 			continue;
 
+		case KCONSTANT:
+			ts = t;
+			
+			if (tprev(ts)->handler != hconstant)
+				ERR(" previous item must be a constant!\n");
+
+			
+			t = tnext(t); //name of constant
+			
+			s = mkSymbol(pc, t->str, tprev(ts)->ty, NULL); //copy the type
+			s->tokens = ram_addref(tprev(ts)); //point to the constant handler
+			s->isConstant = ZTRUE;
+			fold(tprev(ts), t);
+			t->handler = hnop;
+			t = tnext(t);
+			
+			continue;
+
 		case KINCLUDE:
 			xprintf("lit? %x %x\n", tprev(t)->tok, LITERAL);
 			if (tprev(t)->tok == LITERAL) {
@@ -4080,6 +4127,19 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 		case ':': //typecast
 
+			//if next token is text, we should attempt a function call instead
+			if (tnext(t)->tok == NAME) {
+				char* cname = zstrcat(zstrdup(":"), tnext(t)->str);
+				tokenT* nt = mkToken(NAME, cname, 0);
+				insert_after(tprev(t), nt);
+				t->tok = TYPECAST;
+				t = tprev(t);
+				ram_free(cname);
+				
+				continue;
+			}
+
+		case TYPECAST: //typecast
 
 			ts = t; //ts is colon
 
@@ -4181,8 +4241,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				continue;
 			}
 
-			//
+		
 
+			//forced typecast
+			if (tprev(ts)->ty->category != tprev(t)->ty->category)
+				xprintf(" Typecast changing from category %d to %d\n", tprev(ts)->ty->category, tprev(t)->ty->category);
 
 			tprev(ts)->tyorig = tprev(ts)->ty;
 			tprev(ts)->ty = tprev(t)->ty;
@@ -4196,6 +4259,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		case KTYPEOF:
 			t->handler = hconstant;
 			t->val.as.ptr.block = tprev(t)->ty;
+			t->val.as.ptr.offset = 0;
 			t->ty = tType;
 			fold(tprev(t), t);
 
@@ -4288,6 +4352,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				//If it was an array of pointers to structs, then ty->ref->category is a pointer to pointer to a struct, 
 
 				insert_after(t, mkToken('@', "@", 1)); //read the item ( The next parsed token, might remove this, if it wants to store or manipulate the pointer)
+				tnext(t)->generated = 1;
 			}
 
 			t = tnext(t);
@@ -4637,7 +4702,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							
 				fold(  tprev(t), t); //put array size as sub
 					
-				typeT* rt = (void*) tprev(t)->val.as.type;  //value of item
+				typeT* rt = (void*) tprev(t)->val.as.ptr.block;  //value of item
 				if (tprev(t)->handler != hconstant) {
 					ERR("alloction requires a constant type\n");
 
@@ -4712,6 +4777,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 
 				tokenT* tn = mkToken('@', "@", 1);  //load the variable
+				tn->generated = 1;
 				insert_after(t, tn);
 				
 				
@@ -4855,12 +4921,22 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				//printType(s->type,0,0);
 				//xprintf("\n");
 
-				
+				if (tnext(ts)->tok == TYPECAST) {
+					ram_free(tremove(tnext(ts))); //remove typecast token
+					ram_free(tremove(tnext(ts))); //remove typename its being cast to
+				}
 			
 				if ((s->type->category == POINTERUSER || s->type->category == POINTERPOSSESSIVE) && s->type->ref && s->type->ref->category == FUNCTION)
 					fpointer = 1;
 							
-				
+				if (s->isConstant) {
+					printf("constant\n");
+					t->val = s->tokens->val;
+					t->handler = s->tokens->handler;
+					t->ty = s->tokens->ty;
+					t = tnext(t);
+					continue;
+				}
 
 				if ((s->type->category == FUNCTION || fpointer  )) {
 					
@@ -5033,7 +5109,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 
 				else if ((s->type->category!=ARRAYSTATIC)&&(   s->type->category!=STRUCT || s->type->stacked  )) {  
-					tokenT* tn = mkToken('@', "@", 1);  //load the variable					
+					tokenT* tn = mkToken('@', "@", 1);  //load the variable	
+					tn->generated = 1;
 					insert_after(t, tn);
 				}
 							
@@ -5088,6 +5165,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						//for static arrays or substructs (that are embedded (not pointers)) then the pointer addition already made a pointer to the substruct/array.  For other cases (it is a pointer to a struct, integer, etc) then insert a load token.  
 						if ((t->ty->ref->category != ARRAYSTATIC) && (t->ty->ref->category != STRUCT)) {
 							tokenT* tn = mkToken('@', "@", 1);  //load the variable
+							tn->generated = 1;
 							insert_after(t, tn);
 						}
 						/* end copy*/
@@ -5166,6 +5244,14 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				continue; //try again
 			}
 
+			//WAS IT A TYPECAST?
+			if (tnext(ts)->tok == TYPECAST) {
+				t = tnext(ts);
+				ram_free(tremove(ts));
+				continue;
+			}
+
+
 			t->zlistnode.next = NULL;//end it
 			xprintf(" \nFinding in:\n");
 			printList(tprev(tprev(tprev(tprev(tprev(tprev(tprev(tprev(tprev(ts))))))))), t, 0, 1);
@@ -5185,7 +5271,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 
 			
-	 			ERR("  Undefined symbol:%s line %d\n\n", t->str, t->line); 
+	 		ERR("  Undefined symbol:%s line %d\n\n", t->str, t->line); 
 		
 			
 		}//end str

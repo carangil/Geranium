@@ -23,7 +23,9 @@ newline
 
 
 
-//opaque CString;
+//opaque @gfx_mat_3x3  zzzt;
+opaque zzzz;
+
 
 type littleptr
 	a: String cpointer;
@@ -52,7 +54,4 @@ little lp=
 lp.a print newline
 lp.b print newline
 lp2 print newline
-
-
-
 

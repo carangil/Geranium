@@ -53,6 +53,7 @@ char* zstrndup(char* a, zsize n) {
 	z = zstr_mk(n);  //string for n chars
 
 	if (z){
+		
 		strncpy(z, a, n);
 		z[n]='\0';
 		zarray_use(z, (zuint32)strlen(z) + 1);  //include terminator in byte count of array
@@ -107,7 +108,7 @@ char* zstrcatsub(char* dest, char* src, zsize start, zsize count){
 	    pos--;
 	memcpy(dest+pos, src+start, count);
 	dest[pos+count]=0;
-	zarray_use(dest, (zuint32) pos+count+1);
+	zarray_use(dest, (zuint32) pos+count+1); //include terminator in byte count
 	
 	return dest;
 }

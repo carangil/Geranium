@@ -35,8 +35,8 @@ void gfx_gl_test() {
 	zvec_add(garbage, strawpic);
 
 
-	//zbitmapT* grid = zbitmap_load_tga("../../Zcore-data/finechecker.tga", 1 * ZTGA_TOP);
-	zbitmapT* grid = zbitmap_load_tga("../../Zcore-data/web/femalenude.tga", 0 * ZTGA_TOP);
+	zbitmapT* grid = zbitmap_load_tga("../../Zcore-data/finechecker.tga", 1 * ZTGA_TOP);
+	//zbitmapT* grid = zbitmap_load_tga("../../Zcore-data/web/femalenude.tga", 0 * ZTGA_TOP);
 	zvec_add(garbage, grid);
 
 	//zbitmapT* brickpic = zbitmap_load_tga("../../Zcore-data/web/brick.tga", 0);
@@ -70,12 +70,12 @@ void gfx_gl_test() {
 	zvec_add(garbage, cube_mesh);
 
 	//gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands.obj", .1);
-	//gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands_vg.obj", .1);
+	gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/metal_hands_vg.obj", .1);
 	vec3 min;
 	vec3 max;
 	//gfx_meshT* model = gfx_mesh_load_objmm("../../Zcore-data/testhuman.obj", .1, &min, &max);
-	gfx_meshT* model = gfx_mesh_load_objmm("../../Zcore-data/test/blender-processed/test.obj", .1, &min, &max);
-	printf(" min %f %f %f   max %f %f %f\n", min.VX, min.VY, min.VZ, max.VX, max.VY, max.VZ);
+	//gfx_meshT* model = gfx_mesh_load_objmm("../../Zcore-data/test/blender-processed/test.obj", .1, &min, &max);
+	//printf(" min %f %f %f   max %f %f %f\n", min.VX, min.VY, min.VZ, max.VX, max.VY, max.VZ);
 	//gfx_meshT* model = gfx_mesh_load_obj("../../Zcore-data/web/dance.obj", 1);
 
 	zvec_add(garbage, model);
@@ -86,7 +86,7 @@ void gfx_gl_test() {
 	recurse_skeleton(skel, -1, 0); //process the skeleton rest pose
 
 	
-#if 0
+#if 1
 	{
 		gfx_meshT* m;
 		int i;
@@ -219,7 +219,7 @@ void gfx_gl_test() {
 
 
 
-#if 1   //choose closest bone
+#if 0   //choose closest bone
 			for (i = 0; i < count; i++) {
 
 				vec3 p;
@@ -723,7 +723,7 @@ void gfx_gl_test() {
 	}
 
 	printf(" window close button was pressed\n");
-	gfx_free_basic_shader();
+	
 	ram_free(garbage);
 
 }
