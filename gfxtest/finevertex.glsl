@@ -12,24 +12,24 @@ uniform vec3 gfx_camera_pos;
 /*********** VERTEX INPUTS ***************/
 //These should match the vertex buffer attribute names
 
-attribute vec3 position;
-attribute vec4 color;
-attribute vec2 texcoord;
-attribute vec3 normal;
+in vec3 position;
+in vec4 color;
+in vec2 texcoord;
+in vec3 normal;
 
 /*********** OUTPUTS ******************/
 //interpolated outputs to the pixel shader
 
 #ifdef enable_texcoord
-	varying vec2 F_texcoord;
+	out vec2 F_texcoord;
 #endif
 
 #ifdef enable_color
-	varying vec4 F_vertex_color;
+	out vec4 F_vertex_color;
 #endif
 
-varying vec3 F_vertex_camspace;
-varying vec3 F_normal_camspace;
+out vec3 F_vertex_camspace;
+out vec3 F_normal_camspace;
 
 /*************************/
 

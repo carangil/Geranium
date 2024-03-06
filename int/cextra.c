@@ -73,3 +73,4 @@ tokenT* h_vec3dot(exectxT* ex, tokenT* t) {
 
 	return tnext(t);
 }
+

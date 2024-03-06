@@ -12,12 +12,12 @@ uniform mat4 gfx_modelview;
 
 
 uniform sampler2D texture_diffuse0;
-varying vec4 F_vertex_color;
-varying vec2 F_texcoord;
+in vec4 F_vertex_color;
+in vec2 F_texcoord;
 
 
-varying vec3  F_vertex_camspace;
-varying vec3 F_normal_camspace;
+in vec3  F_vertex_camspace;
+in vec3 F_normal_camspace;
 
 
 
@@ -133,7 +133,7 @@ void main()
 
 		/*  Object space normal mapping
 		#ifdef enable_texture_normal_tangent0
-			normal_camspace =  texture2D(texture_normal_tangent0, vec2(F_texcoord) ).xyz ;
+			normal_camspace =  texture(texture_normal_tangent0, vec2(F_texcoord) ).xyz ;
 			normal_camspace = normal_camspace*2 -1.0; //TODO: need to rotate this by view matrix (and that's object space)  ALSO need to do peoper tangent space matrix
 			normal_camspace = mat3( gfx_modelview) * normal_camspace;
 		#endif
@@ -164,7 +164,7 @@ void main()
 		#ifdef enable_texture_height0
 		
 				#if 0	//parallax mapping
-					float height_lookup = .05* texture2D(texture_height0, F_texcoord).x ;
+					float height_lookup = .05* texture(texture_height0, F_texcoord).x ;
 					vec3 vertex_direction = normalize( vertex_camspace* TBN);
 					vec2 disp = -height_lookup * vertex_direction.xy ;
 					vec2 texcoord = F_texcoord + disp;
@@ -188,7 +188,7 @@ void main()
 
 				for (iter=0; iter<STEPCOUNT ; iter++){
 	
-					float height_lookup =MAXD*  texture2D(texture_height0, texcoord).x ;
+					float height_lookup =MAXD*  texture(texture_height0, texcoord).x ;
 
 					if (t >= height_lookup) {
 						break;
@@ -222,7 +222,7 @@ void main()
 
 				for (iter=0; iter<STEPCOUNT ; iter++){
 	
-					float height_lookup =MAXD*  texture2D(texture_height0, texcoord).x;
+					float height_lookup =MAXD*  texture(texture_height0, texcoord).x;
 
 					if ( (t-height_lookup) * step > 0) { /* equivalent to the below two conditions */
 						step = step / -2.0;
@@ -251,7 +251,7 @@ void main()
 		
 		#ifdef enable_texture_normal_tangent0
 
-			vec3 normal_lookup =  texture2D(texture_normal_tangent0, texcoord ).xyz ;
+			vec3 normal_lookup =  texture(texture_normal_tangent0, texcoord ).xyz ;
 			normal_lookup = normalize( normal_lookup -0.5); 
 			normal_camspace =    TBN * normal_lookup; //transform tangent space normal into view space
 
@@ -287,7 +287,7 @@ void main()
 	//texture filters the diffuse color
 
 	#ifdef enable_texture_diffuse0
-		F_color *= texture2D(texture_diffuse0, texcoord  );
+		F_color *= texture(texture_diffuse0, texcoord  );
 	#endif
 
 

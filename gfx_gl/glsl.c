@@ -155,7 +155,7 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 	
 
 		int hline = 1;
-		char* header = zstrdup("#version 120\n");
+		char* header = zstrdup("#version 130\n");
 
 		gfx_propertyT* p;
 
@@ -299,3 +299,12 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 	return shader;
 }
 
+void testComputeShader() {
+
+	printf("here\n");
+	
+	
+	
+//	exit(1);
+
+}

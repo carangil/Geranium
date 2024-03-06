@@ -53,10 +53,13 @@ NewStyle    #st
             st GFX_TEXTURE "texture_height" 0 0         Rock_Height:Void&  0 Set
             st GFX_TEXTURE "texture_normal_tangent" 0 0 Rock_Normal:Void&  0 Set
 
-            -1.0 2.0 3.0 :Vec3 #lightPos
+            50.0 #sh
+            st GFX_FLOAT "specular_exponent"  0 0 sh&:Void&  0 Set
 
-            st GFX_FLOAT3 "light_position" 0 0 lightPos&:Void& GFX_TRANSFORM_POINT Set
 
+            -3.0 4.0 10.0 :Vec3 #lightPos
+
+            
 st Use
 
 //window  "color:4|position:3|texcoord:2" TempVBuffer #vb
@@ -71,14 +74,23 @@ Transform new ##camera gfx_camera_init
 -1.0 0.0 5.0 :Vec3   camera.Position=
             
 0.001 #step
-  
+ 
+0 #mouseRel
+
+testComputeShader
+
 loop
+
+
+     0.0 #droll 0.0 #dpitch 0.0 #dyaw
+
+
      // WindowEventLoop
      var ev:ZEvent;
      loop
         
         window ev GetEvent  while
-        "Event " print ev.eventType print  "    " print     newline
+        //"Event " print ev.eventType print  "    " print     newline
       
         //key up/down events
         ev.eventType   ZEVENT_KEY ZEVENT_DOWN or == if 
@@ -87,15 +99,35 @@ loop
             0 Keys ev.A[] =
         end
 
+        proc eventis:(e:ZEvent&; mask:Z32 -> Bit)
+       
+            e.eventType mask and mask == return
+        end
+
+        immediate ZEVENT_MOUSE ZEVENT_DELTA or return end constant ZEVENT_MOUSE_DELTA
+        
+        ev ZEVENT_MOUSE_DELTA eventis    if
+
+      //  "                    md " print ev.A print   " "print  ev.B print newline        
+                           ev.A:Real -200.0 / dyaw=
+                           ev.B:Real 200.0 / dpitch=
+           
+        end
+
         // char events
         ev.eventType ZEVENT_CHAR == if
             ev.A "+"0[]:N32 == if
                 step 1.05 * step=
             ev.A "-"0[]:N32==  elseif
                 step 0.95 * step=
+            ev.A "m"0[]:N32==  elseif
+                mouseRel:Bit not:Z32 mouseRel=
+
+                window mouseRel:Bit gfx_mouse_relative
+
             end
         end
-
+       
     end
     
     ev.eventType ZEVENT_CLOSE == if 
@@ -120,8 +152,15 @@ loop
     "r" IsPressed if   step   dy=     end
     "f" IsPressed if   step.- dy=     end
 
-    camera dz dx dy 0.0 0.0 0.0 gfx_camera_motion_6dof
+     "q" IsPressed if   step.-   droll=     end
+     "e" IsPressed if   step     droll=     end
+
+
+    camera dz dx dy dyaw dpitch droll gfx_camera_motion_6dof
     camera gfx_camera_view
+
+    st GFX_FLOAT3 "light_position" 0 0 lightPos&:Void& GFX_TRANSFORM_POINT Set
+
 
    // CubeMesh.vb GFX_TRIANGLE 0 24:N32 1:Bit Draw
     
@@ -252,7 +291,7 @@ end
 
 10:N8 #lf
 
- begin 123 " Whatever "10.0 2.1 + lf prints
+ begin 123 " Whatever " 10.0 2.1 +  lf prints
  begin 123 456 prints
 
 proc peek:(a:Real->Real)

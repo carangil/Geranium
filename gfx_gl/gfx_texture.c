@@ -70,28 +70,32 @@ zbool gxi_texture_enable(gfx_textureT* image)
 		int a = zbitmap_pxsize(image->bitmap);
 
 			printf(" format %x %x    %dby%d\n", image->bitmap->format, a, image->bitmap->w , image->bitmap->h);
-
+			checkGL();
 		switch (a) {
 
 		case 3:
 
-
-			gluBuild2DMipmaps(GL_TEXTURE_2D, 3, image->bitmap->w, image->bitmap->h, GL_BGR, GL_UNSIGNED_BYTE, image->bitmap->data);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image->bitmap->w, image->bitmap->h, 0,GL_BGR, GL_UNSIGNED_BYTE, image->bitmap->data);
+			break;
+			//gluBuild2DMipmaps(GL_TEXTURE_2D, 3, image->bitmap->w, image->bitmap->h, GL_BGR, GL_UNSIGNED_BYTE, image->bitmap->data);
 			break;
 
 		case 4:
 
-			gluBuild2DMipmaps(GL_TEXTURE_2D, 4, image->bitmap->w, image->bitmap->h, GL_BGRA, GL_UNSIGNED_BYTE, image->bitmap->data);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->bitmap->w, image->bitmap->h,0, GL_BGRA, GL_UNSIGNED_BYTE, image->bitmap->data);
+
+
+			//gluBuild2DMipmaps(GL_TEXTURE_2D, 4, image->bitmap->w, image->bitmap->h, GL_BGRA, GL_UNSIGNED_BYTE, image->bitmap->data);
 			break;
 
 		case 1:
-
+			printf(" FIX ME\n");
 			gluBuild2DMipmaps(GL_TEXTURE_2D, GL_INTENSITY, image->bitmap->w, image->bitmap->h, GL_LUMINANCE, GL_UNSIGNED_BYTE, image->bitmap->data);
 			break;
 		default:
 			printf(" unsupported texture format 0x%x\n", a);
 		}
-
+		checkGL();
 
 
 		//mess with scaler
@@ -107,8 +111,8 @@ zbool gxi_texture_enable(gfx_textureT* image)
 			}
 			else if (image->_scaler == GFX_TEXTURE_SCALER_SMOOTH)
 			{
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
-				//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 			}
 
@@ -116,7 +120,7 @@ zbool gxi_texture_enable(gfx_textureT* image)
 
 	}
 
-	glEnable(GL_TEXTURE_2D);
+	//glEnable(GL_TEXTURE_2D);
 
 	return ZTRUE;
 	
@@ -134,14 +138,19 @@ void gxi_new_texture_set() {
 }
 
 
-zuint32 gxi_add_texture(gfx_textureT* tex) {
-
+zuint32 gxi_add_texture(gfx_textureT* tex, zbool ff) {
+	checkGL();
 	glActiveTexture(GL_TEXTURE0 + gxi_texture_count);  //set texture unit
-	glEnable(GL_TEXTURE_2D);
-
-	ff_texture_env(gxi_texture_count);
-
+	checkGL();
+	
+	checkGL();
+	if (ff) {
+		glEnable(GL_TEXTURE_2D);
+		ff_texture_env(gxi_texture_count);
+	}
+	checkGL();
 	gxi_texture_enable(tex);
+	checkGL();
 	return gxi_texture_count++;
 
 }

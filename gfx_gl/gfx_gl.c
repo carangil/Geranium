@@ -340,14 +340,16 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 	checkGL();
 
 	for (i = 0; i < zvec_count(&st->properties); i++) {
+		
+		checkGL();
 
 		p = zvec_get_at(&st->properties, i);
 
 		//builtins
-
+		checkGL();
 		if (!variant && ff_light_parm(p))  //if ff lighting can accept the value, let it take it
 			continue;
-
+		checkGL();
 
 		switch (p->id) {
 
@@ -356,9 +358,9 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 			continue;
 
 		case GXI_BLEND_MODE:
-
+			checkGL();
 			gxi_set_blend(p->data.i);
-
+			checkGL();
 			continue;
 
 		case GXI_TEXTURE_DIFFUSE:
@@ -366,9 +368,9 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 			if (variant)
 				break;  //break down to the 'if variant' below
 
-			//line only executed for FF textures:
-			zuint32 tu = gxi_add_texture(p->data.tex);  //add texture AND get the texture unit number
-				
+			
+			zuint32 tu = gxi_add_texture(p->data.tex, ZTRUE);  //add texture AND get the texture unit number
+		
 			continue;
 
 		case GXI_LIGHT_POSITION:
@@ -394,7 +396,7 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 				else if ((p->id & GXI_TYPEMASK) == GFX_TEXTURE) {
 
 
-					zuint32 tu = gxi_add_texture(p->data.tex);  //add texture AND get the texture unit number
+					zuint32 tu = gxi_add_texture(p->data.tex, ZFALSE);  //add texture AND get the texture unit number
 
 					
 					//if using shaders, need to bind it to a sampler
@@ -418,7 +420,8 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 	}
 	checkGL();
 
-	gxi_texture_complete();
+	if (!variant)
+		gxi_texture_complete();  //disables and unused texture units (ff only)
 
 	if (variant) {
 		if (variant->ambient_uloc != -1) {

@@ -4,19 +4,19 @@
 uniform sampler2D texture_diffuse0;
 
 #ifdef enable_texcoord
-varying vec2 F_texcoord;
+in vec2 F_texcoord;
 #endif
 
-varying vec4 F_color;
-varying vec4 F_specular_color;
-varying float F_zcoord;
+in vec4 F_color;
+in vec4 F_specular_color;
+in float F_zcoord;
 
 #ifdef enable_fog_density0
 	uniform float fog_density0;
 	uniform vec3 fog_color0;
 #endif
 
-
+out vec4 fragColor;
 
 void main()
 {
@@ -25,7 +25,7 @@ void main()
 
 
 	#if defined(enable_texture_diffuse0) && defined(enable_texcoord)
-		diffuse_color *= texture2D(texture_diffuse0, vec2(F_texcoord) );
+		diffuse_color *= texture(texture_diffuse0, vec2(F_texcoord) );
 	#endif
 
 	
@@ -35,7 +35,7 @@ void main()
 
 	#ifdef enable_fog_density0
 		float foggy = 1-clamp(exp(F_zcoord*fog_density0), 0, 1);  //note normally is exp(-distance*denstity), but Z coordinate is already negative
-		gl_FragColor = mix(gl_FragColor, vec4(fog_color0, 1), foggy);
+		fragColor = mix(gl_FragColor, vec4(fog_color0, 1), foggy);
 
 	#endif
 

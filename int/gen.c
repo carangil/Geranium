@@ -101,6 +101,19 @@ tokenT* hc_findType (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
+void testComputeShader();
+tokenT* hc_testComputeShader (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-0].as.ptr.block;
+		testComputeShader(
+			);
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-0+0);
+
+	return tnext(t); 
+}
 void zw_enqueue(zwindowT* zw, zuint32 type, zuint32 a, zuint32 b, void* ptr);
 tokenT* hc_zw_enqueue (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
@@ -219,6 +232,20 @@ tokenT* hc_gfx_mkwindow (exectxT* ex, tokenT* t) {
 	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-4+1);
+
+	return tnext(t); 
+}
+void gfx_mouse_relative(struct zwindow_s* zw, zbool rel);
+tokenT* hc_gfx_mouse_relative (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
+		gfx_mouse_relative(
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-2+0);
 
 	return tnext(t); 
 }
@@ -442,7 +469,7 @@ tokenT* hc_gfx_vertex_buffer_update (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
-void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end, zbool indexed);
+void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, zuint32 start, zuint32 end, zbool indexed);
 tokenT* hc_gfx_vertex_buffer_draw (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
 	void* firstArg = ex->stack[ex->sp-5].as.ptr.block;
@@ -1210,6 +1237,7 @@ void set_handlers(){
 	mkSymbol(global, "C_store16", tPrimitive, hc_store16);
 	mkSymbol(global, "C_load16", tPrimitive, hc_load16);
 	mkSymbol(global, "C_findType", tPrimitive, hc_findType);
+	mkSymbol(global, "C_testComputeShader", tPrimitive, hc_testComputeShader);
 	mkSymbol(global, "C_zw_enqueue", tPrimitive, hc_zw_enqueue);
 	mkSymbol(global, "C_zw_queued", tPrimitive, hc_zw_queued);
 	mkSymbol(global, "C_zw_event", tPrimitive, hc_zw_event);
@@ -1218,6 +1246,7 @@ void set_handlers(){
 	mkSymbol(global, "C_zprintevent", tPrimitive, hc_zprintevent);
 	mkSymbol(global, "C_checkGLfunc", tPrimitive, hc_checkGLfunc);
 	mkSymbol(global, "C_gfx_mkwindow", tPrimitive, hc_gfx_mkwindow);
+	mkSymbol(global, "C_gfx_mouse_relative", tPrimitive, hc_gfx_mouse_relative);
 	mkSymbol(global, "C_gfx_background_color", tPrimitive, hc_gfx_background_color);
 	mkSymbol(global, "C_gfx_frame_clear", tPrimitive, hc_gfx_frame_clear);
 	mkSymbol(global, "C_gfx_depth_buffer", tPrimitive, hc_gfx_depth_buffer);

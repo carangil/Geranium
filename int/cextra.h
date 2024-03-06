@@ -42,6 +42,6 @@ zint32 load16(zuint16  * z);
 typeT* findType(zuint32 category, typeT* ref, char* name, size_t len);
 
 
-
+void testComputeShader();
 
 

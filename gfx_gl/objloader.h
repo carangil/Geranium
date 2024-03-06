@@ -36,7 +36,7 @@ typedef struct gx_mesh_s
 } gfx_meshT;
 
 
-//defines a mesh
+//this defines a mesh
 //gx_mesh_t*  gx_mesh_def(gx_vbuffer_t* v, gx_drawstyle_t* s, zuint32 drawstart, zuint32 drawend, zbool indexed);
 //#define Counted_gfx_meshT *Mesh
 

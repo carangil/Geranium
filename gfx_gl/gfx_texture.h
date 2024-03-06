@@ -25,5 +25,5 @@ gfx_textureT* gfx_texture_mk(zbitmapT* bmp);
 void gfx_texture_scaler(gfx_textureT* image, int scaler);
 
 void gxi_new_texture_set();
-zuint32 gxi_add_texture(gfx_textureT* tex);
+zuint32 gxi_add_texture(gfx_textureT* tex, zbool ff);
 void gxi_texture_complete();

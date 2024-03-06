@@ -37,6 +37,9 @@ void checkGLfunc(char* file, int line, char* hint, zbool tolerable );
 //Zdef proc gfx_mkwindow GLWindow
 struct zwindow_s* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags);
 
+//catures mouse pointer
+void gfx_mouse_relative(struct zwindow_s* zw, zbool rel);
+
 /* Basic framebuffer and setup functions */
 //Zdef proc gfx_background_color BackgroundColor
 void gfx_background_color(float r, float g, float b, float a);
@@ -137,7 +140,7 @@ typedef struct gfx_VertexBufferS {
 //Zdef proc gfx_vertex_buffer_mk NewVBuffer
 gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount, char* spec);
 
-//Zdef proc gfx_index_triangle AddTriangle
+//Zdef proc gfx_index_triangle Triangle
 zuint16 gfx_index_triangle(gfx_vertex_bufferT* vb, zuint16 a, zuint16 b, zuint16 c);
 
 //Zdef proc gfx_vertex_data Data
@@ -161,7 +164,7 @@ void gfx_vertex_buffer_add_index(gfx_vertex_bufferT* vb, int num);
 void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb);
 
 //Zdef proc gfx_vertex_buffer_draw Draw
-void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end, zbool indexed);
+void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, zuint32 start, zuint32 end, zbool indexed);
 
 
 //temporary vertex buffers:
@@ -201,6 +204,8 @@ void gfx_arrow(vec3* p1, vec3* p2, vec4* color);
 #define GFX_INT			0x50000000
 #define GFX_TEXTURE		0x60000000
 #define GFX_SWITCH		0x70000000  /* Flag creates a enable_Xn macro, with X the property name and n is the index (foo would be enable_foo0)*/
+#define GFX_MAT44		0x80000000
+#define GFX_MAT33		0x90000000
 
 //for FLOAT3 that get passed in:  put these in the valop field
 #define GFX_POINT_TRANSFORM		1
@@ -215,7 +220,6 @@ void gfx_arrow(vec3* p1, vec3* p2, vec4* color);
 #define GXI_TYPEMASK	0xff000000
 
 #define GXI_BLEND_MODE	(GFX_INT  |  1)
-
 /* light DIRECTION and POSITION for the same 'n' are mutually exclusive! */
 #define GXI_LIGHT_DIRECTION		(GFX_FLOAT3  | 2 )	
 #define GXI_LIGHT_POSITION		(GFX_FLOAT3  | 3 )
@@ -227,6 +231,7 @@ void gfx_arrow(vec3* p1, vec3* p2, vec4* color);
 #define GXI_LIGHT_ATTENUATION	(GFX_FLOAT3  | 9 )
 #define GXI_FOG_COLOR			(GFX_FLOAT3  | 10)
 #define GXI_FOG_DENSITY			(GFX_FLOAT   | 11)
+
 
 typedef struct gfx_propertyS {
 	char* name;//user can name custom properties

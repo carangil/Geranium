@@ -1,0 +1,65 @@
+
+"testing print string"  print newline //print a string
+
+"should print 55, then 33" print newline
+ 55 print newline	//print a constant
+ 3 11 * print newline // arithmetic
+ 
+"should be 'A': " print 
+65:N8 print newline 	//print a single character
+
+
+//simple variable assignments
+
+40 #x
+34 #y
+
+
+"Should be 70: " print  x y +  print  newline
+
+"Should print 122: " print
+immediate
+	100
+	22 + return
+end print newline
+
+
+//alocate an array
+[Real] 10 new #array
+0 #i
+//test a loop to fill array
+loop
+	i array count < while
+	
+	i i * :Real   array i[]=
+	
+	i&++
+end
+
+0i= loop 
+	i array count < while
+	array i[] print " " print
+	i&++
+end
+newline
+
+//test a simple function
+
+proc fib:(n:Z32->Z32)
+
+	n 2 < if
+		1 return
+	end
+	
+	n 1 - fib
+	n 2 - fib + return
+end
+
+
+0i= loop 
+	i 20 < while
+	i fib print  " " print
+	i&++
+end
+
+

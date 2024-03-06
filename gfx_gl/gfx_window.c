@@ -338,10 +338,16 @@ struct zwindow_s* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags)
 	if (!gfxi_inited)
 		gfxi_init();
 
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-	//glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	glfwWindowHint(GLFW_SAMPLES, 4);  //enable antialiasing buffers
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	
+	int coreProfile = 1;
+	
+	if (coreProfile)
+		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	
+	
+	//glfwWindowHint(GLFW_SAMPLES, 4);  //enable antialiasing buffers
 
 	win->fwindow = glfwCreateWindow(w, h, title, NULL, NULL);
 	glfwSetWindowUserPointer(win->fwindow, win); //so glfw can give us back our own struct
@@ -358,6 +364,8 @@ struct zwindow_s* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags)
 	glfwSetMouseButtonCallback(win->fwindow, mousebuttonHandler);
 	
 	glfwMakeContextCurrent(win->fwindow);
+	
+	
 	gxi_current_window = win;
 		
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
@@ -365,6 +373,16 @@ struct zwindow_s* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags)
 	}
 
 	glEnable(GL_MULTISAMPLE); //enable antialiasing
+
+
+
+	if (coreProfile) {
+		int vao = 0;
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+	}
+	//create VAO for gl >=3 core
+
 
 	gfx_identity(); //clear the matrix
 

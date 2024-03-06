@@ -5,7 +5,7 @@ uniform mat4 gfx_projection;
 uniform mat4 gfx_modelview;
 uniform vec3 gfx_camera_pos;
 uniform vec3 gfx_ambient_sum;
-varying float F_zcoord;
+
 
 /*********** UNIFORM INPUTS ***************/
 
@@ -43,18 +43,19 @@ varying float F_zcoord;
 /*********** VERTEX INPUTS ***************/
 //These should match the vertex buffer attribute names
 
-attribute vec3 position;
-attribute vec4 color;
-attribute vec2 texcoord;
-attribute vec3 normal;
+in vec3 position;
+in vec4 color;
+in vec2 texcoord;
+in vec3 normal;
 
 /*********** OUTPUTS ******************/
 //interpolated outputs to the pixel shader
-varying vec4 F_color;
-varying vec4 F_specular_color;
+out vec4 F_color;
+out vec4 F_specular_color;
 #ifdef enable_texcoord
-	varying vec2 F_texcoord;
+	out vec2 F_texcoord;
 #endif
+out float F_zcoord;  //for fog
 
 /*Light functions */
 	
