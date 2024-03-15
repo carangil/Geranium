@@ -299,12 +299,96 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 	return shader;
 }
 
-void testComputeShader() {
+char* cshCode =
+"#version 430  \n"
+"layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;	"
+" layout (std430, binding=3) buffer data{ vec4 d; };"
+"void main() {"
+	"d*=vec4(11.0,11.1,111.0,1111.0);"
+	
+"}"
+"";
 
-	printf("here\n");
+
+
+
+void testComputeShader() {
+	char log[1024];
+	log[0] = 0;
+	int status = 0;
+	int len = 0;
+
+	int ssbo = 0;
+	checkGL();
+
+	float data[4];
+	data[0] = 10;
+	data[1] = 9;
+	data[2] = 8;
+	data[3] = 7;
+
+	glGenBuffers(1, &ssbo);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+	glBufferData(GL_SHADER_STORAGE_BUFFER,  sizeof(data), data, GL_DYNAMIC_COPY);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+	checkGL();
+
+
+	checkGL();
+	int csh = glCreateShader(GL_COMPUTE_SHADER);
+	checkGL();
+	glShaderSource(csh, 1, &cshCode, NULL);
+	checkGL();
+	glCompileShader(csh);
+
+	glGetShaderiv(csh, GL_COMPILE_STATUS, &status);
+	checkGL();
+
+	glGetShaderInfoLog(csh, 1024, NULL, log);
+	checkGL();
+
+	printf("res:%d %s\n",status, log);
+	if (!status)
+		exit(1);
+
+	int prog = glCreateProgram();
+	checkGL();
+
+	glAttachShader(prog, csh);
+	checkGL();
+
+	glLinkProgram(prog);
+	checkGL();
+
+	glGetProgramiv(prog, GL_LINK_STATUS, &status);
+	checkGL();
+
+	glGetShaderInfoLog(csh, 1024, NULL, log);
+	printf("res:%d %s\n", status, log);
+	if (!status)
+		exit(1);
+
+	checkGL();
+	glUseProgram(prog);
+	checkGL();
+
+	int idx = glGetProgramResourceIndex(prog, GL_SHADER_STORAGE_BLOCK, "data");
+	int idx2 = glGetProgramResourceIndex(prog, GL_SHADER_STORAGE_BLOCK, "data2");
+	printf(" %d %d\n", idx, idx2);
+	checkGL();
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, ssbo);
+	checkGL();
+	//run it
+	glDispatchCompute(1, 1, 1); 
+
+	checkGL();
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+	checkGL();
+
+	glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(data), data);
 	
-	
-	
-//	exit(1);
+	printf(" %f %f %f %f\n", data[0], data[1], data[2], data[3]);
+
+	exit(1);
 
 }

@@ -93,16 +93,19 @@ void gfx_style(gfx_styleT* st);
 
 typedef struct gfxVertexAttributeS {
 	int		type;	// 1,2,3, or 4 are for float values
-	char* name;
-	float* data;
+	char*	name;
+	//float* data;
 } gfx_vertex_attributeT;
 
+
 #define MAX_ATTRIBUTE 8
+
 
 typedef struct gfx_VertexBufferS {
 	float* combined_data;
 	
 	gfx_vertex_attributeT attributes[MAX_ATTRIBUTE];
+	void* data[MAX_ATTRIBUTE];
 	int num_attributes;
 
 	zuint16 capacity;

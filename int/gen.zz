@@ -2,6 +2,7 @@ type @typeT Type
 	@typeT_name	name:String cpointer;
 	@typeT_size	size:Z32;
 	@typeT_category	category:Z32;
+	@typeT_ref	ref:Type&;
 end
 primitive C_zstrdup Strdup:(c_arg__1:String&-> String%);
 primitive C_fopen File_Open:(c_filename:String&; c_mode:String&-> File%);
@@ -12,6 +13,7 @@ primitive C_zrandf zrandf:(c_min:Real; c_max:Real-> Real);
 opaque @zuint16 N16;
 primitive C_store16 store16:(c_val:N16; c_zp:N16&-> );
 primitive C_load16 load16:(c_z:N16&-> Z32);
+opaque @gfx_vertex_bufferT VBuffer;
 stacked Vec3;
 type @namedv3 Vec3
 	@namedv3_x	x:Real;
@@ -24,6 +26,9 @@ primitive C_vec3cross Cross:(a:Vec3;b:Vec3->Vec3);
 primitive C_vec3dot Dot:(a:Vec3;b:Vec3->Real);
 primitive C_findType ZFindType:(category:Z32; ref:Type&; name:String&; size:Z32->Type&);
 primitive C_testComputeShader testComputeShader:(-> );
+primitive C_type_member []:(ty:Type&; n:N32 -> Type&);
+primitive C_ptrequal ptrequal:(c_a:Void&; c_b:Void&-> Bit);
+primitive C_fillvbowrapper fillvbowrapper:(a:VBO%;n:N32->VBO%);
 type @zeventT ZEvent
 	@zeventT_type	eventType:Z32;
 	@zeventT_a	A:Z32;
@@ -203,7 +208,7 @@ primitive C_zbitmap_load_tga BitmapLoadTGA:(c_f:String&; c_flags:N32-> ZBitmap%)
 primitive C_gfx_texture_mk CreateTexture:(bitmap:ZBitmap%trash->Texture%); //callee indicates the function being called adds a reference and stores the pointer, or returns without freeing the pointer.  WHen function returns, a reference will be taken away.
 primitive C_gfx_texture_scaler Scaler:(c_image:Texture&; c_scaler:Z32-> );
 primitive C_gxi_new_texture_set gxi_new_texture_set:(-> );
-primitive C_gxi_add_texture gxi_add_texture:(c_tex:Texture&-> N32);
+primitive C_gxi_add_texture gxi_add_texture:(c_tex:Texture&; c_ff:Bit-> N32);
 primitive C_gxi_texture_complete gxi_texture_complete:(-> );
 4 constant MAX_BONE
 type @gfx_meshT Mesh

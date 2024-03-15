@@ -72,6 +72,7 @@ typedef struct exectxS{
 	char* immediatevars; //global data space for immediate blocks
 	int stop;
 	int level;//stackframe level
+	int debugstack;
 }exectxT;
 #define STOPFUNC 1
 #define STOPLOOP 2
@@ -83,6 +84,7 @@ typedef struct parsectxS{
 	zvecT* symbols;	//of type symbolT*
 	zuint32	size;	//size of variables in this table
 	struct typeS* type;  //if in a procedure, we need to know about its return type and args
+						 //if in an immediate context, need to know about the return type 
 	struct parsectxS* parent;
 	int endable;
 	exectxT* exec;
@@ -177,11 +179,13 @@ typedef struct tokenS{
 #define KTYPEOF		0x801c
 #define KNOEXEC		0x801d
 #define KCONSTANT	0x801e
+#define KTYPEGROUP  0x801f
 
 
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
 						"new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0",
-						"count", "size", "setcount","opaque","immediate", "code", "stacked", "typeof", "noexec", "constant", NULL};
+						"count", "size", "setcount","opaque","immediate", "code", "stacked", "typeof", "noexec", "constant",
+						"typegroup", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -433,7 +437,7 @@ void  tokenize(tokenT* insert, char* in){
 //PENDING not a type, but is for when a type is mentioned in another declaration but not yet defined.  You can't 'make' or size a PENDING type, but can have pointers to them
 #define PENDING  22
 #define SUBTREE 23
-
+#define UCATEGORY 1024
 
 typedef struct typeS{
 	char* name;
@@ -589,11 +593,12 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 	
 		case SIMPLE:
 			break;
+
 		case SUBTREE:
 			xprintf("SUBTREE");
 			break;
 		default:
-			xprintf(" Unknown printType category %d\n", ty->category);
+			xprintf(" (U-%x) ", ty->category);
 		}
 		
 		if (ty->name)
@@ -1069,7 +1074,6 @@ symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction h
 
 void printSymbols(zvecT* table , char* label){
 	int i;	
-	int j;
 	xprintf("\n\nSymbols for %s\n", label);
 	for (i=0;i<zvec_count(table);i++){
 		symbolT* sym = zvec_get_x_at(table, symbolT*, i);
@@ -1118,9 +1122,11 @@ void exe (exectxT* c, struct tokenS* t){
 		instruction handler = t->handler;
 		
 		char* str=  safestr(t->str);
-#ifdef EXEDEBUG
-		xprintf("%x %s  (pre) handler %p\n",t->tok, str, handler);
-#endif
+
+		if (c->debugstack) {
+			xprintf("%x %s  (pre) handler %p\n", t->tok, str, handler);
+		}
+
 				
 		if (!handler){
 			
@@ -1131,21 +1137,23 @@ void exe (exectxT* c, struct tokenS* t){
 		//getc(stdin);
 		t = handler(c,t);
 		
-#ifdef EXEDEBUG
-		xprintf("-> %s",str);
-		xprintf("sp %x:\n", c->sp);
-		int i;
-		for (i=0;i<c->sp;i++){
-			xprintf("%d: (%p+%x)/%d", i, c->stack[i].as.ptr.block,c->stack[i].as.ptr.offset, c->stack[i].as.z32);
-			if (c->stack[i].typeselector)
-				printType(c->stack[i].typeselector, ZFALSE, ZFALSE);
-			
-			xprintf("\n");
-			
-			
-		}	
-		xprintf("\n\n");
-#endif
+		if (c->debugstack) {
+			xprintf("exe->  %s",  str);
+			xprintf("sp %x:\n", c->sp);
+			int i;
+			for (i = 0; i <= c->sp+2; i++) {
+				if (i == c->sp)
+					xprintf("INVALID:");
+				xprintf("%d: (%p+%x)/%d", i, c->stack[i].as.ptr.block, c->stack[i].as.ptr.offset, c->stack[i].as.z32);
+				if (c->stack[i].typeselector)
+					printType(c->stack[i].typeselector, ZTRUE, ZFALSE);
+
+				xprintf("\n");
+
+
+			}
+			xprintf("\n\n");
+		}
 	}
 }
 
@@ -1220,8 +1228,7 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 
 
 			exe(ex, tsub(t2)); //this code puts an item on the stack; this item is the constant value to be baked into the code
-			char str[100];
-
+			
 
 			if (t2->tok == '$') {
 
@@ -1285,7 +1292,7 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 					tokenT* subtree = ex->stack[(ex->sp)].as.ptr.offset + (char*)ex->stack[(ex->sp)].as.ptr.block;
 		
 					printList(subtree, NULL, 0, 2);
-					printf("%x\n", subtree);
+					printf("%p\n", subtree);
 					
 					typeT* rt = subtree->ty->ref;
 
@@ -1308,6 +1315,7 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 					newtok->val.as.token = ram_addref(subtree);
 					newtok->val_to_free = ZTRUE;
 					newtok->ty = rt;
+											
 
 					if (subtree->restrict_parse_context) {
 
@@ -2136,6 +2144,11 @@ tokenT* hreturn (exectxT* ex, tokenT* t){
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
 	ex->stop=STOPFUNC;  //returning from function
 	if (t->ty) {  
+
+		xprintf("Pushing return type (return from immediate)\n");
+		if (ex->debugstack)
+			printf("brk");
+
 		//if returning from an immediate block, put the return type on the stack too
 		//if the immediate block is not returning a value, t->ty should have been set to tImmediate anyway
 		//because returning from here is expecting to take the type off of the stack
@@ -2590,8 +2603,9 @@ void start(parsectxT* pctx, tokenT* t){
 
 		pctx->exec->sp = 0;
 	}
-	else if (pctx->exec->sp != 0) {
-		printf("Starting with non-empty stack\n");
+	else  {
+		printf("resuming immediate context\n");
+		pctx->exec->debugstack = 1;
 	}
 	//spsave = pctx->exec->sp;
 	
@@ -2960,7 +2974,7 @@ tokenT*  parseVar(tokenT* t,  char** nameOut, typeT** typeOut) {
 	char* name=NULL;
 
 	tokenT* S = t;
-	
+
 	if (tnext(t)->tok == ':'){
 		
 		if (t->str && t->tok != KWORDS)  //TODO: check this line, might be wrong... why KWORDS here?
@@ -3460,6 +3474,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				immediate_parse->type = tImmediate;
 			}
 
+			typeT* prev_imm_context_ty = immediate_parse->type;
+			if (prev_imm_context_ty != immediate_parse->type)
+				printf("pushing new immediate context type\n");
+			immediate_parse->type = tImmediate;
+
 			if (!pc->exec || !pc->exec->globalvars)
 				immediate_parse->no_global_vars = ZTRUE;
 			else
@@ -3471,8 +3490,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 	//		}
 			
 			
+				
 			immediate_parse->endable++;
 			t = parse(immediate_parse, tnext(t));
+			immediate_parse->type = prev_imm_context_ty;
+	
 			t = tnext(t);
 						
 			lfold(ts, t);
@@ -3489,14 +3511,24 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (parseDebugFlag)
 				printf(" boo\n");
 
-			start(immediate_parse, sub);
-			typeT* rettype = immediate_parse->exec->stack[immediate_parse->exec->sp - 1].as.type;
+			int oldfp=0;
+			if (immediate_parse->exec) {
+				oldfp = immediate_parse->exec->fp;
+				immediate_parse->exec->sp = immediate_parse->exec->fp;
+			}
 
+			start(immediate_parse, sub);
+
+			int spdone = immediate_parse->exec->sp;
+			immediate_parse->exec->sp = immediate_parse->exec->fp;
+			immediate_parse->exec->fp = oldfp;
+
+			typeT* rettype = immediate_parse->exec->stack[spdone - 1].as.type;
 
 			if (rettype != tImmediate) {
 				ts->handler = hconstant;
 				ts->ty = rettype;
-				ts->val = immediate_parse->exec->stack[immediate_parse->exec->sp-2];
+				ts->val = immediate_parse->exec->stack[spdone-2];
 				//TODO: if returning a String&, why not just return is as a constant?
 				if (rettype != tType && (rettype->category == POINTERUSER)) {
 					//Don't return user pointers from immediate blocks.
@@ -4139,20 +4171,31 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				continue;
 			}
 
+			printf(" next isn't name\n");
+
+			
 		case TYPECAST: //typecast
 
 			ts = t; //ts is colon
 
 			
+			if (   (tnext(t)->tok == PASSTHRU) 
+				&& (tnext(t)->handler == hconstant)
+				&& (tnext(t)->ty == tType) ) {
 
-			t = parseType(tnext(t));
+				ty = tnext(t)->val.as.type;
+				t = tnext(tnext(t));
+			}
+			else {
+				t = parseType(tnext(t));
 
+				//special case cast to virtual pointer type
+				ty = tnext(ts)->ty;
 
+			}
 
 			printList(tprev(ts), t, -5, 2);
-			//special case cast to virtual pointer type
-			ty = tnext(ts)->ty;
-
+			
 			if (parseDebugFlag)
 				boo();
 		
@@ -4310,13 +4353,24 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 
 			if ((tprev(t)->ty != tZ32) && (tprev(t)->ty != tN32)) {
-				ERR("Array index must be Z32 or N32\n");
+				break; //allow [] to be used in other words
+				//ERR("Array index must be Z32 or N32\n");
 			}
+
+			
 
 			//todo: check its an integer, and type is an array
 			//array accesshload32
 
 			ts = tprev(tprev(t));
+			
+			//if not a pointer to an array type or , skip processing
+			//the below t->str case might find a matching word
+			if (!ts->ty->ref || 
+				((ts->ty->ref->category != ARRAYDYNAMIC) && (ts->ty->ref->category != ARRAYSTATIC) && (ts->ty->ref != tString))
+				)
+				break;
+			
 			fold(ts, t);
 			//ts->ty is pointer to array  (sizeof ptr)
 			//ts->ty->ref is array of something (sizeof the array)
@@ -4347,7 +4401,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			//xprintf(" array element size %d\n", t->val.as.n32);
 
-			if (t->ty->ref->category != STRUCT) {
+			if ((t->ty->ref->category != STRUCT)  || (t->ty->ref->stacked)) {
 				//if t->ty->ref is a STRUCT< then t->ty is a pointer to a struct... we have an array of structs.  Can't load a struct, so don't load it. [] on an array of structs returns a pointer to the nth element
 				//If it was an array of pointers to structs, then ty->ref->category is a pointer to pointer to a struct, 
 
@@ -4702,7 +4756,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							
 				fold(  tprev(t), t); //put array size as sub
 					
-				typeT* rt = (void*) tprev(t)->val.as.ptr.block;  //value of item
+				typeT* rt = (void*) tprev(t)->val.as.ptr.block;  //value of item  (todo fix to be like below non-array case)
 				if (tprev(t)->handler != hconstant) {
 					ERR("alloction requires a constant type\n");
 
@@ -4711,8 +4765,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				if(rt->category != ARRAYDYNAMIC){
 					xprintf(" allocating array for type ");
 					printType(rt, NULL, NULL);
-					ERR("Only dynamic arrays can be allocated by  '[type] count new' \n");
-				
+					//ERR("Only dynamic arrays can be allocated by  '[type] count new' \n");
+					break;  //see if another work down below can handle it
 				}
 				
 				ram_free(tremove(tprev(t))); //remove array type token
@@ -4732,6 +4786,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				
 			if (tprev(t)->ty == tType){	//suchas as MyWhateverStrucutre new
 				typeT* rt = (void*) tprev(t)->val.as.type;
+				if (tprev(t)->handler == hredirectsub) {
+					tokenT* redirected = tprev(t)->val.as.token;
+					rt = tsub(redirected)->val.as.type;
+				}
+					
 				
 				if ((rt->category == ARRAYSTATIC)||(rt->category == ARRAYDYNAMIC)){
 					printType(rt, ZTRUE, ZTRUE);
@@ -5028,6 +5087,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							tokenT* en = mkToken(KEND, "X_end", 0);
 
 							//todo: if immediate function needs global/local variables, it should kick an error
+							printf("If it crashes after this, this is probably a local scoping issue: local or global used by immediate func.\n");
 
 							insert_after(tprev(ts), timm);
 							insert_after(t, ret);
@@ -5226,10 +5286,15 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				tn=t;
 			} else {
 				ty = findType(NAMED, NULL, t->str, 0);
-				tn = tnext(t);
+				if (ty) { //if the name of a type.  call parsetype to see if there are any qualifiers on it
+					t = parseType(t);
+					ty = tprev(t)->ty;
+					tn = t;
+				}
 			}
 			
 			if (ty){
+				ts = tprev(tn);
 				xprintf("Found type %s\n", ty->name);
 				ts->ty = tType;
 				ts->val.as.type = ty;

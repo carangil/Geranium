@@ -209,8 +209,7 @@ void create_handler_function(int isunsigned, char* return_type, char* name , zve
 	//set destination
 	if (return_pointer){
 		fprintf(outc, "	ex->stack[ex->sp-%d].as.ptr.block=(void*) ", argcount);
-	}
-	else {
+	} else {
 		as = get_as(return_type, isunsigned);
 		if (as)
 			fprintf(outc, "	ex->stack[ex->sp-%d].as.%s =\n		", argcount, as);
@@ -277,10 +276,10 @@ void create_primitive(int isunsigned, char* return_type, char* name, zvecT* args
 		char* zt = get_zz(arg->ctype, PROCARG);
 		fprintf(outz, "c_%s:%s", arg->name, zt);
 		if (i != 0)
-			fprintf(outz, ";");
+			fprintf(outz, "; ");
 	}
 	
-	fprintf(outz, "->%s);\n", zr);
+	fprintf(outz, "-> %s);\n", zr);
 
 }
 char* to_chars(char* s, char* to);

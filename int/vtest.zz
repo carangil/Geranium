@@ -1,5 +1,4 @@
 "base/base.zz" include
-cpointer Void;
 "gen.zz" include
 
 //"gfxgl.zz" include
@@ -559,8 +558,6 @@ X #cc
 
 10 print newline
 
-//20 10 cc exec
-
 
 proc genfunc:(a:Z32-> (aa:Z32->Z32)%)
 
@@ -575,7 +572,7 @@ immediate
 end #gen12
 
 
-10 gen12 exec print newline
+10 gen12  print newline
 
 24 genfunc #gen24
 
@@ -886,8 +883,6 @@ end
 
 
 
-
- //th3 exec print
 
 proc immediate twicez:(b:Z32; code t:Z32; c:Z32 -> Code%)
       " b is " print b print 

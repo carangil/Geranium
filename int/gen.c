@@ -114,6 +114,37 @@ tokenT* hc_testComputeShader (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
+typeT* type_member(typeT* t, zuint32 i);
+tokenT* hc_type_member (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
+	ex->stack[ex->sp-2].as.ptr.block=(void*) type_member(
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			ex->stack[ex->sp-1].as.z32);
+	ex->stack[ex->sp-2].as.ptr.level=0; 
+	ex->stack[ex->sp-2].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-2+1);
+
+	return tnext(t); 
+}
+ zbool ptrequal(void* a, void* b);
+tokenT* hc_ptrequal (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
+	ex->stack[ex->sp-2].as.z32 =
+		ptrequal(
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-2+1);
+
+	return tnext(t); 
+}
 void zw_enqueue(zwindowT* zw, zuint32 type, zuint32 a, zuint32 b, void* ptr);
 tokenT* hc_zw_enqueue (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
@@ -1074,17 +1105,18 @@ tokenT* hc_gxi_new_texture_set (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
-zuint32 gxi_add_texture(gfx_textureT* tex);
+zuint32 gxi_add_texture(gfx_textureT* tex, zbool ff);
 tokenT* hc_gxi_add_texture (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
-	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
-	ex->stack[ex->sp-1].as.z32 =
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
+	ex->stack[ex->sp-2].as.z32 =
 		gxi_add_texture(
-			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			ex->stack[ex->sp-1].as.z32);
 
 	cleanCCall(ex, t, firstArg);
 
-	ex->sp+= (-1+1);
+	ex->sp+= (-2+1);
 
 	return tnext(t); 
 }
@@ -1238,6 +1270,8 @@ void set_handlers(){
 	mkSymbol(global, "C_load16", tPrimitive, hc_load16);
 	mkSymbol(global, "C_findType", tPrimitive, hc_findType);
 	mkSymbol(global, "C_testComputeShader", tPrimitive, hc_testComputeShader);
+	mkSymbol(global, "C_type_member", tPrimitive, hc_type_member);
+	mkSymbol(global, "C_ptrequal", tPrimitive, hc_ptrequal);
 	mkSymbol(global, "C_zw_enqueue", tPrimitive, hc_zw_enqueue);
 	mkSymbol(global, "C_zw_queued", tPrimitive, hc_zw_queued);
 	mkSymbol(global, "C_zw_event", tPrimitive, hc_zw_event);
@@ -1315,7 +1349,9 @@ void set_handlers(){
 	addCSize("typeT_name", offsetof(typeT,name));
 	addCSize("typeT_size", offsetof(typeT,size));
 	addCSize("typeT_category", offsetof(typeT,category));
+	addCSize("typeT_ref", offsetof(typeT,ref));
 	addCSize("zuint16", sizeof(zuint16));
+	addCSize("gfx_vertex_bufferT", sizeof(gfx_vertex_bufferT));
 	addCSize("namedv3", sizeof(namedv3));
 	addCSize("namedv3_x", offsetof(namedv3,x));
 	addCSize("namedv3_y", offsetof(namedv3,y));
@@ -1324,6 +1360,7 @@ void set_handlers(){
 	mkSymbol(global, "C_vec3sub", tPrimitive, h_vec3sub);
 	mkSymbol(global, "C_vec3cross", tPrimitive, h_vec3cross);
 	mkSymbol(global, "C_vec3dot", tPrimitive, h_vec3dot);
+	mkSymbol(global, "C_fillvbowrapper", tPrimitive, h_fillvbowrapper);
 	addCSize("zeventT", sizeof(zeventT));
 	addCSize("zeventT_type", offsetof(zeventT,type));
 	addCSize("zeventT_a", offsetof(zeventT,a));

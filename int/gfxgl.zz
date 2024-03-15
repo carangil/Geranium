@@ -1,5 +1,88 @@
 "base/base.zz" include
+
+proc immediate elevenc:(->Code%)
+    "return 11 as code" print newline
+    getch
+    code \5 6 +\ return
+end
+
+
+
+proc elevenr:(->Z32)
+   "return 11 as regular proc" print newline
+   11 return
+end
+
+proc immediate elevenn:(->Z32)
+    "return 11 as number" print newline
+    getch
+    elevenr return
+end
+
+proc immediate print11:(->Z32)
+    
+       elevenr elevenr + print
+       getch
+       777 return
+end
+
+
+
+immediate
+    print11 print
+    getch
+end
+
+getch
+
+
+
+virtual VBO;
+
+
 "gen.zz" include
+selector VBO.vb:VBuffer%;
+
+immediate
+    2 #category_reference
+    8 #category_possessive
+    5 #category_array
+end
+
+proc immediate arrayof:(t:Type&->Type&)
+    category_array t 0:String& 0 ZFindType return
+end
+
+proc immediate .&:(t:Type&->Type&)
+    category_reference t 0:String& 0 ZFindType return
+end
+
+proc immediate .%:(t:Type&->Type&)
+    category_possessive t 0:String& 0 ZFindType return
+end
+
+stacked Vec2;
+type Vec2
+    s:Real;
+    t:Real;
+end
+
+stacked Vec4;
+type Vec4
+    r:Real;
+    g:Real;
+    b:Real;
+    a:Real;
+end
+
+
+proc print:(point:Vec3->)
+    "<" print point.x print  "," print point.y print  "," print point.z print ">" print
+end
+
+proc print:(point:Vec4->)
+    "<" print point.r print  "," print point.g print  "," print point.b print "," print point.a print ">" print
+end
 
 
 proc UpdatePixels:(w:ZWindow& -> )    w 0:Void& UpdatePixels   end
@@ -7,6 +90,7 @@ proc Done:(vb:VBuffer&; attr:Z32;x:Real; y:Real; z:Real->)   vb attr x y z 0.0 D
 proc Data:(vb:VBuffer&; attr:Z32;x:Real; y:Real; z:Real->)   vb attr x y z 0.0 Data  end
 proc Done:(vb:VBuffer&; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Done  end
 proc Data:(vb:VBuffer&; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Data  end
+
 
 stacked Vec3;  //Vec3 structs are put on the stack
 
@@ -34,6 +118,90 @@ end
 "make window" print newline
 
 "Test Window" 1024 768 0 GLWindow #window
+
+
+/* test some type reflection */
+
+
+
+"Testing multiline
+string
+whatever" print newline
+
+//vformat new:VBO%  100 fillvbowrapper :vformat% #myvbo
+
+
+proc immediate test1:(a:Z32->Z32)
+    "test1 " print 
+    a 88 + return
+end
+
+proc immediate CreateVBO:(t:Type&; tp:Type& ; code n:N32 ->Code%)
+
+      code \  'n print
+
+        $t new:VBO% 'n fillvbowrapper :$tp  
+        
+      \ return   
+
+end
+
+type vformat
+    position:[Vec3]&;
+    color:[Vec4]&;
+    texcoord:[Vec2]&;
+    vbo:VBO;       //is a vbo
+    vb:VBuffer%;   //the graphics vbo wrapper
+end
+
+vformat  vformat% 100 CreateVBO  #myvbo
+
+//vformat new:VBO%  100 fillvbowrapper :vformat% #myvbo
+
+"vboVBuffer:"print
+myvbo.vb :any& print newline
+
+
+myvbo.vb 0  1.0 2.0 3.0 Data
+myvbo.vb 1  1111.1 222.2 333.3 4444.4 Done
+
+
+myvbo.vb 0  11.0 22.0 33.0 Data
+myvbo.vb 1  110.0 220.0 330.0  6666.0 Done
+
+myvbo.position 0[] print newline
+myvbo.position 1[] print newline
+
+myvbo.color 0[] print newline
+myvbo.color 1[] print newline
+
+
+"aaaa" print newline
+
+
+vformat.name print newline
+vformat 0[].name print newline
+vformat 0[].ref.category print newline
+vformat 0[].ref.ref.category print newline
+vformat 0[].ref.ref.name print newline
+vformat 0[].ref.ref.ref.name print newline
+
+primitive ptrequal ==:(a:Type&;b:Type&->Bit);
+
+
+vformat 0[].ref  [Vec3]& == if
+    vformat 0[].name print
+ " is [vec3]& whatever" print newline
+end
+
+vformat 1[].ref  [Vec2]& == if
+    vformat 1[].name print
+    " is [vec2]& whatever" print newline
+end
+
+
+getch
+/* end test */
 
 0.0 0.0 0.1 1.1 BackgroundColor
 
@@ -72,12 +240,12 @@ st Use
 Transform new ##camera gfx_camera_init
 
 -1.0 0.0 5.0 :Vec3   camera.Position=
-            
+      
 0.001 #step
  
 0 #mouseRel
 
-testComputeShader
+//testComputeShader
 
 loop
 
@@ -175,9 +343,7 @@ end
 var a:Transform;
 
 
-proc print:(point:Vec3->)
-    "<" print point.x print  "," print point.y print  "," print point.z print ">" print
-end
+
 
 proc print:(aa:Transform&->)
     "Transform " print
@@ -338,25 +504,6 @@ prints
 
 newline
 //arr typeof .name print newline
-
-
-immediate
-    2 #category_reference
-    8 #category_possessive
-    5 #category_array
-end
-
-proc immediate arrayof:(t:Type&->Type&)
-    category_array t 0:String& 0 ZFindType return
-end
-
-proc immediate .&:(t:Type&->Type&)
-    category_reference t 0:String& 0 ZFindType return
-end
-
-proc immediate .%:(t:Type&->Type&)
-    category_possessive t 0:String& 0 ZFindType return
-end
 
 "type->" print
 10 typeof.name print newline

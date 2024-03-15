@@ -83,7 +83,9 @@ void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom)
 
 /* Simple Shaders */
 
-
+/*  The builtin properties can be used with the fixed function pipeline or shaders.
+    Any other properties are shader-only 
+*/
 
 char* gxi_builtin_properties[] = { "invalid" , "blend"        , "light_direction",   "light_color"   , "light_ambient",   
 "light_position", "texture_diffuse", "specular_exponent", "specular", "light_attenuation", "fog_color", "fog_density", NULL };
@@ -325,18 +327,17 @@ gx_shader_variantT* gxi_enable_style_parameters(gfx_vertex_bufferT* vb){
 	key = zstrcat(key, vb->buffer_spec);
 			
  	gx_shader_variantT* variant = gx_shader_variant(st->shader_group, key, st, vb);  //select 'cached' shader variant for key, or create it using st and vb
-	
+	//if variant is NULL, then fixed function will be used
+
 	ram_free(key);
 
 	enabled_variant = variant;
 		
-
 	gxi_new_texture_set();
 
 	if (!variant)	//fixed function light
 		ff_new_light_set();
-
-	
+		
 	checkGL();
 
 	for (i = 0; i < zvec_count(&st->properties); i++) {
@@ -480,6 +481,21 @@ zbool freevb(void* v) {
 	return ZTRUE;
 }
 
+
+
+
+//adds attribute, returns its index
+int gfx_vertex_buffer_add_attribute(gfx_vertex_bufferT* vb, char* name, zuint32 size) {
+	
+	//add the attribute
+	gxdtracef(" attr %d name is [%s] type/size is [%d]", vb->num_attributes, name, size);
+
+	vb->attributes[vb->num_attributes].name = name;
+	vb->attributes[vb->num_attributes++].type = size; //simple numbers 1 to 4 are just floats.  TODO: non-float attributes?
+
+	vb->fcount += size;
+}
+
 gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 
 	char* s = spec;
@@ -487,7 +503,7 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 	if (!s)
 		return NULL;
 
-	gfx_vertex_bufferT* vb = ram_alloc(sizeof(gfx_vertex_bufferT), freevb); //no destructor yet
+	gfx_vertex_bufferT* vb = ram_alloc(sizeof(gfx_vertex_bufferT), freevb); 
 	vb->buffer_spec = zstrdup(spec);
 
 	while (*s) {
@@ -503,12 +519,7 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 		if (!size)
 			break;
 
-		//add the attribute
-		gxdtracef(" name is [%s] size is [%d]", name, size);
-
-		vb->attributes[vb->num_attributes].name = name;
-		vb->attributes[vb->num_attributes++].type = size; //simple numbers 1 to 4 are just floats.  TODO: non-float attributes?
-		vb->fcount += size;
+		gfx_vertex_buffer_add_attribute(vb, name, size);
 
 		if (!ne)
 			break;
@@ -517,6 +528,7 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 	}
 
 	gxdtracef(" There are %d float components by %d vertices\n", vb->fcount, vcount);
+	
 
 	//allocate the buffer
 	vb->combined_data = ram_alloc(sizeof(float) * vcount * vb->fcount, NULL);
@@ -529,7 +541,7 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 	int i;
 	float* fp = vb->combined_data;
 	for (i = 0; i < vb->num_attributes; i++) {
-		vb->attributes[i].data = fp;
+		vb->data[i] = fp;
 		gxdtracef(" Set ptr to %s  base+%d\n", vb->attributes[i].name, (int)(fp - vb->combined_data));
 		fp += vb->attributes[i].type * vcount;
 
@@ -554,6 +566,10 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 
 }
 
+
+
+
+
 void gfx_vertex_data(gfx_vertex_bufferT* vb, int attr, float a, float b, float c, float d) {
 
 
@@ -563,12 +579,12 @@ void gfx_vertex_data(gfx_vertex_bufferT* vb, int attr, float a, float b, float c
 		printf("vertex buffer overflow\n");
 		exit(1);
 	}
-
+	
 	switch (vb->attributes[attr].type) {
-	case 4: vb->attributes[attr].data[pos + 3] = d;		//printf("@3");
-	case 3: vb->attributes[attr].data[pos + 2] = c; // printf("@2");
-	case 2: vb->attributes[attr].data[pos + 1] = b; // printf("@1");
-	case 1: vb->attributes[attr].data[pos + 0] = a;	// printf("@0");
+	case 4: ((float*)vb->data[attr])[pos + 3] = d;		//printf("@3");
+	case 3: ((float*)vb->data[attr])[pos + 2] = c; // printf("@2");
+	case 2: ((float*)vb->data[attr])[pos + 1] = b; // printf("@1");
+	case 1: ((float*)vb->data[attr])[pos + 0] = a;	// printf("@0");
 	}
 
 	//	printf("\n");
@@ -697,12 +713,13 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 
 			}
 			
-
-
+			printf(" UNSUPPORTED FIXED FUNCTION FOR NOW\n");
+			exit(1);
+#if 0
 			//set each attribute - fixed function
 			if (vb->fixed_position != -1) {
 
-				glVertexPointer(3, GL_FLOAT, 3 * sizeof(float), (void*)((vb->attributes[vb->fixed_position].data - vb->combined_data) * sizeof(zfloat32)));
+				glVertexPointer(3, GL_FLOAT, 3 * sizeof(float), (void*)((vb->attributes[vb->fixed_position] - vb->combined_data) * sizeof(zfloat32)));
 				glEnableClientState(GL_VERTEX_ARRAY);
 			}
 			else
@@ -731,6 +748,7 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 
 			ff_buffers_in_use = ZTRUE; 
 
+#endif
 		}
 		else {
 			//setup arrays for shader use (all atribs)
@@ -766,7 +784,7 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 						vb->attributes[i].type,  /* 1,2,3,4 : to GL it is the number of components */
 						GL_FLOAT, /*GL data type*/
 						0, vb->attributes[i].type * sizeof(zfloat32), /* normalized, stride. stride 0 means densely packed */
-						((char*)vb->attributes[i].data) - ((char*)vb->combined_data));
+						((char*)vb->data[i]) - ((char*)vb->combined_data));
 					//(void*)((vb->attributes[i].data - vb->combined_data)*sizeof(zfloat32)));
 
 					checkGL();
@@ -801,7 +819,6 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 
 	checkGL();
 	
-
 }
 
 
