@@ -22,7 +22,7 @@ end
 proc immediate print11:(->Z32)
     
        elevenr elevenr + print
-       getch
+     //  getch
        777 return
 end
 
@@ -30,10 +30,10 @@ end
 
 immediate
     print11 print
-    getch
+  //  getch
 end
 
-getch
+//getch
 
 
 
@@ -49,15 +49,15 @@ immediate
     5 #category_array
 end
 
-proc immediate arrayof:(t:Type&->Type&)
+proc  arrayof:(t:Type&->Type&)
     category_array t 0:String& 0 ZFindType return
 end
 
-proc immediate .&:(t:Type&->Type&)
+proc  .&:(t:Type&->Type&)
     category_reference t 0:String& 0 ZFindType return
 end
 
-proc immediate .%:(t:Type&->Type&)
+proc  .%:(t:Type&->Type&)
     category_possessive t 0:String& 0 ZFindType return
 end
 
@@ -136,27 +136,36 @@ proc immediate test1:(a:Z32->Z32)
     a 88 + return
 end
 
-proc immediate CreateVBO:(t:Type&; tp:Type& ; code n:N32 ->Code%)
+proc immediate CreateVBO:(t:Type& ; code n:N32 ->Code%)
 
-      code \  'n print
+      t.% #arrayType
 
-        $t new:VBO% 'n fillvbowrapper :$tp  
-        
+      code \  
+
+        $t new:VBO% 'n fillvbowrapper :$arrayType  
+  
       \ return   
 
 end
+
 
 type vformat
     position:[Vec3]&;
     color:[Vec4]&;
     texcoord:[Vec2]&;
-    vbo:VBO;       //is a vbo
+    vbo:VBO;       //support vbo 
     vb:VBuffer%;   //the graphics vbo wrapper
 end
 
-vformat  vformat% 100 CreateVBO  #myvbo
 
-//vformat new:VBO%  100 fillvbowrapper :vformat% #myvbo
+vformat 100 CreateVBO  #myvbo
+
+"vbo position count size: " print
+myvbo.position count print " "print 
+myvbo.position size print 
+
+newline
+getch
 
 "vboVBuffer:"print
 myvbo.vb :any& print newline
@@ -200,7 +209,7 @@ vformat 1[].ref  [Vec2]& == if
 end
 
 
-getch
+//getch
 /* end test */
 
 0.0 0.0 0.1 1.1 BackgroundColor
@@ -506,8 +515,11 @@ newline
 //arr typeof .name print newline
 
 "type->" print
+
 10 typeof.name print newline
+/*
 10 typeof.& arrayof 20 new #saa
 
 10 typeof arrayof 20 new #yyy
 10 typeof arrayof.% new #yyu
+*/

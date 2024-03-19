@@ -101,6 +101,21 @@ tokenT* hc_findType (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
+void printTypeNoRedirect(typeT* ty, zbool line, zbool skipmembers);
+tokenT* hc_printTypeNoRedirect (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-3].as.ptr.block;
+		printTypeNoRedirect(
+			(void*)((ex->stack[ex->sp-3].as.ptr.block)+(ex->stack[ex->sp-3].as.ptr.offset)),
+			ex->stack[ex->sp-2].as.z32,
+			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-3+0);
+
+	return tnext(t); 
+}
 void testComputeShader();
 tokenT* hc_testComputeShader (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
@@ -1269,6 +1284,7 @@ void set_handlers(){
 	mkSymbol(global, "C_store16", tPrimitive, hc_store16);
 	mkSymbol(global, "C_load16", tPrimitive, hc_load16);
 	mkSymbol(global, "C_findType", tPrimitive, hc_findType);
+	mkSymbol(global, "C_printTypeNoRedirect", tPrimitive, hc_printTypeNoRedirect);
 	mkSymbol(global, "C_testComputeShader", tPrimitive, hc_testComputeShader);
 	mkSymbol(global, "C_type_member", tPrimitive, hc_type_member);
 	mkSymbol(global, "C_ptrequal", tPrimitive, hc_ptrequal);

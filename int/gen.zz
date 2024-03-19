@@ -25,6 +25,7 @@ primitive C_vec3sub -:(a:Vec3;b:Vec3->Vec3);
 primitive C_vec3cross Cross:(a:Vec3;b:Vec3->Vec3);
 primitive C_vec3dot Dot:(a:Vec3;b:Vec3->Real);
 primitive C_findType ZFindType:(category:Z32; ref:Type&; name:String&; size:Z32->Type&);
+primitive C_printTypeNoRedirect printTypeNoRedirect:(c_ty:Type&; c_line:Bit; c_skipmembers:Bit-> );
 primitive C_testComputeShader testComputeShader:(-> );
 primitive C_type_member []:(ty:Type&; n:N32 -> Type&);
 primitive C_ptrequal ptrequal:(c_a:Void&; c_b:Void&-> Bit);

@@ -31,14 +31,17 @@ void* zarray_appendf(void* dest, void* src, zbool grow2x, zbool* ok, zsize elems
 
 void zarray_debug(void* array);
 
+extern int zarray_global_shadow_offset;
+
 typedef struct array_shadow{
 	zuint32 capacity;	//number of elements allocated
 	zuint32 used;		//number of elements used (optional)
-	void* userptr;		
+	void* userptr;	
 } array_shadowT;
 
 //set 'num' number of elements as in use
 void zarray_use(void* array, zuint32 num);
+
 
 
 //each zarray can carry 1 pointer the calling function can use to store additional metadata
@@ -56,8 +59,8 @@ int zarray_sizef(void* array) ;
 //Take a pointer to the array, subtract the size of the allocation wrapper, and then the size of the shadow struct
 // malloc returns pointer to [ array_shadowT | zmem_headerT |  C array ]
 // And zarrays are passed around as pointers to the C array
-#define zarray_count(ARRAY)   (((array_shadowT*) (  ((char*)(ARRAY)) - z_global_ram_header_size - sizeof(array_shadowT)))->used)
-#define zarray_size(ARRAY)   (((array_shadowT*) (  ((char*)(ARRAY)) - z_global_ram_header_size - sizeof(array_shadowT)))->capacity)
+#define zarray_count(ARRAY)   (((array_shadowT*) (  ((char*)(ARRAY)) + zarray_global_shadow_offset))->used)
+#define zarray_size(ARRAY)    (((array_shadowT*) (  ((char*)(ARRAY)) + zarray_global_shadow_offset))->capacity)
 
 
 //checks if there is space for MORE number elements in the array

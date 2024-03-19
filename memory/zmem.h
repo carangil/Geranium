@@ -6,7 +6,9 @@
 #include <string.h>
 
 
-extern zsize	z_global_ram_header_size;
+
+
+int ram_shadow_offset(size_t s);
 
 //destructor returns true if the ram should be freed
 typedef zbool (*ram_destructor)(void* block);

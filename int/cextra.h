@@ -41,7 +41,7 @@ zint32 load16(zuint16  * z);
 
 //Zdef noproto findType ZFindType:(category:Z32; ref:Type&; name:String&; size:Z32->Type&);
 typeT* findType(zuint32 category, typeT* ref, char* name, size_t len);
-
+void printTypeNoRedirect(typeT* ty, zbool line, zbool skipmembers);
 
 void testComputeShader();
 

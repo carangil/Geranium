@@ -3,6 +3,8 @@
 #include "zarray.h"
 #include <stdio.h>
 
+int zarray_global_shadow_offset = 0;	
+
 //return number of items array can hold
 int zarray_sizef(void* array) {
 
@@ -54,6 +56,7 @@ void* zarray_allocf( zsize elemsize, zuint32 elemnum, ram_destructor custom_dest
 	size_t size = elemsize * elemnum;
 
 
+
 #ifdef STRUCT_DEBUG
 	printf(" array needs %d\n", (int)size);
 #endif
@@ -72,12 +75,32 @@ void* zarray_allocf( zsize elemsize, zuint32 elemnum, ram_destructor custom_dest
 	    
 		    ((char*)array)  [elemnum] = 0;
 	}
-	
+		
 	
 	array_shadowT * sh = ram_shadow(array);
 	if (sh){
 		sh->used = 0;
 		sh->capacity = (zuint32) elemnum;
+
+
+		if (zarray_global_shadow_offset == 0) {
+			//need to set the shortcut offset
+
+			zarray_global_shadow_offset = ram_shadow_offset(sizeof(array_shadowT));
+			char* vsh = sh;
+			char* vsh_fast = zarray_global_shadow_offset + (char*)array;
+			if (vsh != vsh_fast) {
+				printf("Big error:  ram_shadow and substracting zarray_global_shadow_offset are not equivalent!  They should be.\n");
+				exit(1);
+
+			}
+		}
+
+
+	}
+	else {
+		printf(" Zarray alloc without shadow buffer! Big error\n");
+		exit(1);
 	}
 	return array;
 }
@@ -158,7 +181,9 @@ void zarray_use(void* array, zuint32 num){
 	}
 
 	zarray_count(array) = num;
+	//printf("array %p\narray shadow\t%p\nshortcut shadow\t%p\n&count %p\n&size %p\n", array, ram_shadow(array), (char*)array + zarray_global_shadow_offset, &zarray_count(array), &zarray_size(array));
 
+	//printf(" %d %d   %d %d\m", zarray_count(array), zarray_size(array), zarray_countf(array), zarray_sizef(array));
 }
 
 

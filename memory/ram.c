@@ -43,14 +43,13 @@ typedef struct mem_header_s
 	zlistnodeT zlistnode;
 #endif
 	ram_destructor destructor;
-	int refcount;
-	int shadow_size; //allow alloced buffers to have a shadow buffer of out-of-band data (lets zstrings be passed or ram_free'd like regular c strings, but allows additional metadata
-	int magic;
 #ifdef RAM_DEBUG
 	char* file;
 	int   line;
 #endif
-	
+	int refcount;
+	int shadow_size; //allow alloced buffers to have a shadow buffer of out-of-band data (lets zstrings be passed or ram_free'd like regular c strings, but allows additional metadata
+	int magic;
 } mem_headerT;
 
 #ifdef RAM_DEBUG
@@ -73,6 +72,21 @@ void ram_init() {
 		zmem_inited = ZTRUE;
        }      
 
+}
+
+
+
+
+size_t ram_align_ptr_size(size_t shadow_size) {
+	size_t rem = shadow_size % sizeof(void*);
+	if (rem)
+		shadow_size += (sizeof(void*)) - rem;
+
+	return shadow_size;
+}
+
+int ram_shadow_offset(size_t s) {
+	return -(int)(ram_align_ptr_size(s) + sizeof(mem_headerT));
 }
 
 /* Allocate memory.  Takes size and destructor */
@@ -102,13 +116,10 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_siz
 		//keep alignment when we allocate the shadow buffer
 		//printf(" Requested %d shadow bytes\n", shadow_size);
         
-        rem = shadow_size % sizeof(void*);
-        if (rem) {
-            shadow_size += (sizeof(void*)) - rem;
-        }
+       
         
         //printf(" %d shadow bytes allocated\n", shadow_size); 
-		
+		shadow_size = ram_align_ptr_size(shadow_size);
 	}
 		
 	xbuffer = malloc( sizeof(mem_headerT)  + size + shadow_size); //allocate header + some size

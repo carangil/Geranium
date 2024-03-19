@@ -10,7 +10,7 @@
 FILE* logfile;
 int parseDebugFlag = 0;
 
-//make adjustable precision
+//make adjustable precision   (if suffix is f, then sin cos before cosf, sinf, the single precision version
 #define FLOAT float 
 #define MATH_FUNC_SUFFIX(FFF)   FFF ## f
  
@@ -638,6 +638,13 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 		xprintf("\n");
 	
 }
+void printTypeNoRedirect(typeT* ty, zbool line, zbool skipmembers) {
+
+	FILE* old = logfile;
+	logfile = stdout;
+	printType(ty, line, skipmembers);
+	logfile = old;
+}
 
 //compare two types, return true if the same
 zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty){
@@ -1209,7 +1216,17 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 	tokenT* tcode = mkToken(KCODE, "code", 4);
 	tcode->ty = t->ty;
 
+	if (parseDebugFlag)
+		xprintf("subst debug\n");
+
+
 	tokenT* t2 = tsub(t);
+
+	xprintf(" SUBST SOURCE<<\n");
+	printList(t2, NULL, 0, 0);
+	xprintf(">>\n");
+	
+	
 	while (t2) {
 		tokenT* newtok = NULL;
 
@@ -1223,9 +1240,11 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 			tokenT* first = zlist_head(&t2->subs);
 		
 			
-			xprintf(" Executing this to get value:\n");
+			xprintf(" Executing this to get value:<<\n");
 			printList(tsub(t2),NULL,0,0);
-
+			xprintf(">>\n");
+			if (parseDebugFlag)
+				printf("debugging\m");
 
 			exe(ex, tsub(t2)); //this code puts an item on the stack; this item is the constant value to be baked into the code
 			
@@ -1275,9 +1294,22 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 						--(ex->sp);
 						tokenT* from = ex->stack[(ex->sp)].as.ptr.offset + (char*)ex->stack[(ex->sp)].as.ptr.block;
 						from = tsub(from);
-						while (from ) {  
+						while (from) {
+							tokenT* copyt = mkToken(from->tok, from->str, 0);
 							
-							zlist_addtail(&tcode->subs, mkToken(from->tok, from->str, 0));
+							
+							if ((from->handler == hconstant)|| (from->handler == hconstantaddref)) {
+								copyt->handler = from->handler;
+								copyt->val = from->val;
+								copyt->tok = PASSTHRU;
+								copyt->ty = from->ty;
+								if (from->handler == hconstantaddref)
+									ram_addref(copyt->val.as.ptr.block);
+							} else if (from->handler ) {
+								ERR("Unknown copy token case\n");
+							}
+							//todo:copy values and crap
+							zlist_addtail(&tcode->subs, copyt);
 							from = tnext(from);
 
 						}
@@ -1335,14 +1367,18 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 		} else 
 			newtok = mkToken(t2->tok, t2->str, strlen(t2->str)); //copy the token
 
-		if (newtok)
+		if (newtok) {
 			zlist_addtail(&tcode->subs, newtok);
+		
+			printList(newtok, NULL, 0, 2);
+			
+		}
 		t2 = tnext(t2);
 	}
 
-
+	xprintf("Subst results:<<\n");
 	printList(tcode, NULL, 0, 20);
-	
+	xprintf(">>\n");
 	//ram_free(tcode);
 	
 	//tcode = NULL;
@@ -2690,8 +2726,7 @@ void fold(tokenT* start, tokenT* under){
 		zlist_addtail(&under->subs, &(t->zlistnode));
 		
 		//propagate uselocal, count how many children use local
-		if (under->useslocal)
-			t->useslocal++;
+		under->useslocal += t->useslocal;
 		//under->useslocal |= t->useslocal;
 	}
 }
@@ -2708,8 +2743,9 @@ void lfold(tokenT* under, tokenT* end){
 		zlist_addtail(&under->subs, &(t->zlistnode));
 
 		//propagate uselocal, count how many children use local
-		if (under->useslocal)
-			t->useslocal++;
+		//if (under->useslocal)
+			//t->useslocal++;
+		under->useslocal += t->useslocal;
 		//under->useslocal |= t->useslocal;
 	}
 }
@@ -4287,11 +4323,12 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		
 
 			//forced typecast
-			if (tprev(ts)->ty->category != tprev(t)->ty->category)
+			if (tprev(ts)->ty->category != ty->category)
 				xprintf(" Typecast changing from category %d to %d\n", tprev(ts)->ty->category, tprev(t)->ty->category);
 
 			tprev(ts)->tyorig = tprev(ts)->ty;
-			tprev(ts)->ty = tprev(t)->ty;
+			//tprev(ts)->ty = tprev(t)->ty;
+			tprev(ts)->ty = ty;
 
 			ram_free(tremove(tnext(ts)));
 			ram_free(tremove(ts));
@@ -4305,7 +4342,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t->val.as.ptr.offset = 0;
 			t->ty = tType;
 			fold(tprev(t), t);
-
+			
 			t = tnext(t);
 			continue;
 
@@ -4751,8 +4788,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		case KNEW0:  //empty array
 		case KNEW:  //item or array
 		
-
-			if    ((tprev(t)->ty == tZ32) && (tprev(tprev(t))->ty == tType))		{//Type Z32{
+			int isint = (tprev(t)->ty == tZ32) || (tprev(t)->ty == tN32);
+			if    (isint && (tprev(tprev(t))->ty == tType))		{//Type Z32{
 							
 				fold(  tprev(t), t); //put array size as sub
 					
@@ -4777,7 +4814,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				if (ts->tok == KNEW)
 					t->val.as.z32 = 1; //array starts full
 				else
-					t->val.as.z32 = 0;
+					t->val.as.z32 = 0; //array starts empty
 				
 				t = tnext(t);
 		
@@ -4831,7 +4868,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				printType(m->ref,ZTRUE, ZFALSE);
 				t->ty = findType(POINTERUSER, m->ref, NULL, 0);
 				t->tok = STACKARG;
-
+				t->useslocal = 1;
 			
 
 
@@ -5058,7 +5095,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 								fold(tprev(tv), tv); //
 								xprintf("xxx\n");
 								if (redirect->useslocal)
-									t->useslocal--;
+									t->useslocal-= redirect->useslocal; //if code being passed uses locals, thats fine, subtract them out.  Because the code being passed can only run in the same context it came from. (it will have restricted context value set)
 								//redirect->useslocal = ZFALSE; //any local variables used in the redirected code aren't actually used in the call to the immediate proc
 								printList(redirect, redirect, 0, 1);
 
@@ -5085,9 +5122,6 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							tokenT* timm = mkToken(KIMMEDIATE, "X_immediate", 0);
 							tokenT* ret = mkToken(KRETURN, "X_return", 0);
 							tokenT* en = mkToken(KEND, "X_end", 0);
-
-							//todo: if immediate function needs global/local variables, it should kick an error
-							printf("If it crashes after this, this is probably a local scoping issue: local or global used by immediate func.\n");
 
 							insert_after(tprev(ts), timm);
 							insert_after(t, ret);
