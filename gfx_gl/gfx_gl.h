@@ -94,6 +94,7 @@ void gfx_style(gfx_styleT* st);
 typedef struct gfxVertexAttributeS {
 	int		type;	// 1,2,3, or 4 are for float values
 	char*	name;
+	int		size;	//size in bytes of 1 element
 	//float* data;
 } gfx_vertex_attributeT;
 
@@ -102,16 +103,21 @@ typedef struct gfxVertexAttributeS {
 
 
 typedef struct gfx_VertexBufferS {
-	float* combined_data;
+	//float* combined_data;
 	
 	gfx_vertex_attributeT attributes[MAX_ATTRIBUTE];
-	void* data[MAX_ATTRIBUTE];
+	
+	void* data[MAX_ATTRIBUTE];  //pointer to attribute type
+	int  offset[MAX_ATTRIBUTE]; //offset into the vbo
+
 	int num_attributes;
 
 	zuint16 capacity;
 	zuint16 count; //number of vertices to consider valid
 	int vbo;
-	int fcount; //number of float fields
+	int vbosize;	//bytes of the main data vbo allocated
+	
+	//int fcount; //number of float fields
 
 	zuint16* index_buffer;	//zarray
 	int index_vbo;
@@ -122,10 +128,8 @@ typedef struct gfx_VertexBufferS {
 	int fixed_color;
 	int fixed_texcoord;
 	int fixed_normal;
-	
-	char* buffer_spec;
 
-	
+	char* buffer_spec;
 
 } gfx_vertex_bufferT;
 

@@ -180,12 +180,14 @@ typedef struct tokenS{
 #define KNOEXEC		0x801d
 #define KCONSTANT	0x801e
 #define KTYPEGROUP  0x801f
+#define KPER		0x8020
+#define KSHADER		0x8021
 
 
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
 						"new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0",
 						"count", "size", "setcount","opaque","immediate", "code", "stacked", "typeof", "noexec", "constant",
-						"typegroup", NULL};
+						"typegroup", "per" , "shader", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -439,6 +441,9 @@ void  tokenize(tokenT* insert, char* in){
 #define SUBTREE 23
 #define UCATEGORY 1024
 
+//PER types are iterated arrays
+//  if an array like  [MyStruct]& is 
+
 typedef struct typeS{
 	char* name;
 	zuint32 size;		//for structs
@@ -450,6 +455,7 @@ typedef struct typeS{
 	zvecT* members;  //(typeT*) structs or function parameters
 	zvecT* selectors; //(symbolT*)  function selectors
 	int trashAfterPrimitive; //only for function args (members), only when passing %pointer
+	int isPer;
 	int tid;
 	zbool stacked;
 }typeT;
@@ -2899,21 +2905,21 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 
 	zbool reqname=ZTRUE; //parameters must be named
 	
-	for(;t;t=next){
+	for (; t; t = next) {
 		char* name = NULL;
 		typeT* type = NULL;
-		
+
 		if (t->tok == KEND)
 			break;
-		
+
 		if (t->tok == ')') {
 			if (parent->category != FUNCTION)
 				ERR("Unexpected )\n");
 			break;
 		}
 
-		
-		if ( (t->tok == PAIR('-','>'))){
+
+		if ((t->tok == PAIR('-', '>'))) {
 			//is a function
 			parent->category = FUNCTION;
 			reqname = ZFALSE; //no longer need names (returned values are anonymous)
@@ -2921,23 +2927,29 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 			continue;
 
 		}
-		
+
 		if ((t->tok == '@') && (tnext(t)->tok == NAME)) {
 			offset = getCSize(tnext(t)->str);
-			
+
 			t = tnext(tnext(t));
 		}
 
-		int argIsCode = 0;
+		int argStyle = 0; //regular normal arg... execute the code to get the value to pass.  normal evaluation
+
 
 		if (t->tok == KCODE) {
-			
-			argIsCode = 1;
 
-			t = tnext(t); 
+			argStyle = 1; // the code is the arg
+
+			t = tnext(t);
 			//compile function arg to match on expression type (like Z32), but call with the subtree (Code%)
 		}
 
+		if (t->tok == KPER) {
+			argStyle = 2; //
+
+			t = tnext(t);
+		}
 		 
 		
 		t = parseVar(t, &name, &type  );
@@ -2961,11 +2973,13 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 			}
 		} else	if (parent && parent->members) {
 
-			if (argIsCode)
+			if (argStyle == 1)
 				type = findType(SUBTREE, type, NULL, 0);
-
+							
 			typeT* mty = mkType(MEMBER, type, name, offset);
-					
+			
+			if (argStyle == 2)
+				mty->isPer = 1;
 
 			if (t->tok == KTRASH) {
 				//todo: only applicable to primitive parameter lists, but at this part of the code, we don't know that's what we are doing.
@@ -3643,6 +3657,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		case KPROTO:		//proc prototype
 			typeT* type = NULL;
 			int isImmediate = 0;
+			int isShader = 0;
 
 			if (ts->tok == KPRIMITIVE) {
 
@@ -3662,6 +3677,12 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 				isImmediate = 1;  
 			}
+
+			if (t->tok == KPROC && tnext(t)->tok == KSHADER) {  //proc flagged as shader
+				ram_free(tremove(tnext(t)));
+				isShader = 1;
+			}
+
 
 		//	if (pc->type == tImmediate)	//proc is defined inside an immediate context
 			//	isImmediate = 1;  
@@ -5080,6 +5101,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							//	xprintf(" addref %p +%d\n", ex->stack[ex->fp-count+i].as.ptr.block, ex->stack[ex->fp-count+i].as.ptr.offset);
 								//ram_addref( ex->stack[ex->fp-count+i].as.ptr.block );
 						}
+//decided to use 'shader' as a new class of proc
+
 
 						if (s->type->members) {
 							typeT* argtype = zvec_get_at(s->type->members, argnum);
@@ -5093,7 +5116,6 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 								insert_after(tv, redirect);
 								tv = tnext(tv);	//tv is at 'follow'
 								fold(tprev(tv), tv); //
-								xprintf("xxx\n");
 								if (redirect->useslocal)
 									t->useslocal-= redirect->useslocal; //if code being passed uses locals, thats fine, subtract them out.  Because the code being passed can only run in the same context it came from. (it will have restricted context value set)
 								//redirect->useslocal = ZFALSE; //any local variables used in the redirected code aren't actually used in the call to the immediate proc

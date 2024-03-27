@@ -1,47 +1,9 @@
 "base/base.zz" include
 
-proc immediate elevenc:(->Code%)
-    "return 11 as code" print newline
-    getch
-    code \5 6 +\ return
-end
-
-
-
-proc elevenr:(->Z32)
-   "return 11 as regular proc" print newline
-   11 return
-end
-
-proc immediate elevenn:(->Z32)
-    "return 11 as number" print newline
-    getch
-    elevenr return
-end
-
-proc immediate print11:(->Z32)
-    
-       elevenr elevenr + print
-     //  getch
-       777 return
-end
-
-
-
-immediate
-    print11 print
-  //  getch
-end
-
-//getch
-
-
-
 virtual VBO;
-
-
 "gen.zz" include
 selector VBO.vb:VBuffer%;
+
 
 immediate
     2 #category_reference
@@ -60,6 +22,8 @@ end
 proc  .%:(t:Type&->Type&)
     category_possessive t 0:String& 0 ZFindType return
 end
+
+
 
 stacked Vec2;
 type Vec2
@@ -120,21 +84,6 @@ end
 "Test Window" 1024 768 0 GLWindow #window
 
 
-/* test some type reflection */
-
-
-
-"Testing multiline
-string
-whatever" print newline
-
-//vformat new:VBO%  100 fillvbowrapper :vformat% #myvbo
-
-
-proc immediate test1:(a:Z32->Z32)
-    "test1 " print 
-    a 88 + return
-end
 
 proc immediate CreateVBO:(t:Type& ; code n:N32 ->Code%)
 
@@ -163,8 +112,45 @@ vformat 100 CreateVBO  #myvbo
 "vbo position count size: " print
 myvbo.position count print " "print 
 myvbo.position size print 
-
 newline
+
+
+stacked vpxf;
+
+type vpxf
+	p1:Vec3;
+	p2:Vec3;
+	p3:Vec3;
+end
+
+proto vsh:(a:Vec3; b:Real; p:Vec3 -> vpxf);
+/*
+proc vsh:(a:Vec3; b:Real; p:Vec3 -> vpxf)
+	"whatever" print newline
+	0:vpxf return
+end
+*/
+
+proc fsh:(v:Real; vda: vpxf -> Vec3)
+	0.0 0.0 0.0 :Vec3 return
+	
+end
+
+
+proc immediate draw:(code c:Vec3;a:Z32;b:Z32 ->Code%)
+	code \
+		"draw called" print newline
+	
+	\ return
+end
+
+3.0
+1.0 2.0 3.0 :Vec3 4.0  1.1 1.1 1.1 :Vec3 vsh
+fsh 1 100 draw 
+
+
+
+
 getch
 
 "vboVBuffer:"print

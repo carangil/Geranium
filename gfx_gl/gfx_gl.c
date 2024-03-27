@@ -469,9 +469,10 @@ zbool freevb(void* v) {
 	int i;
 	for (i = 0; i < vb->num_attributes;i++) {
 		ram_free(vb->attributes[i].name);
+		ram_free(vb->data[i]);
 	}
 	ram_free(vb->buffer_spec);
-	ram_free(vb->combined_data);
+	//ram_free(vb->combined_data);
 	ram_free(vb->index_buffer);
 	if (vb->vbo)
 		glDeleteBuffers(1, &vb->vbo);
@@ -482,18 +483,29 @@ zbool freevb(void* v) {
 }
 
 
+int size_from_type(int type) {
 
+	if (type <= 4)
+		return sizeof(float) * type;
+
+	printf("Uknown vbo element type:%d\n", type);
+	return 0;
+}
 
 //adds attribute, returns its index
-int gfx_vertex_buffer_add_attribute(gfx_vertex_bufferT* vb, char* name, zuint32 size) {
+int gfx_vertex_buffer_add_attribute(gfx_vertex_bufferT* vb, char* name, zuint32 type) {
+	
+	int size = size_from_type(type);
 	
 	//add the attribute
-	gxdtracef(" attr %d name is [%s] type/size is [%d]", vb->num_attributes, name, size);
-
+	
 	vb->attributes[vb->num_attributes].name = name;
-	vb->attributes[vb->num_attributes++].type = size; //simple numbers 1 to 4 are just floats.  TODO: non-float attributes?
+	vb->attributes[vb->num_attributes].type = type; 
+	vb->attributes[vb->num_attributes].size = size;
+	
+	gxdtracef(" attr %d name is [%s] type [%d] size is [%d]", vb->num_attributes, name, type,size );
 
-	vb->fcount += size;
+	vb->num_attributes++;
 }
 
 gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
@@ -509,17 +521,20 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 	while (*s) {
 
 		char* ne = strchr(s, ':');
+		
 		if (!ne)
 			break;
+
 		char* name = zstrndup(s, (ne - s));
-		int size = atoi(ne + 1);	//size if number of floats.  If we ever have integer vertex attributes, instead of :2, etc can do :i2 or whatever
+		
+		int type = atoi(ne + 1);	//size is number of floats.  If we ever have integer vertex attributes, instead of :2, etc can do :i2 or whatever
 
 		ne = strchr(s, '|');
 
-		if (!size)
+		if (!type)
 			break;
 
-		gfx_vertex_buffer_add_attribute(vb, name, size);
+		gfx_vertex_buffer_add_attribute(vb, name, type);
 
 		if (!ne)
 			break;
@@ -527,11 +542,10 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 		s = ne + 1;
 	}
 
-	gxdtracef(" There are %d float components by %d vertices\n", vb->fcount, vcount);
 	
 
 	//allocate the buffer
-	vb->combined_data = ram_alloc(sizeof(float) * vcount * vb->fcount, NULL);
+	//vb->combined_data = ram_alloc(sizeof(float) * vcount * vb->fcount, NULL);
 
 	//set attribute data pointers
 	vb->fixed_position = -1; //not valid
@@ -539,11 +553,17 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 	vb->fixed_normal = -1; //not valid
 	vb->fixed_texcoord = -1; //not valid
 	int i;
-	float* fp = vb->combined_data;
+	
+	int fp = 0;
+
 	for (i = 0; i < vb->num_attributes; i++) {
-		vb->data[i] = fp;
-		gxdtracef(" Set ptr to %s  base+%d\n", vb->attributes[i].name, (int)(fp - vb->combined_data));
-		fp += vb->attributes[i].type * vcount;
+		
+		vb->data[i] = zarray_allocf(vb->attributes[i].size, vcount, NULL, __FILE__, __LINE__);
+		vb->offset[i] = fp;
+
+		
+		gxdtracef(" Set ptr to %s  base+%d\n", vb->attributes[i].name, fp  );
+		fp += vb->attributes[i].size * vcount;
 
 		//some vertex attributes are special (can be used with fixed function pipeline.  If ever target old computers, or if I want to implement some generic default behavior with a default shader)
 		if (!strcmp(vb->attributes[i].name, "color")) {
@@ -560,10 +580,10 @@ gfx_vertex_bufferT* gfx_vertex_buffer_mk(zuint16 vcount_in, char* spec) {
 		}
 	}
 
+	vb->vbosize = fp;
 	vb->capacity = vcount;
 
 	return vb;
-
 }
 
 
@@ -615,6 +635,8 @@ void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb) {
 
 		glGenBuffers(1, &(vb->vbo));
 		gxdtracef(" Generated VBO %d\n", vb->vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, vb->vbo);
+		glBufferData(GL_ARRAY_BUFFER, vb->vbosize, NULL, GL_DYNAMIC_DRAW);
 
 	}
 
@@ -635,7 +657,11 @@ void gfx_vertex_buffer_update(gfx_vertex_bufferT* vb) {
 
 	//switch to buffer's vbo and send data
 	glBindBuffer(GL_ARRAY_BUFFER, vb->vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(zfloat32) * vb->capacity * vb->fcount, vb->combined_data, GL_DYNAMIC_DRAW);
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(zfloat32) * vb->capacity * vb->fcount, vb->combined_data, GL_DYNAMIC_DRAW);
+	
+	for (int i = 0; i < vb->num_attributes; i++) {
+		glBufferSubData(GL_ARRAY_BUFFER, vb->offset[i], vb->attributes[i].size * vb->count, vb->data[i]);
+	}
 	gxi_current_vbo = 0; //set to zero, so first draw sets up the vertex arrays
 }
 
@@ -783,8 +809,8 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 					glVertexAttribPointer(aloc,
 						vb->attributes[i].type,  /* 1,2,3,4 : to GL it is the number of components */
 						GL_FLOAT, /*GL data type*/
-						0, vb->attributes[i].type * sizeof(zfloat32), /* normalized, stride. stride 0 means densely packed */
-						((char*)vb->data[i]) - ((char*)vb->combined_data));
+						0, vb->attributes[i].size, /* normalized, stride. stride 0 means densely packed */
+						vb->offset[i]);
 					//(void*)((vb->attributes[i].data - vb->combined_data)*sizeof(zfloat32)));
 
 					checkGL();
