@@ -4,6 +4,7 @@ typedef struct zlistnode_s
 {
 	struct zlistnode_s* next;
 	struct zlistnode_s* prev;
+	char DEBUG;
 } zlistnodeT;
 
 
@@ -62,4 +63,5 @@ zlistT* zlist_check_init(zlistT* list);
 
 void* zlist_remove_mid( zlistnodeT* node);
 void* zlist_insert_node_after( zlistnodeT* node, zlistnodeT* newnode);
+void* zlist_insert_node_before(zlistnodeT* node, zlistnodeT* newnode);
 zbool zlist_cleanup(zlistT* list);

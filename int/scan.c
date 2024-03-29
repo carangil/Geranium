@@ -605,7 +605,7 @@ void process_zdef(char* zdef) {
 	}
 
 	if (!strcmp(zdef, "handler")) {
-		fprintf(outz, "primitive C_%s %s\n", cname, defword);
+		fprintf(outz, "primitive C_%s  %s\n", cname, definition);
 
 		char* tmp = zstrprintf (NULL, "\tmkSymbol(global, \"C_%s\", tPrimitive, h_%s);\n", cname, cname);
 

@@ -6,6 +6,10 @@ void zlist_init(zlistT* list){
 	memset(list, 0, sizeof(*list));
 	list->sentinal_head.next = &list->sentinal_tail;	
 	list->sentinal_tail.prev = &list->sentinal_head;
+
+	list->sentinal_head.DEBUG = 'H';
+	list->sentinal_tail.DEBUG = 'T';
+
 	//printf("inited list\n");
 }
 
@@ -13,6 +17,8 @@ zlistT* zlist_check_init(zlistT* list){
 	if (!list->sentinal_head.next){
 		list->sentinal_head.next = &list->sentinal_tail;	
 		list->sentinal_tail.prev = &list->sentinal_head;
+		list->sentinal_head.DEBUG = 'H';
+		list->sentinal_tail.DEBUG = 'T';
 	}
 	//printf("check inited list\n");
 	return list;
@@ -85,6 +91,21 @@ void* zlist_insert_node_after( zlistnodeT* node, zlistnodeT* newnode){
 	node->next = newnode;
 		
 	return newnode;
+}
+
+//inserts new node before
+void* zlist_insert_node_before(zlistnodeT* node, zlistnodeT* newnode) {
+
+	if (!node || !node->prev) {
+		fprintf(stdout, "Node %p: null or has null prev.\n");
+		exit(1);
+	}
+	if (node->prev->prev == NULL) {
+		printf("setinal case\n");
+	}
+
+	return zlist_insert_node_after(node->prev, newnode);//  OK if prev is the setinal
+
 }
 
 

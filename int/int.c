@@ -73,6 +73,7 @@ typedef struct exectxS{
 	int stop;
 	int level;//stackframe level
 	int debugstack;
+	struct parsectxS* in_immediate; //if executing in an immediate context, this is that context.  NULL othersize
 }exectxT;
 #define STOPFUNC 1
 #define STOPLOOP 2
@@ -182,6 +183,7 @@ typedef struct tokenS{
 #define KTYPEGROUP  0x801f
 #define KPER		0x8020
 #define KSHADER		0x8021
+
 
 
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
@@ -2188,8 +2190,7 @@ tokenT* hreturn (exectxT* ex, tokenT* t){
 	if (t->ty) {  
 
 		xprintf("Pushing return type (return from immediate)\n");
-		if (ex->debugstack)
-			printf("brk");
+	
 
 		//if returning from an immediate block, put the return type on the stack too
 		//if the immediate block is not returning a value, t->ty should have been set to tImmediate anyway
@@ -2215,6 +2216,7 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
 	
+	tokenT* argsubs = tsub(t);
 	
 	int indirect = 0;
 
@@ -2316,7 +2318,7 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	
 	//free any passed pointers that didn't get taken, or pointers that were addreffed
 	
-	tokenT* tv = tsub(t);
+	tokenT* tv = argsubs;
 	
 	if (t->sym->type->members) {
 		int i;
@@ -2639,6 +2641,9 @@ void start(parsectxT* pctx, tokenT* t){
 			//store vars size in the shadow allocation.  TODO: consider adding ram_getsize to zmem
 			int* asize = ram_shadow(pctx->exec->immediatevars);
 			*asize = immsize;
+
+			pctx->exec->in_immediate = pctx;
+
 		} else {//local variable frame for functions
 			pctx->exec->vars = ram_alloc(pctx->size, NULL);
 		}
@@ -2679,9 +2684,6 @@ void start(parsectxT* pctx, tokenT* t){
 #ifdef EXEDEBUG	
 	xprintf(" PCTX %d bytes\n", pctx->size);
 #endif	
-
-	
-
 	
 
 #ifdef EXEDEBUG	
@@ -2693,7 +2695,7 @@ void start(parsectxT* pctx, tokenT* t){
 			
 	}
 	xprintf(" \n");*/
-	 
+		
 	exe(pctx->exec, t);
 	
 	//pctx->exec->sp = spsave;
@@ -3355,6 +3357,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			ram_free(tremove(tprev(t)));
 			continue;
 
+		
 		case KCODE:
 			typeT* codetype = NULL;
 
@@ -3515,7 +3518,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			continue;
 
 		case KIMMEDIATE:
-				
+			
+			if (parseDebugFlag)
+				printf("debug immediate\n");
 			ts = t;
 
 			if (!immediate_parse) {
@@ -3540,10 +3545,14 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 	//		}
 			
 			
-				
+			
+
+	
+
 			immediate_parse->endable++;
 			t = parse(immediate_parse, tnext(t));
 			immediate_parse->type = prev_imm_context_ty;
+
 	
 			t = tnext(t);
 						
@@ -3551,23 +3560,29 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			tokenT* sub = tsub(ts);
 			printList(sub, NULL, 0, 10);
 
-			
 			printSymbols(immediate_parse->symbols, "immediate symbols");
 			checkUsage(sub, NULL);//check all values are used up
 			
-
 			//run it
 			
 			if (parseDebugFlag)
 				printf(" boo\n");
 
 			int oldfp=0;
+			
+		//	exectxT* oldint = immediate_parse->interrupted_parser_context;
+
 			if (immediate_parse->exec) {
 				oldfp = immediate_parse->exec->fp;
 				immediate_parse->exec->sp = immediate_parse->exec->fp;
 			}
+			
+			parsectxT* oldparent = immediate_parse->parent;
+			immediate_parse->parent = pc;
 
 			start(immediate_parse, sub);
+
+			immediate_parse->parent = oldparent;
 
 			int spdone = immediate_parse->exec->sp;
 			immediate_parse->exec->sp = immediate_parse->exec->fp;
@@ -3671,7 +3686,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			} 
 
-			if (t->tok == KPROC && tnext(t)->tok == KIMMEDIATE) {  //proc flagged as immediate
+			if ( (t->tok == KPROC || t->tok == KPRIMITIVE) && tnext(t)->tok == KIMMEDIATE) {  //proc flagged as immediate
 				
 				ram_free(tremove(tnext(t)));
 
@@ -4991,7 +5006,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							break;
 
 						//took to parent's symbols (siblings) for functions that could be called
-						if (pc->parent && pc->parent != global && pc->parent != immediate_parse) {
+						if (pc->parent && pc != immediate_parse && pc->parent != global && pc->parent != immediate_parse) {
 							s = findSymbol(pc->parent->symbols, t->str, v);
 
 							if (s && s->type->category != FUNCTION) {
@@ -5081,7 +5096,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						if (tv->trackpossptr) {
 							//xprintf(" Arg derived from possessive pointer <%s> ", tv->str  );
 							//if an arg being passed to a function is a possive pointer (or result of adding/indexing from a possessive pointer), then it needs to be addref'd before being passed to a function
-							if (s->handler == hcall) {
+							if (s->handler == hcall || fpointer) {
 
 								if (tv->trackpossptr->handler == hloadptr) {
 									tv->trackpossptr->val.as.n32 |= 2;
@@ -5145,7 +5160,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							tokenT* ret = mkToken(KRETURN, "X_return", 0);
 							tokenT* en = mkToken(KEND, "X_end", 0);
 
-							insert_after(tprev(ts), timm);
+							//insert_after(tprev(ts), timm);
+							zlist_insert_node_before(ts, timm);
+
 							insert_after(t, ret);
 							insert_after(ret, en);
 
