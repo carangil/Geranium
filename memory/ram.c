@@ -19,6 +19,9 @@
 
 #define MYMAGIC 0xf1e2f3e4
 
+#define GPU_STORAGE
+
+
 
 /*****************
  *RAM allocation
@@ -50,6 +53,9 @@ typedef struct mem_header_s
 	int refcount;
 	int shadow_size; //allow alloced buffers to have a shadow buffer of out-of-band data (lets zstrings be passed or ram_free'd like regular c strings, but allows additional metadata
 	int magic;
+#ifdef GPU_STORAGE
+	gpu_storageT gpu_storage;
+#endif
 } mem_headerT;
 
 #ifdef RAM_DEBUG
@@ -87,6 +93,24 @@ size_t ram_align_ptr_size(size_t shadow_size) {
 
 int ram_shadow_offset(size_t s) {
 	return -(int)(ram_align_ptr_size(s) + sizeof(mem_headerT));
+}
+
+gpu_storageT* gpu_storage(void* v) {
+
+		mem_headerT* header = (mem_headerT*)v;
+	
+		if (header)
+		{
+			header--; //decrement pointer to header struct
+
+			if (header->magic != MYMAGIC) {
+				printf(" attempt shadow on bad magic!\n");
+				return NULL;
+			}
+
+			return &header->gpu_storage;
+		}
+		return NULL;
 }
 
 /* Allocate memory.  Takes size and destructor */

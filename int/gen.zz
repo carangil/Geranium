@@ -20,16 +20,19 @@ type @namedv3 Vec3
 	@namedv3_y	y:Real;
 	@namedv3_z	z:Real;
 end
-primitive C_vec3add +:(a:Vec3;b:Vec3->Vec3);
-primitive C_vec3sub -:(a:Vec3;b:Vec3->Vec3);
-primitive C_vec3cross Cross:(a:Vec3;b:Vec3->Vec3);
-primitive C_vec3dot Dot:(a:Vec3;b:Vec3->Real);
+primitive C_vec3add  +:(a:Vec3;b:Vec3->Vec3);
+primitive C_vec3sub  -:(a:Vec3;b:Vec3->Vec3);
+primitive C_vec3cross  Cross:(a:Vec3;b:Vec3->Vec3);
+primitive C_vec3dot  Dot:(a:Vec3;b:Vec3->Real);
 primitive C_findType ZFindType:(category:Z32; ref:Type&; name:String&; size:Z32->Type&);
 primitive C_printTypeNoRedirect printTypeNoRedirect:(c_ty:Type&; c_line:Bit; c_skipmembers:Bit-> );
 primitive C_testComputeShader testComputeShader:(-> );
 primitive C_type_member []:(ty:Type&; n:N32 -> Type&);
 primitive C_ptrequal ptrequal:(c_a:Void&; c_b:Void&-> Bit);
-primitive C_fillvbowrapper fillvbowrapper:(a:VBO%;n:N32->VBO%);
+primitive C_fillvbowrapper  fillvbowrapper:(a:VBO%;n:N32->VBO%);
+primitive C_glslprocbody  immediate% glsl:(vsource:String&;fsource:String&->GLSLBody);
+primitive C_prepshader  prep:(p:GLSLBody->GLSLDrawProc);
+primitive C_execdraw  draw:(p:GLSLDrawProc; prim:N32;start:N32; stop:N32);
 type @zeventT ZEvent
 	@zeventT_type	eventType:Z32;
 	@zeventT_a	A:Z32;
@@ -105,6 +108,7 @@ primitive C_gfx_frame_clear FrameClear:(c_color:Bit; c_depth:Bit-> );
 primitive C_gfx_depth_buffer DepthBuffer:(c_test:Bit; c_write:Bit-> );
 primitive C_gfx_setup_3d Setup3D:(c_fovy:Real; c_aspect:Real; c_neardist:Real; c_fardist:Real-> );
 primitive C_gfx_setup_2d Setup2D:(c_left:Real; c_right:Real; c_top:Real; c_bottom:Real-> );
+primitive C_gfx_get_projection_matrix gfx_get_projection_matrix:(->Matrix44&);
 1 constant GFX_BLEND_OFF
 2 constant GFX_BLEND_ALPHA
 3 constant GFX_BLEND_ADD
@@ -143,11 +147,15 @@ primitive C_gfx_arrow gfx_arrow:(c_p1:Vec3&; c_p2:Vec3&; c_color:vec4&-> );
 1610612736 constant GFX_TEXTURE
 2147483647 constant GFX_MAT44
 2147483647 constant GFX_MAT33
+16777216 constant GFX_ARRAY
 1 constant GFX_POINT_TRANSFORM
 2 constant GFX_NORMAL_TRANSFORM
 2147483647 constant GXI_TYPEMASK
+2147483647 constant GXI_BASETYPEMASK
 4 constant MAX_FF_LIGHTS
 primitive C_gfx_free_mesh gfx_free_mesh:(c_m:gfx_meshT&-> Bit);
+16 constant MAX_ALOC
+primitive C_gfx_draw gfx_draw:(c_prim:Z32; c_indexed:Bit; c_start:Z32; c_stop:Z32-> );
 0 constant Structmap_namedv3
 type @gfx_mat_3x3 Matrix33
 	@gfx_mat_3x3_x_axis	XAxis:Vec3;
@@ -228,3 +236,7 @@ primitive C_debug_print_skeleton debug_print_skeleton:(c_joint:gfx_jointT&; c_in
 primitive C_gx_shader_source ShaderSource:(c_vsource:String&; c_fsource:String&-> ShaderGroup%);
 primitive C_gx_set_basic_shader DefaultShader:(c_vsource:String&; c_fsource:String&-> );
 primitive C_gx_shader_variant gx_shader_variant:(c_sg:ShaderGroup&; c_key:String&; c_st:Style&; c_vb:VBuffer&-> gx_shader_variantT%);
+primitive C_gx_compile_shader gx_compile_shader:(c_vsource:String&; c_fsource:String&; c_gfx_shader_inputs:zvecT&; c_flags:Z32-> gfx_shaderT%);
+primitive C_gfx_sizeof gfx_sizeof:(c_type:Z32-> Z32);
+primitive C_gfx_set_input gfx_set_input:(c_input:gfx_shader_inputT&; c_data:Void&-> );
+primitive C_gx_use_shader gx_use_shader:(c_shader:gfx_shaderT&-> );

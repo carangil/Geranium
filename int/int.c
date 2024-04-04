@@ -1,18 +1,10 @@
-#include "zmem.h"
-#include "zarray.h"
-#include "zstring.h"
-#include "ztime.h"
-#include "zrand.h"
-#include "zlist.h"
-#include "zvector.h"
+#include "int.h"
 
 #define xprintf(a,...) fprintf(logfile, a, __VA_ARGS__),fflush(logfile)
 FILE* logfile;
 int parseDebugFlag = 0;
 
-//make adjustable precision   (if suffix is f, then sin cos before cosf, sinf, the single precision version
-#define FLOAT float 
-#define MATH_FUNC_SUFFIX(FFF)   FFF ## f
+
  
 #ifdef FLOAT 
 #include "math.h"
@@ -29,56 +21,10 @@ void boo() {
 
 /**** Basic Values ****/
 
-//Pointers
-typedef struct vptrS{	
-	char* block;	/* char instead of void, for strict aliasing */
-	zuint32 offset;
-	zuint16	level; 
-}vptrT;
 
-typedef struct vptrselectorS {
-	vptrT ptr;
-	struct typeS* typeselector;
-} vptrselectorT;
+//moved to int.h
 
-typedef union valu {	//Generic value (datatype is tracked through other means)
-		zint32 z32;
-		zuint32 n32;
-		vptrT ptr;
-#ifdef FLOAT
-		FLOAT f;
-#endif
-		struct typeS* type; //not datatype of valU, but represents a detatype itself (datatypes can be on the stack)  
 
-		//debugging:
-		struct symbolT* symbol;
-		struct tokenS*  token;
-
-		
-	} valU;
-	
-typedef struct valueS{
-	valU as;
-	struct typeS* typeselector;
-}valueT;
-
-/**** Execution Context ****/
-typedef struct exectxS{
-	valueT* stack;  //call/parameter stack
-	zuint32	sp;	//number of items on stack.  sp-1 is the top item
-	zuint32 fp;
-	char* vars; 	//local data space
-	char* globalvars; //global data space
-	char* immediatevars; //global data space for immediate blocks
-	int stop;
-	int level;//stackframe level
-	int debugstack;
-	struct parsectxS* in_immediate; //if executing in an immediate context, this is that context.  NULL othersize
-}exectxT;
-#define STOPFUNC 1
-#define STOPLOOP 2
-
-typedef struct tokenS* (*instruction) (exectxT*,struct tokenS* ) ;
 
 /* Parse Context */
 typedef struct parsectxS{
@@ -95,28 +41,6 @@ typedef struct parsectxS{
 /**** Tokenizer ****/
 
 /* Program is a linked list of tokens*/
-typedef struct tokenS{
-	zlistnodeT zlistnode;
-	zuint32 tok;	//A constant defined below, a character, or a pair of characters
-	char* str;	//string representation of this token
-	struct typeS* ty;	//datatype of this token
-	struct typeS* tyorig;	//original datatype of this token (before cast)
-	valueT val;	//token's value
-	zlistT subs;	//make a tree out of token list
-	instruction handler; //function that does what this token represents
-	struct symbolS* sym;  //for things like procs that have a bunch of context info
-	int line;	//line number from source file
-	zbool val_to_free; //if true, free val's ptr block when destroying token
-	int useslocal; // INSTEAD OF TRUE/FALSE, THIS IS A COUNT. if true this code (or its subtrees) refers to local variables (as opposed to global or immediate space)
-	int generated;
-	parsectxT* restrict_parse_context; //for SUBTREEs... only can be included in the same context they were created
-
-	struct tokenS* trackpossptr;
-	struct tokenS** debug_subs;
-	struct tokenS** debug_next;
-	struct tokenS** debug_prev;
-
-}tokenT;
 
 
 /* Macros to make some things easier
@@ -124,10 +48,11 @@ typedef struct tokenS{
  * tnext/tprev: Pointer to the next token
  * insert_after: Inserts a token after another token.  Requires the place of insertion is not the head or tail of the list
  * */
+//some macros moved to int.h
 
 #define tremove(ITEM)    zlist_remove_mid(  &(ITEM)->zlistnode)
 //#define tnext(ITEM) ((tokenT*)(ITEM)->zlistnode.next)
-#define tnext(ITEM)    ((tokenT*)zlist_next(ITEM))
+
 #define tprev(ITEM)    ((tokenT*)zlist_prev(ITEM))
 #define insert_after(AFTER,NEW)    zlist_insert_node_after(  &(AFTER)->zlistnode,  &(NEW)->zlistnode);
 
@@ -183,13 +108,14 @@ typedef struct tokenS{
 #define KTYPEGROUP  0x801f
 #define KPER		0x8020
 #define KSHADER		0x8021
+#define KALIAS		0x8022
 
 
 
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
 						"new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0",
 						"count", "size", "setcount","opaque","immediate", "code", "stacked", "typeof", "noexec", "constant",
-						"typegroup", "per" , "shader", NULL};
+						"typegroup", "per" , "shader", "alias", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -441,6 +367,7 @@ void  tokenize(tokenT* insert, char* in){
 //PENDING not a type, but is for when a type is mentioned in another declaration but not yet defined.  You can't 'make' or size a PENDING type, but can have pointers to them
 #define PENDING  22
 #define SUBTREE 23
+#define ALIAS   24
 #define UCATEGORY 1024
 
 //PER types are iterated arrays
@@ -747,9 +674,13 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 			case STRUCT: 
 			case PENDING:
 			case OPAQUE:
-			
+			case ALIAS:
 				if (!strcmp(name, ty->name)){
 					//found on name
+
+					if (ty->category == ALIAS)
+						return ty->ref;
+
 					return ty;
 				}
 				break; //not it
@@ -1191,7 +1122,7 @@ tokenT* hconstantaddref(exectxT* ex, tokenT* t) {  //push constant on stack
 	return tnext(t);
 }
 
-#define tsub(TTT)  ((tokenT*)zlist_head(&(TTT)->subs))
+
 
 tokenT* haddselector(exectxT* ex, tokenT* t) {  //adds selectors to item on pointer stack
 	exe(ex, tsub(t));
@@ -2823,6 +2754,8 @@ tokenT*  parseType(tokenT* t) {
 					       //t->str = zstrcat( t->str, "$type" );
 			
 			named=ZTRUE;
+			if (!strcmp(t->str, "STR")) 
+				printf("a");
 			t->ty = findType(NAMED, NULL, t->str, 0);
 			if (!t->ty){
 				//if (iscptr == 1)
@@ -3487,6 +3420,21 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			ts->handler = hnop;
 			continue;
 
+		case KALIAS:
+			ts = t;
+			name =  tnext(ts)->str;
+
+			t = parseType(tnext(tnext(t)));
+
+			mkType(ALIAS, tprev(t)->ty, name, 0);
+
+			if (t->tok != ';')
+				ERR("Expected ; after opaque\n");
+			t = tnext(t);
+			lfold(ts, t);
+			ts->handler = hnop;
+
+			continue;
 
 	
 		case KVIRTUAL:
@@ -3689,8 +3637,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if ( (t->tok == KPROC || t->tok == KPRIMITIVE) && tnext(t)->tok == KIMMEDIATE) {  //proc flagged as immediate
 				
 				ram_free(tremove(tnext(t)));
-
 				isImmediate = 1;  
+
+				if (tnext(t)->tok == '%') {
+					ram_free(tremove(tnext(t)));
+					isImmediate = 2;  //return value should be eventually freed when the code is freed
+				}
+
 			}
 
 			if (t->tok == KPROC && tnext(t)->tok == KSHADER) {  //proc flagged as shader
@@ -4081,7 +4034,6 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			}
 
-
 			if (tnext(t)->tok == NAME)
 				name = tnext(t)->str;
 			else {
@@ -4105,7 +4057,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				//t = tnext(tnext(t)); //skip over 2 for + and virtualname
 				//todo: add function table members for the struct, not counted as part of the struct's normal size
 			//}
-
+			
 			t = parseTypeList(tnext(tnext(t)), ty);
 
 			ty->category = STRUCT; //its a real struct now
@@ -5160,6 +5112,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							tokenT* ret = mkToken(KRETURN, "X_return", 0);
 							tokenT* en = mkToken(KEND, "X_end", 0);
 
+							if (s->isImmediate == 2)
+								timm->val_to_free = ZTRUE;
+
 							//insert_after(tprev(ts), timm);
 							zlist_insert_node_before(ts, timm);
 
@@ -5392,9 +5347,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 
 			t->zlistnode.next = NULL;//end it
-			xprintf(" \nFinding in:\n");
-			printList(tprev(tprev(tprev(tprev(tprev(tprev(tprev(tprev(tprev(ts))))))))), t, 0, 1);
-
+		
 			tokenT* tp = t;
 			int tpc;
 			for  (tpc=0; tprev(tp) && tpc<10;tpc++)
@@ -5443,16 +5396,13 @@ void cleanCCall(exectxT* ex, tokenT* t, void* first) {
 	}
 }
 
-#ifdef EXTENSION_H
-#include "gen_extension.h"
-#endif
+
 
 #include "zwindow.h"
 #include "gfx_gl.h"
-#include "cextra.c"
-#include "gen.c"
-
-
+#include "glsl.h"
+#include "cextra.c"		//hand-written extensions
+#include "gen.c"		//generated extensions from C header files
 
 
  int_abyss(void* unknown) {

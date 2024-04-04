@@ -58,3 +58,7 @@ typeT* type_member(typeT* t, zuint32 i);
 zbool ptrequal(void* a, void* b);
 
 //Zdef handler fillvbowrapper  fillvbowrapper:(a:VBO%;n:N32->VBO%);
+//Zdef handler glslprocbody	immediate% glsl:(vsource:String&;fsource:String&->GLSLBody);
+//Zdef handler prepshader	prep:(p:GLSLBody->GLSLDrawProc);
+//Zdef handler execdraw		draw:(p:GLSLDrawProc; prim:N32;start:N32; stop:N32);
+

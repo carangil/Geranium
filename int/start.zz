@@ -1,12 +1,91 @@
+//"base/base.zz" include
+
+
+
 "gfxgl.zz" include
 
 //"vtest.zz" include
 
-//"base/base.zz" include
 //"tests/simple.zz" include
 
 
 //"bugtest.zz" include
+
+
+/*
+stacked Vec3;
+
+//opaque GraphicsPipeline;
+//stacked GraphicsPipeline;
+
+
+
+virtual VBO;
+"gen.zz" include
+selector VBO.vb:VBuffer%;
+
+
+proc :Vec3:(a:Real;b:Real;c:Real->Vec3)     
+   var v:Vec3;
+    a v.x=
+    b v.y=
+    c v.z=  
+    v return
+end
+
+
+
+
+
+
+//code (per point:[Vec3]&; per color:[Vec3]&; i:Real; lv:[Vec3]& ->GraphicsPipeline%)  \\
+	
+proc  f2:	(per point:[Vec3]&; per color:[Vec3]&; i:Real; lv:[Vec3]& ->GraphicsPipeline%)
+	
+	"
+		in vec3 position;
+		in vec3 color;
+		out vec3 out_color;
+		
+		void main(){
+		
+			gl_Position=position;
+			out_color = color;
+		}
+	"
+	
+	
+	"f2bbb" glsl runshader return
+
+//\\ #f2
+end
+
+
+//"vshader f2 compiled AAA" print newline
+
+
+
+
+
+[Vec3] 10 new #p
+[Vec3] 10 new #c
+[Vec3] 10 new #u
+
+proc gen13:(->Real)
+	"{13}" print
+	13.0 return
+end
+//gen13 print newline
+
+p c  gen13 u   f2 #pl
+
+//p c  gen13 u   f2  //0 8 draw
+
+*/
+
+"done" print newline
+
+
 
 
 

@@ -50,6 +50,9 @@
     <None Include="..\..\gfxtest\fragment.glsl" />
     <None Include="..\..\gfxtest\vertex.glsl" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\int\int.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <ProjectGuid>{5F702A45-754D-41EC-ABD4-BD18EA4A7F93}</ProjectGuid>

@@ -1,5 +1,11 @@
 "base/base.zz" include
 
+opaque GLSLBody;
+stacked GLSLBody;
+opaque GLSLDrawProc;
+stacked GLSLDrawProc;
+
+
 virtual VBO;
 "gen.zz" include
 selector VBO.vb:VBuffer%;
@@ -37,6 +43,31 @@ type Vec4
     g:Real;
     b:Real;
     a:Real;
+end
+
+
+type Matrix44
+	A:Vec4;
+	B:Vec4;
+	C:Vec4;
+	D:Vec4;
+end
+
+
+proc :Vec2:(s:Real;t:Real->Vec2)
+	var v:Vec2;
+	s v.s=
+	t v.t=
+	v return
+end
+
+proc :Vec4:(r:Real;g:Real;b:Real;a:Real->Vec4)
+	var v:Vec4;
+	r v.r=
+	g v.g=
+	b v.b=
+	a v.a=
+	v return
 end
 
 
@@ -115,43 +146,8 @@ myvbo.position size print
 newline
 
 
-stacked vpxf;
+//getch
 
-type vpxf
-	p1:Vec3;
-	p2:Vec3;
-	p3:Vec3;
-end
-
-proto vsh:(a:Vec3; b:Real; p:Vec3 -> vpxf);
-/*
-proc vsh:(a:Vec3; b:Real; p:Vec3 -> vpxf)
-	"whatever" print newline
-	0:vpxf return
-end
-*/
-
-proc fsh:(v:Real; vda: vpxf -> Vec3)
-	0.0 0.0 0.0 :Vec3 return
-	
-end
-
-
-proc immediate draw:(code c:Vec3;a:Z32;b:Z32 ->Code%)
-	code \
-		"draw called" print newline
-	
-	\ return
-end
-
-3.0
-1.0 2.0 3.0 :Vec3 4.0  1.1 1.1 1.1 :Vec3 vsh
-fsh 1 100 draw 
-
-
-
-
-getch
 
 "vboVBuffer:"print
 myvbo.vb :any& print newline
@@ -240,7 +236,166 @@ Transform new ##camera gfx_camera_init
  
 0 #mouseRel
 
+
+
+proc immediate GLSL:(code a:String&; code b:String&->Code%)
+	code \\
+		'a		//vertex shader source string
+		'b		//fragment shader source string
+		glsl	//at compile time, create a structure that contains the source, and datatype of the function this is in the body of.
+				//that struct pointer is baked into a push h_constant for runtime
+		prep 	//at run time, this creates VBOs if needed, compiles the shader if needed, and binds vbos, and updates uniforms, and sets that shader as current
+		return	//that prepped shader is returned for one or more draw calls
+	\\ return
+end
+
+//compile a shader with inline GLSL source
+
+//code (per point:[Vec3]&; per color:[Vec3]& ->GLSLDrawProc)  \\
+	
+	1.0 2.0 :Vec3 #h2
+	
+proc  testVertexShader:	(
+		per point:	[Vec3]&; 
+		testu:		[Vec4]&;  
+		per color:	[Vec4]&; 
+		offset:		Real;
+		projection:	Matrix44&; 
+		modelView:	Matrix44&;	
+		diff: 		Texture&;
+		per texcoord:	[Vec2]& 	->GLSLDrawProc)
+		
+	"
+		in vec3 point;
+		in vec4 color;
+		uniform mat4 projection;
+		uniform mat4 modelView;
+		uniform vec4 testu[8];
+		uniform float offset;
+		in vec2 texcoord;
+		out vec2 f_texcoord;	
+		out vec4 f_color;
+		
+		void main(){
+			vec4 transformed = modelView * vec4(point.x, point.y, point.z+offset, 1.0);
+			gl_Position=  projection * transformed;
+			f_texcoord = texcoord;
+			f_color = color + testu[0];
+		}
+	"
+	
+	"
+		in vec4 f_color;
+		in vec2 f_texcoord;
+		out vec4 pset;
+		uniform sampler2D diff;
+		
+		void main(){
+		
+			pset = f_color * texture( diff, f_texcoord);
+		
+		}
+	
+	"  GLSL 
+
+end
+
+ //#testVertexShader
+
+
+//some graphics data
+
+
+
+/*
+	TODO: arrays of structs should be able to be packaged into a VBO w/ interleaving.  Not supported yet; seperate VBO per item
+	type SomeVertexFormat
+		position:Vec3
+		color:Vec3
+	end
+	SomeVertexFormat] 10 new #singleVBO
+*/
+
+[Vec3] 10 new #positions		//ANY (simple) array can be converte to a VBO without having to do anything special
+[Vec4] 10 new #colors
+[Vec4] 8 new #testu	//testu is a uniform array
+[Vec2] 10 new #txc //texture coords
+
+-0.4  -0.5  -1.0 :Vec3 positions 0[]=
+ 0.6  -0.65  -1.0 :Vec3 positions 1[]=
+-0.66   0.67  -1.0 :Vec3 positions 2[]=
+
+1.0 0.0 0.0 1.0 :Vec4 colors 0[]=
+0.0 1.0 0.0 1.0 :Vec4 colors 1[]=
+0.0 0.0 1.0 1.0 :Vec4 colors 2[]=
+
+0.0 0.0 :Vec2 txc 0[]=
+1.0 0.0 :Vec2 txc 1[]=
+0.0 1.0 :Vec2 txc 2[]=
+
+0.5 0.5 0.5  1.0:Vec4 testu 0[]=
+0.8 -1.0 0.8  1.0 :Vec4 testu 1[]=
+
+
+
+var m33:Matrix33;
+//var m44:Matrix44;
+
+
+1.0 2.0 3.0 :Vec3 m33.XAxis=
+1.1 2.1 3.1 :Vec3 m33.YAxis=
+1.3 2.3 3.3 :Vec3 m33.ZAxis=
+
+newline
+0#j loop
+	
+	m33 :[Real]& j[] print " " print
+	j&++
+	j 9<while
+end
+
+/*
+1.0 2.0 3.0 4.0 :Vec4 m44.A=
+1.1 2.1 3.1 4.1 :Vec4 m44.B=
+1.3 2.3 3.3 4.2 :Vec4 m44.C=
+1.4 2.4 3.4 4.4 :Vec4 m44.D=
+*/
+
+newline
+  80.0     4.0 3.0/   0.01 1000.0 Setup3D
+0j= loop
+	
+	gfx_get_projection_matrix :[Real]& j[] print " " print
+	j&++
+	j 16<while
+end
+
+//var projectionMatrix:Matrix44;
+
+//get_projection_matrix
+
+
+//getch
+
+
+
+
+0.0 #offset
+
 //testComputeShader
+
+
+var modelView:Matrix44;
+	
+
+
+	newline
+	0j= loop
+		
+		modelView :[Real]& j[] print " " print
+		j&++
+		j 16<while
+	end newline
 
 loop
 
@@ -302,6 +457,21 @@ loop
     80.0     4.0 3.0/   0.01 1000.0 Setup3D
     1:Bit 1:Bit FrameClear
         
+	var tr:Transform;
+	tr gfx_save_transform
+		
+	tr.Rotation.XAxis.x tr.Rotation.XAxis.y tr.Rotation.XAxis.z 0.0 :Vec4 modelView.A=
+	tr.Rotation.YAxis.x tr.Rotation.YAxis.y tr.Rotation.YAxis.z 0.0 :Vec4 modelView.B=
+	tr.Rotation.ZAxis.x tr.Rotation.ZAxis.y tr.Rotation.ZAxis.z	0.0 :Vec4 modelView.C=
+	tr.Position.x 		tr.Position.y 		tr.Position.z 		1.0 :Vec4 modelView.D=	
+	
+	positions testu colors offset gfx_get_projection_matrix modelView Rock_Diffuse  txc
+	
+	testVertexShader  GFX_TRIANGLE 0 4 draw
+	
+//	offset 0.001 + offset=
+		
+		
     proc IsPressed:(s:String& -> Bit)
         Keys s 0[] :Z32 []1 == return
     end
@@ -327,7 +497,7 @@ loop
 
    // CubeMesh.vb GFX_TRIANGLE 0 24:N32 1:Bit Draw
     
-    CubeMesh.vb GFX_TRIANGLE CubeMesh.start CubeMesh.stop  1:Bit Draw
+    //CubeMesh.vb GFX_TRIANGLE CubeMesh.start CubeMesh.stop  1:Bit Draw
 
     window UpdatePixels  
   

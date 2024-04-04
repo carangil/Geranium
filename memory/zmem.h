@@ -5,8 +5,7 @@
 #include <malloc.h>
 #include <string.h>
 
-
-
+#pragma once
 
 int ram_shadow_offset(size_t s);
 
@@ -82,6 +81,15 @@ extern void* flagged; //If this is set to non-null and addref/free will call int
 void* ram_malloc_interface(size_t size);
 #define ram_free_interface ram_free
 
+
+
+//GPU allocation
+
+typedef struct gpu_storageS {
+	int buffer;
+}gpu_storageT;
+
+gpu_storageT* gpu_storage(void* v);
 
 //forbid standard functions
 #ifndef RAM_C

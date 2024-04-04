@@ -371,6 +371,21 @@ tokenT* hc_gfx_setup_2d (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
+float* gfx_get_projection_matrix();
+tokenT* hc_gfx_get_projection_matrix (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-0].as.ptr.block;
+	ex->stack[ex->sp-0].as.ptr.block=(void*) gfx_get_projection_matrix(
+			);
+	ex->stack[ex->sp-0].as.ptr.level=0; 
+	ex->stack[ex->sp-0].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-0+1);
+
+	return tnext(t); 
+}
 gfx_styleT* gfx_style_mk();
 tokenT* hc_gfx_style_mk (exectxT* ex, tokenT* t) {	
 	exe(ex, tsub(t));			
@@ -603,6 +618,22 @@ tokenT* hc_gfx_free_mesh (exectxT* ex, tokenT* t) {
 	cleanCCall(ex, t, firstArg);
 
 	ex->sp+= (-1+1);
+
+	return tnext(t); 
+}
+void gfx_draw(int prim, zbool indexed, int start, int stop);
+tokenT* hc_gfx_draw (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
+		gfx_draw(
+			ex->stack[ex->sp-4].as.z32,
+			ex->stack[ex->sp-3].as.z32,
+			ex->stack[ex->sp-2].as.z32,
+			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-4+0);
 
 	return tnext(t); 
 }
@@ -1275,6 +1306,65 @@ tokenT* hc_gx_shader_variant (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
+gfx_shaderT* gx_compile_shader(char* vsource, char* fsource, zvecT* gfx_shader_inputs, int flags);
+tokenT* hc_gx_compile_shader (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
+	ex->stack[ex->sp-4].as.ptr.block=(void*) gx_compile_shader(
+			(void*)((ex->stack[ex->sp-4].as.ptr.block)+(ex->stack[ex->sp-4].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-3].as.ptr.block)+(ex->stack[ex->sp-3].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			ex->stack[ex->sp-1].as.z32);
+	ex->stack[ex->sp-4].as.ptr.level=0; 
+	ex->stack[ex->sp-4].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-4+1);
+
+	return tnext(t); 
+}
+int gfx_sizeof(int type);
+tokenT* hc_gfx_sizeof (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
+	ex->stack[ex->sp-1].as.z32 =
+		gfx_sizeof(
+			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-1+1);
+
+	return tnext(t); 
+}
+void gfx_set_input(gfx_shader_inputT* input, void* data);
+tokenT* hc_gfx_set_input (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
+		gfx_set_input(
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-2+0);
+
+	return tnext(t); 
+}
+void gx_use_shader(gfx_shaderT* shader);
+tokenT* hc_gx_use_shader (exectxT* ex, tokenT* t) {	
+	exe(ex, tsub(t));			
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
+		gx_use_shader(
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-1+0);
+
+	return tnext(t); 
+}
 #define SET_EXTENSIONS set_handlers
 void set_handlers(){
 	mkSymbol(global, "C_zstrdup", tPrimitive, hc_zstrdup);
@@ -1302,6 +1392,7 @@ void set_handlers(){
 	mkSymbol(global, "C_gfx_depth_buffer", tPrimitive, hc_gfx_depth_buffer);
 	mkSymbol(global, "C_gfx_setup_3d", tPrimitive, hc_gfx_setup_3d);
 	mkSymbol(global, "C_gfx_setup_2d", tPrimitive, hc_gfx_setup_2d);
+	mkSymbol(global, "C_gfx_get_projection_matrix", tPrimitive, hc_gfx_get_projection_matrix);
 	mkSymbol(global, "C_gfx_style_mk", tPrimitive, hc_gfx_style_mk);
 	mkSymbol(global, "C_gfx_style_set_property", tPrimitive, hc_gfx_style_set_property);
 	mkSymbol(global, "C_gfx_style", tPrimitive, hc_gfx_style);
@@ -1317,6 +1408,7 @@ void set_handlers(){
 	mkSymbol(global, "C_gfx_vertex_buffer_continue", tPrimitive, hc_gfx_vertex_buffer_continue);
 	mkSymbol(global, "C_gfx_arrow", tPrimitive, hc_gfx_arrow);
 	mkSymbol(global, "C_gfx_free_mesh", tPrimitive, hc_gfx_free_mesh);
+	mkSymbol(global, "C_gfx_draw", tPrimitive, hc_gfx_draw);
 	mkSymbol(global, "C_gfx_spin_matrix", tPrimitive, hc_gfx_spin_matrix);
 	mkSymbol(global, "C_gfx_camera_init", tPrimitive, hc_gfx_camera_init);
 	mkSymbol(global, "C_gfx_trans_init", tPrimitive, hc_gfx_trans_init);
@@ -1361,6 +1453,10 @@ void set_handlers(){
 	mkSymbol(global, "C_gx_shader_source", tPrimitive, hc_gx_shader_source);
 	mkSymbol(global, "C_gx_set_basic_shader", tPrimitive, hc_gx_set_basic_shader);
 	mkSymbol(global, "C_gx_shader_variant", tPrimitive, hc_gx_shader_variant);
+	mkSymbol(global, "C_gx_compile_shader", tPrimitive, hc_gx_compile_shader);
+	mkSymbol(global, "C_gfx_sizeof", tPrimitive, hc_gfx_sizeof);
+	mkSymbol(global, "C_gfx_set_input", tPrimitive, hc_gfx_set_input);
+	mkSymbol(global, "C_gx_use_shader", tPrimitive, hc_gx_use_shader);
 	addCSize("typeT", sizeof(typeT));
 	addCSize("typeT_name", offsetof(typeT,name));
 	addCSize("typeT_size", offsetof(typeT,size));
@@ -1377,6 +1473,9 @@ void set_handlers(){
 	mkSymbol(global, "C_vec3cross", tPrimitive, h_vec3cross);
 	mkSymbol(global, "C_vec3dot", tPrimitive, h_vec3dot);
 	mkSymbol(global, "C_fillvbowrapper", tPrimitive, h_fillvbowrapper);
+	mkSymbol(global, "C_glslprocbody", tPrimitive, h_glslprocbody);
+	mkSymbol(global, "C_prepshader", tPrimitive, h_prepshader);
+	mkSymbol(global, "C_execdraw", tPrimitive, h_execdraw);
 	addCSize("zeventT", sizeof(zeventT));
 	addCSize("zeventT_type", offsetof(zeventT,type));
 	addCSize("zeventT_a", offsetof(zeventT,a));

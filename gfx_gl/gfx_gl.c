@@ -680,9 +680,9 @@ zuint32 gl_prims[] = { 0, GL_POINTS, GL_LINES, GL_TRIANGLES };
 int max_aloc_active=0;
 zbool ff_buffers_in_use = ZFALSE;
 
-#define MAX_ALOC 16
+//#define MAX_ALOC 16 //moved
 zuint32 last_aloc_use[MAX_ALOC] = { 0 };
-zuint32 aloc_use_counter = 0;
+zuint32 aloc_use_counter = 1;
 
 void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end, zbool indexed) {
 
@@ -846,6 +846,17 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 	checkGL();
 	
 }
+
+void gfx_draw(int prim, zbool indexed, int start, int end) {
+
+	if (indexed)
+		glDrawElements(gl_prims[prim], end - start, GL_UNSIGNED_SHORT, (void*)(sizeof(zuint16) * start));
+	else
+		glDrawArrays(gl_prims[prim], start, end - start);
+
+}
+
+
 
 
 //temporary vertex buffers

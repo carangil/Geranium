@@ -127,6 +127,11 @@ void gfx_projection3d (zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat
 	
 	matrix_version++;	
 }
+float* gfx_get_projection_matrix() {
+
+	return proj_matrix;
+
+}
 
 void gfx_projection2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom) {
 

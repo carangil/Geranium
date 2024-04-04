@@ -56,7 +56,8 @@ void gfx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fa
 //Zdef proc gfx_setup_2d Setup2D
 void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom);
 
-
+//Zdef proc gfx_get_projection_matrix gfx_get_projection_matrix:(->Matrix44&);
+float* gfx_get_projection_matrix();
 
 /* graphics styles (high level wrapper for shaders and their parameters) */
 
@@ -214,6 +215,8 @@ void gfx_arrow(vec3* p1, vec3* p2, vec4* color);
 #define GFX_MAT44		0x80000000
 #define GFX_MAT33		0x90000000
 
+#define GFX_ARRAY		0x01000000
+
 //for FLOAT3 that get passed in:  put these in the valop field
 #define GFX_POINT_TRANSFORM		1
 #define GFX_NORMAL_TRANSFORM	2
@@ -223,8 +226,8 @@ void gfx_arrow(vec3* p1, vec3* p2, vec4* color);
 
 /* More internal things */
 
-
-#define GXI_TYPEMASK	0xff000000
+#define GXI_TYPEMASK		0xff000000
+#define GXI_BASETYPEMASK	0xf0000000
 
 #define GXI_BLEND_MODE	(GFX_INT  |  1)
 /* light DIRECTION and POSITION for the same 'n' are mutually exclusive! */
@@ -271,6 +274,15 @@ extern gfx_windowT* gxi_current_window;
 
 zbool gfx_free_mesh(gfx_meshT* m);
 
+
+#define MAX_ALOC 16
+extern zuint32 last_aloc_use[MAX_ALOC];
+extern zuint32 aloc_use_counter;
+
+
+
+
 #endif
+void gfx_draw(int prim, zbool indexed, int start, int stop);
 
 #include "glsl.h"

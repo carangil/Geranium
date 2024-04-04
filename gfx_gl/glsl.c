@@ -105,6 +105,7 @@ gx_shadergroupT* current_shader_group = NULL;
 gx_shader_variantT* current_variant = NULL;
 
 
+
 gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT* st, gfx_vertex_bufferT* vb) {
 
 	int i;
@@ -298,6 +299,259 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 	current_variant = shader;
 	return shader;
 }
+
+
+
+
+int gfx_sizeof(int type) {
+
+	switch ( (type&GXI_BASETYPEMASK) ) {
+		case GFX_FLOAT: return  (int)sizeof(zfloat32) * 1;
+		case GFX_FLOAT2: return (int)sizeof(zfloat32) * 2;
+		case GFX_FLOAT3: return (int)sizeof(zfloat32) * 3;
+		case GFX_FLOAT4: return (int)sizeof(zfloat32) * 4;
+		case GFX_MAT33: return  (int)sizeof(zfloat32) * 9;
+		case GFX_MAT44: return  (int)sizeof(zfloat32) * 16;
+		case GFX_TEXTURE: return sizeof(int);  //texture integer
+	}
+	
+	printf("unknown type size:%d\n", type);
+	return 0;
+}
+
+
+
+void gfx_set_input(gfx_shader_inputT* si,  void* data) {
+	float* f = data; //for debugger
+	int tu = 0;
+
+	if (si->uniform) {	//uniforms
+		int count = si->count;
+
+		if (si->type & GFX_ARRAY) {
+			count = zarray_size(data);
+		}
+
+		switch ( (si->type)&(GXI_BASETYPEMASK)) {
+
+		case GFX_FLOAT:
+			glUniform1fv(si->loc, count, data);
+			break;
+		case GFX_FLOAT2:
+			glUniform2fv(si->loc,count, data);
+			break;
+		case GFX_FLOAT3:
+			glUniform3fv(si->loc, count, data);
+			break;
+		case GFX_FLOAT4:
+			glUniform4fv(si->loc, count, data);
+			break;
+		case GFX_MAT33:
+			glUniformMatrix3fv(si->loc, count,0, data);
+		case GFX_MAT44:
+			glUniformMatrix4fv(si->loc, count,0, data);
+			break;
+		case GFX_TEXTURE:
+			
+			 tu = gxi_add_texture(data, ZFALSE);
+			glUniform1i(si->loc, tu);
+			
+			break;
+		default:
+			printf(" Unknown uniform type %d\n", si->type);
+		return;
+		}
+	} else {	//attributes have count of 0
+		checkGL();
+		gpu_storageT* gs = gpu_storage(data);
+		if (!gs) {
+			printf("can't create gpu buffer (data array has no gpu_storage structure) \n");
+			return;
+		}
+
+		int size = gfx_sizeof(si->type);
+		int count = zarray_size(data);
+		
+		zbool toupdate = ZFALSE;
+
+		if (!gs->buffer) {
+			glGenBuffers(1, &(gs->buffer));
+			checkGL();
+			toupdate = ZTRUE;
+		}
+
+		glBindBuffer(GL_ARRAY_BUFFER, gs->buffer);
+		checkGL();
+		if (toupdate) {	//TODO: maintain a 'dirty' flag in the buffer so we can re-do this if needed
+			
+			glBufferData(GL_ARRAY_BUFFER, size * count, data, GL_DYNAMIC_DRAW);
+			checkGL();
+		}
+		checkGL();
+
+		if (last_aloc_use[si->loc] != aloc_use_counter) {
+			glEnableVertexAttribArray(si->loc);  //enable it
+			last_aloc_use[si->loc] = aloc_use_counter;
+		}
+
+		checkGL();
+		switch (si->type) {
+
+			case (GFX_FLOAT2 | GFX_ARRAY):
+
+			glVertexAttribPointer(si->loc,
+				2,  /*number of components */
+				GL_FLOAT, /*GL data type*/
+				0, 0, /* normalized, stride. stride 0 means densely packed */
+				0);//offset is zero
+
+			break;
+
+			case (GFX_FLOAT4 | GFX_ARRAY):
+
+			glVertexAttribPointer(si->loc,
+				4,  /*number of components */
+				GL_FLOAT, /*GL data type*/
+				0, 0, /* normalized, stride. stride 0 means densely packed */
+				0);//offset is zero
+
+
+			break;
+
+			case (GFX_FLOAT3|GFX_ARRAY):
+
+				glVertexAttribPointer(si->loc,
+					3,  /*number of components */
+					GL_FLOAT, /*GL data type*/
+					0, 0, /* normalized, stride. stride 0 means densely packed */
+					0);//offset is zero
+								
+
+				break;
+			default:
+				printf(" Unknown attribute type %d\n", count);
+				return;
+		}
+		checkGL();
+	}
+
+
+}
+
+
+void gx_use_shader(gfx_shaderT* shader) {
+	glUseProgram(shader->program);
+	gxi_new_texture_set();
+}
+
+gfx_shaderT* gx_compile_shader(char* vsource, char* fsource, zvecT * inputs, int flags){
+
+	int i;
+	int status = 0;
+	char log[1024];
+	int len = 0;
+
+	gx_shader_variantT* shader = ram_alloc(sizeof(gx_shader_variantT), freevariant);
+
+	int hline = 1;
+	char* header = zstrdup("#version 330\n");
+
+	char* vs[] = { header, vsource };
+	char* fs[] = { header, fsource };
+
+	printf(" vertex:\n %s %s  fragment:\n  %s %s\n", vs[0], vs[1], fs[0], fs[1]);
+
+	//add parameters that mask off some areas
+				
+	shader->v_shader = glCreateShader(GL_VERTEX_SHADER);
+
+	glShaderSource(shader->v_shader, 2, (const char**)vs, NULL);
+
+	glCompileShader(shader->v_shader);
+
+	status = 0;
+	glGetShaderiv(shader->v_shader, GL_COMPILE_STATUS, &status);
+	glGetShaderInfoLog(shader->v_shader, 1024, &len, log);
+	printf("vertex error:\n%s\n +%dlines\n", log, hline);
+	if (!status) {
+		//todo:cleanup
+		getc(stdin);
+		return NULL;
+	}
+
+	//create f shader
+	//replace the shader source with the fragment shader source
+
+	shader->f_shader = glCreateShader(GL_FRAGMENT_SHADER);
+
+	gxdprintf(" Created fshader %u\n", shader->f_shader);
+
+	glShaderSource(shader->f_shader, 2, (const char**)fs, NULL);
+
+	glCompileShader(shader->f_shader);
+
+	status = 0;
+	glGetShaderiv(shader->f_shader, GL_COMPILE_STATUS, &status);
+	glGetShaderInfoLog(shader->f_shader, 1024, &len, log);
+
+	printf("fragment error:\n%s\n+%dlines\n", log, hline);
+	if (!status) {
+		//todo:cleanup
+		getc(stdin);
+		return NULL;
+	}
+	//make program
+	
+	shader->program = glCreateProgram();
+
+
+	glAttachShader(shader->program, shader->v_shader);
+	glAttachShader(shader->program, shader->f_shader);
+	glLinkProgram(shader->program);
+
+	ram_free(header);
+
+	status = 0;
+	glGetProgramiv(shader->program, GL_LINK_STATUS, &status);
+
+	glGetProgramInfoLog(shader->program, 1024, &len, log);
+	gxdprintf(" Link error:%s\n", log);
+
+	if (!status) {
+		printf(" Link unsuccessful\n");
+		//todo: cleanup
+		return NULL;
+	}
+	printf(" SHADER COMPILE OUTPUT ^^\n");
+
+	checkGL();
+
+	//set all the uniform/attribute positions
+
+	for (i = 0; i < zvec_count(inputs); i++) {
+		gfx_shader_inputT* si = zvec_get_at(inputs, i);
+		if (si->uniform)
+			si->loc = glGetUniformLocation(shader->program, si->name);
+		else
+			si->loc = glGetAttribLocation(shader->program, si->name);
+
+		printf(" %d  %d %s\n", si->uniform, si->loc, si->name);
+	}
+
+
+	return shader;
+}
+
+
+
+
+
+
+
+
+
+
+
 
 char* cshCode =
 "#version 430  \n"
