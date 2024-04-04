@@ -133,7 +133,7 @@ gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT
 	}
 	//skip the current variant is from the same group and has the same key, just return it. No need to search
 	if (sg == current_shader_group) {
-		if (!strcmp(current_variant->key, key)) {
+		if (current_variant && !strcmp(current_variant->key, key)) {
 			//gxdprintf("Still using same variant %s\n", key);
 			return current_variant;
 		}
@@ -320,10 +320,11 @@ int gfx_sizeof(int type) {
 }
 
 
-
+extern void* gxi_current_vbo;
 void gfx_set_input(gfx_shader_inputT* si,  void* data) {
 	float* f = data; //for debugger
 	int tu = 0;
+	gxi_current_vbo = NULL;  //to clear out the old renderer status.  get rid of this when vbuffer_draw goes away
 
 	if (si->uniform) {	//uniforms
 		int count = si->count;
@@ -440,6 +441,7 @@ void gfx_set_input(gfx_shader_inputT* si,  void* data) {
 
 
 void gx_use_shader(gfx_shaderT* shader) {
+	current_variant = NULL;
 	glUseProgram(shader->program);
 	gxi_new_texture_set();
 }

@@ -5,31 +5,7 @@ stacked GLSLBody;
 opaque GLSLDrawProc;
 stacked GLSLDrawProc;
 
-
-virtual VBO;
 "gen.zz" include
-selector VBO.vb:VBuffer%;
-
-
-immediate
-    2 #category_reference
-    8 #category_possessive
-    5 #category_array
-end
-
-proc  arrayof:(t:Type&->Type&)
-    category_array t 0:String& 0 ZFindType return
-end
-
-proc  .&:(t:Type&->Type&)
-    category_reference t 0:String& 0 ZFindType return
-end
-
-proc  .%:(t:Type&->Type&)
-    category_possessive t 0:String& 0 ZFindType return
-end
-
-
 
 stacked Vec2;
 type Vec2
@@ -81,11 +57,6 @@ end
 
 
 proc UpdatePixels:(w:ZWindow& -> )    w 0:Void& UpdatePixels   end
-proc Done:(vb:VBuffer&; attr:Z32;x:Real; y:Real; z:Real->)   vb attr x y z 0.0 Done  end
-proc Data:(vb:VBuffer&; attr:Z32;x:Real; y:Real; z:Real->)   vb attr x y z 0.0 Data  end
-proc Done:(vb:VBuffer&; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Done  end
-proc Data:(vb:VBuffer&; attr:Z32;x:Real; y:Real->)           vb attr x y 0.0 0.0 Data  end
-
 
 stacked Vec3;  //Vec3 structs are put on the stack
 
@@ -114,92 +85,13 @@ end
 
 "Test Window" 1024 768 0 GLWindow #window
 
-
-
-proc immediate CreateVBO:(t:Type& ; code n:N32 ->Code%)
-
-      t.% #arrayType
-
-      code \  
-
-        $t new:VBO% 'n fillvbowrapper :$arrayType  
-  
-      \ return   
-
-end
-
-
-type vformat
-    position:[Vec3]&;
-    color:[Vec4]&;
-    texcoord:[Vec2]&;
-    vbo:VBO;       //support vbo 
-    vb:VBuffer%;   //the graphics vbo wrapper
-end
-
-
-vformat 100 CreateVBO  #myvbo
-
-"vbo position count size: " print
-myvbo.position count print " "print 
-myvbo.position size print 
-newline
-
-
-//getch
-
-
-"vboVBuffer:"print
-myvbo.vb :any& print newline
-
-
-myvbo.vb 0  1.0 2.0 3.0 Data
-myvbo.vb 1  1111.1 222.2 333.3 4444.4 Done
-
-
-myvbo.vb 0  11.0 22.0 33.0 Data
-myvbo.vb 1  110.0 220.0 330.0  6666.0 Done
-
-myvbo.position 0[] print newline
-myvbo.position 1[] print newline
-
-myvbo.color 0[] print newline
-myvbo.color 1[] print newline
-
-
-"aaaa" print newline
-
-
-vformat.name print newline
-vformat 0[].name print newline
-vformat 0[].ref.category print newline
-vformat 0[].ref.ref.category print newline
-vformat 0[].ref.ref.name print newline
-vformat 0[].ref.ref.ref.name print newline
-
-primitive ptrequal ==:(a:Type&;b:Type&->Bit);
-
-
-vformat 0[].ref  [Vec3]& == if
-    vformat 0[].name print
- " is [vec3]& whatever" print newline
-end
-
-vformat 1[].ref  [Vec2]& == if
-    vformat 1[].name print
-    " is [vec2]& whatever" print newline
-end
-
-
-//getch
-/* end test */
-
 0.0 0.0 0.1 1.1 BackgroundColor
 
 //load assets
-"../../Zcore-data/web/Rock_044_SD/Rock_044_BaseColor.tga"   LoadTexture #Rock_Diffuse
+
 "../../Zcore-data/web/Rock_044_SD/Rock_044_Normal.tga"      LoadTexture #Rock_Normal
 "../../Zcore-data/web/Rock_044_SD/Rock_044_Height.tga"      LoadTexture #Rock_Height
+"../../Zcore-data/web/Rock_044_SD/Rock_044_BaseColor.tga"   LoadTexture #Rock_Diffuse
 
 "../../Zcore-data/cube.obj" 1.0 MeshLoadObj #CubeMesh
 
@@ -221,11 +113,6 @@ NewStyle    #st
             
 st Use
 
-//window  "color:4|position:3|texcoord:2" TempVBuffer #vb
-      
-
-//"../../Zcore-data/font32.tga" ZTGA_TOP BitmapLoadTGA #bbb
-//bbb keep CreateTexture  #fonttexture
 
 //var camera:Transform;
 Transform new ##camera gfx_camera_init
@@ -321,9 +208,9 @@ end
 [Vec4] 8 new #testu	//testu is a uniform array
 [Vec2] 10 new #txc //texture coords
 
--0.4  -0.5  -1.0 :Vec3 positions 0[]=
- 0.6  -0.65  -1.0 :Vec3 positions 1[]=
--0.66   0.67  -1.0 :Vec3 positions 2[]=
+-0.4  -0.5  2.0 :Vec3 positions 0[]=
+ 0.6  -0.65  2.0 :Vec3 positions 1[]=
+-0.66   0.67  2.0 :Vec3 positions 2[]=
 
 1.0 0.0 0.0 1.0 :Vec4 colors 0[]=
 0.0 1.0 0.0 1.0 :Vec4 colors 1[]=
@@ -465,9 +352,7 @@ loop
 	tr.Rotation.ZAxis.x tr.Rotation.ZAxis.y tr.Rotation.ZAxis.z	0.0 :Vec4 modelView.C=
 	tr.Position.x 		tr.Position.y 		tr.Position.z 		1.0 :Vec4 modelView.D=	
 	
-	positions testu colors offset gfx_get_projection_matrix modelView Rock_Diffuse  txc
-	
-	testVertexShader  GFX_TRIANGLE 0 4 draw
+	positions testu colors offset gfx_get_projection_matrix modelView Rock_Height  txc testVertexShader  GFX_TRIANGLE 0 4 draw
 	
 //	offset 0.001 + offset=
 		
@@ -496,8 +381,8 @@ loop
 
 
    // CubeMesh.vb GFX_TRIANGLE 0 24:N32 1:Bit Draw
-    
-    //CubeMesh.vb GFX_TRIANGLE CubeMesh.start CubeMesh.stop  1:Bit Draw
+    st Use
+    CubeMesh.vb GFX_TRIANGLE CubeMesh.start CubeMesh.stop  1:Bit Draw
 
     window UpdatePixels  
   
@@ -664,6 +549,7 @@ begin
 //123.4 :any :Z32
 prints
 
+1.0 2.0 3.0 :Vec3
 1.0 2.0 3.0 :Vec3
 100.1 100.22 100.33 :Vec3 + print
 

@@ -849,6 +849,20 @@ void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end
 
 void gfx_draw(int prim, zbool indexed, int start, int end) {
 
+	int aloc;
+	for (aloc = 0; aloc < MAX_ALOC; aloc++) {
+
+		if (last_aloc_use[aloc] && (last_aloc_use[aloc] != aloc_use_counter)) {
+			glDisableVertexAttribArray(aloc);
+			last_aloc_use[aloc] = 0; //not used anymore
+			gxdtracef(" Disable aloc %d not in use\n", aloc);
+		}
+
+	}
+
+
+
+
 	if (indexed)
 		glDrawElements(gl_prims[prim], end - start, GL_UNSIGNED_SHORT, (void*)(sizeof(zuint16) * start));
 	else
