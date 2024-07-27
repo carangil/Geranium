@@ -287,73 +287,119 @@ tokenT* h_execdraw(exectxT* ex, tokenT* t) {
 }
 
 
-
-tokenT* h_fillvbowrapper(exectxT* ex, tokenT* t) {
+//when run in an immediate context, returns the token that follows the immediate block
+tokenT* h_heretoken(exectxT* ex, tokenT* t) {
 
 	exe(ex, tsub(t));
 
-	float tmp;
+	//this doesn't actually use the sg on the stack, it just takes it off that stack.
+	//an easy way to enforce that execdraw follows setting up a shader
+	if (!ex->in_immediate) {
+		ERR("Cannot 'here' unless running in an immediate context\n");
+	}
 
-	char* vbowrapper = (ex->stack[ex->sp - 2].as.ptr.block + ex->stack[ex->sp - 2].as.ptr.offset);
-	typeT* formattype = ex->stack[ex->sp - 2].typeselector->parent;
+	tokenT* here = ex->in_immediate->t;
 
-	zuint16 count = ex->stack[ex->sp - 1].as.n32;
+	ex->stack[ex->sp].as.ptr.block = here;
+	ex->stack[ex->sp].as.ptr.offset = 0;
 
-	char* spec = zstr_mk(64);
+	ex->sp++;
+			
+	return tnext(t);
+}
 
+//returns the string representation of a token
+tokenT* h_tokenstring(exectxT* ex, tokenT* t) {
 
-	typeT* vbuffer = OFTYPE(TYPE("VBuffer"), POINTERPOSSESSIVE);
+	exe(ex, tsub(t));
+
+	//this doesn't actually use the sg on the stack, it just takes it off that stack.
+	//an easy way to enforce that execdraw follows setting up a shader
 	
-	typeT* v3 = OFTYPE(OFTYPE(TYPE("Vec3"), ARRAYDYNAMIC), POINTERUSER);
-	typeT* v4 = OFTYPE(OFTYPE(TYPE("Vec4"), ARRAYDYNAMIC), POINTERUSER);
-	typeT* v2 = OFTYPE(OFTYPE(TYPE("Vec2"), ARRAYDYNAMIC), POINTERUSER);
-	
+	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
 
-	int i;
+	ex->stack[ex->sp - 1].as.ptr.block = ts->str;
+	ex->stack[ex->sp - 1].as.ptr.offset = 0;
+
+	return tnext(t);
+}
+
+//returns the next token  like token=next(token)
+tokenT* h_tokennext(exectxT* ex, tokenT* t) {
+
+	exe(ex, tsub(t));
+
 		
-	gfx_vertex_bufferT** vb = NULL;
+	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
+	
+	if (ts)
+		ts = tnext(ts);
 
-	int array_offsets[8];
-	int num_arrays = 0;
+	ex->stack[ex->sp - 1].as.ptr.block = ts;
+	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
-	for (i = 0; i < zvec_count(formattype->members);i++) {
-		typeT* t = zvec_get_at(formattype->members,i);
-		int size=0;
+	return tnext(t);
+}
 
-		if (t->ref == v3)
-			size = 3;
-		else if (t->ref == v2)
-			size = 2;
-		else if (t->ref == v4)
-			size = 4;
-		else if (t->ref == vbuffer)
-			vb = (void*)(vbowrapper + t->offset);
+tokenT* h_tokenclip(exectxT* ex, tokenT* t) {
 
-		if (size) {
+	exe(ex, tsub(t));
 
-			if (i != 0)
-				spec = zstrcat(spec, "|");
-
-			spec = zstrprintf(spec, "%s:%d", t->name, size);
-			array_offsets[num_arrays++] = t->offset;
-		}
-
+	if (!ex->in_immediate) {
+		ERR("Cannot 'here' unless running in an immediate context\n");
 	}
 
-	printf("--%s\n", spec);
-	if (!vb) {
-		ERR("Trying to create VBO in non-VBO object\n");
+	tokenT* here = ex->in_immediate->t;
+	//clip takes from 'here' to passed in position (inclusive) and returns it as a Code%
+	//That 
+	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
+
+	if (!ts) 
+		ERR("cannot clip to null\n");
+
+	tokenT* tcode = mkToken(KCODE, "Hcode", 5);
+	tcode->ty = findType(POINTERPOSSESSIVE, tCode, NULL, 0);
+	insert_after(ts, tcode);
+	fold(here, tcode);
+
+	ex->in_immediate->t = tnext(tcode);
+
+	tremove(tcode);
+
+	ex->stack[ex->sp - 1].as.ptr.block = tcode;
+	ex->stack[ex->sp - 1].as.ptr.offset = 0;
+
+	return tnext(t);
+}
+
+
+
+
+tokenT* h_codecat(exectxT* ex, tokenT* t) {
+
+	exe(ex, tsub(t));
+
+	
+
+	tokenT* first = ex->stack[ex->sp - 2].as.ptr.block;
+	tokenT* additional = ex->stack[ex->sp-1].as.ptr.block;
+	ex->sp-=2;
+	
+	if (!additional)	//nothing to add, just return what was already there	
+		return tnext(t);
+	
+	
+	if (!first){  //no first one, so just return the additional one.  If that's null, whatever, 
+		ERR("Can't append to Null code pointer\n");
 	}
 	
-	*vb = gfx_vertex_buffer_mk(count, spec);
-
-	for (i = 0; i < (*vb)->num_attributes; i++) {
-		vptrT* pdata = vbowrapper + array_offsets[i];
-		pdata->block = (*vb)->data[i];	//todo: use the combined vbo data pointer as block, and use the offsets for here?
-		pdata->offset = 0;
+	
+	tokenT* ts;
+	while (ts = tsub(additional)){
+		tremove(ts); //remove from the additional
+		zlist_addtail(&first->subs, ts);
 	}
-
-	ex->sp--;
-
+	ram_free(additional);
+	
 	return tnext(t);
 }

@@ -58,10 +58,10 @@ typedef struct exectxS {
 	int level;//stackframe level
 	int debugstack;
 	struct parsectxS* in_immediate; //if executing in an immediate context, this is that context.  NULL othersize
-}exectxT;
+	}exectxT;
 #define STOPFUNC 1
 #define STOPLOOP 2
-
+#define STOPBLOCK 2
 
 //tokens for interpreter
 //custom handlers should restrict to using a few macros
@@ -82,6 +82,8 @@ void exe(exectxT* c, struct tokenS* t);
 
 
 typedef struct tokenS* (*instruction) (exectxT*, struct tokenS*);
+
+
 
 typedef struct tokenS {
 	zlistnodeT zlistnode;

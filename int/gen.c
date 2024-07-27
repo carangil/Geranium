@@ -1472,10 +1472,15 @@ void set_handlers(){
 	mkSymbol(global, "C_vec3sub", tPrimitive, h_vec3sub);
 	mkSymbol(global, "C_vec3cross", tPrimitive, h_vec3cross);
 	mkSymbol(global, "C_vec3dot", tPrimitive, h_vec3dot);
-	mkSymbol(global, "C_fillvbowrapper", tPrimitive, h_fillvbowrapper);
 	mkSymbol(global, "C_glslprocbody", tPrimitive, h_glslprocbody);
 	mkSymbol(global, "C_prepshader", tPrimitive, h_prepshader);
 	mkSymbol(global, "C_execdraw", tPrimitive, h_execdraw);
+	addCSize("vptrT", sizeof(vptrT));
+	mkSymbol(global, "C_heretoken", tPrimitive, h_heretoken);
+	mkSymbol(global, "C_tokennext", tPrimitive, h_tokennext);
+	mkSymbol(global, "C_tokenclip", tPrimitive, h_tokenclip);
+	mkSymbol(global, "C_tokenstring", tPrimitive, h_tokenstring);
+	mkSymbol(global, "C_codecat", tPrimitive, h_codecat);
 	addCSize("zeventT", sizeof(zeventT));
 	addCSize("zeventT_type", offsetof(zeventT,type));
 	addCSize("zeventT_a", offsetof(zeventT,a));

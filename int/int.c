@@ -36,6 +36,7 @@ typedef struct parsectxS{
 	int endable;
 	exectxT* exec;
 	zbool no_global_vars;	//set to true to prevent compiling access to global variables (global functions ok)
+	tokenT* t; //where parser left of if calling into a Z program to parse
 }parsectxT;
 
 /**** Tokenizer ****/
@@ -109,13 +110,15 @@ typedef struct parsectxS{
 #define KPER		0x8020
 #define KSHADER		0x8021
 #define KALIAS		0x8022
+#define KSKIP		0x8023
+#define KBEGIN		0x8024
 
 
 
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
 						"new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0",
 						"count", "size", "setcount","opaque","immediate", "code", "stacked", "typeof", "noexec", "constant",
-						"typegroup", "per" , "shader", "alias", NULL};
+						"typegroup", "per" , "shader", "alias", "skip", "begin",  NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -983,7 +986,7 @@ symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction h
 
 	} else if (table &&  findSymbol(table, name, NULL)){
 			ERR(" Attempt to redefine %s in same context\n", name);
-	}	
+	}
 	
 	if ( (type->category != FUNCTION) && (type->category!= PRIMITIVE)){
 		
@@ -1130,7 +1133,7 @@ tokenT* haddselector(exectxT* ex, tokenT* t) {  //adds selectors to item on poin
 	return tnext(t);
 }
 
-typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany, * tImmediate, * tCode;
+typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany, * tImmediate, * tCode, *tExec;
 
 
 void* zlist_tail_for_insert(zlistT* list) {
@@ -1268,7 +1271,7 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 					typeT* rt = subtree->ty->ref;
 
 					if (subtree->tok == REDIRECT) {
-						printf("implied insert\n");
+					
 						tokenT* redirected = tsub(subtree);
 						if ((redirected->tok == '@')&&(redirected->generated)) {
 				
@@ -1318,13 +1321,12 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 	xprintf("Subst results:<<\n");
 	printList(tcode, NULL, 0, 20);
 	xprintf(">>\n");
-	//ram_free(tcode);
+
+
 	
-	//tcode = NULL;
 	ex->stack[(ex->sp)].as.ptr.level = 0; //heap object
 	ex->stack[(ex->sp)].as.ptr.block = tcode;
 	ex->stack[(ex->sp)++].as.ptr.offset = 0;
-	
 
 	return tnext(t);
 }
@@ -1646,8 +1648,11 @@ tokenT* hcondblock (exectxT* ex, tokenT* t){	//if first sub is true, execute the
 	if ( ex->stack[ex->sp].as.n32){
 			//xprintf (" COND is true, execute body\n");
 			exe(ex, subs); //continue this  
-			//xprintf(" EXIT CHAIN\n");
-			return NULL;
+
+			if (t->val.as.n32 == 1) {
+				//xprintf(" EXIT CHAIN\n");
+				return NULL;
+			}
 	} 
 	//xprintf(" COND was false, so call next in chain\n");
 	return tnext(t); //next one
@@ -1656,6 +1661,7 @@ tokenT* hcondblock (exectxT* ex, tokenT* t){	//if first sub is true, execute the
 }
 
 tokenT* hbreakblock (exectxT* ex, tokenT* t) { 
+	ex->stop = STOPBLOCK; //flag to signal block breakage
 	return NULL;//stop running this block of instructions
 }
 tokenT* hbreakloop (exectxT* ex, tokenT* t) {
@@ -2118,6 +2124,8 @@ void addhandlers(struct parsectxS* pctx){
 tokenT* hreturn (exectxT* ex, tokenT* t){
 	exe(ex, tsub(t)); //evaluate all the args (all after the head)
 	ex->stop=STOPFUNC;  //returning from function
+
+	
 	if (t->ty) {  
 
 		xprintf("Pushing return type (return from immediate)\n");
@@ -2134,10 +2142,14 @@ tokenT* hreturn (exectxT* ex, tokenT* t){
 tokenT* hgroup (exectxT* ex, tokenT* t){
 	exe(ex, tsub(t)); //evaluate all the args
 	
-	if (t->val.as.z32)
-		return tnext(t); //go on to the next step
-	//xprintf("group finished, no continue\n");
-	return NULL;
+	if ((ex->stop == STOPBLOCK) && t->val.as.n32) {
+		ex->stop = 0;
+	}
+
+	
+
+	return tnext(t);
+	
 }
 
 
@@ -3323,8 +3335,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 
 			ts->handler = hsubst;
-			ts->val.as.ptr.block = tsub(t);
-			ts->val.as.ptr.offset = 0;
+			//ts->val.as.ptr.block = tsub(t);
+			//ts->val.as.ptr.offset = 0;
 			
 			if (codetype) {
 				//code assigned a proc type.  This needs to be compiled into a function
@@ -3372,6 +3384,26 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 
 
+			break;
+
+		case KBEGIN:
+			ts = t;
+			t = tnext(t);
+		
+			pc->endable++;
+			t = parse(pc, t);
+			t = tnext(t);
+			ram_free(tremove(tprev(t))); //delete 'end'
+			
+			lfold(ts, t);
+			ts->handler = hgroup;
+			ts->val.as.n32 = 1;
+			
+			break;
+
+		case KSKIP:
+			t->handler = hbreakblock;
+			t = tnext(t);
 			break;
 
 		case KEND:
@@ -3528,7 +3560,14 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			parsectxT* oldparent = immediate_parse->parent;
 			immediate_parse->parent = pc;
 
+			tokenT* savet = immediate_parse->t;	//save if there was another one already being processed
+			immediate_parse->t = t;	//save our 't', because the code running may change it
+
 			start(immediate_parse, sub);
+
+			t = immediate_parse->t;  //get what might have been changed
+			
+			immediate_parse->t = savet;  //restore the saved t value
 
 			immediate_parse->parent = oldparent;
 
@@ -3640,6 +3679,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				isImmediate = 1;  
 
 				if (tnext(t)->tok == '%') {
+					if (t->tok != KPRIMITIVE) {
+						ERR("immediate% is only for primitives\n");
+					}
 					ram_free(tremove(tnext(t)));
 					isImmediate = 2;  //return value should be eventually freed when the code is freed
 				}
@@ -3959,70 +4001,84 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			continue;
 
 		case KELSEIF:
-			fold(tprev(t), t);//take previous node as the condition
-			t->handler = hcondblock;
-			t = tnext(t);
-			continue;
 
-		case KELSE:
-			t->handler = hgroup;
-			t = tnext(t);
-			continue;
-
-		case KIF:
-			ts = t;
-			ts->handler = hgroup;
-			ts->val.as.n32 = 1;  //continue after group
-			
 			typeT* ct = tprev(t)->ty;
 
 			if (!ct)
 				ERR(" If: no type input\n");
 
-			if (  (ct->category != POINTERUSER) && (ct!=tBit)  && (ct!=tZ32) )
+			if ((ct->category != POINTERUSER) && (ct != tBit) && (ct != tZ32))
 				ERR(" if needs Bit or Pointer datatype\n");
+
+			fold(tprev(t), t);//take previous node as the condition
+			t->handler = hcondblock;
+			t->val.as.n32 = 1;			
+			return t;
 				
-						
-			tokenT* cond;
-			insert_after(tprev(t), cond = mkToken(COND, "cond", 4));
-			fold(tprev(tprev(t)), tprev(t)); //condition statrment inside 'cond' wrapper
-			fold(tprev(t), t);  //put condition node inside if
-			cond->handler = hcondblock;
-			pc->endable++;
-			//xprintf(" START PARSE IF\n");
-			t = parse(pc, tnext(t));  //continue parsing until 'end'
-			//xprintf(" PARSED TO END\n");
-			tokenT* end = t;
+		case KELSE:  //return in the middle
+			return t;
+		
+		case KIF:
+		
+			ct = tprev(t)->ty;
 
-			checkUsage(ts, t);//check all values are used up
+			if (!ct)
+				ERR(" If: no type input\n");
 
+			if ((ct->category != POINTERUSER) && (ct != tBit) && (ct != tZ32))
+				ERR(" if needs Bit or Pointer datatype\n");
+
+			tokenT* condition = tremove(tprev(t));
+			ts = t;
+		
 			t = tnext(t);
-			lfold(ts, t);
+			pc->endable++;
 
-			//scan
-			tokenT* cs = cond;
-			tokenT* ls = cs;
-			for (ls = cs; ls; ls = tnext(ls)) {
+			t = parse(pc, t); //parse until end
+			
+			insert_after(ts, condition); //insert the condition to be the first child
+			lfold(ts, t); //move all the 'true' case code into the cond block
+			ts->handler = hcondblock;
 
-				//xprintf("ls %p	%s\t",ls, ls->str);
-				//xprintf("cs %p	%s\n",cs, cs->str);
-				if ((ls->tok == KEND) || (ls->tok == KELSEIF) || (ls->tok == KELSE)) {
+			if (t->tok == KEND) { //simple case
+				t->handler = hnop;
+				t = tnext(t);
+				continue;
+			}
+			
+			tokenT* group = NULL;
 
-
-					if (ls->tok == KEND)
-						ls->handler = hnop; //nothing
-
-					lfold(cs, ls);
-
-					cs = ls;
-				}
-
+			if (t->tok == KELSE || t->tok == KELSEIF) {
+				ts->val.as.n32 = 1; //COND will break the group after running true clause
 			}
 
+			while (t->tok == KELSEIF) {
+				printf(" handle elseif\n");
+				tokenT* elsif = t;  
+				t = tnext(t);
+				t = parse(pc, t); //t is going to be elseif, else, or end
+				lfold(elsif, t); //fold the condition's iftrue code into the elseif tag
+			}
 
-			continue;
+			//else case
+			if (t->tok == KELSE) {
+				t->handler = hnop; //
+				t = tnext(t);
+				t = parse(pc, t); //continue until 'end'
+				
+			}
 
+			if (t->tok == KEND) {
+				t->handler = hnop;
+				fold(ts, t);
+				t->handler = hgroup;
+				t = tnext(t);
+				continue;
+			}
+			ERR("expected END\n");
 		
+
+
 
 		case KTYPE:
 			csize = 0;
@@ -4881,9 +4937,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				ram_free(tremove(tnext(t))); //get rid of it
 				noexec = 1;
 			}
-			if (!strcmp(t->str, "GLWindow")) {
-				printf("GlWindow\n");
-			}
+			
 		
 
 			tokenT* pos;
@@ -4917,12 +4971,22 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						break;
 					}
 
+					typeT* tt = pos->ty;
+				/*
+					if (noexec) {
+						if (tt != tType)
+							ERR("noexec requires args be types\n");
+						tt = pos->val.as.type;
+
+					}
+					*/
+
 					if (ignoresigned == t)
 						printf("ignoresigned\n");
 					if ((ignoresigned == t)&&(pos->ty==tZ32))
 						zvec_add(v, tN32); 
 					else
-						zvec_add(v, pos->ty);
+						zvec_add(v, tt);
 					
 					
 					
@@ -5338,6 +5402,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				continue; //try again
 			}
 
+			
 			//WAS IT A TYPECAST?
 			if (tnext(ts)->tok == TYPECAST) {
 				t = tnext(ts);
@@ -5446,7 +5511,8 @@ int main(int argc, char** args){
 	tBit = mkType( SIMPLE, NULL, "Bit", sizeof(zbyte));
 	tString = mkType(SIMPLE, NULL, "String", sizeof(char*));
 	tImmediate = mkType(SIMPLE, NULL, "Immediate", sizeof(FLOAT));
-	tCode = mkType(SIMPLE, NULL, "Code", 0);
+	tCode = mkType(SIMPLE, NULL, "Code", 0); 
+
 #ifdef FLOAT
 	tReal = mkType(SIMPLE, NULL, "Real", sizeof(FLOAT));
 #endif

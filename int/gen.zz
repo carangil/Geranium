@@ -29,10 +29,16 @@ primitive C_printTypeNoRedirect printTypeNoRedirect:(c_ty:Type&; c_line:Bit; c_s
 primitive C_testComputeShader testComputeShader:(-> );
 primitive C_type_member []:(ty:Type&; n:N32 -> Type&);
 primitive C_ptrequal ptrequal:(c_a:Void&; c_b:Void&-> Bit);
-primitive C_fillvbowrapper  fillvbowrapper:(a:VBO%;n:N32->VBO%);
 primitive C_glslprocbody  immediate% glsl:(vsource:String&;fsource:String&->GLSLBody);
 primitive C_prepshader  prep:(p:GLSLBody->GLSLDrawProc);
 primitive C_execdraw  draw:(p:GLSLDrawProc; prim:N32;start:N32; stop:N32);
+stacked CodeToken;
+opaque @vptrT CodeToken;
+primitive C_heretoken  here:(->CodeToken);
+primitive C_tokennext  next:(t:CodeToken->CodeToken);
+primitive C_tokenclip  clip:(t:CodeToken->Code%);
+primitive C_tokenstring  text:(t:CodeToken->String&);
+primitive C_codecat  ++:(c:Code&;d:Code%);
 type @zeventT ZEvent
 	@zeventT_type	eventType:Z32;
 	@zeventT_a	A:Z32;

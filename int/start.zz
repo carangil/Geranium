@@ -1,91 +1,297 @@
-//"base/base.zz" include
+"base/base.zz" include
 
 
 
-"gfxgl.zz" include
+//"gfxgl.zz" include
 
-//"vtest.zz" include
+opaque GLSLBody;
+stacked GLSLBody;
+opaque GLSLDrawProc;
+stacked GLSLDrawProc;
 
-//"tests/simple.zz" include
+"gen.zz" include
+
+code \
+10 20 \ #c
+
+33 #cc
+
+code (a:Z32->Z32) \
+$cc a + return \ #cd
 
 
-//"bugtest.zz" include
+100 cd print newline
 
+proc immediate swapNextTokens:(->Code%)
+	
+	here clip #first
+	here clip #second
+	
+	code \ 'second 'first \ return
+	
+end
+
+100 swapNextTokens - 10  print newline
+
+"aaa" print newline
+proc immediate REM:(->Code%)
+	here #h
+	loop
+		">>>" print h text print "<<<" print newline
+		h text "REMEND" == until
+		h next h =
+		h:Bit while
+	end
+	h clip trash
+	code \ \ return
+end
+
+code \
+	"XX" print newline
+	REM
+		everything in here is ignored
+		10 20 + print 
+	REMEND
+	"YY" print newline
+\ #f
+
+
+proc test1:()
+	
+	proc immediate REM:(->Code%)
+		
+		"replaced REM" print newline
+		
+		here text strdup #t
+		t print "<<<<" print newline
+		code \\
+			proc 't:()
+			//	$t keep #tc
+			//	
+				//"in word " print tc "." print newline
+			end
+			
+		\\ return
+		
+	end
+
+
+	"boo1" print newline	
+	REM   xxx
+	
+	"boo" print newline
+	
+end
+
+test1 
+
+"XX" #a
+"Z"0[] a 1[]=
+
+a print newline
+ 
+code	\ 100 \ #c0
+c0 code \ 200 + \  ++
+c0 code \ print "  << catted code" print newline \ ++
+
+"compile cc" print newline
+
+code ()\  "boo" print  'c0   \  #cx
+
+
+
+"compiled cx" print newline
+
+cx cx
+
+
+code (a:Z32->Z32) \
+	a 10 + return
+\ #add10
+
+ 
+code (a:Real->Real) \
+	a 10.0 + return
+\ #add10
+ 
+ 
+77 add10 print newline 
+77.1 add10 print newline
+
+
+proc usef:( f:(a:Z32->Z32)& ; i:Z32)
+	"in usef" print newline
+	f #ff
+	i ff print newline
+
+end
+
+1 add10 noexec 30 usef
+
+"--end" print newline
+
+var fib:(b:Z32->Z32)%;
+code (b:Z32->Z32)\
+
+	b 2 <= if
+		1 return
+	end
+	
+ 	b 2 - fib
+	b 1 - fib + return
+
+\  0 fib noexec =
+
+
+
+
+
+0 #j loop j 10 < while
+
+	j fib print newline
+
+j&++ end
+
+0 #I
 
 /*
-stacked Vec3;
-
-//opaque GraphicsPipeline;
-//stacked GraphicsPipeline;
+ loop
 
 
-
-virtual VBO;
-"gen.zz" include
-selector VBO.vb:VBuffer%;
-
-
-proc :Vec3:(a:Real;b:Real;c:Real->Vec3)     
-   var v:Vec3;
-    a v.x=
-    b v.y=
-    c v.z=  
-    v return
+I 0 == if
+	"zero" print newline
+I 1 == elseif
+	"one" print newline
+I 2 == elseif
+	"two" print newline
+else
+	"other" print newline
 end
 
-
-
-
-
-
-//code (per point:[Vec3]&; per color:[Vec3]&; i:Real; lv:[Vec3]& ->GraphicsPipeline%)  \\
-	
-proc  f2:	(per point:[Vec3]&; per color:[Vec3]&; i:Real; lv:[Vec3]& ->GraphicsPipeline%)
-	
-	"
-		in vec3 position;
-		in vec3 color;
-		out vec3 out_color;
-		
-		void main(){
-		
-			gl_Position=position;
-			out_color = color;
-		}
-	"
-	
-	
-	"f2bbb" glsl runshader return
-
-//\\ #f2
+	I&++
+	I 3> until 
 end
-
-
-//"vshader f2 compiled AAA" print newline
-
-
-
-
-
-[Vec3] 10 new #p
-[Vec3] 10 new #c
-[Vec3] 10 new #u
-
-proc gen13:(->Real)
-	"{13}" print
-	13.0 return
-end
-//gen13 print newline
-
-p c  gen13 u   f2 #pl
-
-//p c  gen13 u   f2  //0 8 draw
-
 */
 
-"done" print newline
+
+0I= loop I 3< while
+
+
+	begin
+	
+		I 0 == if
+			"ZERO" print newline
+		
+	    end 
+	
+		I 1 == if
+			"ONE" print newline
+			
+		end 
+		
+		"OTHER" print newline
+	
+	
+	end
+	
+	
+
+	I&++
+end
+
+
+begin
+	"in a block" print newline
+	begin 
+		"in another block" print newline
+	end
+	"in first block again" print newline
+	
+end
+
+1 1 == if
+	"t" print newline
+	0:Bit if
+		"tt" print newline
+	else
+		"tf" print newline
+	end
+	"te" print newline
+else
+
+	"f" print newline
+	
+	1:Bit if
+		"ft" print newline
+	else
+		"ff" print newline
+	end
+	
+	"fe" print newline
+	
+	
+end
 
 
 
 
+1 #zzz
+loop zzz 5 < while
 
+	begin
+		zzz 1 == if
+			"one" print newline
+		
+		zzz 2 == elseif
+			"two" print newline
+		
+		zzz 3 == elseif
+			"three" print newline
+			
+			skip
+
+		else
+			
+			"other" print newline
+		
+		end
+
+		"iter" print newline
+	end
+	zzz&++
+
+end
+	"end" print newline
+	
+	
+1 zzz=
+loop zzz 5 < while
+
+	begin
+	
+		zzz 1 == if
+			"one" print newline
+			skip
+		end
+		
+		zzz 2 == if
+			"two" print newline
+			skip
+		end
+		
+		zzz 3 == if
+			"three" print newline
+			skip
+		end
+			
+		"other" print newline
+		
+	end
+
+		"iter" print newline
+	
+	zzz&++
+
+end
+	"end" print newline
+	
