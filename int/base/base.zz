@@ -142,4 +142,21 @@ proc strdup:(s:String& -> String%)
     0:String% return
 end
 
+proc ==:(s:String&; t:String& -> Bit)
 
+	0#i
+	loop
+		 s i[] t i[] == not if
+		 
+			s i[] print t i[] print newline
+		 
+			0:Bit return
+		 end
+
+		s i[] 0:N8 == until
+	
+		i&++
+	end
+
+	1:Bit return
+end
