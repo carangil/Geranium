@@ -115,6 +115,7 @@ typedef struct parsectxS{
 
 
 
+
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
 						"new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0",
 						"count", "size", "setcount","opaque","immediate", "code", "stacked", "typeof", "noexec", "constant",
@@ -2165,6 +2166,8 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 
 	tokenT* next = tnext(t);
 
+	symbolT* sym = t->sym;
+
 	if (t->val.as.n32 == 2) {
 		//calling indirectly.  top of stack has pointer to a variable that contains the function pointer
 
@@ -2172,10 +2175,8 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 		ex->sp--;
 		destination = DEREF(vptrT, ex->stack[ex->sp].as.ptr.block, ex->stack[ex->sp].as.ptr.offset);
 		indirect = 1;
-		symbolT* s = destination.block;
-		t = s->tokens;
-		//t = ex->stack[ex->sp].as.ptr.block; //call the thing pointed to instead
-
+		sym = destination.block;
+		t = sym->tokens;
 	}
 	
 	//xprintf(" CALLING PROC %s\n", t->str);
@@ -2184,16 +2185,16 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	
 	zuint32 oldfp = ex->fp;  //save frame pointer
 
-	if (t->sym->isPrototype){
+	if (sym->isPrototype){
 			ERR("Function body missing:%s\n", t->str );
 	}
 	
-	symbolT* selected = t->sym;
+	symbolT* selected = sym;
 
 
 	//what happens if an overridden 't' from the stack is a selector?  is that possible?
-
-	if (t->sym->isSelector) {
+	
+	if (sym->isSelector) {
  		
 		typeT* seltable = ex->stack[ex->sp  - zvec_count(t->sym->type->members) + t->sym->selectorArg].typeselector;
 		
@@ -2239,9 +2240,9 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	//head of that token's sub list is the tokens describing its data type (input parameters, etc)
 	//the 'next' of that head is the first statement
 
-	if (!indirect)
-		exe(ex, (tokenT*)tnext(tsub(selected->tokens)));
-	else
+//	if (!indirect)
+	//	exe(ex, (tokenT*)tnext(tsub(selected->tokens)));
+	//else
 		exe(ex, (tokenT*)tsub(selected->tokens));
 	
 	//if (ex->stop==STOPFUNC){
@@ -2263,11 +2264,11 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	
 	tokenT* tv = argsubs;
 	
-	if (t->sym->type->members) {
+	if (sym->type->members) {
 		int i;
-		int count = zvec_count(t->sym->type->members);
+		int count = zvec_count(sym->type->members);
 		for (i=0;i<  count; i++) {
-			typeT* m = zvec_get_at(t->sym->type->members, i);
+			typeT* m = zvec_get_at(sym->type->members, i);
 			//xprintf(" ARG %d is ", i);
 			//printType(m, ZTRUE, ZFALSE);
 
@@ -2289,18 +2290,18 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	}
 	
 	
-	if (t->sym->type->ref) {
+	if (sym->type->ref) {
 		
 				
 		ex->stack[ex->fp++] = ex->stack[ex->sp-1];  
 		
-		if (t->sym->type->ref->category == POINTERUSER && t->sym->type->ref != tType){ 
+		if (sym->type->ref->category == POINTERUSER && sym->type->ref != tType){ 
 			ERR("Can't return non-possessive pointer!\n"); //exception above for types
 		}
 		
 		
 #ifdef EXEDEBUG
-		xprintf(" Function returns ");printType(t->sym->type->ref,1,1);
+		xprintf(" Function returns ");printType(sym->type->ref,1,1);
 #endif
 	} else {
 		//xprintf(" Function returns nothing\n");
@@ -2973,7 +2974,7 @@ tokenT*  parseVar(tokenT* t,  char** nameOut, typeT** typeOut) {
 	tokenT* S = t;
 
 	if (tnext(t)->tok == ':'){
-		
+		t->handler = hnop;
 		if (t->str && t->tok != KWORDS)  //TODO: check this line, might be wrong... why KWORDS here?
 			name = t->str;	
 		else 
@@ -3985,6 +3986,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t = tnext(t);
 			continue;
 
+		
 		case KLOOP:
 			ts = t;
 			pc->endable++;
@@ -4053,7 +4055,6 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 
 			while (t->tok == KELSEIF) {
-				printf(" handle elseif\n");
 				tokenT* elsif = t;  
 				t = tnext(t);
 				t = parse(pc, t); //t is going to be elseif, else, or end
@@ -5213,11 +5214,22 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				if (s->type->category == FUNCTION) {
 
 					if (noexec) {
-						ERR("noexec regular functions not supported\n");
+						printf(" noexec regular function\n");
+					//	ERR("noexec regular functions not supported\n");
+						t->handler = hconstantaddref;
+						t->val.as.symbol = s;
+					//	t->val.as.n32 = 0xffff;
+						//t->sym = 
+					
+						t->ty = findType(POINTERPOSSESSIVE, s->type, NULL, 0);
+						t = tnext(t);
+						continue;
 					}
 
-					t = tnext(t);
-					continue;
+					if (!noexec) {
+						t = tnext(t);
+						continue;
+					}
 				}
 
 				

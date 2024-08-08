@@ -72,4 +72,4 @@ zbool ptrequal(void* a, void* b);
 //Zdef handler tokenclip	clip:(t:CodeToken->Code%);
 //Zdef handler tokenstring	text:(t:CodeToken->String&);
 //Zdef handler codecat		++:(c:Code&;d:Code%);
-
+//Zdef handler tokeninsert	insert:(c:Code%->);

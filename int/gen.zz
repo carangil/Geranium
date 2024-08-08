@@ -39,6 +39,7 @@ primitive C_tokennext  next:(t:CodeToken->CodeToken);
 primitive C_tokenclip  clip:(t:CodeToken->Code%);
 primitive C_tokenstring  text:(t:CodeToken->String&);
 primitive C_codecat  ++:(c:Code&;d:Code%);
+primitive C_tokeninsert  insert:(c:Code%->);
 type @zeventT ZEvent
 	@zeventT_type	eventType:Z32;
 	@zeventT_a	A:Z32;

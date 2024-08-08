@@ -373,6 +373,33 @@ tokenT* h_tokenclip(exectxT* ex, tokenT* t) {
 }
 
 
+tokenT* h_tokeninsert(exectxT* ex, tokenT* t) {
+
+	exe(ex, tsub(t));
+
+
+	tokenT* additional = ex->stack[ex->sp - 1].as.ptr.block;
+	ex->sp -= 1;
+
+	if (!additional)	//nothing to add, just return what was already there	
+		return tnext(t);
+
+
+	tokenT* here = ex->in_immediate->t;
+	
+	//take tokens from additional and add to before 'here'
+	//the first token here becomes the new 'here'
+
+	tokenT* ts = NULL; 
+	tokenT* first = tsub(additional);
+	while (ts = tsub(additional)) {
+		tremove(ts); //remove from the additional
+		zlist_insert_node_before(here, ts);
+	}
+	ram_free(additional);
+	ex->in_immediate->t = first;
+	return tnext(t);
+}
 
 
 tokenT* h_codecat(exectxT* ex, tokenT* t) {

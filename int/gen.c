@@ -1481,6 +1481,7 @@ void set_handlers(){
 	mkSymbol(global, "C_tokenclip", tPrimitive, h_tokenclip);
 	mkSymbol(global, "C_tokenstring", tPrimitive, h_tokenstring);
 	mkSymbol(global, "C_codecat", tPrimitive, h_codecat);
+	mkSymbol(global, "C_tokeninsert", tPrimitive, h_tokeninsert);
 	addCSize("zeventT", sizeof(zeventT));
 	addCSize("zeventT_type", offsetof(zeventT,type));
 	addCSize("zeventT_a", offsetof(zeventT,a));

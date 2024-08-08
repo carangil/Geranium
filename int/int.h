@@ -94,6 +94,7 @@ typedef struct tokenS {
 	valueT val;	//token's value
 	zlistT subs;	//make a tree out of token list
 	instruction handler; //function that does what this token represents
+	
 	struct symbolS* sym;  //for things like procs that have a bunch of context info
 	int line;	//line number from source file
 	zbool val_to_free; //if true, free val's ptr block when destroying token
