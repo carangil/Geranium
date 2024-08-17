@@ -46,7 +46,7 @@ void* zlist_tail(zlistT*);
 //#define zlist_tail(ZLIST) ((void*) ((ZLIST)->sentinal_prev.prev))
 
 //returns next/prev pointer OR NULL if bumping into the sentinal node
-#define zlist_next(ZNODE)  (((ZNODE)->zlistnode.next->next)? ((void*) ((ZNODE)->zlistnode.next)) : NULL)
+#define zlist_next(ZNODE)  ( (( (ZNODE)->zlistnode.next)&&((ZNODE)->zlistnode.next->next))? ((void*) ((ZNODE)->zlistnode.next)) : NULL)
 #define zlist_prev(ZNODE)  (((ZNODE)->zlistnode.prev->prev)? ((void*) ((ZNODE)->zlistnode.prev)) : NULL)
 
 

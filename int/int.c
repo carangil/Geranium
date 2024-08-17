@@ -939,7 +939,7 @@ symbolT* findSymbol(zvecT* table, char* name, zvecT* typelist){
 
 
 			if (s->type->ref && s->type->ref->category == FUNCTION && typelist) {
-				printf("function pointer case?\n");
+				//printf("function pointer case?\n");
 				if (cmpTypeListToFunc(s->type->ref->members, typelist)) {
 					return s;
 				}
@@ -1085,6 +1085,8 @@ void exe (exectxT* c, struct tokenS* t){
 		}
 			
 		//getc(stdin);
+	
+
 		t = handler(c,t);
 		
 		if (c->debugstack) {
@@ -1962,8 +1964,15 @@ tokenT* NAME (exectxT* ex, tokenT* t) {						\
 	return tnext(t);							\
 }
 
+tokenT* hadd32(exectxT* ex, tokenT* t) {
+		exe(ex, tsub(t));					
+		ex->stack[ex->sp - 2].as.z32 = ex->stack[ex->sp - 2].as.z32  +   ex->stack[ex->sp - 1].as.z32;
+		ex->sp--;						
+		return tnext(t);			
+}
+
 //integer arithmetic
-BINOP(hadd32, z32, z32, + )
+//BINOP(hadd32, z32, z32, + )
 BINOP(hsub32, z32, z32, - )
 BINOP(hmul32, z32,  z32, * )
 BINOP(hdivz32, z32, z32, / )
@@ -2165,6 +2174,7 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	int indirect = 0;
 
 	tokenT* next = tnext(t);
+	tokenT* origt = t;
 
 	symbolT* sym = t->sym;
 
@@ -2176,6 +2186,8 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 		destination = DEREF(vptrT, ex->stack[ex->sp].as.ptr.block, ex->stack[ex->sp].as.ptr.offset);
 		indirect = 1;
 		sym = destination.block;
+		if (!sym)
+			ERR("Null proc pointer\n");
 		t = sym->tokens;
 	}
 	
@@ -2223,6 +2235,18 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	}
 	*/
 	
+	if (!sym->subctx) {
+		//calling a primitive
+		//args were already evaluated above
+		if (sym->handler) {
+			tokenT emptyt;
+			memset(&emptyt, 0, sizeof(emptyt));
+			sym->handler(ex, &emptyt);
+		
+			return next;
+		}
+	}
+
 	//xprintf(" enter call SP:%d  FP:%d\n", ex->sp, ex->fp); 
 	
 	void* oldlocal = ex->vars;   //take old local var data
@@ -2230,6 +2254,10 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 #ifdef EXEDEBUG
 	xprintf(" PROC %s has context size %d\n",t->str, selected->subctx->size);
 #endif
+
+
+
+
 	//printList(t->sym->tokens, NULL, 0, 0);
 	ex->level++;	//going up a call frame
 	
@@ -4934,8 +4962,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			int fpointer=0;//found symbol is fpointer
 			int noexec = 0;//do not execute found item
 
-			if (tnext(t)->tok == KNOEXEC) {
-				ram_free(tremove(tnext(t))); //get rid of it
+			
+			if ( (tnext(t)->tok == KNOEXEC) || (tnext(t)->tok =='&') )
+			{
+				//ram_free(tremove(tnext(t))); //get rid of it
 				noexec = 1;
 			}
 			
@@ -4973,14 +5003,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					}
 
 					typeT* tt = pos->ty;
-				/*
-					if (noexec) {
-						if (tt != tType)
-							ERR("noexec requires args be types\n");
-						tt = pos->val.as.type;
-
-					}
-					*/
+				
 
 					if (ignoresigned == t)
 						printf("ignoresigned\n");
@@ -5094,12 +5117,34 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					//even when noexecing, we still need to fold in the parameters, since the type of the parameters 
 					//were used to find the function
 
+					if (t->str && !strcmp(t->str, "intadd")) {
+						printf("debug intadd + pointer\n");
+					}
 					
-					fold(startfold, t);  
+					fold(startfold, t);
+
+					if (noexec) {
+
+						if (!strcmp(s->name, "+")) {
+							printf(" + case\n");
+						}
+
+						
+
+						if (tnext(t)->tok == '&' || tnext(t)->tok == KNOEXEC) {
+							ram_free(tremove(tnext(t))); //remove it
+						}
+						else {
+							ERR("expected noexec or &\n");
+						}
+
+					}
+
+
 				}
 
-				//if found a function or function pointer, and noexec (&&) hasn't been put in
-
+				//if found a function or function pointer, and noexec (&) hasn't been put in
+				
 				if (!noexec && (s->type->category == FUNCTION || fpointer)) {
 
 					//check parameters to function being called
@@ -5167,6 +5212,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 						t->ty = s->type->ref;
 						t->sym = s;
+						
 						if (s->handler) {
 							//xprintf("using handler %s %p\n", s->name, s->handler);
 							t->handler = s->handler;
@@ -5222,6 +5268,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						//t->sym = 
 					
 						t->ty = findType(POINTERPOSSESSIVE, s->type, NULL, 0);
+			
 						t = tnext(t);
 						continue;
 					}

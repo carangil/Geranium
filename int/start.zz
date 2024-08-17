@@ -126,7 +126,7 @@ proc usef:( f:(a:Z32->Z32)& ; i:Z32)
 
 end
 
-1 add10 noexec 30 usef
+1 add10& 30 usef
 
 "--end" print newline
 
@@ -140,7 +140,7 @@ code (b:Z32->Z32)\
  	b 2 - fib
 	b 1 - fib + return
 
-\  0 fib noexec =
+\  0 fib & =
 
 
 
@@ -288,10 +288,77 @@ loop zzz 5 < while
 		
 	end
 
-		"iter" print newline
+	"iter" print newline
 	
 	zzz&++
 
 end
 	"end" print newline
 	
+proc immediate insertStuff:(code c:Z32)
+
+	code \\   "inserted stuff" print newline   'c print newline  \\ #g
+	g take insert
+
+	
+
+end	
+ 
+ 
+ proc immediate strinclude:(s:String&)
+ 
+	code \\ 's \\ insert
+ 
+ end
+ 
+ "  \"hello whatever\" print newline " strinclude
+ 
+ 
+ proc test00:(a:Z32; b:Z32)
+	a print "_aaa_" print b print newline
+ end
+ 
+5 10 test00 & #aaa
+
+
+ code (a:Z32; b:Z32) \
+	a print "_bbbb_" print b print newline
+ end \ #bbb
+
+
+11 22 aaa
+22 33 bbb
+
+"use b" print newline
+11 11 bbb & keep #ccc
+88 99 ccc
+
+"use a" print newline
+0 0 aaa & keep 0 0 ccc & =
+88 99 ccc
+
+
+0 0 bbb&&  #pbbb  //pbbb points to bbb variable
+
+"use b" print newline
+
+0 0 ccc&&  #pccc
+
+pbbb@keep  pccc@=
+
+44 44 bbb
+
+
+0 0 +& #intadd 
+0 0 -& #intsub
+
+5 7 intadd 1 + print newline
+
+10 4 intsub print newline
+
+0 0 intadd& keep 0 0 intsub&=
+
+33 3 intsub print newline
+
+"done" print newline
+
