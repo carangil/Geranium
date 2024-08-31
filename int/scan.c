@@ -60,9 +60,9 @@ zbool argT_cleanup(void* v){
 	return ZTRUE;
 }
 
-char* handler_template_start = 
-"tokenT* hc_%s (exectxT* ex, tokenT* t) {	\n"
-"	exe(ex, tsub(t));			\n";
+char* handler_template_start =
+"tokenT* hc_%s (exectxT* ex, tokenT* t) {	\n";
+//"	exe(ex, tsub(t));			\n";
 	
 //	ex->stack[ex->sp-2].as.z32 += ex->stack[ex->sp-1].as.z32;
 //	ex->sp--;

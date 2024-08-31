@@ -16,7 +16,6 @@ zint32 load16(zuint16* z) {
 
 tokenT* h_vec3add(exectxT* ex, tokenT* t) {
 
-	exe(ex, tsub(t));
 
 	
 	vec3add(    
@@ -32,8 +31,7 @@ tokenT* h_vec3add(exectxT* ex, tokenT* t) {
 
 tokenT* h_vec3sub(exectxT* ex, tokenT* t) {
 
-	exe(ex, tsub(t));
-
+	
 	vec3sub(
 		*(vec3*)&(ex->stack[ex->sp - 2]),
 		*(vec3*)&(ex->stack[ex->sp - 1])
@@ -47,7 +45,6 @@ tokenT* h_vec3sub(exectxT* ex, tokenT* t) {
 
 tokenT* h_vec3cross(exectxT* ex, tokenT* t) {
 
-	exe(ex, tsub(t));
 	
 	vec3 tmp;
 
@@ -65,7 +62,6 @@ tokenT* h_vec3cross(exectxT* ex, tokenT* t) {
 
 tokenT* h_vec3dot(exectxT* ex, tokenT* t) {
 
-	exe(ex, tsub(t));
 
 	float tmp;
 
@@ -133,8 +129,7 @@ tokenT* h_glslprocbody(exectxT* ex, tokenT* t) {
 	typeT* m44 = OFTYPE(OFTYPE(TYPE("Matrix44"), ARRAYDYNAMIC), POINTERUSER);
 
 
-	exe(ex, tsub(t));
-
+	
 	char* vsource = (ex->stack[ex->sp - 2].as.ptr.block + ex->stack[ex->sp - 2].as.ptr.offset);
 	char* fsource = (ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset);
 
@@ -226,8 +221,7 @@ graphics_pipelineT*  last_prep_pipe = NULL;
 
 tokenT* h_prepshader(exectxT* ex, tokenT* t) {
 
-	exe(ex, tsub(t));
-
+	
 	graphics_pipelineT* sg = (void*)(ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset);
 	last_prep_pipe = sg;
 
@@ -253,18 +247,16 @@ tokenT* h_prepshader(exectxT* ex, tokenT* t) {
 			gfx_set_input(si, data);	//pointer for large uniforms (matrix, array) or vbos, textures
 
 	}
-
+	
 	//all inputs are set; ready to draw
 
 	return tnext(t);
 }
 
 
-
 tokenT* h_execdraw(exectxT* ex, tokenT* t) {
 
-	exe(ex, tsub(t));
-
+	
 	//this doesn't actually use the sg on the stack, it just takes it off that stack.
 	//an easy way to enforce that execdraw follows setting up a shader
 	graphics_pipelineT* sg = (void*)(ex->stack[ex->sp - 4].as.ptr.block + ex->stack[ex->sp - 4].as.ptr.offset);
@@ -290,7 +282,6 @@ tokenT* h_execdraw(exectxT* ex, tokenT* t) {
 //when run in an immediate context, returns the token that follows the immediate block
 tokenT* h_heretoken(exectxT* ex, tokenT* t) {
 
-	exe(ex, tsub(t));
 
 	//this doesn't actually use the sg on the stack, it just takes it off that stack.
 	//an easy way to enforce that execdraw follows setting up a shader
@@ -311,8 +302,7 @@ tokenT* h_heretoken(exectxT* ex, tokenT* t) {
 //returns the string representation of a token
 tokenT* h_tokenstring(exectxT* ex, tokenT* t) {
 
-	exe(ex, tsub(t));
-
+	
 	//this doesn't actually use the sg on the stack, it just takes it off that stack.
 	//an easy way to enforce that execdraw follows setting up a shader
 	
@@ -327,8 +317,7 @@ tokenT* h_tokenstring(exectxT* ex, tokenT* t) {
 //returns the next token  like token=next(token)
 tokenT* h_tokennext(exectxT* ex, tokenT* t) {
 
-	exe(ex, tsub(t));
-
+	
 		
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
 	
@@ -343,8 +332,7 @@ tokenT* h_tokennext(exectxT* ex, tokenT* t) {
 
 tokenT* h_tokenclip(exectxT* ex, tokenT* t) {
 
-	exe(ex, tsub(t));
-
+	
 	if (!ex->in_immediate) {
 		ERR("Cannot 'here' unless running in an immediate context\n");
 	}
@@ -375,8 +363,7 @@ tokenT* h_tokenclip(exectxT* ex, tokenT* t) {
 
 tokenT* h_tokeninsert(exectxT* ex, tokenT* t) {
 
-	exe(ex, tsub(t));
-
+	
 
 	tokenT* additional = ex->stack[ex->sp - 1].as.ptr.block;
 	ex->sp -= 1;
@@ -404,8 +391,7 @@ tokenT* h_tokeninsert(exectxT* ex, tokenT* t) {
 
 tokenT* h_codecat(exectxT* ex, tokenT* t) {
 
-	exe(ex, tsub(t));
-
+	
 	
 
 	tokenT* first = ex->stack[ex->sp - 2].as.ptr.block;

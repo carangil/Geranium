@@ -1,4 +1,4 @@
-"base/base.zz" include
+//"base/base.zz" include
 
 opaque GLSLBody;
 stacked GLSLBody;
@@ -471,7 +471,7 @@ Vec3 .name print newline
 
 type delim  end 
 stacked delim;
-var begin:delim;
+var term:delim;
 
 proc prints:(code d:delim)
     
@@ -507,11 +507,11 @@ end
 
 10:N8 #lf
 
- begin 123 " Whatever " 10.0 2.1 +  lf prints
- begin 123 456 prints
+ term 123 " Whatever " 10.0 2.1 +  lf prints
+ term 123 456 prints
 
 proc peek:(a:Real->Real)
-    begin "<" a  ">" prints
+    term "<" a  ">" prints
     a return
 end
 
@@ -542,7 +542,7 @@ end
 
 0 fptr noexec usefptr
 
-begin
+term
 10 :Real " " 
 123.4 " "
 123.4 :Z32 " " 

@@ -37,7 +37,7 @@ typedef union valu {	//Generic value (datatype is tracked through other means)
 	//debugging:
 	struct symbolT* symbol;
 	struct tokenS* token;
-
+	
 
 } valU;
 
@@ -58,6 +58,7 @@ typedef struct exectxS {
 	int level;//stackframe level
 	int debugstack;
 	struct parsectxS* in_immediate; //if executing in an immediate context, this is that context.  NULL othersize
+	zbool execheck; //temporary, for arghandler transition
 	}exectxT;
 #define STOPFUNC 1
 #define STOPLOOP 2
@@ -77,12 +78,12 @@ typedef struct exectxS {
 #define ttype(TTT)		((TTT)->ty)
 
 
-//executre
+//executor
 void exe(exectxT* c, struct tokenS* t);
 
 
-typedef struct tokenS* (*instruction) (exectxT*, struct tokenS*);
 
+typedef struct tokenS* (*instruction) (exectxT*, struct tokenS*);
 
 
 typedef struct tokenS {
@@ -93,7 +94,8 @@ typedef struct tokenS {
 	struct typeS* tyorig;	//original datatype of this token (before cast)
 	valueT val;	//token's value
 	zlistT subs;	//make a tree out of token list
-	instruction handler; //function that does what this token represents
+	instruction handler;    //function that does what this token represents
+	instruction arghandler; //function that evaluates the args
 	
 	struct symbolS* sym;  //for things like procs that have a bunch of context info
 	int line;	//line number from source file

@@ -1,24 +1,8 @@
 "base/base.zz" include
 
+"gfxgl.zz" include
 
-
-//"gfxgl.zz" include
-
-opaque GLSLBody;
-stacked GLSLBody;
-opaque GLSLDrawProc;
-stacked GLSLDrawProc;
-
-"gen.zz" include
-
-code \
-10 20 \ #c
-
-33 #cc
-
-code (a:Z32->Z32) \
-$cc a + return \ #cd
-
+/*
 
 100 cd print newline
 
@@ -153,26 +137,6 @@ code (b:Z32->Z32)\
 j&++ end
 
 0 #I
-
-/*
- loop
-
-
-I 0 == if
-	"zero" print newline
-I 1 == elseif
-	"one" print newline
-I 2 == elseif
-	"two" print newline
-else
-	"other" print newline
-end
-
-	I&++
-	I 3> until 
-end
-*/
-
 
 0I= loop I 3< while
 
@@ -359,6 +323,7 @@ pbbb@keep  pccc@=
 0 0 intadd& keep 0 0 intsub&=
 
 33 3 intsub print newline
+*/
 
 "done" print newline
 
