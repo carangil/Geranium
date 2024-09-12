@@ -92,11 +92,12 @@ typedef struct tokenS {
 	char* str;	//string representation of this token
 	struct typeS* ty;	//datatype of this token
 	struct typeS* tyorig;	//original datatype of this token (before cast)
-	valueT val;	//token's value
+	valueT val;	//token's constant value
+	struct typeS* tyval; //type of the above constant
 	zlistT subs;	//make a tree out of token list
 	instruction handler;    //function that does what this token represents
-	instruction arghandler; //function that evaluates the args
-	
+//	instruction arghandler; //function that evaluates the args
+	zbool skipargs;
 	struct symbolS* sym;  //for things like procs that have a bunch of context info
 	int line;	//line number from source file
 	zbool val_to_free; //if true, free val's ptr block when destroying token

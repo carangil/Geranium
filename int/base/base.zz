@@ -42,8 +42,14 @@ proc space:(->)
 	return
 end
 
+
 proc print:(s:String&->)
 
+	s:Bit not if
+		"{null}" print
+		return
+	end
+	
 	0 #i
 	loop
 		s i[] :Z32 0 == if

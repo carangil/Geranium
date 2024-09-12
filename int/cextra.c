@@ -299,20 +299,102 @@ tokenT* h_heretoken(exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
+tokenT* h_firsttoken(exectxT* ex, tokenT* t) {
+
+	tokenT* there = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+
+	//follow redirects
+	if (there && there->handler == hredirectsub) {
+		if (tsub(there))
+			ERR("unexpected child\n");
+		there = there->val.as.token;
+	}
+
+	if (there) {
+		ex->stack[ex->sp - 1].as.ptr.block = (void*)tsub(there);
+		ex->stack[ex->sp - 1].as.ptr.offset = 0;
+	}
+
+	return tnext(t);
+}
+
+
 //returns the string representation of a token
 tokenT* h_tokenstring(exectxT* ex, tokenT* t) {
 
 	
-	//this doesn't actually use the sg on the stack, it just takes it off that stack.
-	//an easy way to enforce that execdraw follows setting up a shader
 	
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
-
+	
 	ex->stack[ex->sp - 1].as.ptr.block = ts->str;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
 	return tnext(t);
 }
+
+
+
+
+
+
+typeT* tvaltype(tokenT* t){
+	
+	if (t->handler == hconstant || t->handler == hconstantaddref){
+		//if this was a constant instruction, the constant is val, so is the same type as the runtime value
+		return t->ty;
+	} 
+		
+	return t->tyval;
+}
+
+
+
+//returns the type embedded in a token (NOT the token's runtime type, but of ty->val)
+tokenT* h_tokenvaltype(exectxT* ex, tokenT* t) {
+	
+	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+	
+	ex->stack[ex->sp - 1].as.ptr.block = tvaltype(ts);
+	ex->stack[ex->sp - 1].as.ptr.offset = 0;
+	
+	return tnext(t);
+}
+
+//returns the type the token returns at runtime
+tokenT* h_tokenevaltype(exectxT* ex, tokenT* t) {
+
+	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+
+	ex->stack[ex->sp - 1].as.ptr.block = ts->ty;
+	ex->stack[ex->sp - 1].as.ptr.offset = 0;
+
+	return tnext(t);
+}
+
+
+//returns the token's symbol 
+tokenT* h_tokensymbol(exectxT* ex, tokenT* t) {
+
+	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+	if (ts)
+		ex->stack[ex->sp - 1].as.ptr.block = ts->sym;
+	else
+		ex->stack[ex->sp - 1].as.ptr.block = NULL;
+
+	return tnext(t);
+}
+
+tokenT* h_symboltype(exectxT* ex, tokenT* t) {
+	symbolT* s = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+	if (s)
+		ex->stack[ex->sp - 1].as.ptr.block = s->type;
+	else
+		ex->stack[ex->sp - 1].as.ptr.block = NULL;
+
+	return tnext(t);
+}
+
+
 
 //returns the next token  like token=next(token)
 tokenT* h_tokennext(exectxT* ex, tokenT* t) {
@@ -321,8 +403,10 @@ tokenT* h_tokennext(exectxT* ex, tokenT* t) {
 		
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
 	
-	if (ts)
+	if (ts && ts->tok)
 		ts = tnext(ts);
+	else
+		ts = NULL;
 
 	ex->stack[ex->sp - 1].as.ptr.block = ts;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
@@ -416,3 +500,24 @@ tokenT* h_codecat(exectxT* ex, tokenT* t) {
 	
 	return tnext(t);
 }
+
+
+//if token is to execute a primitive, return the name of the primitive
+tokenT* h_tokenprim(exectxT* ex, tokenT* t) {
+	char* name = NULL;
+
+	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
+	if (ts && ts->sym && ts->sym->primsym) {
+		name = ts->sym->primsym->name;
+	}
+	else
+		name = findSymbolByHandler(ts->handler);
+	
+	
+	ex->stack[ex->sp - 1].as.ptr.block = name;
+	ex->stack[ex->sp - 1].as.ptr.offset = 0;
+
+	return tnext(t);
+}
+
+

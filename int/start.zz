@@ -1,9 +1,181 @@
 "base/base.zz" include
 
-"gfxgl.zz" include
+//"gfxgl.zz" include
+
+opaque GLSLBody;
+stacked GLSLBody;
+opaque GLSLDrawProc;
+stacked GLSLDrawProc;
+
+"gen.zz" include 
+
+
+32:Real print newline
+32:N32 print newline
+
+
+var g1:Z32;
+var g2:Real;
+
+proc testreflect:(a:Z32;b:Z32->Z32)
+	100 print
+	a print 
+	"xxxx" print 
+	b print newline
+
+	g1 print newline
+	g2 print newline
+
+	a b + return
+end
+
+proc tr2:(A:Z32;B:Z32->Z32)
+
+	A print " " B print A B + return
+end
+
+//1 3  testreflect print newline
+
+1 3 testreflect&:ExecToken #t  // casting a proc pointer to ExecToken returns a token to the start of its code
+
+
+opaque @vptrT TokenValue;
+stacked TokenValue;
+
+primitive C_tokenstring	text:(t:ExecToken->String&);
+primitive C_tokennext	next:(t:ExecToken->ExecToken);
+primitive tokenval	value:(t:ExecToken->TokenValue);
+primitive symtoken  tokens:(s:Symbol->ExecToken);
+
+proc Indent:(level:Z32)
+	var i:Z32;
+	newline 0i= loop  i level < while    " " print 
+
+	i 1 + i =  
+	end
+	
+	
+	"|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_" level[] print
+	" " print
+end
+
+
+proc print:(t:Type&)
+	" " print t 0:Bit 0:Bit printTypeNoRedirect
+
+end
+
+proc xprint:(t:Type&)
+	t if
+		t.name print
+				
+		
+	else 
+		"(nulltype)" print
+	end
+end
+
+
+primitive C_ptrequal ==:(a:Type&; b:Type& -> Bit);
+
+
+
+
+
+
+proto print:(ti:ExecToken);
+
+proc printIndent:(ti:ExecToken;level:Z32)
+
+	ti #t
+		
+	
+	loop t:Bit while
+
+		level Indent
+		t text print 
+		
+		t prim :Bit if
+			"	{" print 
+			t prim print 
+			"}" print
+		end
+		
+		
+		
+		t consttype:Bit if
+			"Constant " t consttype print
+		end
+		
+
+			
+		//t consttype Z32 == if
+			"(" print
+			t  value :Z32 print	
+			")" print
+	//	end
+				
+		
+		"	" print 
+		
+		"s type: "print  t symbol .type print
+	
+		t symbol:Bit if 
+			newline
+			newline
+			t symbol tokens :Bit if 
+				t symbol tokens text print
+			end
+			newline
+			newline
+		end
+		
+		//t evaltype #if
+		
+		
+		t evaltype if
+			t evaltype print
+		end
+				
+		
+		t sub:Bit if
+		
+			"("print 
+				
+				 t sub level 1+ printIndent 
+				 
+			level Indent 
+			")"print
+		end
+		
+		t next t=
+		
+	end
+
+
+end
+
+proc print:(ti:ExecToken)
+	ti 0 printIndent
+end
+
+
+t print
+
+
+"testreflect " print
+
+
+0 0 testreflect& typeof print newline
+
+
+"tr2 " print
+0 0 tr2& typeof print newline
+
+
+
 
 /*
-
 100 cd print newline
 
 proc immediate swapNextTokens:(->Code%)
@@ -267,6 +439,8 @@ proc immediate insertStuff:(code c:Z32)
 	
 
 end	
+ 
+ //4 5 +& :token
  
  
  proc immediate strinclude:(s:String&)

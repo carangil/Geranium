@@ -1,4 +1,5 @@
-//Zdef   struct		typeT	Type:name=name:String cpointer;size=size:Z32;category=category:Z32;ref=ref:Type&;
+//Zdef  struct	typeT	Type:name=name:String cpointer;size=size:N32;category=category:N32;ref=ref:Type&;
+
 
 //Zdef    noproto zstrdup  Strdup
 char* zstrdup(char*);
@@ -29,7 +30,7 @@ zint32 load16(zuint16  * z);
 
 //vector math functions
 
-//Zdef stacked Vec3
+//Zdef stacked Vec3	
 //Zdef struct namedv3	Vec3:x=x:Real;y=y:Real;z=z:Real;
 //Zdef type	vec3		Vec3
 //Zdef handler vec3add     +:(a:Vec3;b:Vec3->Vec3);
@@ -41,6 +42,7 @@ zint32 load16(zuint16  * z);
 
 //Zdef noproto findType ZFindType:(category:Z32; ref:Type&; name:String&; size:Z32->Type&);
 typeT* findType(zuint32 category, typeT* ref, char* name, size_t len);
+
 void printTypeNoRedirect(typeT* ty, zbool line, zbool skipmembers);
 
 void testComputeShader();
@@ -67,9 +69,23 @@ zbool ptrequal(void* a, void* b);
 //Zdef stacked CodeToken
 //Zdef opaque vptrT CodeToken
 
+//Zdef stacked ExecToken
+//Zdef opaque vptrT ExecToken
+//Zdef opaque vptrT Symbol
+
 //Zdef handler heretoken	here:(->CodeToken);
 //Zdef handler tokennext	next:(t:CodeToken->CodeToken);
 //Zdef handler tokenclip	clip:(t:CodeToken->Code%);
 //Zdef handler tokenstring	text:(t:CodeToken->String&);
 //Zdef handler codecat		++:(c:Code&;d:Code%);
 //Zdef handler tokeninsert	insert:(c:Code%->);
+
+//ZNO def handler tokenstring	text:(t:ExecToken->String&);
+
+//Zdef handler firsttoken		sub:(c:ExecToken->ExecToken);
+//Zdef handler tokenvaltype		consttype:(c:ExecToken->Type&);
+//Zdef handler tokenevaltype	evaltype:(c:ExecToken->Type&);
+//Zdef handler tokenprim		prim:(c:ExecToken->String&);
+//Zdef handler tokensymbol		symbol:(c:ExecToken->Symbol);
+//Zdef handler symboltype		.type:(s:Symbol->Type&);
+
