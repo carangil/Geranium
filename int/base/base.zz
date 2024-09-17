@@ -148,15 +148,29 @@ proc strdup:(s:String& -> String%)
     0:String% return
 end
 
-proc ==:(s:String&; t:String& -> Bit)
+0:Bit constant false
+1:Bit constant true
 
+proc ==:(si:String&; ti:String& -> Bit)
+
+	si #s
+	ti #t
+	
+	s:Bit not if
+		"" s=
+	end
+	t:Bit not if
+		"" t=
+	end
+
+	
 	0#i
 	loop
 		 s i[] t i[] == not if
 		 
-			s i[] print t i[] print newline
+			//s i[] print t i[] print newline
 		 
-			0:Bit return
+			false return
 		 end
 
 		s i[] 0:N8 == until
@@ -164,5 +178,5 @@ proc ==:(s:String&; t:String& -> Bit)
 		i&++
 	end
 
-	1:Bit return
+	true return
 end

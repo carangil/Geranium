@@ -30,6 +30,7 @@ typedef struct parsectxS{
 	exectxT* exec;
 	zbool no_global_vars;	//set to true to prevent compiling access to global variables (global functions ok)
 	tokenT* t; //where parser left of if calling into a Z program to parse
+	char* name;
 }parsectxT;
 
 /**** Tokenizer ****/
@@ -114,7 +115,7 @@ typedef struct parsectxS{
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
 						"new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0",
 						"count", "size", "setcount","opaque","immediate", "code", "stacked", "typeof", "noexec", "constant",
-						"typegroup", "per" , "shader", "alias", "skip", "begin", NULL};
+						"typegroup", "per" , "shader", "alias", "skip", "Xbegin", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -383,6 +384,7 @@ typedef struct typeS{
 	int trashAfterPrimitive; //only for function args (members), only when passing %pointer
 	int isPer;
 	int tid;
+	struct symbolS* destructorproc;
 	zbool stacked;
 }typeT;
 
@@ -572,6 +574,9 @@ void printTypeNoRedirect(typeT* ty, zbool line, zbool skipmembers) {
 	logfile = old;
 }
 
+typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany, * tImmediate, * tCode, * tExecToken, *tEmptyStack;
+
+
 //compare two types, return true if the same
 zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty){
 
@@ -581,9 +586,14 @@ zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty){
 	if (category == MEMBER)
 		ERR("struct members shouldn't be compared\n");
 
+	/* 
+	if ( ty == tany || (ref == tany && (category == NAMED || category == SIMPLE))){
+		return ZTRUE;  //allow any to match anything
+	}*/
+
 	if (ty->category != category)  //early exit for categories that should match
 		return ZFALSE;
-
+	
 	if ((category == SIMPLE)||(category==STRUCT)){
 		//check named types
 		if (strcmp(ty->name, name))
@@ -822,8 +832,16 @@ int printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indentin){
 		}
 		xprintf("L%d", t->useslocal);
 		
-		if (t->handler)
-			xprintf(" handler %p ", t->handler);
+		if (t->handler) {
+
+			//symbolT* sh = findSymbolByHandler(t->handler);
+			//if (sh)
+				//xprintf("handler %s", sh->name);
+			//else
+				xprintf(" handler %p ", t->handler);
+		}
+
+			
 
 		xprintf("(%p %x)",t->val.as.ptr.block, t->val.as.ptr.offset);
 		
@@ -899,13 +917,31 @@ zbool cmpTypeListToFunc(zvecT* f, zvecT* b){
 
 			if (memberf->category == SUBTREE) {	//function expects CODE that generates the given type
 				memberf = memberf->ref;
+
+				if (memberf == tany) {	//allow code subtrees to be of any type
+
+					if (!memberb || memberb == tEmptyStack) {
+						return ZFALSE;
+					}
+					
+					continue;
+
+
+				}
+
 			}
 
 			//compare types of members
+
+			//the below compare is too simple
+			//if the args are function pointers, AND they have differently named paramerters, but of the same type, it might be a problem
+			//not sure
 			if (memberf != memberb){
 			//	xprintf("arg %d to function is of different type\n", i);
 				return ZFALSE;
 			}
+			
+
 		}
 		return ZTRUE;
 }
@@ -915,19 +951,24 @@ zbool cmpTypeListToFunc(zvecT* f, zvecT* b){
 //if toexec is true, found function pointers are checked to the typelist
 //if restructType is set, only symbols of an exact type is returned
 symbolT* findSymbol(zvecT* table, char* name, zvecT* typelist){ 
-	
 	zuint32 i;
 	symbolT* s;
+
+
+	
+	
 	
 	for (i = 0; i < zvec_count(table); i++) {
 
 		s = zvec_get_at(table, i);
 	
-	
+		
+		
+
 		if (   (!strcmp(name, s->name)) || (s->alias && (!strcmp(s->alias,name)))) {
-				
-			if (!strcmp(name, "Set")&&(zvec_count(typelist)==7))
- 				printf("booo");
+			
+			if (!strcmp(name, "p"))
+				printf("debug p\n");
 
 
 			if (s->type->ref && s->type->ref->category == FUNCTION && typelist) {
@@ -956,7 +997,6 @@ symbolT* findSymbol(zvecT* table, char* name, zvecT* typelist){
 
 zvecT* primitives=NULL;
 
-typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany, * tImmediate, * tCode, * tExecToken;
 
 symbolT* findSymbolByHandler(instruction handler) {
 	int i;
@@ -1087,20 +1127,17 @@ tokenT* hnop(exectxT* ex, tokenT* t);
 tokenT* evalsubs(exectxT* ex, tokenT* t) {
 	if (t->handler == hnop)
 		return t;
-	ex->execheck = 0;
 	exe(ex, tsub(t)); //evaluate all the args
-	ex->execheck = 1;
 	return t;		  //return the same token (for actual handling)
 }
 tokenT* noargs(exectxT* ex, tokenT* t) {
-	ex->execheck = 1;
 	return t;		  //return the same token (for actual handling)
 }
 
 
 tokenT* hnop(exectxT* ex, tokenT* t) {	//do nothing
 
-	if (t->str && !strcmp(t->str, "value"))
+	if (t->str && !strcmp(t->str, "debug"))
 		printf("debug");
 
 	return tnext(t);
@@ -1109,10 +1146,8 @@ tokenT* hnop(exectxT* ex, tokenT* t) {	//do nothing
 void exe (exectxT* c, struct tokenS* t){
 	
 	struct tokenS* ts=t;
-	
-	if (c->execheck) {
-		printf("execheck\n");
-	}
+
+
 
 	while(t && ! c->stop){  //until out of instructions, or a return is bubbling up
 						
@@ -1205,7 +1240,7 @@ void* zlist_tail_for_insert(zlistT* list) {
 
 tokenT* hredirectsub(exectxT* ex, tokenT* t) {
 	tokenT* redirect = t->val.as.token;
-	ex->execheck = 0;
+	
 	exe(ex, tsub(redirect));
 	return tnext(t);
 }
@@ -1239,7 +1274,7 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 			xprintf(" Executing this to get value:<<\n");
 			printList(tsub(t2),NULL,0,0);
 			xprintf(">>\n");
-			ex->execheck = 0; 
+			
 			exe(ex, tsub(t2)); //this code puts an item on the stack; this item is the constant value to be baked into the code
 			
 
@@ -1344,6 +1379,9 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 					newtok->val.as.token = ram_addref(subtree);
 					newtok->val_to_free = ZTRUE;
 					newtok->ty = rt;
+					
+					//todo: need?
+					newtok->trackpossptr = tsub(subtree)->trackpossptr; //need to propagate subtree's pointer tracking
 											
 
 					if (subtree->restrict_parse_context) {
@@ -1745,7 +1783,7 @@ tokenT* hcondblock (exectxT* ex, tokenT* t){	//if first sub is true, execute the
 		subs = evalsubs(ex, subs);
 
 	subs = handler(ex, subs); 
-	ex->execheck = 0;
+	
 
 	//check result;
 	
@@ -1778,7 +1816,7 @@ tokenT* hbreakloop (exectxT* ex, tokenT* t) {
 tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP is set
 	
 	while(!ex->stop){
-		ex->execheck = 0;
+		
 		exe(ex, tsub(t) );;
 	}
 	if(ex->stop== STOPLOOP)
@@ -1796,8 +1834,10 @@ parsectxT* global = NULL;
 parsectxT* immediate_parse = NULL;
 
 
-parsectxT* mkcontext();
+parsectxT* mkcontext(char* name);
 tokenT* parse(parsectxT* pc, tokenT* t);
+
+int debugtimes = 0;
 
 tokenT* h_compile(exectxT* ex, tokenT* t) {
 
@@ -1817,7 +1857,7 @@ tokenT* h_compile(exectxT* ex, tokenT* t) {
 			ERR("Compiling code that contains subtree from other context: not allowed\n");
 		}
 
-		parsectxT* pc = mkcontext();
+		parsectxT* pc = mkcontext("dynamic");
 		symbolT* s = mkSymbol(NULL, "dynamic", code->ty, NULL);
 		s->subctx = pc;
 		s->tokens = code; // ram_addref(code); NOT addred, because the symbol's tokens now is the only reference to this code block
@@ -2082,7 +2122,7 @@ BINOP(hand32, z32,  z32, & )
 BINOP(hor32, z32,   z32, | )
 BINOP(hxor32, z32,   z32, ^ )
 BINOP(hequal32, z32, z32, == )
-BINOP(hnotequal32, z32, z32, != )
+BINOP(hnotequal32, z32, z32, != ) 
 
 //unsigned division
 BINOP(hmodu32, n32, n32, % )
@@ -2184,7 +2224,6 @@ tokenT* hgroup (exectxT* ex, tokenT* t){
 	return tnext(t);
 	
 }
-
 
 
 tokenT* hcall (exectxT* ex, tokenT* t) {
@@ -2291,7 +2330,7 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 //	if (!indirect)
 	//	exe(ex, (tokenT*)tnext(tsub(selected->tokens)));
 	//else
-	ex->execheck = 0; //explicitly calling exe on purpose
+	
 	exe(ex, (tokenT*)tsub(selected->tokens));
 	
 	//if (ex->stop==STOPFUNC){
@@ -2312,14 +2351,23 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	//free any passed pointers that didn't get taken, or pointers that were addreffed
 	
 	tokenT* tv = argsubs;
-	
-	if (sym->type->members) {
+	int addfp = 0;
+
+	if (sym->type->members && argsubs) {
 		int i;
 		int count = zvec_count(sym->type->members);
+
 		for (i=0;i<  count; i++) {
 			typeT* m = zvec_get_at(sym->type->members, i);
 			//xprintf(" ARG %d is ", i);
 			//printType(m, ZTRUE, ZFALSE);
+						
+			if (i == 0 && m->ref == tEmptyStack) {
+				addfp = 1;  //not a real value; so don't popit
+				//don't advance tv, since it points at the 1st real arg
+				//tv = tnext(tv);  
+				continue;
+			}
 
 			if (m->ref->category == POINTERPOSSESSIVE) {
 				//xprintf(" freeing poss pointer also has track %p\n", tv->trackpossptr);
@@ -2335,7 +2383,7 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 			tv = tnext(tv);
 			
 		}
-		ex->fp -= count;
+		ex->fp += -count + addfp;
 	}
 	
 	
@@ -2374,10 +2422,21 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	return next;
 }
 
+valueT* callint(symbolT* f, valueT* stack, int sp);
+
 zbool struct_clean(void* v, typeT* ty){
 	
 	//xprintf(" Clean for %s\n", (ty)->name);
 	//printType(ty, ZTRUE, ZFALSE);
+	if (ty->destructorproc) {
+		printf("Call destructor\n");
+
+		valueT val[100];
+		memset(&val, 0, sizeof(val));
+		val[0].as.ptr.block = v;
+
+		callint(ty->destructorproc, val, 1 );
+	}
 
 	int i;
 	for (i=0; i < zvec_count( (ty)->members); i++){
@@ -2765,7 +2824,26 @@ zbool exectx_cleanup(void* v) {
 
 #define MIN_IMMEDIATE_SIZE 64*1024
 
-void start(parsectxT* pctx, tokenT* t){
+valueT* callint(symbolT* f, valueT* stack, int sp) {
+
+	exectxT ex;
+	memset(&ex, 0, sizeof(ex));
+	ex.sp = sp;
+	ex.stack = stack;
+	ex.fp = sp;
+	
+	tokenT t;
+	memset(&t, 0, sizeof(t));
+	t.sym = f;
+	ex.globalvars = global->exec->globalvars;
+	hcall(&ex, &t);
+	if (ex.sp > 0)
+		return ex.stack + ex.sp - 1;
+	return NULL;
+}
+
+
+void start(parsectxT* pctx, tokenT* t, valueT* initial){
 
 	//int spsave = 0;
 
@@ -2835,12 +2913,29 @@ void start(parsectxT* pctx, tokenT* t){
 	/*
 	for (int i=0;i<32;i++){
 			xprintf(",%02x ",  exectx->globalvars[i]  );
+			xprintf(",%02x ",  exectx->globalvars[i]  );
 			
 	}
 	xprintf(" \n");*/
-	pctx->exec->execheck = 0;
+	
+
+	int oldfp = 0;
+	int oldsp = 0;
+	if (initial) {
+		//push a value, setup like 1 function call
+		//careful, this might not be correct
+		oldfp = pctx->exec->fp;
+		pctx->exec->stack[pctx->exec->sp++] = *initial;
+		pctx->exec->fp = pctx->exec->sp;
+	}
+
 	exe(pctx->exec, t);
 	
+	if (initial) {
+		pctx->exec->fp = oldfp;
+		pctx->exec->sp = oldsp;
+	}
+
 	//pctx->exec->sp = spsave;
 
 	//ram_free(exectx->stack);
@@ -2876,6 +2971,7 @@ void fold(tokenT* start, tokenT* under){
 		tremove(t);
 		zlist_addtail(&under->subs, &(t->zlistnode));
 		
+		//propagate uselocal, count how many children use local
 		//propagate uselocal, count how many children use local
 		under->useslocal += t->useslocal;
 		//under->useslocal |= t->useslocal;
@@ -3215,12 +3311,14 @@ zbool parsectx_cleanup(void* v){
 	parsectxT* pc = v;
 	ram_free(pc->symbols);
 	ram_free(pc->exec);
+	ram_free(pc->name);
 	return ZTRUE;
 }
 
-parsectxT* mkcontext()
+parsectxT* mkcontext(char* name)
 {
 	parsectxT* c = ram_alloc(sizeof(parsectxT), parsectx_cleanup);
+	c->name = zstrdup(name);
 	c->symbols = zvec_mk(NULL, 10);
 	return c;
 }
@@ -3496,6 +3594,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 		int dataselector = 0;
 		int nopop = 0;
+		
+
 		switch (t->tok) {
 
 		
@@ -3707,7 +3807,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			if (!immediate_parse) {
 				//create parse context for immediate blocks
-				immediate_parse = mkcontext();
+				immediate_parse = mkcontext("immediate");
 				immediate_parse->type = tImmediate;
 			}
 
@@ -3762,7 +3862,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			tokenT* savet = immediate_parse->t;	//save if there was another one already being processed
 			immediate_parse->t = t;	//save our 't', because the code running may change it
 
-			start(immediate_parse, sub);
+			start(immediate_parse, sub, NULL);
 
 			t = immediate_parse->t;  //get what might have been changed
 			
@@ -4033,7 +4133,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			if (ts->tok == KPROC) {
 				//procedures go into a body of statements
-				s->subctx = mkcontext();		
+				printf(" parse proc %s ", name);
+					printTypeNoRedirect(type, ZTRUE, ZFALSE);
+				s->subctx = mkcontext(name);		
 				s->subctx->parent = pc;
 				
 				s->subctx->endable++; //its a subcontext
@@ -4043,6 +4145,17 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				t = parse(s->subctx, t);
 				
 				checkUsage(ts, t);//check all values are used up
+				
+				if (!strcmp(name, "destructor") ) {
+					if (s->type && s->type->members && zvec_count(s->type->members) == 1) {
+						typeT* dt = zvec_get_at(s->type->members, 0);
+						//dt is the 0th arg of the function. ->ref is the type, which would be a pointer to something.  then ->ref again for the thing
+						if (dt && dt->ref && dt->ref->ref && dt->ref->ref->category == STRUCT) {
+							dt->ref->ref->destructorproc = s;
+						}
+					}
+				}
+								  
 				//t should now be 'end' 
 			}
 			else if (t->tok != ';') {
@@ -4152,7 +4265,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					printType(pc->type->ref, ZTRUE, ZTRUE);
 					xprintf("attempt to return: \n");
 					printType(tprev(t)->ty, ZTRUE, ZTRUE);
-					ERR("TYPE MISMATCH\n");
+					ERR("TYPE MISMATCH %s\n", pc->name );
 				}
 
 				fold(tprev(t), t);
@@ -4193,8 +4306,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (!ct)
 				ERR(" If: no type input\n");
 
-			if ((ct->category != POINTERUSER) && (ct != tBit) && (ct != tZ32))
-				ERR(" if needs Bit or Pointer datatype\n");
+			if ((ct->category != POINTERUSER) && (ct != tBit) && (ct != tZ32)) {
+				tokenize(ct, ":Bit");
+				t = ct;
+				continue;
+				//ERR(" if needs Bit or Pointer datatype\n");
+
+			}
 
 			fold(tprev(t), t);//take previous node as the condition
 			t->handler = hcondblock;
@@ -4212,8 +4330,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (!ct)
 				ERR(" If: no type input\n");
 
-			if ((ct->category != POINTERUSER) && (ct != tBit) && (ct != tZ32))
-				ERR(" if needs Bit or Pointer datatype\n");
+			if ((ct->category != POINTERUSER) && (ct != tBit) && (ct != tZ32)) {
+				tokenize(tprev(t), ":Bit");
+				t = tprev(t);
+				continue;
+				//ERR(" if needs Bit or Pointer datatype\n");
+
+			}
 
 			tokenT* condition = tremove(tprev(t));
 			ts = t;
@@ -4485,7 +4608,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (
 				((from->category == POINTERUSER) || (from->category == POINTERPOSSESSIVE))
 				&& (from->ref->category == FUNCTION)
-				&& (ty == tExecToken)				) 
+				&& (!strcmp(ty->name , "ExecToken"))
+				) 
 			{
 				ts->handler = hsymtoken;
 				ts->ty = tExecToken;
@@ -4731,13 +4855,14 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 				//if next token is assignment, remove the '@' token
 			case '=':
+				
 			case PAIR('#', '='):
 				t = tnext(t);
 				ram_free(tremove(ts));
 				continue;
 
 			}
-
+			
 			
 
 
@@ -4882,10 +5007,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			nopop = 1;
 
 		case '=': //store
-		
-			if (tprev(tprev(t))->ty->stacked) {
-				printf("boo\n");
-			}
+			xprintf("checking = %d\n", debugtimes++);
+			
 
 
 			//store stacked value
@@ -5156,11 +5279,14 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				noexec = 1;
 			}
 			
-		
+			if (!strcmp("prints", t->str))
+				printf("prints");
 
 			tokenT* pos;
 			tokenT* startfold=NULL;
-			for(j=0;;j++){
+			int emptystack = 0;
+
+			for(j=0;!emptystack;j++){
 			
 
 				int k;
@@ -5168,33 +5294,59 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				//xprintf(" DEPTH %d: \n", j);
 				zvec_setcount(v, 0);
 				for (k=0;k< j ;k++){  //go back j spaces.
-					pos = tprev(pos);
+
+					if (pos)
+						pos = tprev(pos);
+					else {
+						zvec_add(v, tEmptyStack);
+						emptystack = 1;
+					}
 					
-					if (!pos)
-						break;
 				}
+
 				if (!pos)
 						break;
 				startfold=pos;
 				
-				for(k=0;k<j;k++){
+				
+
+				for(k=emptystack;k<j;k++){
 			
-					//xprintf("%d:%s ", k, pos->str);
-					//printType(pos->ty, ZFALSE, ZTRUE);
-					if ( !pos->ty ){ //don't go past a nulltype
-						pos=NULL;
-						break;
-					}
 
 					typeT* tt = pos->ty;
+
+
+					//xprintf("%d:%s ", k, pos->str);
+					//printType(pos->ty, ZFALSE, ZTRUE);
+					if ( !pos->ty ){ 
+						
+						
+						emptystack = 1;
+						tt = tEmptyStack;
+						startfold = tnext(startfold);
+						
+					}
+
+					
 				
+					
 
 					if (ignoresigned == t)
 						printf("ignoresigned\n");
-					if ((ignoresigned == t)&&(pos->ty==tZ32))
-						zvec_add(v, tN32); 
-					else
-						zvec_add(v, tt);
+
+					
+
+					if (noexec && tt == tType) {
+						//if no exec, instead of a placeholder expression of the arg type, allow using a Type& of that type
+						//instead of  1 1 +&   it is ok to say Z32 Z32 +&
+						tt = pos->val.as.type;
+					}
+
+					if ((ignoresigned == t) && (tt == tZ32))
+						tt = tN32;
+										
+						
+					zvec_add(v, tt);
 					
 					
 					
@@ -5205,8 +5357,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					break;
 				s=NULL;
 			
-				if (!strcmp(t->str, "cc"))
-					printf(" finding cc\n");
+			
 
 				if (t->sym) { 
 					s = t->sym;
@@ -5266,13 +5417,21 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				//getc(stdin);
 									
 			}//end j
-			ram_free(v);
-			v=NULL;
+
+
+		//	ram_free(v);
+			//if (last_v)
+				//ram_free(v
+		//	last_v = v;
+			//v = NULL;
+			
 			//int notfunc = 0;
 
 			
 			
 			if (s){ //found symbol
+				ram_free(v);
+				v = NULL;
 				//xprintf(" Found symbol %s  local:%d \n", t->str, local);
 				//printType(s->type,0,0);
 				//xprintf("\n");
@@ -5298,17 +5457,20 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					continue;
 				}
 
+			
+
 				if ((s->type->category == FUNCTION || fpointer  )) {
 					
-					//if we are calling a function pointer (fpointer&& !noexec), we don't want to fold yet)
-
+				
 					//even when noexecing, we still need to fold in the parameters, since the type of the parameters 
 					//were used to find the function
 
 					if (t->str && !strcmp(t->str, "intadd")) {
 						printf("debug intadd + pointer\n");
 					}
+
 					
+
 					fold(startfold, t);
 
 					if (noexec) {
@@ -5341,9 +5503,53 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					tokenT* tv = startfold;
 					startfold = NULL;//
 					int argnum = 0;
-
+			//	if (emptystack) {
+				//		argnum = 1;
+					//}
 					while (tv) {
-						if (tv->trackpossptr) {
+						
+//decided to use 'shader' as a new class of proc
+
+						int isredir = 0;
+
+						if (s->type->members) {
+							typeT* argtype = zvec_get_at(s->type->members, argnum);
+							if (argtype && argtype->ref && argtype->ref->category == SUBTREE) {
+								printf(" Wrap %dth arg with redirect\n", argnum);
+								tokenT* redirect = mkToken(REDIRECT, "redirect", 0);
+								redirect->handler = hconstant;
+								redirect->skipargs = ZTRUE;
+								
+								//instead take the type from the actual arg token
+								//because argtype->ref might be 'any' or other 'fake' type
+
+								//redirect->ty = argtype->ref;
+								redirect->ty = findType(SUBTREE, tv->ty, NULL, 0);
+								isredir = 1; 
+								
+								/*
+								printf("SUBTREE ");
+								printTypeNoRedirect(tv->ty, ZFALSE, ZTRUE);
+								printf(" ==?== ");
+								printTypeNoRedirect(argtype->ref, ZFALSE, ZTRUE);
+								*/
+
+								redirect->val.as.token = redirect;  //push self on stack
+								//redirect->tyval = tType;// WRONG?
+								redirect->restrict_parse_context = pc;
+								insert_after(tv, redirect);
+								tv = tnext(tv);	//tv is at 'follow'
+								fold(tprev(tv), tv); //
+								if (redirect->useslocal)
+									t->useslocal-= redirect->useslocal; //if code being passed uses locals, thats fine, subtract them out.  Because the code being passed can only run in the same context it came from. (it will have restricted context value set)
+								//redirect->useslocal = ZFALSE; //any local variables used in the redirected code aren't actually used in the call to the immediate proc
+								printList(redirect, redirect, 0, 1);
+
+							}
+						}
+
+
+						if (tv->trackpossptr && !isredir) {
 							//xprintf(" Arg derived from possessive pointer <%s> ", tv->str  );
 							//if an arg being passed to a function is a possive pointer (or result of adding/indexing from a possessive pointer), then it needs to be addref'd before being passed to a function
 							if (s->handler == hcall || fpointer) {
@@ -5366,30 +5572,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							//	xprintf(" addref %p +%d\n", ex->stack[ex->fp-count+i].as.ptr.block, ex->stack[ex->fp-count+i].as.ptr.offset);
 								//ram_addref( ex->stack[ex->fp-count+i].as.ptr.block );
 						}
-//decided to use 'shader' as a new class of proc
 
-
-						if (s->type->members) {
-							typeT* argtype = zvec_get_at(s->type->members, argnum);
-							if (argtype && argtype->ref && argtype->ref->category == SUBTREE) {
-								printf(" Wrap %dth arg with redirect\n", argnum);
-								tokenT* redirect = mkToken(REDIRECT, "redirect", 0);
-								redirect->handler = hconstant;
-								redirect->skipargs = ZTRUE;
-								redirect->ty = argtype->ref;
-								redirect->val.as.token = redirect;  //push self on stack
-								redirect->tyval = tType;
-								redirect->restrict_parse_context = pc;
-								insert_after(tv, redirect);
-								tv = tnext(tv);	//tv is at 'follow'
-								fold(tprev(tv), tv); //
-								if (redirect->useslocal)
-									t->useslocal-= redirect->useslocal; //if code being passed uses locals, thats fine, subtract them out.  Because the code being passed can only run in the same context it came from. (it will have restricted context value set)
-								//redirect->useslocal = ZFALSE; //any local variables used in the redirected code aren't actually used in the call to the immediate proc
-								printList(redirect, redirect, 0, 1);
-
-							}
-						}
 
 						tv = tnext(tv);
 						argnum++;
@@ -5534,6 +5717,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			//check if struct member
 			if (t->str && t->str[0]=='.'){
+				ram_free(v);
+				v = NULL;
 				//xprintf(" dot\n");
 							
 				typeT* ptype = tprev(t)->ty;
@@ -5640,6 +5825,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 			
 			if (ty){
+				ram_free(v);
+				v = NULL;
+
 				ts = tprev(tn);
 				xprintf("Found type %s\n", ty->name);
 				ts->ty = tType;
@@ -5653,37 +5841,59 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			 
 			
 			if (t!=ignoresigned) {
+				ram_free(v);
+				v = NULL;
+
 				printf("Attempt match by conversion to unsigned\n");
 				ignoresigned = t;
 				continue; //try again
 			}
-
+			ignoresigned = NULL;
 			
 			//WAS IT A TYPECAST?
 			if (tnext(ts)->tok == TYPECAST) {
+				ram_free(v);
+				v = NULL;
+
 				t = tnext(ts);
 				ram_free(tremove(ts));
 				continue;
 			}
 
 
-			t->zlistnode.next = NULL;//end it
+			
 		
+			/*
+			t->zlistnode.next = NULL;//end it
 			tokenT* tp = t;
 			int tpc;
 			for  (tpc=0; tprev(tp) && tpc<10;tpc++)
 				tp = tprev(tp);
 
 			
-			xprintf("Undefined symbol ");
-
 			while (tp) {
 				printType(tp->ty, ZFALSE, ZTRUE);
 				xprintf(" ");
 				tp = tnext(tp);
 			}
+			*/
 
 			
+			
+
+			if (v) {
+
+				for (int n = 0; n < zvec_count(v); n++) {
+					typeT* st = zvec_get_at(v, n);
+					printType(st, ZFALSE, ZTRUE);
+					printTypeNoRedirect(st, ZFALSE, ZTRUE);
+					xprintf(" ");
+					printf(" ");
+
+				}
+			}
+			
+			printf("%s Undefined\n", t->str);
 	 		ERR("  Undefined symbol:%s line %d\n\n", t->str, t->line); 
 		
 			
@@ -5767,6 +5977,7 @@ int main(int argc, char** args){
 	tImmediate = mkType(SIMPLE, NULL, "Immediate", sizeof(FLOAT));
 	tCode = mkType(SIMPLE, NULL, "Code", 0); 
 	tExecToken = mkType(PENDING, NULL, "ExecToken", 0);
+	tEmptyStack = mkType(SIMPLE, NULL, "Empty", 0);
 
 #ifdef FLOAT
 	tReal = mkType(SIMPLE, NULL, "Real", sizeof(FLOAT));
@@ -5777,7 +5988,7 @@ int main(int argc, char** args){
 
 	char* x = ram_loadstr(args[1]);
 
-	global = mkcontext();
+	global = mkcontext("global");
 	
 	zlistT* tokens = ram_alloc(sizeof(zlistT), (ram_destructor) zlist_cleanup);
 	
@@ -5825,7 +6036,7 @@ int main(int argc, char** args){
 	//getc(stdin);
 	//start(global, (tokenT*)tokens->head->next   );//run
 	
-	start(global, tnext((tokenT*)zlist_head(tokens))   );//run
+	start(global, tnext((tokenT*)zlist_head(tokens)) , NULL  );//run
 	 
 	clean_context_pointers(global->symbols, global->exec->globalvars);
 	if (immediate_parse ) {

@@ -299,19 +299,26 @@ tokenT* h_heretoken(exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
-tokenT* h_firsttoken(exectxT* ex, tokenT* t) {
 
-	tokenT* there = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
-
-	//follow redirects
-	if (there && there->handler == hredirectsub) {
+tokenT* followRedirect(tokenT* there){
+	return there;
+	while (there && there->handler == hredirectsub) {
 		if (tsub(there))
 			ERR("unexpected child\n");
 		there = there->val.as.token;
 	}
+	return there;
+	
+}
 
+tokenT* h_firsttoken(exectxT* ex, tokenT* t) {
+
+	tokenT* there = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+
+	there = followRedirect(there);
+	
 	if (there) {
-		ex->stack[ex->sp - 1].as.ptr.block = (void*)tsub(there);
+		ex->stack[ex->sp - 1].as.ptr.block = followRedirect(tsub(there));
 		ex->stack[ex->sp - 1].as.ptr.offset = 0;
 	}
 
@@ -404,9 +411,11 @@ tokenT* h_tokennext(exectxT* ex, tokenT* t) {
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
 	
 	if (ts && ts->tok)
-		ts = tnext(ts);
+		ts = followRedirect(tnext(ts));
 	else
 		ts = NULL;
+
+
 
 	ex->stack[ex->sp - 1].as.ptr.block = ts;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;

@@ -224,7 +224,7 @@ char* zstrprintf(char* initial, char* format, ...) {
 				ns = zarray_count(initial) + s  ;   //exactly size
 				offset = zarray_count(initial) - 1; //offset will overwrite the null terminator
 				if (offset < 0) {
-					printf("string error: element count should be at least 1 (for the terminator) it is %d\n", offset);
+					printf("string error: element count should be at least 0 (for the terminator-1) it is %d\n", offset);
 					offset = 0;
 				}
  			}

@@ -1,6 +1,6 @@
 
 primitive boolnot	not:(v:Bit -> Bit );
-
+primitive equal32 	==:(a:Bit;b:Bit->Bit);
 
 
 //signed integers

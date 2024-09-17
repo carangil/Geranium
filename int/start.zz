@@ -9,7 +9,6 @@ stacked GLSLDrawProc;
 
 "gen.zz" include 
 
-
 32:Real print newline
 32:N32 print newline
 
@@ -22,6 +21,17 @@ proc testreflect:(a:Z32;b:Z32->Z32)
 	a print 
 	"xxxx" print 
 	b print newline
+
+	immediate 50 20 + return end print
+
+	loop
+	
+		b 0 > while
+		
+		b a * b + print newline
+	
+	end
+
 
 	g1 print newline
 	g2 print newline
@@ -39,42 +49,27 @@ end
 1 3 testreflect&:ExecToken #t  // casting a proc pointer to ExecToken returns a token to the start of its code
 
 
-opaque @vptrT TokenValue;
-stacked TokenValue;
 
-primitive C_tokenstring	text:(t:ExecToken->String&);
-primitive C_tokennext	next:(t:ExecToken->ExecToken);
-primitive tokenval	value:(t:ExecToken->TokenValue);
-primitive symtoken  tokens:(s:Symbol->ExecToken);
-
-proc Indent:(level:Z32)
+proc Indent:(level:N32)
 	var i:Z32;
-	newline 0i= loop  i level < while    " " print 
+	newline 0i= loop  i level < while    "   " print 
 
 	i 1 + i =  
 	end
 	
 	
-	"|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_" level[] print
+	"~>|_#$*~>|_#$*" level[] print
 	" " print
 end
 
 
-proc print:(t:Type&)
+proc xprint:(t:Type&)
 	" " print t 0:Bit 0:Bit printTypeNoRedirect
 
 end
 
-proc xprint:(t:Type&)
-	t if
-		t.name print
-				
-		
-	else 
-		"(nulltype)" print
-	end
-end
 
+proto print:(t:Type&);
 
 primitive C_ptrequal ==:(a:Type&; b:Type& -> Bit);
 
@@ -83,84 +78,78 @@ primitive C_ptrequal ==:(a:Type&; b:Type& -> Bit);
 
 
 
-proto print:(ti:ExecToken);
+proto disassemble:(ti:ExecToken;level:N32);
 
-proc printIndent:(ti:ExecToken;level:Z32)
+proc disassemble:(ti:ExecToken)
+	ti 0 disassemble newline
+	
+end
+
+proc disassemble:(ti:ExecToken; level:N32)
 
 	ti #t
+	0 #count
 		
-	
-	loop t:Bit while
-
-		level Indent
-		t text print 
-		
-		t prim :Bit if
-			"	{" print 
-			t prim print 
-			"}" print
-		end
-		
-		
-		
-		t consttype:Bit if
-			"Constant " t consttype print
-		end
-		
-
-			
-		//t consttype Z32 == if
-			"(" print
-			t  value :Z32 print	
-			")" print
-	//	end
-				
-		
-		"	" print 
-		
-		"s type: "print  t symbol .type print
-	
-		t symbol:Bit if 
-			newline
-			newline
-			t symbol tokens :Bit if 
-				t symbol tokens text print
-			end
-			newline
-			newline
-		end
-		
-		//t evaltype #if
-		
-		
-		t evaltype if
-			t evaltype print
-		end
-				
-		
-		t sub:Bit if
-		
-			"("print 
-				
-				 t sub level 1+ printIndent 
-				 
-			level Indent 
-			")"print
-		end
-		
-		t next t=
-		
+	t.prim "condblock"  == if
+		newline level Indent
+		"IF:" print 
+		t.sub level 1+ disassemble					
 	end
+		
+		
+	loop t:Bit while
+		count&++
+		
+		
+		
+		t.sub:Bit if
+				 t.sub level 1+ disassemble 
+		end
+		
+		level Indent
+		
+		t.prim :Bit if
+			t.prim print
+			"	" print
+		end
 
+		t.text print
+		"	" print
+		
+		"(" print
+		
+		t.consttype if
+			 
+			t.value :Z32 print
+			" " print
+			t.consttype print
+			 
+		end
+		
+		
+		t.symbol.type print
+		")" print
+	
+		t.evaltype if
+			"->" print
+			t.evaltype print
+		end
+			
+		t.next t=
+	
+	end
+	
+	count return
 
 end
 
-proc print:(ti:ExecToken)
-	ti 0 printIndent
-end
+//t disassemble
+
+//t 0 disassemble&:ExecToken disassemble
+
+ExecToken Z32 disassemble&:ExecToken disassemble
 
 
-t print
 
 
 "testreflect " print
@@ -174,6 +163,288 @@ t print
 
 
 
+proc isArray:(t:Type&->Bit)  
+	t if 
+		t.category 	ARRAYDYNAMIC == if
+			true return
+		end
+		t.category ARRAYSTATIC == if
+			true return
+		end
+		
+	end
+	false return
+end
+
+proc isStruct:(t:Type&->Bit)  
+	t if 
+		t.category 	STRUCT == if
+			true return
+		end
+	end
+	false return
+end
+
+proc isProc:(t:Type&->Bit)  
+	t if 
+		t.category 	FUNCTION == if
+			true return
+		end
+	end
+	false return
+end
+
+proc isReference:(t:Type&->Bit)  
+	t if 
+		t.category 	POINTERUSER == if
+			true return
+		end
+	end
+	false return
+end
+
+proc isPossessive:(t:Type&->Bit)  
+	t if 
+		t.category 	POINTERPOSSESSIVE == if
+			true return
+		end
+	end
+	false return
+end
+
+proc isCpointer:(t:Type&->Bit)  
+	t if 
+		t.category 	CPOINTER == if
+			true return
+		end
+	end
+	false return
+end
+
+proc isPointer:(t:Type&->Bit)  
+	t if 
+		t.category 	POINTERUSER == if
+			true return
+		end
+		t.category POINTERPOSSESSIVE == if
+			true return
+		end
+		t.category CPOINTER == if
+			true return
+		end
+		
+	end
+	false return
+end
+
+proc .&:(t:Type&->Type&)
+	POINTERUSER t 0:String& 0 findType return
+end
+
+proc .%:(t:Type&->Type&)
+	POINTERPOSSESSIVE t 0:String& 0 findType return
+end
+
+proc .array:(t:Type&->Type&)
+	ARRAYDYNAMIC t 0:String& 0 findType return
+end
+
+proc .array:(t:Type&;n:Z32->Type&)
+	ARRAYSTATIC t 0:String& n findType return
+end
+
+[Z32]  print newline
+
+[Z32]& print newline
+Z32& print newline
+Z32 #ty
+ty .& print newline
+ty .% print newline
+ty .array print newline
+ty 10 .array print newline
+
+
+proc print:(t:Type&)
+	t:Bit not if return end
+	
+	t.name if
+		 t.name print
+	end			
+	
+	t isProc if
+		"(" print
+		
+		0#i loop t i[] ##arg:Bit while
+			arg.name print
+			":" print
+			t.ref print
+			";"print
+			
+			i&++
+		end
+		
+		"->" print
+		t.ref print
+		")" print
+		
+	t isArray elseif
+		"["print
+		t.ref print
+		t.len:Bit if
+			" " print t.len print
+		end
+		"]"print
+	
+	
+	t isPossessive elseif
+		t.ref print
+		"%" print
+	
+	
+	t isCpointer elseif
+		t.ref print
+		" cpointer" print
+	
+	
+	t isReference elseif
+		t.ref print
+		"&" print
+	end
+	
+	
+end
+
+
+proc immediate prints:(a:Empty)
+	
+end
+
+proc immediate prints:(code a:any->Code%)
+	code \
+		prints 'a print 
+	\ return	
+end
+
+
+500 print
+
+
+
+
+proc immediate eint:(a:Empty;b:Z32->Code%)
+code \
+	"empty then" $b prints \  return
+end
+
+prints  110 "bpp " 123 " " 1.23 prints
+200 print 
+
+10 eint
+
+
+type LL
+	head:LN%;
+	tail:LN%;
+	
+end
+
+
+type LN
+	next:LN%;
+	prev:LN%;
+	name:String%;
+end
+
+
+
+proc destructor:(a:LL&)	
+	a.head take #ln			//no ref count update
+	loop ln:Bit while
+		ln.prev take trash
+		ln.next take ln=
+	end
+end
+
+"whatever" Strdup #str0
+str0  Strdup #str2
+
+
+
+/*
+ln:L2
+
+LL
+	head	
+	tail	
+
+
+L0
+	next: prev:
+L1 
+	next: prev:
+	
+L2  prev:
+
+
+
+
+
+
+
+LL
+	head	L0
+	tail	L2
+
+
+L0
+	next:L1 prev:
+L1 
+	next:L2 prev:L0
+	
+L2  prev:L1
+
+*/
+
+proc newLN:(a:String&->LN%)
+	LN new #ln
+	a strdup ln.name=
+	ln take return
+end
+
+LL& destructor&:ExecToken disassemble
+
+"LL0" newLN #l0
+"LL1" newLN #l1
+"LL2" newLN #l2
+
+l1 keep l0.next=
+l2 keep l1.next=
+
+l0 keep l1.prev=
+l1 keep l2.prev=
+
+LL new #list
+l0 take list.head=
+l2 take list.tail=
+l1 take trash
+
+
+
+
+
+
+/////////////////////////////////////////
+/*
+consider backpointers?
+type LL2
+	next:LL2% backpointer prev; //(the target type LL2, must have a LL2(this type) reference named next
+	prev:LL2&;					//this pointer can only be set by the system; when next is set
+end
+
+
+
+*/
+/////////////////////////////////////////
 
 /*
 100 cd print newline
@@ -499,5 +770,22 @@ pbbb@keep  pccc@=
 33 3 intsub print newline
 */
 
+
+proc immediate ps:(code s:String&->Code%)
+	code \\ 's print 's print newline
+	\\ return
+end
+
+primitive nop debug:();
+
+
+"Test123" strdup #ss
+
+debug
+
+ss ss ps
+
 "done" print newline
+
+
 

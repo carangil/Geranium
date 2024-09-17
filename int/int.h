@@ -58,7 +58,6 @@ typedef struct exectxS {
 	int level;//stackframe level
 	int debugstack;
 	struct parsectxS* in_immediate; //if executing in an immediate context, this is that context.  NULL othersize
-	zbool execheck; //temporary, for arghandler transition
 	}exectxT;
 #define STOPFUNC 1
 #define STOPLOOP 2
@@ -111,3 +110,5 @@ typedef struct tokenS {
 	struct tokenS** debug_prev;
 
 }tokenT;
+
+

@@ -1,9 +1,3 @@
-type @typeT Type
-	@typeT_name	name:String cpointer;
-	@typeT_size	size:N32;
-	@typeT_category	category:N32;
-	@typeT_ref	ref:Type&;
-end
 primitive C_zstrdup Strdup:(c_arg__1:String&-> String%);
 primitive C_fopen File_Open:(c_filename:String&; c_mode:String&-> File%);
 0 constant Procmap_zrand
@@ -24,28 +18,49 @@ primitive C_vec3add  +:(a:Vec3;b:Vec3->Vec3);
 primitive C_vec3sub  -:(a:Vec3;b:Vec3->Vec3);
 primitive C_vec3cross  Cross:(a:Vec3;b:Vec3->Vec3);
 primitive C_vec3dot  Dot:(a:Vec3;b:Vec3->Real);
-primitive C_findType ZFindType:(category:Z32; ref:Type&; name:String&; size:Z32->Type&);
-primitive C_printTypeNoRedirect printTypeNoRedirect:(c_ty:Type&; c_line:Bit; c_skipmembers:Bit-> );
-primitive C_testComputeShader testComputeShader:(-> );
-primitive C_type_member []:(ty:Type&; n:N32 -> Type&);
 primitive C_ptrequal ptrequal:(c_a:Void&; c_b:Void&-> Bit);
 primitive C_glslprocbody  immediate% glsl:(vsource:String&;fsource:String&->GLSLBody);
 primitive C_prepshader  prep:(p:GLSLBody->GLSLDrawProc);
 primitive C_execdraw  draw:(p:GLSLDrawProc; prim:N32;start:N32; stop:N32);
+type @typeT Type
+	@typeT_name	name:String cpointer;
+	@typeT_size	size:N32;
+	@typeT_category	category:N32;
+	@typeT_ref	ref:Type&;
+	@typeT_len	len:N32;
+end
+primitive C_findType findType:(category:Z32; ref:Type&; name:String&; size:Z32->Type&);
+primitive C_printTypeNoRedirect printTypeNoRedirect:(c_ty:Type&; c_line:Bit; c_skipmembers:Bit-> );
+primitive C_testComputeShader testComputeShader:(-> );
+primitive C_type_member []:(ty:Type&; n:N32 -> Type&);
 stacked CodeToken;
 opaque @vptrT CodeToken;
 stacked ExecToken;
 opaque @vptrT ExecToken;
 opaque @vptrT Symbol;
 primitive C_heretoken  here:(->CodeToken);
-primitive C_tokennext  next:(t:CodeToken->CodeToken);
 primitive C_tokenclip  clip:(t:CodeToken->Code%);
-primitive C_tokenstring  text:(t:CodeToken->String&);
-primitive C_codecat  ++:(c:Code&;d:Code%);
+primitive C_codecat  ++:(c:Code&;d:Code%);  //appends d to c.  frees d
 primitive C_tokeninsert  insert:(c:Code%->);
-primitive C_firsttoken  sub:(c:ExecToken->ExecToken);
-primitive C_tokenvaltype  consttype:(c:ExecToken->Type&);
-primitive C_tokenevaltype  evaltype:(c:ExecToken->Type&);
-primitive C_tokenprim  prim:(c:ExecToken->String&);
-primitive C_tokensymbol  symbol:(c:ExecToken->Symbol);
+primitive C_tokennext  .next:(t:CodeToken->CodeToken);
+primitive C_tokenstring  .text:(t:CodeToken->String&);
+opaque @valueT TokenValue;
+stacked TokenValue;
+primitive C_firsttoken  .sub:(c:ExecToken->ExecToken);
+primitive C_tokenvaltype  .consttype:(c:ExecToken->Type&);
+primitive C_tokenevaltype  .evaltype:(c:ExecToken->Type&);
+primitive C_tokenprim  .prim:(c:ExecToken->String&);
+primitive C_tokensymbol  .symbol:(c:ExecToken->Symbol);
 primitive C_symboltype  .type:(s:Symbol->Type&);
+primitive C_tokenstring	.text:(t:ExecToken->String&);primitive C_tokennext	.next:(t:ExecToken->ExecToken);primitive tokenval		.value:(t:ExecToken->TokenValue);primitive symtoken  	.tokens:(s:Symbol->ExecToken);1 constant SIMPLE
+2 constant POINTERUSER
+3 constant STRUCT
+4 constant ARRAYSTATIC
+5 constant ARRAYDYNAMIC
+6 constant FUNCTION
+7 constant PRIMITIVE
+8 constant POINTERPOSSESSIVE
+9 constant CPOINTER
+10 constant OPAQUE
+11 constant VIRTUAL
+11 constant LAST_REAL_TYPE

@@ -559,6 +559,11 @@ void process_zdef(char* zdef) {
 
 	*s = 0;
 
+	if (!strcmp(zdef, "code")) {
+		fprintf(outz, "%s", s + 1);
+		return;
+	}
+
 	printf(" zdef {%s} %s\n", zdef, s+1);
 
 	char* cname = eat_chars(s +1, " \t"); //skip over space
@@ -592,7 +597,9 @@ void process_zdef(char* zdef) {
 
 	if (!strcmp(zdef, "type"))	//mapping a type used for either args or returns
 		m = mkMapping(cname, defword, 0, 0);
-		
+
+
+
 
 	if (!strcmp(zdef, "arg"))	//mapping a type when used as an arg
 		m=mkMapping(cname, defword, PROCARG, 0);
