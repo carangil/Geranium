@@ -1,6 +1,8 @@
-
-#include "int.h"
+#include "zwindow.h"
 #include "gfx_gl.h"
+#include "glsl.h"
+#include "int.h"
+
 
 void store16(int val, zuint16* zp) {
 	*zp = val;
@@ -511,15 +513,15 @@ tokenT* h_codecat(exectxT* ex, tokenT* t) {
 }
 
 
-//if token is to execute a primitive, return the name of the primitive
+//if token is to execute a primitive, return the name of the primitive 
 tokenT* h_tokenprim(exectxT* ex, tokenT* t) {
-	char* name = NULL;
+	char* name = "Unknown";
 
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
 	if (ts && ts->sym && ts->sym->primsym) {
 		name = ts->sym->primsym->name;
 	}
-	else
+	else if (ts)
 		name = findSymbolByHandler(ts->handler);
 	
 	

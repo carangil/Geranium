@@ -1,0 +1,229 @@
+"gen/genreflect.zz" include
+
+// Type reflection
+// typeof is a built-in that returns the type of an expression
+
+//Check is a type is a particular category (array, pointer, struct, etc)
+
+proc array?:(t:Type&->Bit)  
+	t if 
+		t.category 	ARRAYDYNAMIC == if
+			true return
+		end
+		t.category ARRAYSTATIC == if
+			true return
+		end
+		
+	end
+	false return
+end
+
+proc struct?:(t:Type&->Bit)  
+	t if 
+		t.category 	STRUCT == if
+			true return
+		end
+	end
+	false return
+end
+
+proc proc?:(t:Type&->Bit)  
+	t if 
+		t.category 	FUNCTION == return
+	end
+	false return
+end
+
+proc reference?:(t:Type&->Bit)  
+	t if 
+		t.category 	POINTERUSER == return
+	end
+	false return
+end
+
+proc possessive?:(t:Type&->Bit)  
+	t if 
+		t.category 	POINTERPOSSESSIVE ==  return
+	end
+	false return
+end
+
+proc cpointer?:(t:Type&->Bit)  
+	t if 
+		t.category 	CPOINTER == return
+	end
+	false return
+end   
+
+//true if any kind of pointer
+proc pointer?:(t:Type&->Bit)  
+	t if 
+		t.category 	POINTERUSER == 
+		t.category POINTERPOSSESSIVE ==	or  
+		t.category CPOINTER == 			or	 return
+	end
+	false return
+end
+
+//manipulating types
+
+//returns a reference of
+proc .&:(t:Type&->Type&)
+	POINTERUSER t 0:String& 0 findType return
+end
+
+//returns a cpointer of
+proc .cpointer:(t:Type&->Type&)
+	CPOINTER t 0:String& 0 findType return
+end
+
+//returns possessive pointer of
+proc .%:(t:Type&->Type&)
+	POINTERPOSSESSIVE t 0:String& 0 findType return
+end
+
+//returns array of
+proc .array:(t:Type&->Type&)
+	ARRAYDYNAMIC t 0:String& 0 findType return
+end
+
+//returns static sized array of
+proc .array:(t:Type&;n:Z32->Type&)
+	ARRAYSTATIC t 0:String& n findType return 
+end
+
+proc .@:(t:Type&->Type&)
+	t.ref return
+end
+
+//print a type
+proc print:(t:Type&)
+	t not if return end
+		
+	t.name if
+		 t.name print
+	end			
+	
+	t proc? if
+		"(" print
+		0#i loop t i[] ##arg:Bit while
+			arg.name ":" t.ref 	";" prints
+			i&++
+		end
+		"->" t.ref ")" prints
+		
+	t array? elseif
+		"["	t.ref prints
+		t.len:Bit if
+			" " t.len prints
+		end
+		"]"print
+	
+	t possessive? elseif
+		t.ref "%" prints
+	
+	t pointer? elseif
+		t.ref " cpointer" prints
+		
+	t reference? elseif
+		t.ref "&" prints
+	end
+	
+end
+
+//simple disassemble of a program
+
+primitive C_ptrequal ==:(a:Type&;b:Type&->Bit);
+
+
+proc disassemble:(ti:ExecToken; level:N32;indent:(n:N32)& )
+
+	indent #Indent
+
+	ti #t
+	0 #count
+		
+	t.prim "condblock"  == if
+		newline level Indent
+		"IF:" print 
+		t.sub level 1+ indent disassemble 				
+	end
+		
+	loop t:Bit while
+				
+		t.sub:Bit if
+				 t.sub level 1+ indent disassemble 
+		end
+		
+		level Indent
+		
+		t.prim :Bit if
+			t.prim "	" prints
+		end
+
+		t.text "	" prints
+		
+		"(" print
+		
+	
+		t.consttype String& ==
+		t.consttype String% == or if
+			t.value:String& print
+		t.consttype Real ==
+			t.value:Real 	print
+		else
+			t.value:Z32 print
+		end
+		
+		t.symbol.type print
+		")" print
+	
+		t.evaltype if
+			"->" t.evaltype prints
+		end
+		t.next t=
+		
+	end
+end
+
+
+proc disassemble:(ti:ExecToken;ndent:(n:N32)&)
+	ti 0 ndent disassemble  newline
+end
+
+
+virtual Decompiler;
+//selector decompile:(dc:Decompiler&; t:ExecToken );
+
+//selector dc NewProc:(dc:Decompiler&; name:String&; args:Type& ;  returnType:Type& -> dProc%); 
+
+
+selector dc Instruction:(dc:Decompiler&; t:ExecToken);	//call for leaf nodes
+selector dc Begin:(dc:Decompiler&; t:ExecToken);	//call before args to a treenode
+selector dc End:(dc:Decompiler&; t:ExecToken);
+
+
+//try a more complex decompiler w/ callbacks (goal to be able to have callbaks transpile to other languages)
+proc decompile:(dc:Decompiler&; ti:ExecToken)
+
+	ti #t
+		
+	loop t:Bit while
+			
+			t.sub:Bit if
+			
+				dc t Begin
+				dc t End
+			else
+			
+				dc t Instruction
+			
+			end
+				
+		t.next t=
+		
+	end
+	
+end
+
+

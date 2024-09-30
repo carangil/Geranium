@@ -1,0 +1,20 @@
+primitive C_zstrdup Strdup:(c_arg__1:String&-> String%);
+primitive C_fopen File_Open:(c_filename:String&; c_mode:String&-> File%);
+0 constant Procmap_zrand
+primitive C_zrand zrand:(-> N32);
+0 constant Procmap_zrandf
+primitive C_zrandf zrandf:(c_min:Real; c_max:Real-> Real);
+opaque @zuint16 N16;
+primitive C_store16 store16:(c_val:N16; c_zp:N16&-> );
+primitive C_load16 load16:(c_z:N16&-> Z32);
+stacked Vec3;
+type @namedv3 Vec3
+	@namedv3_x	x:Real;
+	@namedv3_y	y:Real;
+	@namedv3_z	z:Real;
+end
+primitive C_vec3add  +:(a:Vec3;b:Vec3->Vec3);
+primitive C_vec3sub  -:(a:Vec3;b:Vec3->Vec3);
+primitive C_vec3cross  Cross:(a:Vec3;b:Vec3->Vec3);
+primitive C_vec3dot  Dot:(a:Vec3;b:Vec3->Real);
+primitive C_ptrequal ptrequal:(c_a:Void&; c_b:Void&-> Bit);

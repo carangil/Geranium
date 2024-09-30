@@ -5,6 +5,18 @@ char* zstrdup(char*);
 
 //Zdef type FILE	File
 
+
+/*
+
+	"Somefilename" "a" :File #f
+	f open
+	f 100 read #b //read 100 byte
+	
+	f close
+
+*/
+
+
 //Zdef noproto fopen File_Open
 FILE* fopen(char* filename, char* mode);
 
@@ -25,7 +37,6 @@ void store16(zuint16 val, zuint16* zp);
 //Zdef load16 @
 zint32 load16(zuint16  * z); 
 
-//Zdef opaque gfx_vertex_bufferT VBuffer
 
 //vector math functions
 
@@ -38,16 +49,13 @@ zint32 load16(zuint16  * z);
 //Zdef handler vec3dot     Dot:(a:Vec3;b:Vec3->Real);
 
 
+
+
 zbool ptrequal(void* a, void* b);
 
 
-//Zdef handler glslprocbody	immediate% glsl:(vsource:String&;fsource:String&->GLSLBody);
-//Zdef handler prepshader	prep:(p:GLSLBody->GLSLDrawProc);
-//Zdef handler execdraw		draw:(p:GLSLDrawProc; prim:N32;start:N32; stop:N32);
-
-
-
 //Reflection
+//Zgen genreflect.zz
 
 //Traverse data types
 //Zdef  struct	typeT	Type:name=name:String cpointer;size=size:N32;category=category:N32;ref=ref:Type&;len=len:N32;
@@ -120,3 +128,13 @@ typeT* type_member(typeT* t, zuint32 i);
 #define OPAQUE 10
 #define VIRTUAL 11
 #define LAST_REAL_TYPE 11
+
+
+
+//Graphics (other header files after this)
+//Zgen gengraphics.zz
+
+//Zdef opaque gfx_vertex_bufferT VBuffer
+//Zdef handler glslprocbody	immediate% glsl:(vsource:String&;fsource:String&->GLSLBody);
+//Zdef handler prepshader	prep:(p:GLSLBody->GLSLDrawProc);
+//Zdef handler execdraw		draw:(p:GLSLDrawProc; prim:N32;start:N32; stop:N32);

@@ -674,6 +674,23 @@ void process_zdef(char* zdef) {
 	
 }
 
+char* outz_prefix = "";
+
+void set_output(char* fname) {
+
+	while (*fname == ' ' || *fname == '\t')
+		fname++;
+
+	if (outz && outz != stdout)
+		fclose(outz);
+
+	char* name = zstrdup2(outz_prefix, fname);
+
+	outz = fopen(name, "wt");
+
+	ram_free(name);
+}
+
 int scanmain (int argc, char** args){
 	int bracelevel=0;
 	char lc=' ';
@@ -705,8 +722,10 @@ int scanmain (int argc, char** args){
 		outc = stdout;
 	
 
-	if (argc > 3)
-		outz = fopen(args[3], "wb");
+	if (argc > 3) {
+		outz_prefix = args[3];
+		set_output("gen.zz");
+	}
 
 	if (outz == NULL)
 		outz = stdout;
@@ -788,6 +807,12 @@ int scanmain (int argc, char** args){
 			
 			if (!strncmp("Zstop", buf2, 5))
 				exit(1);
+
+			if (!strncmp("Zgen", buf2, 4)) {
+				set_output(buf2 + 4);
+
+			}
+
 
 			if (!strncmp("Zdef", buf2, 4)) {
 				process_zdef(buf2 + 4);

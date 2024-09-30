@@ -89,6 +89,10 @@ typedef struct tokenS {
 	zlistnodeT zlistnode;
 	zuint32 tok;	//A constant defined below, a character, or a pair of characters
 	char* str;	//string representation of this token
+
+	char* altstr;   //alternative to try, such as functions that look like assignments
+	struct tokenS* altnext;
+
 	struct typeS* ty;	//datatype of this token
 	struct typeS* tyorig;	//original datatype of this token (before cast)
 	valueT val;	//token's constant value

@@ -2,19 +2,22 @@
 
 //"gfxgl.zz" include
 
-opaque GLSLBody;
-stacked GLSLBody;
-opaque GLSLDrawProc;
-stacked GLSLDrawProc;
-
-"gen.zz" include 
-
-32:Real print newline
-32:N32 print newline
-
 
 var g1:Z32;
 var g2:Real;
+
+proc Indent:(n:N32)
+	n#level
+	var i:Z32;
+	newline 0i= loop  i level < while    "   " print 
+
+	i 1 + i =  
+	end
+	
+	"~>|_#$*~>|_#$*" level[] print
+	" " print
+end
+
 
 proc testreflect:(a:Z32;b:Z32->Z32)
 	100 print
@@ -25,13 +28,9 @@ proc testreflect:(a:Z32;b:Z32->Z32)
 	immediate 50 20 + return end print
 
 	loop
-	
-		b 0 > while
-		
+		b 100 < while
 		b a * b + print newline
-	
 	end
-
 
 	g1 print newline
 	g2 print newline
@@ -39,28 +38,162 @@ proc testreflect:(a:Z32;b:Z32->Z32)
 	a b + return
 end
 
-proc tr2:(A:Z32;B:Z32->Z32)
 
-	A print " " B print A B + return
+Z32 Z32 testreflect&:ExecToken N32 Indent& disassemble
+
+
+
+
+type GLSLDecompiler
+	dc:Decompiler;
+
+	DStack:[200 DStack]
+
+
 end
 
-//1 3  testreflect print newline
+
+proc Instruction:(dc: GLSLDecompiler& ; t:ExecToken)
+	"instruction" t.text prints newline
+end
+
+
+proto End:(dc: GLSLDecompiler& ; t:ExecToken);
+proc Begin:(dc: GLSLDecompiler& ; t:ExecToken)
+	"begin(" t.text prints newline
+	dc:Decompiler& t.sub decompile  
+end
+
+
+proc End:(dc: GLSLDecompiler& ; t:ExecToken)
+	")end" t.text prints newline
+end
+
+
+
+GLSLDecompiler new :Decompiler% #gd
+
+gd Z32 Z32 testreflect&:ExecToken decompile
+
+[Z32] 10 new0 #ir
+
+//10 ir ++
+//20 ir ++
+
+//"ir counr " ir .count prints newline
+//ir  5 .count= print newline
+
+ir:Void& print 
+"size "   ir.size   " count " ir.count prints newline
+
+123 ir 3[]=
+
+6 ir .count=
+ir:Void& print 
+"size "   ir.size   " count " ir.count prints newline
+
+120 ir take resize ir=
+ir:Void& print  
+"size "   ir.size   " count " ir.count prints newline
+
+//proc polytest:(a: any&; b: like a -> like a);
+
+
+//ir 300[] print newline
+
+//33 print newline
+
+/*
+
+type StringMap
+	k:[String%]%;
+	v:[String%]%;
+end
+
+proc StringMapInsert(m:StringMap&;
+
+
+proc immediate [] : (  code m:StringMap&; code  k:String&->Code%)
+		
+	here .text "=" == if
+		"(detect write case)" print
+		code \\	
+			
+			'm 'k
+		\\ return
+
+	end
+	
+	here .text "take" == if
+		"(detect tkewrite case)" print
+		code \\	
+			
+			'm 'k
+		\\ return
+
+	end
+	
+	
+	code \\	
+		"read " 'k   prints newline
+	\\ return
+
+end
+
+proc immediate = : (code v:String& ;code m:StringMap&; code k:String&->Code%)
+	
+	code \\	
+			"Write " 'v " to " 'k prints newline
+	\\ return
+
+end
+
+var m:StringMap;
+[String%] 10 new0 m.k=
+[String%] 10 new0 m.v=
+
+m "boo"[] 
+
+"aa" m "boo" =
+*/
+
+
+//"aa" strdup m "boo" =
+
+
+//gd 
+
+
+/*
+
+
+32:Real print newline
+32:N32 print newline
+
+
+proc testreflect:(a:Z32;b:Z32->Z32)
+	100 print
+	a print 
+	"xxxx" print 
+	b print newline
+
+	immediate 50 20 + return end print
+
+	loop
+		b 100 < while
+		b a * b + print newline
+	end
+
+	g1 print newline
+	g2 print newline
+
+	a b + return
+end
+
 
 1 3 testreflect&:ExecToken #t  // casting a proc pointer to ExecToken returns a token to the start of its code
 
 
-
-proc Indent:(level:N32)
-	var i:Z32;
-	newline 0i= loop  i level < while    "   " print 
-
-	i 1 + i =  
-	end
-	
-	
-	"~>|_#$*~>|_#$*" level[] print
-	" " print
-end
 
 
 proc xprint:(t:Type&)
@@ -78,180 +211,18 @@ primitive C_ptrequal ==:(a:Type&; b:Type& -> Bit);
 
 
 
-proto disassemble:(ti:ExecToken;level:N32);
 
-proc disassemble:(ti:ExecToken)
-	ti 0 disassemble newline
-	
-end
 
-proc disassemble:(ti:ExecToken; level:N32)
 
-	ti #t
-	0 #count
-		
-	t.prim "condblock"  == if
-		newline level Indent
-		"IF:" print 
-		t.sub level 1+ disassemble					
-	end
-		
-		
-	loop t:Bit while
-		count&++
-		
-		
-		
-		t.sub:Bit if
-				 t.sub level 1+ disassemble 
-		end
-		
-		level Indent
-		
-		t.prim :Bit if
-			t.prim print
-			"	" print
-		end
-
-		t.text print
-		"	" print
-		
-		"(" print
-		
-		t.consttype if
-			 
-			t.value :Z32 print
-			" " print
-			t.consttype print
-			 
-		end
-		
-		
-		t.symbol.type print
-		")" print
-	
-		t.evaltype if
-			"->" print
-			t.evaltype print
-		end
-			
-		t.next t=
-	
-	end
-	
-	count return
-
-end
 
 //t disassemble
 
 //t 0 disassemble&:ExecToken disassemble
 
-ExecToken Z32 disassemble&:ExecToken disassemble
+//ExecToken Z32   N32 Indent&   disassemble&:ExecToken N32 Indent& disassemble
 
 
 
-
-"testreflect " print
-
-
-0 0 testreflect& typeof print newline
-
-
-"tr2 " print
-0 0 tr2& typeof print newline
-
-
-
-proc isArray:(t:Type&->Bit)  
-	t if 
-		t.category 	ARRAYDYNAMIC == if
-			true return
-		end
-		t.category ARRAYSTATIC == if
-			true return
-		end
-		
-	end
-	false return
-end
-
-proc isStruct:(t:Type&->Bit)  
-	t if 
-		t.category 	STRUCT == if
-			true return
-		end
-	end
-	false return
-end
-
-proc isProc:(t:Type&->Bit)  
-	t if 
-		t.category 	FUNCTION == if
-			true return
-		end
-	end
-	false return
-end
-
-proc isReference:(t:Type&->Bit)  
-	t if 
-		t.category 	POINTERUSER == if
-			true return
-		end
-	end
-	false return
-end
-
-proc isPossessive:(t:Type&->Bit)  
-	t if 
-		t.category 	POINTERPOSSESSIVE == if
-			true return
-		end
-	end
-	false return
-end
-
-proc isCpointer:(t:Type&->Bit)  
-	t if 
-		t.category 	CPOINTER == if
-			true return
-		end
-	end
-	false return
-end
-
-proc isPointer:(t:Type&->Bit)  
-	t if 
-		t.category 	POINTERUSER == if
-			true return
-		end
-		t.category POINTERPOSSESSIVE == if
-			true return
-		end
-		t.category CPOINTER == if
-			true return
-		end
-		
-	end
-	false return
-end
-
-proc .&:(t:Type&->Type&)
-	POINTERUSER t 0:String& 0 findType return
-end
-
-proc .%:(t:Type&->Type&)
-	POINTERPOSSESSIVE t 0:String& 0 findType return
-end
-
-proc .array:(t:Type&->Type&)
-	ARRAYDYNAMIC t 0:String& 0 findType return
-end
-
-proc .array:(t:Type&;n:Z32->Type&)
-	ARRAYSTATIC t 0:String& n findType return
-end
 
 [Z32]  print newline
 
@@ -264,66 +235,7 @@ ty .array print newline
 ty 10 .array print newline
 
 
-proc print:(t:Type&)
-	t:Bit not if return end
-	
-	t.name if
-		 t.name print
-	end			
-	
-	t isProc if
-		"(" print
-		
-		0#i loop t i[] ##arg:Bit while
-			arg.name print
-			":" print
-			t.ref print
-			";"print
-			
-			i&++
-		end
-		
-		"->" print
-		t.ref print
-		")" print
-		
-	t isArray elseif
-		"["print
-		t.ref print
-		t.len:Bit if
-			" " print t.len print
-		end
-		"]"print
-	
-	
-	t isPossessive elseif
-		t.ref print
-		"%" print
-	
-	
-	t isCpointer elseif
-		t.ref print
-		" cpointer" print
-	
-	
-	t isReference elseif
-		t.ref print
-		"&" print
-	end
-	
-	
-end
 
-
-proc immediate prints:(a:Empty)
-	
-end
-
-proc immediate prints:(code a:any->Code%)
-	code \
-		prints 'a print 
-	\ return	
-end
 
 
 500 print
@@ -360,13 +272,49 @@ end
 proc destructor:(a:LL&)	
 	a.head take #ln			//no ref count update
 	loop ln:Bit while
-		ln.prev take trash
+		ln.prev take trash//switch with above!
 		ln.next take ln=
 	end
 end
 
 "whatever" Strdup #str0
 str0  Strdup #str2
+
+
+
+
+virtual Number;
+selector n pr:(n:Number&);
+
+
+type BReal
+	c:Real;
+	//n:Number;
+end
+stacked BReal;
+
+proc :BReal:(a:Real->BReal)
+	var b:BReal;
+	a b.c=
+	b return
+end
+
+
+proc pr:(b:BReal)
+	">>>>" b.c  "<<<<" prints
+end
+
+//newline "/////" print newline
+123.4:BReal #b
+b pr
+
+b:Number //#jj
+
+//b.c print newline 
+//b take:Number% #NN
+
+//NN pr
+
 
 
 
@@ -403,7 +351,7 @@ L1
 	
 L2  prev:L1
 
-*/
+
 
 proc newLN:(a:String&->LN%)
 	LN new #ln
@@ -411,7 +359,7 @@ proc newLN:(a:String&->LN%)
 	ln take return
 end
 
-LL& destructor&:ExecToken disassemble
+//LL& destructor&:ExecToken disassemble
 
 "LL0" newLN #l0
 "LL1" newLN #l1
@@ -768,7 +716,7 @@ pbbb@keep  pccc@=
 0 0 intadd& keep 0 0 intsub&=
 
 33 3 intsub print newline
-*/
+
 
 
 proc immediate ps:(code s:String&->Code%)
@@ -781,11 +729,212 @@ primitive nop debug:();
 
 "Test123" strdup #ss
 
-debug
+
 
 ss ss ps
 
+
+proc TRUE:(->Bit)
+	"{TRUE}" print
+	true return
+end
+
+
+proc FALSE:(->Bit)
+	"{FALSE}" print
+	false return
+end
+
+
+"true true AND: " TRUE TRUE and prints newline
+"true false AND: " TRUE FALSE and prints newline
+"false true AND: " FALSE TRUE and prints newline
+"false false AND: " FALSE FALSE and prints newline
+
+"true true OR: " TRUE TRUE or prints newline
+"true false OR: " TRUE FALSE or prints newline
+"false true OR: " FALSE TRUE or prints newline
+"false false OR: " FALSE FALSE or prints newline
+
+
+type AA
+	b:Z32;
+	next:AA%;
+end
+
+
+AA new #aa
+AA new #bb
+AA new #cc
+
+111 aa.b=
+222 bb.b=
+333 cc.b=
+
+cc take bb.next=
+bb take aa.next=
+
+aa.next.next take trash
+
+aa if 
+	"aa ok" print newline
+end
+
+aa.next if 
+	"aa.next ok" print newline
+end
+
+aa.next.next if 
+	"aa.next.next ok" print newline
+end
+
+aa.next.next
+
+//aa.next.next if
+//	"aa.next.next is " aa.next.next.b prints newline
+//else
+//	"part aa.next.next is broken" print newline
+//end
+
+
 "done" print newline
+
+/*
+Z32  " "
+[Z32] pointer?" "
+Z32 pointer? " "
+
+
+
+
+Z32% cpointer pointer?" "
+Z32& pointer? " "
+Z32 .&.array.% prints
+newline
+Z32.&.array.%.@.@.@.name   print newline
+Z32 10 .array print newline
+
+
+proc Indent:(n:N32)
+	n#level
+	var i:Z32;
+	newline 0i= loop  i level < while    "   " print 
+
+	i 1 + i =  
+	end
+	
+	"~>|_#$*~>|_#$*" level[] print
+	" " print
+end
+
+String& print&:ExecToken  N32 Indent& disassemble
+
+//readline #ssss
+
+//ssss print newline
+
+proc  aaaa:(a:Z32; isAny:any&)
+	"called aaaa " a " " print newline
+	isAny:String&  print newline
+end
+
+
+proc  abcde:(isAny:any&)
+	"in ancde " isAny:String& prints newline
+	44 isAny aaaa
+
+	
+end
+
+"whatever" #axx
+
+axx abcde
+
+
+"zz" print newline
+
+virtual Term;
+selector t print:(t:Term&);
+
+virtual UTerm;
+selector UTerm.a:Term%;
+selector UTerm.term:Term%;
+
+virtual BinTerm;
+selector BinTerm.a:Term%;
+selector BinTerm.b:Term%;
+selector BinTerm.term:Term;	//binterm is also a term
+
+
+
+type IntegerTerm
+	i:Z32;
+	t:Term;
+end
+proc print:(t:IntegerTerm&)
+	t.i print
+end
+
+
+type AddTerm
+	a:Term%;
+	b:Term%;
+	binterm:BinTerm;
+	term:Term;
+end
+proc print:(t:AddTerm&)
+	"( " t.a  " + "  t.b  " )" prints
+end
+
+//AddTerm new :BinTerm% #bt
+
+
+
+proc :Term:(a:Z32->Term%)
+	IntegerTerm new #it
+	a it.i=
+	it take :Term% return
+end
+
+
+
+proc +:(a:Term%;b:Term%->Term%)
+	AddTerm new #t
+	a take t.a=
+	b take t.b=
+	t take:Term% return
+
+end
+
+
+10:Term  20:Term + #te
+
+te print
+
+code (a:Z32->Z32) \\
+	a a + return
+\\ #fff
+
+proc ffff:(a:Z32->Z32) 
+	a a + return
+end
+
+"fff:" print newline
+Z32 fff&:ExecToken N32 Indent& disassemble
+
+"ffff:" print newline
+Z32 ffff&:ExecToken N32 Indent& disassemble
+
+
+immediate
+	here:ExecToken N32 Indent& disassemble
+	readline #j
+end
+
+20 10 +
+newline
+
+
 
 
 

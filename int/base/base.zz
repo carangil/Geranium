@@ -2,6 +2,17 @@
 "base/float.zz" include
 
 
+
+opaque GLSLBody;
+stacked GLSLBody;
+opaque GLSLDrawProc;
+stacked GLSLDrawProc;
+
+
+//more includes at bottom on this file
+
+
+
 //define some language extensions by using immediate procs
 
 // 'until' will break a for loop if the value is true
@@ -20,6 +31,14 @@ proc immediate while:(code b:Bit->Code%)
     \ return
 end
 
+proto print:(s:String&->);
+proto newline:(->);
+
+proc immediate not:(code b:any->Code%)
+	"auto insert :Bit" print newline
+	code \\ 'b :Bit not \\ return
+end
+
 
 //basic console io
 
@@ -27,7 +46,7 @@ primitive printchar print:(a:N8 ->);
 primitive print32   print:(a:Z32 ->);
 primitive print32   print:(a:N32 ->);
 primitive print32   print:(a:Bit ->);
-primitive printptr  print:(a:any& ->);
+primitive printptr  print:(a:Void& ->);
 primitive readchar  getch:(->N8);
 primitive equal32   ==:(a:N8; b:N8 -> Bit);
 
@@ -61,11 +80,16 @@ proc print:(s:String&->)
 
 end
 
+proc immediate prints:(a:Empty)
+end
 
-
+proc immediate prints:(code a:any->Code%)
+	code \
+		prints 'a print 
+	\ return	
+end
 
 proc ++:(a:Z32&->)
-
 	a@ 1+ a@=
 	return
 end
@@ -84,7 +108,7 @@ proc readline:(->String%)
 	
 	loop
 		getch #c			//read a character
-		c:Z32 10 == if break end	//if newline, exit loop
+		c:Z32 10 == until	//if newline, exit loop
 		
 		c s i[]=		//set s[i] to c
 		
@@ -97,28 +121,20 @@ proc readline:(->String%)
 			
 			0 #j loop
 				s j[] ns j[]=		//copy byte 
-				j& ++			//increment j
-				j size == if break end	//break when done copying
+				j&++			//increment j
+				j size == until	//break when done copying
 			end
 			
 			ns take s =	//s takes ownership of ns
 			newsize size=
 		end
-	
-	
-		//todo:check size and grow
-	
 	end
-		
-
-
+	
 	s take:String% return  //take ownership of s, cast to a string pointer, return ownership of s
 	
 end
 
-
 proc strlen:(s:String& -> Z32)
-
 
 	0 #i
 	loop
@@ -148,9 +164,6 @@ proc strdup:(s:String& -> String%)
     0:String% return
 end
 
-0:Bit constant false
-1:Bit constant true
-
 proc ==:(si:String&; ti:String& -> Bit)
 
 	si #s
@@ -159,17 +172,14 @@ proc ==:(si:String&; ti:String& -> Bit)
 	s:Bit not if
 		"" s=
 	end
-	t:Bit not if
+	
+	t :Bit not if
 		"" t=
 	end
-
 	
 	0#i
 	loop
 		 s i[] t i[] == not if
-		 
-			//s i[] print t i[] print newline
-		 
 			false return
 		 end
 
@@ -180,3 +190,21 @@ proc ==:(si:String&; ti:String& -> Bit)
 
 	true return
 end
+
+
+primitive arrayinfo 0 .size:( array:[any]& -> Z32);	
+primitive arrayinfo 1 .count :( array:[any]& -> Z32);
+primitive arrayinfo 2 .count=:( n:Z32; array:[any]&);	
+
+//resize is made a keyword
+//primitive arrayinfo 3 resize:( n:Z32; Xarray:[any]% -> like Xarray  );	
+//typecategory List;
+//typecategory %;
+//typecategory &;
+
+//primitive loadptr:(  p:any&& -> like p@);
+//primitive storeptr:( p:any&; dst: like p& );
+
+
+"gen/gen.zz" include 
+"base/reflect.zz" include

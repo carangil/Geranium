@@ -4,9 +4,15 @@ typedef struct zlistnode_s
 {
 	struct zlistnode_s* next;
 	struct zlistnode_s* prev;
-	char DEBUG;
+	//char DEBUG;
 } zlistnodeT;
 
+typedef struct voidlistnode_s {
+	zlistnodeT zlistnode;
+	void* item;
+}starlistT;
+
+starlistT* listnode_mk(void* item);
 
 /*
 Intended use is to embed a zlistnodeT as first element inside a structure
