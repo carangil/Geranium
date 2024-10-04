@@ -96,7 +96,125 @@ ir:Void& print
 ir:Void& print  
 "size "   ir.size   " count " ir.count prints newline
 
-//proc polytest:(a: any&; b: like a -> like a);
+
+primitive loadptr GET:(p:any%& -> like p@@&);
+primitive loadptr 2 GETP:(p:any%& -> like p@);
+
+
+proc immediate AGET:(code p:any%& )
+
+	here .text "keep" == if
+		here  clip trash
+		code \\ 'p GETP \\ insert
+	end
+	
+	code \\ 'p GET \\ insert
+	
+end
+
+Z32 new #tz22
+66 tz22@=
+tz22&@@print newline
+
+tz22& GET @ print newline "<<<<" print
+
+tz22& GETP #tz33
+tz33 @ print "----" print newline
+
+
+tz22& AGET @ print newline
+tz22& AGET keep  #zzzzx
+
+zzzzx @ print newline
+
+
+type tests
+	b:String%;
+	A:Z32;
+end
+
+
+
+proc membertest:( a:tests& -> like a.A)
+	
+	a.A return
+end
+
+
+
+proc immediate ListOf:(t:Type& -> Type& )
+
+	t.name 
+	
+	t return
+
+end
+
+[Z32] 10 new0 #Ar
+Ar.size print newline
+20 Ar take Resize Ar=
+Ar.size print newline
+30 Ar take resize Ar=
+Ar.size print newline
+readline trash
+
+
+var tst:tests;
+
+444 tst.A=
+
+
+
+//tests& membertest& #jf
+//tests& membertest& #jf
+
+
+tst membertest print newline
+
+//tst jf print newline
+
+
+proc polytest:(n:Z32%&; a: any%; b: like a -> like n@@ )
+	
+	n@@ 100 + return
+
+	//n "  " n prints newline
+	
+//	n if	
+	//	a take return
+//	end
+
+//	b take return
+/*
+	Z32 new #zz
+	n zz@=
+	zz@ print newline
+	
+	zz take return
+	*/
+
+end
+
+
+tz22& "Str1" strdup "str2" strdup polytest  print newline
+
+Z32%& any% any% polytest&:ExecToken  N32 Indent& disassemble
+
+
+
+
+//1 t22& "str1" strdup "str2" strdup polytest  #zzz
+
+//#st1
+//st1 print newline
+
+
+//11 
+//"string1" strdup "string2" strdup polytest #s2
+//s2 print newline
+
+//0 t22 "string2" strdup "string2" strdup polytest s2=
+//s2 print newline
 
 
 //ir 300[] print newline

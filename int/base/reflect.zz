@@ -122,7 +122,7 @@ proc print:(t:Type&)
 	t possessive? elseif
 		t.ref "%" prints
 	
-	t pointer? elseif
+	t cpointer? elseif
 		t.ref " cpointer" prints
 		
 	t reference? elseif

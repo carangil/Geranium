@@ -90,7 +90,7 @@ typedef struct parsectxS{
 #define KCPOINTER	0x8013
 #define KNEW0		0x8014
 #define __KCOUNT	0x8015
-#define __KSIZE		0x8016	
+#define KLIKE		0x8016	
 #define KRESIZE		0x8017
 #define KOPAQUE		0x8018
 #define KIMMEDIATE	0x8019
@@ -107,7 +107,7 @@ typedef struct parsectxS{
 
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
 						"new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0",
-						"__.count", "__.size", "resize","opaque","immediate", "code", "stacked", "typeof", "constant",
+						"__.count", "like", "resize","opaque","immediate", "code", "stacked", "typeof", "constant",
 						 "per" , "alias", "skip", "Xbegin", "and", "or", NULL};
 
 zuint32 findKeyword(char* c){
@@ -370,6 +370,8 @@ void  tokenize(tokenT* insert, char* in){
 #define PENDING  22
 #define SUBTREE 23
 #define ALIAS   24
+#define LIKE	25
+#define DEREFTYPE	26
 
 typedef struct typeS{
 	char* name;
@@ -386,6 +388,7 @@ typedef struct typeS{
 	int tid;
 	struct symbolS* destructorproc;
 	zbool stacked;
+	zbool islike;  //type needs to be resolved relative to another item
 }typeT;
 
 zvecT* types;
@@ -408,6 +411,10 @@ typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
 	ty->category = category;
 	ty->name = zstrdup(name);
 	ty->ref = ref;
+
+	if (category != MEMBER && ((category == LIKE)|| (ref && ref->islike)))
+		ty->islike = ZTRUE;
+
 
 	if (category == ARRAYSTATIC || category == ARRAYDYNAMIC){	
 		ty->len = szlen;
@@ -466,6 +473,9 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 			xprintf("<size%d>", (int)ty->size);
 		
 		switch(ty->category) {
+		case  LIKE:
+			xprintf("<LIKE:>"); 
+			break;
 		case  PRIMITIVE:
 			xprintf("<PRIMITIVE>");  //continue on as func
 		case  FUNCTION:
@@ -524,6 +534,11 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 		case SUBTREE:
 			xprintf("SUBTREE");
 			break;
+
+		case DEREFTYPE:
+			end = "@";
+			break;
+
 		default:
 			xprintf(" (U-%x) ", ty->category);
 		}
@@ -566,8 +581,45 @@ void printTypeNoRedirect(typeT* ty, zbool line, zbool skipmembers) {
 
 typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany, * tImmediate, * tCode, * tExecToken, *tEmptyStack;
 
+
+
+//given an likename, and a list of arg types a function accepts, and a list of types a caller is using, figure out what type an arg or return value is
+// is_caller means it will resolve to a specific type from the point of view of a caller: 
+//		if a function takes arg  x:any&, and returns 'like x', and the caller is called a String&, then from the point of view of the caller, the function returns a String&
+// if is_caller is false, then its from the point of view of the function.  The function only knows it has an any&, so it can only do any& operations
+typeT* findType(zuint32 category, typeT* ref, char* name, size_t len);
+
+typeT* resolve_like_type(typeT* liketype, zvecT* proc_likes, zvecT* caller_likes, zbool is_caller) {  
+
+	if (!liketype || !liketype->islike) {
+		return liketype;
+	}
+	if (liketype->islike && liketype->category != LIKE ) {
+		//if it is a wrapped like, need to unwrap it, resolve it, and re-wrap it
+		return findType(liketype->category, resolve_like_type(liketype->ref, proc_likes, caller_likes, is_caller), liketype->name, 0);
+		///return mkType(liketype->category, resolve_like_type(liketype->ref, proc_likes, caller_likes, is_caller), NULL, 0);
+
+	}
+
+	int i;
+	typeT* likeType = NULL;
+	for (i = 0; i < zvec_count(proc_likes); i++) {
+		typeT* arg = zvec_get_at(proc_likes, i);
+		if (!strcmp(arg->name, liketype->name)) {
+			if (is_caller) 
+				likeType = zvec_get_at(caller_likes, i);
+			else
+				likeType = arg->ref;  //as what the function calls it
+
+				return likeType;
+		}
+
+	}
+	return NULL;
+}
+
 //compare two types, return true if the same
-zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty, zbool allow_any){
+zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty, zbool allow_any, zvecT* proc_likes, zvecT* caller_likes){
 
 	//if (!ty)
 		//ERR("compare null type\n");
@@ -577,9 +629,20 @@ zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty, z
 	if (category == MEMBER)
 		ERR("struct members shouldn't be compared\n");
 
-	 
+	 //allow any is intended for functions that accept 'any' types
 	if (allow_any && ty == tany) {
 		return ZTRUE;  //allow any to match anything
+	}
+
+	if (allow_any && ty->islike) {
+
+
+		typeT* liketype = resolve_like_type(ty, proc_likes, caller_likes, ZTRUE);
+		
+		return cmpType(category, ref, name, len, liketype, allow_any, NULL, NULL);
+		
+
+
 	}
 
 	if (ty->category != category)  //early exit for categories that should match
@@ -644,7 +707,7 @@ zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty, z
 		if (ref && !ty->ref)
 			return ZFALSE;
 
-		return cmpType(ref->category, ref->ref, ref->name, ref->len, ty->ref, allow_any);
+		return cmpType(ref->category, ref->ref, ref->name, ref->len, ty->ref, allow_any, proc_likes, caller_likes);
 		/*
 		if (ref && ty->ref) {
 			int same = cmpType(ref->category, ref->ref, ref->name, ref->len, ty->ref, allow_any);
@@ -660,13 +723,14 @@ zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty, z
 
 	return ZTRUE;
 }
-
+typeT* findTypeMember(typeT* type, char* name, int* pos, int* count);
 //finds simple or struct types, OR creates composite types (arrays, pointers of existing types) as needed
 typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 
 	typeT* ty;
 	typeT* found=NULL;
 	zuint32 i;
+
 
 	for (i=0; i< zvec_count(types);i++){
 		ty = zvec_get_at(types, i);
@@ -708,17 +772,32 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 			case SUBTREE:
 			case CPOINTER:
 
-				if (cmpType(category, ref, NULL, len, ty, ZFALSE))
+				if (cmpType(category, ref, NULL, len, ty, ZFALSE, NULL, NULL))
 					return ty;
 
 				break;
+
+			case LIKE:
+				break; //don't find 'like' types in this list 
+
+			case DEREFTYPE: //for 'like' types
+				if (name && name[0]) {
+					printf(" find %s\n", name);
+					if (ref->ref->category == STRUCT) {
+						typeT* m = findTypeMember(ref->ref, name, NULL, NULL);
+						return m->ref;
+					}
+
+					ERR("unhandled like struct member case\n");
+				}
+					return findType(ref->ref->category, ref->ref->ref, ref->ref->name, ref->ref->size);
 
 			default:
 				ERR("unknown type category %d\n", category);
 		}
 	}
 
-	//did not find.
+
 
 	if (ref &&((category == ARRAYDYNAMIC)||(category==ARRAYSTATIC) || (category == POINTERUSER)|| (category == POINTERPOSSESSIVE) || (category==SUBTREE) ||(category == CPOINTER) ) ) {
 
@@ -727,20 +806,23 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 		//xprintf(" Creating %s type for ", getTypeString(category));
 		//printType(ref, ZTRUE, ZFALSE);
 
-		if (ref->category == FUNCTION) {  //todo: disallow array of functions (makes no sense... arrays of function pointers does)
+		if (ref->category == LIKE) {
+			ty = ref;
+		}
+		else if (ref->islike) {
+			ty = ref;
+		//	ty = mkType(ref->category, ref->ref, ref->name, ref->len);
+		}
+		else if (ref->category == FUNCTION) {
 			ty = findType(FUNCTION, ref, NULL, 0);
-			if (ty) {
-				return mkType(category, ty, NULL, len);
-			}
-
-		} else {
-
+		}
+		else {
 			ty = findType(ref->category, ref->ref, ref->name, ref->len);
-			if (ty) {
-				return mkType(category, ty, NULL, len);
-			}
 		}
 
+		if (ty) {
+			return  mkType(category, ty, NULL, len);
+		}
 	}
 
 	return NULL;
@@ -932,7 +1014,7 @@ zbool cmpTypeListToFunc(zvecT* f, zvecT* b){
 			//compare types of members
 			if (memberf != memberb){
 				
-				if (!cmpType(memberb->category, memberb->ref, memberb->name, memberb->size, memberf, ZTRUE)) {
+				if (!cmpType(memberb->category, memberb->ref, memberb->name, memberb->size, memberf, ZTRUE, f, b )) {
 					return ZFALSE;
 				}
 			}
@@ -2351,13 +2433,11 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 				continue;
 			}
 
-			if (m->ref->category == POINTERPOSSESSIVE) {
-				//xprintf(" freeing poss pointer also has track %p\n", tv->trackpossptr);
-				ram_free( ex->stack[ex->fp-count+i].as.ptr.block );
-				
-			} else if (tv->trackpossptr){
-				//xprintf(" free trackpossptr\n");
-				ram_free( ex->stack[ex->fp-count+i].as.ptr.block );
+			if ( (tv->trackpossptr)|| resolve_like_type(m->ref,sym->type->members, NULL, ZFALSE)->category == POINTERPOSSESSIVE){
+				if (m->ref->category == LIKE) {
+					printf("free like arg\n");
+				}
+				ram_free(ex->stack[ex->fp - count + i].as.ptr.block);
 			}
 
 			
@@ -2682,6 +2762,8 @@ void addhandlers(struct parsectxS* pctx) {
 	HANDLER(pctx, printptr);
 	HANDLER(pctx, readchar);
 
+
+	
 	//cpointers
 	HANDLER(pctx, loadcptr);
 	HANDLER(pctx, storecptr);
@@ -3030,9 +3112,19 @@ tokenT*  parseType(tokenT* t) {
 			
 		}
 
-	
 
+		if (!named && t->tok == KLIKE) {
+		
+			tnext(t)->ty = mkType(LIKE, NULL, tnext(t)->str, 0);
+			t = tnext(t);
+			fold(tprev(t), t);
+			next = zlist_next(t);
+			named = ZTRUE;
 
+			
+
+			continue;
+		}
 
 		if (!named && t->tok == NAME){ //simple typename, but only 1 per 'type'
 					       //xprintf(" type %s\n", t->str);
@@ -3054,6 +3146,29 @@ tokenT*  parseType(tokenT* t) {
 			next = zlist_next(t);
 			continue;
 		}
+
+		if (tprev(t) && tprev(t)->ty && tprev(t)->ty->islike) {
+			if (t->tok == '@') {
+				xprintf("Making redef for type:\n");
+				printType(tprev(t)->ty, 1, 0);
+
+				t->ty = mkType(DEREFTYPE, tprev(t)->ty, NULL, 0);
+
+				next = zlist_next(t);
+				fold(tprev(t), t);
+				continue;
+			}
+			if (t->tok == NAME && t->str[0] == '.') {
+
+				t->ty = mkType(DEREFTYPE, tprev(t)->ty, t->str + 1, 0);
+				next = zlist_next(t);
+				fold(tprev(t), t);
+
+				continue;
+			}
+		}
+
+
 
 		if (t->tok == KCPOINTER) { //pointer type
 			t->ty = findType(CPOINTER, tprev(t)->ty, NULL, 0);
@@ -3080,6 +3195,7 @@ tokenT*  parseType(tokenT* t) {
 			fold(tprev(t),t);
 			continue;
 		}
+
 		
 		
 		if (t->tok =='(' && !named){ //type list for function parameters & return value
@@ -3169,15 +3285,23 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 
 			t = tnext(t);
 		}
-		 
-		
+
+				
 		t = parseVar(t, &name, &type  );
 		//printList((tokenT*)t->zlistnode.prev->prev->prev, t, ENDFILE,0);
+		
+		
+	//	if (type && type->islike) {
+		//	type->ref = resolve_like_type(type, parent->members, NULL, ZFALSE);
+		//}
+
+		
 		if ( (reqname && !name) || !type){
  			ERR(" type or name missing for struct member or function arg\n");
 		} 
-		 
-		if (type->category > LAST_REAL_TYPE){
+
+		
+		if (type->category > LAST_REAL_TYPE && (!parent || (parent->category != FUNCTION)) ){
 			if ((type->category == PENDING) && (type->stacked))
 				printf("allowing stacked struct in struct/fcall\n");
 			else
@@ -4257,8 +4381,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				xprintf(" RETURN a value\n");
 				printType(pc->type->ref, ZTRUE, ZFALSE);
 			
-
-				if (tprev(t)->ty != pc->type->ref) {
+				if (pc->type->ref->islike)
+					printf("return like\n");
+				if (tprev(t)->ty != resolve_like_type( pc->type->ref,pc->type->members,NULL, ZFALSE )   ) {
 					xprintf("Type mismatch expected:\n"); 
 					printType(pc->type->ref, ZTRUE, ZTRUE);
 					xprintf("attempt to return: \n");
@@ -5223,7 +5348,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				int so = -count+pos;
 				xprintf("Found %s  stack pos fp+%d, of type   ", m->name, so);
 				printType(m->ref,ZTRUE, ZFALSE);
-				t->ty = findType(POINTERUSER, m->ref, NULL, 0);
+					
+				if (m->ref->islike)
+					printf("like arg\n");
+				t->ty = findType(POINTERUSER, resolve_like_type(m->ref, pc->type->members, 0, ZFALSE), NULL, 0);
+
 				t->tok = STACKARG;
 				t->useslocal = 1;
 			
@@ -5369,7 +5498,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			
 			if (s){ //found symbol
 				ram_free(v);
-				v = NULL;
+			
 				//xprintf(" Found symbol %s  local:%d \n", t->str, local);
 				//printType(s->type,0,0);
 				//xprintf("\n");
@@ -5392,6 +5521,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					t->ty = s->tokens->ty;
 					t->tyval = s->tokens->ty;
 					t = tnext(t);
+					v = NULL;
 					continue;
 				}
 
@@ -5501,7 +5631,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 					if (!fpointer) { //regular function call
 
-						t->ty = s->type->ref;
+						t->ty = resolve_like_type(s->type->ref, s->type->members, v, ZTRUE);
 						t->sym = s;
 						
 						if (s->handler ) {
@@ -5535,17 +5665,19 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 								ERR("Subexpression uses local variables that don't exist at compile time:  Cannot move proc call into immediate context.\n");
 
 							t = tprev(ts); //backtrack to the immediate block just created
+							v = NULL;
 							continue;
 
 						}
 
 						t = tnext(t);
+						v = NULL;
 						continue;
 
 					}
 
 				}
-				
+				v = NULL;
 				//by this point, normal function calls have been taken care of.
 				//what is left is a noexec 'normal' function, variable fetches, and noexec function pointers
 			
@@ -5603,7 +5735,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				loaderToken->val.as.ptr.offset = s->offset;
 
 				if (fpointer && !noexec) {
-					t->ty = s->type->ref->ref; //return value of function being called via pointer
+					  t->ty = s->type->ref->ref; //return value of function being called via pointer
+					  //todo: check the bwlow behavior, OR forbif pointers to 'like' typed functions OR make function pointers be specific
+					//s->type resolve_like_type(s->type->ref->ref, s->type->ref->members, v, ZTRUE);
+
+
 					t->handler = hcall;
 					t->val.as.n32 = 2; //indirect
 					//t = tnext(t);

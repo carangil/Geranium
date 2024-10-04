@@ -39,6 +39,8 @@ proc immediate not:(code b:any->Code%)
 	code \\ 'b :Bit not \\ return
 end
 
+primitive loadptr H:( a:any&& -> like a@ );
+
 
 //basic console io
 
@@ -197,7 +199,10 @@ primitive arrayinfo 1 .count :( array:[any]& -> Z32);
 primitive arrayinfo 2 .count=:( n:Z32; array:[any]&);	
 
 //resize is made a keyword
-//primitive arrayinfo 3 resize:( n:Z32; Xarray:[any]% -> like Xarray  );	
+
+primitive arrayinfo 3 Resize:( n:Z32; Xarray:[any]% -> like Xarray  );	
+
+
 //typecategory List;
 //typecategory %;
 //typecategory &;
