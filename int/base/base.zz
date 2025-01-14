@@ -48,9 +48,11 @@ primitive printchar print:(a:N8 ->);
 primitive print32   print:(a:Z32 ->);
 primitive print32   print:(a:N32 ->);
 primitive print32   print:(a:Bit ->);
-primitive printptr  print:(a:Void& ->);
+primitive printptr  printptr:(a:any& ->);
+primitive printptr  printptr:(a:vany& ->);
 primitive readchar  getch:(->N8);
 primitive equal32   ==:(a:N8; b:N8 -> Bit);
+
 
 
 proc newline:(->)
@@ -197,10 +199,8 @@ end
 primitive arrayinfo 0 .size:( array:[any]& -> Z32);	
 primitive arrayinfo 1 .count :( array:[any]& -> Z32);
 primitive arrayinfo 2 .count=:( n:Z32; array:[any]&);	
+primitive arrayinfo 3 resize:( n:Z32; Xarray:[any]% -> like Xarray  );	
 
-//resize is made a keyword
-
-primitive arrayinfo 3 Resize:( n:Z32; Xarray:[any]% -> like Xarray  );	
 
 
 //typecategory List;

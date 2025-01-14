@@ -1,7 +1,8 @@
 
 
-//Zdef    noproto zstrdup  Strdup
-char* zstrdup(char*);
+//Zdef proc zstrcatsub zstrcatsub:(s:String%; t:String&; n:Z32; st:Z32 -> String%);
+char* zstrcatsub(char* dest, char* src, zsize start, zsize count);
+
 
 //Zdef type FILE	File
 
@@ -138,3 +139,5 @@ typeT* type_member(typeT* t, zuint32 i);
 //Zdef handler glslprocbody	immediate% glsl:(vsource:String&;fsource:String&->GLSLBody);
 //Zdef handler prepshader	prep:(p:GLSLBody->GLSLDrawProc);
 //Zdef handler execdraw		draw:(p:GLSLDrawProc; prim:N32;start:N32; stop:N32);
+
+

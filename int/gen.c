@@ -1,13 +1,17 @@
-tokenT* hc_zstrdup (exectxT* ex, tokenT* t) {	
-	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
-	ex->stack[ex->sp-1].as.ptr.block=(void*) zstrdup(
-			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
-	ex->stack[ex->sp-1].as.ptr.level=0; 
-	ex->stack[ex->sp-1].as.ptr.offset=0; 
+char* zstrcatsub(char* dest, char* src, zsize start, zsize count);
+tokenT* hc_zstrcatsub (exectxT* ex, tokenT* t) {	
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
+	ex->stack[ex->sp-4].as.ptr.block=(void*) zstrcatsub(
+			(void*)((ex->stack[ex->sp-4].as.ptr.block)+(ex->stack[ex->sp-4].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-3].as.ptr.block)+(ex->stack[ex->sp-3].as.ptr.offset)),
+			ex->stack[ex->sp-2].as.z32,
+			ex->stack[ex->sp-1].as.z32);
+	ex->stack[ex->sp-4].as.ptr.level=0; 
+	ex->stack[ex->sp-4].as.ptr.offset=0; 
 
 	cleanCCall(ex, t, firstArg);
 
-	ex->sp+= (-1+1);
+	ex->sp+= (-4+1);
 
 	return tnext(t); 
 }
@@ -1277,7 +1281,7 @@ tokenT* hc_gx_use_shader (exectxT* ex, tokenT* t) {
 }
 #define SET_EXTENSIONS set_handlers
 void set_handlers(){
-	mkSymbol(global, "C_zstrdup", tPrimitive, hc_zstrdup);
+	mkSymbol(global, "C_zstrcatsub", tPrimitive, hc_zstrcatsub);
 	mkSymbol(global, "C_fopen", tPrimitive, hc_fopen);
 	mkSymbol(global, "C_zrand", tPrimitive, hc_zrand);
 	mkSymbol(global, "C_zrandf", tPrimitive, hc_zrandf);

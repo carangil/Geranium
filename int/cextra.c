@@ -303,11 +303,12 @@ tokenT* h_heretoken(exectxT* ex, tokenT* t) {
 
 
 tokenT* followRedirect(tokenT* there){
-	return there;
+	//return there; //remove me
 	while (there && there->handler == hredirectsub) {
 		if (tsub(there))
 			ERR("unexpected child\n");
 		there = there->val.as.token;
+		there = tsub(there);
 	}
 	return there;
 	
@@ -330,8 +331,6 @@ tokenT* h_firsttoken(exectxT* ex, tokenT* t) {
 
 //returns the string representation of a token
 tokenT* h_tokenstring(exectxT* ex, tokenT* t) {
-
-	
 	
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
 	
@@ -408,16 +407,12 @@ tokenT* h_symboltype(exectxT* ex, tokenT* t) {
 //returns the next token  like token=next(token)
 tokenT* h_tokennext(exectxT* ex, tokenT* t) {
 
-	
-		
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
 	
 	if (ts && ts->tok)
 		ts = followRedirect(tnext(ts));
 	else
 		ts = NULL;
-
-
 
 	ex->stack[ex->sp - 1].as.ptr.block = ts;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
@@ -427,7 +422,6 @@ tokenT* h_tokennext(exectxT* ex, tokenT* t) {
 
 tokenT* h_tokenclip(exectxT* ex, tokenT* t) {
 
-	
 	if (!ex->in_immediate) {
 		ERR("Cannot 'here' unless running in an immediate context\n");
 	}
@@ -458,14 +452,11 @@ tokenT* h_tokenclip(exectxT* ex, tokenT* t) {
 
 tokenT* h_tokeninsert(exectxT* ex, tokenT* t) {
 
-	
-
 	tokenT* additional = ex->stack[ex->sp - 1].as.ptr.block;
 	ex->sp -= 1;
 
 	if (!additional)	//nothing to add, just return what was already there	
 		return tnext(t);
-
 
 	tokenT* here = ex->in_immediate->t;
 	
@@ -486,8 +477,6 @@ tokenT* h_tokeninsert(exectxT* ex, tokenT* t) {
 
 tokenT* h_codecat(exectxT* ex, tokenT* t) {
 
-	
-	
 
 	tokenT* first = ex->stack[ex->sp - 2].as.ptr.block;
 	tokenT* additional = ex->stack[ex->sp-1].as.ptr.block;
