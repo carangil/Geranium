@@ -1,3 +1,5 @@
+primitive C_ptrequal ==:(a:any&; b:any&-> Bit);
+
 "base/base.zz" include
 
 //"gfxgl.zz" include
@@ -175,8 +177,8 @@ end
 
 [String%] 10 new #arr
 
-"cats" strdup arr 0[]=
-"dogs" strdup arr 1[]=
+"cats" copy arr 0[]=
+"dogs" copy arr 1[]=
 
 proc GET:(a:[any%]& ; b:Z32 ->like a@@  )
     a b [] keep #c
@@ -262,5 +264,75 @@ aboo 2[] printptr newline
 
 aboo 0 GET trash
 
+proc .hash:(s:String&->N32)
 
+    0:N32 #hash
     
+    0#i  loop 
+
+        s i[] #c 
+        c:Bit while
+        
+        hash    31 * 
+                c:N32 + 
+                        hash=
+        i&++
+    end 
+    hash return
+end
+
+
+
+0#i loop i 3 < while
+
+
+    "Cats" "cats" .hash  prints newline
+    "staC" "staC" .hash  prints newline
+    "dogs" "dogs" .hash  prints newline
+
+i&++ end
+
+
+var s:String%;
+
+proc =:( str:String&; p: String%&)
+    str copy p@=
+end
+
+"cat" s=
+
+s print newline
+
+"dog" copy s=
+
+s print newline
+
+type testa
+    a:any;
+end
+
+
+Z32 .size print newline
+
+5 constant five
+
+five typeof .size print newline
+
+s typeof .size print
+
+
+[Z32] 10 new #tz
+tz typeof print newline
+tz typeof .size print newline
+
+tz .size print newline
+"cat":[N8]& .size print newline
+"cat" .len print newline
+
+
+
+
+"cat" "cat" == if "same" print newline else "diff" print newline end
+
+var STUFF:String&;
+"dog" STUFF=

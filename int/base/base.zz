@@ -138,7 +138,7 @@ proc readline:(->String%)
 	
 end
 
-proc strlen:(s:String& -> Z32)
+proc .len:(s:String& -> Z32)
 
 	0 #i
 	loop
@@ -152,8 +152,8 @@ proc strlen:(s:String& -> Z32)
 	
 end
 
-proc strdup:(s:String& -> String%)
-	s strlen #le
+proc copy:(s:String& -> String%)
+	s .len #le
 	
 	[N8] le 1+  new #news
 	

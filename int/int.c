@@ -969,7 +969,7 @@ zbool symbol_cleanup(void* v){
 	return ZTRUE;
 }
 
-zbool cmpTypeListToFunc(zvecT* f, zvecT* b){
+zbool cmpTypeListToFunc(zvecT* f, zvecT* b, int matchApprox){
 	//iterates over a functions list of arguments and compares to a possible list of types
 	
 	if (zvec_count(f) !=zvec_count(b)){
@@ -998,10 +998,23 @@ zbool cmpTypeListToFunc(zvecT* f, zvecT* b){
 				}
 			}
 
+			//check for approximations
+			if (matchApprox == MATCH_IGNORE_SIGNED) {
+				//change both to unsigned to make a match
+				if (memberf == tZ32)
+					memberf = tN32;
+				
+				if (memberb == tZ32)
+					memberb = tN32;
+
+			}
+
 			//compare types of members
 			if (memberf != memberb){
-				
-				if (!cmpType(memberb->category, memberb->ref, memberb->name, memberb->size, memberf, ZTRUE, f, b )) {
+
+				int allow_any = (matchApprox == MATCH_ALLOW_WILD); 
+
+				if (!cmpType(memberb->category, memberb->ref, memberb->name, memberb->size, memberf, allow_any, f, b )) {
 					return ZFALSE;
 				}
 			}
@@ -1009,7 +1022,7 @@ zbool cmpTypeListToFunc(zvecT* f, zvecT* b){
 		return ZTRUE;
 }
 
-symbolT* findSymbol(zvecT* table, char* name, zvecT* typelist){ 
+symbolT* findSymbolEx(zvecT* table, char* name, zvecT* typelist, int matchApprox){ 
 	zuint32 i;
 	symbolT* s;
 		
@@ -1019,11 +1032,11 @@ symbolT* findSymbol(zvecT* table, char* name, zvecT* typelist){
 		if (   (!strcmp(name, s->name)) || (s->alias && (!strcmp(s->alias,name)))) {
 			if (s->type->ref && s->type->ref->category == FUNCTION && typelist) {
 				//printf("function pointer case?\n");
-				if (cmpTypeListToFunc(s->type->ref->members, typelist)) {
+				if (cmpTypeListToFunc(s->type->ref->members, typelist, matchApprox)) {
 					return s;
 				}
 			}else if ( s->type->category == FUNCTION && typelist ){
-					if (cmpTypeListToFunc(s->type->members, typelist)){
+					if (cmpTypeListToFunc(s->type->members, typelist, matchApprox)){
 						return s;
 					}
 			} else {
@@ -1035,6 +1048,11 @@ symbolT* findSymbol(zvecT* table, char* name, zvecT* typelist){
 
 	}
 	return NULL;
+}
+
+symbolT* findSymbol(zvecT* table, char* name, zvecT* typelist) {
+	return findSymbolEx(table, name, typelist, 0);
+
 }
 
 zvecT* primitives=NULL;
@@ -3389,7 +3407,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 	//if (t->sym)
 	//	printType(t->sym->type, 1,1);
 	
-	tokenT* ignoresigned = NULL; //set to 't' when symbol not found, to try to find what if its unsigned
+	//tokenT* ignoresigned = NULL; //set to 't' when symbol not found, to try to find what if its unsigned
+
+	int matchApprox = MATCH_EXACT;
+	tokenT* matchApproxToken = NULL;
+
 
 	while ( t) {
  		if (t->tok==ENDFILE)
@@ -3397,6 +3419,15 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 		if (t->tok==ENDFILE || t->tok== PASTENDFILE)
 			return t;
+
+		if (!strcmp(t->str, "STUFF="))
+			printf("STUFF\n");
+
+		if (t != matchApproxToken) { //if this is a new token, try matching exactly first
+			matchApproxToken = t;	//we are on this token
+			matchApprox = MATCH_EXACT;	
+		}
+
 			
 		//printList( tprev(tprprintf(" Token %s ", t->str);ev(tprev(t))), t, PASTENDFILE,0);
 		//xprintf(" parse token %s\n", t->str);
@@ -4393,6 +4424,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		case ':': //typecast
 
 			//if next token is text, we should attempt a function call instead
+			//this lets a function name start with :
+			//meaning :Thing  could be a function like:    proc :Thing(a:Z32->Thing)
+			//so this lets you create custom functions that act like a typecast
+			//could also beused for constructors:   1.0 2.0 3.0:Vec3  
+			// proc :Vec3(x:Real;y:Real;z:Real -> Vec3);
 			if (tnext(t)->tok == NAME) {
 				char* cname = zstrcat(zstrdup(":"), tnext(t)->str);
 				tokenT* nt = mkToken(NAME, cname, 0);
@@ -5122,8 +5158,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						tt = pos->val.as.type;
 					}
 
-					if ((ignoresigned == t) && (tt == tZ32))
-						tt = tN32;
+				//	if ((ignoresigned == t) && (tt == tZ32))
+					//	tt = tN32;
 											
 					zvec_add(v, tt);
 					
@@ -5149,7 +5185,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					if ((pc != global) && (pc != immediate_parse)) {
 
 						local = 1;
-						s = findSymbol(pc->symbols, t->str, v);
+						s = findSymbolEx(pc->symbols, t->str, v, matchApprox);
 						//xprintf(" LOCAL SYMBOL %p  %s\n", s, t->str);
 
 						if (s)
@@ -5157,7 +5193,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 						//took to parent's symbols (siblings) for functions that could be called
 						if (pc->parent && pc != immediate_parse && pc->parent != global && pc->parent != immediate_parse) {
-							s = findSymbol(pc->parent->symbols, t->str, v);
+							s = findSymbolEx(pc->parent->symbols, t->str, v, matchApprox);
 
 							if (s && s->type->category != FUNCTION) {
 								ERR("Can't access parent variable... pass it as a parameter instead\n");
@@ -5172,7 +5208,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 					//try global immediate parse
 					if (immediate_parse) {
-						s = findSymbol(immediate_parse->symbols, t->str, v);
+						s = findSymbolEx(immediate_parse->symbols, t->str, v, matchApprox);
 						if (s) {
 							local = -1;
 							break;
@@ -5181,7 +5217,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 					//global
 					local = 0;
-					s = findSymbol(global->symbols, t->str, v);
+					s = findSymbolEx(global->symbols, t->str, v, matchApprox);
 				}
 			
 				if (s)
@@ -5191,6 +5227,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (s){ //found symbol
 				ram_free(v);
 			
+				if (matchApprox != 0) {
+					printf(" Found symbol %s  approximation:%d\n", t->str, matchApprox);
+				}
+
 				//xprintf(" Found symbol %s  local:%d \n", t->str, local);
 				//printType(s->type,0,0);
 				//xprintf("\n");
@@ -5578,6 +5618,16 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				continue;
 			}
 			 
+		
+
+			if (matchApprox < MATCH_MAX_APPROX) {
+				matchApprox++; //try next match approximation (ignore integer sign, use wildcard types, etc)
+				ram_free(v);
+				v = NULL;
+				continue;
+			}
+
+			/*
 			if (t!=ignoresigned) {
 				ram_free(v);
 				v = NULL;
@@ -5587,6 +5637,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				continue; //try again
 			}
 			ignoresigned = NULL;
+			*/
 			
 			//WAS IT A TYPECAST?
 			if (tnext(ts)->tok == TYPECAST) {
@@ -5602,11 +5653,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//check if has '='
 			char* eq = strchr(t->str, '=');
 			if (eq && eq != t->str && !eq[1]){
+				
 				*eq = '\0'; //delete '='
 				//tokenize(t, t->str);  //retokenize the shortened string (in case now its a keyword or something)
 
 				insert_after(t, mkToken('=', "=", 0));
 				ram_free(v);
+				matchApprox = MATCH_EXACT; //try without = sign, using exact matching
 				continue;
 			}
 
