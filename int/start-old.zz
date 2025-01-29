@@ -1,0 +1,1074 @@
+"base/base.zz" include
+
+//"gfxgl.zz" include
+
+
+var g1:Z32;
+var g2:Real;
+
+proc Indent:(n:N32)
+	n#level
+	var i:Z32;
+	newline 0i= loop  i level < while    "   " print 
+
+	i 1 + i =  
+	end
+	
+	"~>|_#$*~>|_#$*" level[] print
+	" " print
+end
+
+
+proc testreflect:(a:Z32;b:Z32->Z32)
+	100 print
+	a print 
+	"xxxx" print 
+	b print newline
+
+	immediate 50 20 + return end print
+
+	loop
+		b 100 < while
+		b a * b + print newline
+	end
+
+	g1 print newline
+	g2 print newline
+
+	a b + return
+end
+
+
+Z32 Z32 testreflect&:ExecToken N32 Indent& disassemble
+
+
+
+
+type GLSLDecompiler
+	dc:Decompiler;
+
+	DStack:[200 DStack]
+
+
+end
+
+
+proc Instruction:(dc: GLSLDecompiler& ; t:ExecToken)
+	"instruction" t.text prints newline
+end
+
+
+proto End:(dc: GLSLDecompiler& ; t:ExecToken);
+proc Begin:(dc: GLSLDecompiler& ; t:ExecToken)
+	"begin(" t.text prints newline
+	dc:Decompiler& t.sub decompile  
+end
+
+
+proc End:(dc: GLSLDecompiler& ; t:ExecToken)
+	")end" t.text prints newline
+end
+
+
+
+GLSLDecompiler new :Decompiler% #gd
+
+gd Z32 Z32 testreflect&:ExecToken decompile
+
+
+[Z32] 10 new0 #ir
+
+//10 ir ++
+//20 ir ++
+
+//"ir counr " ir .count prints newline
+//ir  5 .count= print newline
+
+proc immediate AGET:(code p:any%& )
+
+	here .text "keep" == if
+		here  clip trash
+		code \\ 'p GETP \\ insert
+	end
+	
+	code \\ 'p GET \\ insert
+	
+end
+
+
+proc polytest:(n:Z32%&; a: any%; b: like a -> like n@@ )
+	
+	n@@ 100 + return
+
+	//n "  " n prints newline
+	
+//	n if	
+	//	a take return
+//	end
+
+//	b take return
+/*
+	Z32 new #zz
+	n zz@=
+	zz@ print newline
+	
+	zz take return
+	*/
+
+end
+
+
+primitive loadptr GET:(p:any%& -> like p@@&);
+primitive loadptr 2 GETP:(p:any%& -> like p@);
+
+
+proc TEST:()
+
+ir:Void& print 
+"size "   ir.size   " count " ir.count prints newline
+
+123 ir 3[]=
+
+6 ir .count=
+ir:Void& print 
+"size "   ir.size   " count " ir.count prints newline
+
+120 ir take resize ir=
+ir:Void& print  
+"size "   ir.size   " count " ir.count prints newline
+
+
+
+Z32 new #tz22
+66 tz22@=
+tz22&@@print newline
+
+tz22& GET @ print newline "<<<<" print
+
+tz22& GETP #tz33
+tz33 @ print "----" print newline
+
+
+tz22& AGET @ print newline
+tz22& AGET keep  #zzzzx
+
+zzzzx @ print newline
+
+
+type tests
+	b:String%;
+	A:Z32;
+end
+
+
+
+proc membertest:( a:tests& -> like a.A)
+	
+	a.A return
+end
+
+
+
+proc immediate ListOf:(t:Type& -> Type& )
+
+	t.name 
+	
+	t return
+
+end
+
+[Z32] 10 new0 #Ar
+Ar.size print newline
+20 Ar take resize Ar=
+Ar.size print newline
+30 Ar take resize Ar=
+Ar.size print newline
+readline trash
+
+
+var tst:tests;
+
+444 tst.A=
+
+
+
+//tests& membertest& #jf
+//tests& membertest& #jf
+
+
+tst membertest print newline
+
+end
+
+TEST
+"TEST:" print newline
+TEST&:ExecToken N32 Indent& disassemble
+"END" print newline
+//tst jf print newline
+
+"TEST:" print newline
+ Z32 [any]%& AGET&:ExecToken N32 Indent& disassemble
+"END" print newline
+
+
+Z32%& any% any% polytest&:ExecToken  N32 Indent& disassemble
+
+
+
+
+//1 t22& "str1" strdup "str2" strdup polytest  #zzz
+
+//#st1
+//st1 print newline
+
+
+//11 
+//"string1" strdup "string2" strdup polytest #s2
+//s2 print newline
+
+//0 t22 "string2" strdup "string2" strdup polytest s2=
+//s2 print newline
+
+
+//ir 300[] print newline
+
+//33 print newline
+
+/*
+
+type StringMap
+	k:[String%]%;
+	v:[String%]%;
+end
+
+proc StringMapInsert(m:StringMap&;
+
+
+proc immediate [] : (  code m:StringMap&; code  k:String&->Code%)
+		
+	here .text "=" == if
+		"(detect write case)" print
+		code \\	
+			
+			'm 'k
+		\\ return
+
+	end
+	
+	here .text "take" == if
+		"(detect tkewrite case)" print
+		code \\	
+			
+			'm 'k
+		\\ return
+
+	end
+	
+	
+	code \\	
+		"read " 'k   prints newline
+	\\ return
+
+end
+
+proc immediate = : (code v:String& ;code m:StringMap&; code k:String&->Code%)
+	
+	code \\	
+			"Write " 'v " to " 'k prints newline
+	\\ return
+
+end
+
+var m:StringMap;
+[String%] 10 new0 m.k=
+[String%] 10 new0 m.v=
+
+m "boo"[] 
+
+"aa" m "boo" =
+*/
+
+
+//"aa" strdup m "boo" =
+
+
+//gd 
+
+
+/*
+
+
+32:Real print newline
+32:N32 print newline
+
+
+proc testreflect:(a:Z32;b:Z32->Z32)
+	100 print
+	a print 
+	"xxxx" print 
+	b print newline
+
+	immediate 50 20 + return end print
+
+	loop
+		b 100 < while
+		b a * b + print newline
+	end
+
+	g1 print newline
+	g2 print newline
+
+	a b + return
+end
+
+
+1 3 testreflect&:ExecToken #t  // casting a proc pointer to ExecToken returns a token to the start of its code
+
+
+
+
+proc xprint:(t:Type&)
+	" " print t 0:Bit 0:Bit printTypeNoRedirect
+
+end
+
+
+proto print:(t:Type&);
+
+primitive C_ptrequal ==:(a:Type&; b:Type& -> Bit);
+
+
+
+
+
+
+
+
+
+
+//t disassemble
+
+//t 0 disassemble&:ExecToken disassemble
+
+//ExecToken Z32   N32 Indent&   disassemble&:ExecToken N32 Indent& disassemble
+
+
+
+
+[Z32]  print newline
+
+[Z32]& print newline
+Z32& print newline
+Z32 #ty
+ty .& print newline
+ty .% print newline
+ty .array print newline
+ty 10 .array print newline
+
+
+
+
+
+500 print
+
+
+
+
+proc immediate eint:(a:Empty;b:Z32->Code%)
+code \
+	"empty then" $b prints \  return
+end
+
+prints  110 "bpp " 123 " " 1.23 prints
+200 print 
+
+10 eint
+
+
+type LL
+	head:LN%;
+	tail:LN%;
+	
+end
+
+
+type LN
+	next:LN%;
+	prev:LN%;
+	name:String%;
+end
+
+
+
+proc destructor:(a:LL&)	
+	a.head take #ln			//no ref count update
+	loop ln:Bit while
+		ln.prev take trash//switch with above!
+		ln.next take ln=
+	end
+end
+
+"whatever" Strdup #str0
+str0  Strdup #str2
+
+
+
+
+virtual Number;
+selector n pr:(n:Number&);
+
+
+type BReal
+	c:Real;
+	//n:Number;
+end
+stacked BReal;
+
+proc :BReal:(a:Real->BReal)
+	var b:BReal;
+	a b.c=
+	b return
+end
+
+
+proc pr:(b:BReal)
+	">>>>" b.c  "<<<<" prints
+end
+
+//newline "/////" print newline
+123.4:BReal #b
+b pr
+
+b:Number //#jj
+
+//b.c print newline 
+//b take:Number% #NN
+
+//NN pr
+
+
+
+
+/*
+ln:L2
+
+LL
+	head	
+	tail	
+
+
+L0
+	next: prev:
+L1 
+	next: prev:
+	
+L2  prev:
+
+
+
+
+
+
+
+LL
+	head	L0
+	tail	L2
+
+
+L0
+	next:L1 prev:
+L1 
+	next:L2 prev:L0
+	
+L2  prev:L1
+
+
+
+proc newLN:(a:String&->LN%)
+	LN new #ln
+	a strdup ln.name=
+	ln take return
+end
+
+//LL& destructor&:ExecToken disassemble
+
+"LL0" newLN #l0
+"LL1" newLN #l1
+"LL2" newLN #l2
+
+l1 keep l0.next=
+l2 keep l1.next=
+
+l0 keep l1.prev=
+l1 keep l2.prev=
+
+LL new #list
+l0 take list.head=
+l2 take list.tail=
+l1 take trash
+
+
+
+
+
+
+/////////////////////////////////////////
+/*
+consider backpointers?
+type LL2
+	next:LL2% backpointer prev; //(the target type LL2, must have a LL2(this type) reference named next
+	prev:LL2&;					//this pointer can only be set by the system; when next is set
+end
+
+
+
+*/
+/////////////////////////////////////////
+
+/*
+100 cd print newline
+
+proc immediate swapNextTokens:(->Code%)
+	
+	here clip #first
+	here clip #second
+	
+	code \ 'second 'first \ return
+	
+end
+
+100 swapNextTokens - 10  print newline
+
+"aaa" print newline
+proc immediate REM:(->Code%)
+	here #h
+	loop
+		">>>" print h text print "<<<" print newline
+		h text "REMEND" == until
+		h next h =
+		h:Bit while
+	end
+	h clip trash
+	code \ \ return
+end
+
+code \
+	"XX" print newline
+	REM
+		everything in here is ignored
+		10 20 + print 
+	REMEND
+	"YY" print newline
+\ #f
+
+
+proc test1:()
+	
+	proc immediate REM:(->Code%)
+		
+		"replaced REM" print newline
+		
+		here text strdup #t
+		t print "<<<<" print newline
+		code \\
+			proc 't:()
+			//	$t keep #tc
+			//	
+				//"in word " print tc "." print newline
+			end
+			
+		\\ return
+		
+	end
+
+
+	"boo1" print newline	
+	REM   xxx
+	
+	"boo" print newline
+	
+end
+
+test1 
+
+"XX" #a
+"Z"0[] a 1[]=
+
+a print newline
+ 
+code	\ 100 \ #c0
+c0 code \ 200 + \  ++
+c0 code \ print "  << catted code" print newline \ ++
+
+"compile cc" print newline
+
+code ()\  "boo" print  'c0   \  #cx
+
+
+
+"compiled cx" print newline
+
+cx cx
+
+
+code (a:Z32->Z32) \
+	a 10 + return
+\ #add10
+
+ 
+code (a:Real->Real) \
+	a 10.0 + return
+\ #add10
+ 
+ 
+77 add10 print newline 
+77.1 add10 print newline
+
+
+proc usef:( f:(a:Z32->Z32)& ; i:Z32)
+	"in usef" print newline
+	f #ff
+	i ff print newline
+
+end
+
+1 add10& 30 usef
+
+"--end" print newline
+
+var fib:(b:Z32->Z32)%;
+code (b:Z32->Z32)\
+
+	b 2 <= if
+		1 return
+	end
+	
+ 	b 2 - fib
+	b 1 - fib + return
+
+\  0 fib & =
+
+
+
+
+
+0 #j loop j 10 < while
+
+	j fib print newline
+
+j&++ end
+
+0 #I
+
+0I= loop I 3< while
+
+
+	begin
+	
+		I 0 == if
+			"ZERO" print newline
+		
+	    end 
+	
+		I 1 == if
+			"ONE" print newline
+			
+		end 
+		
+		"OTHER" print newline
+	
+	
+	end
+	
+	
+
+	I&++
+end
+
+
+begin
+	"in a block" print newline
+	begin 
+		"in another block" print newline
+	end
+	"in first block again" print newline
+	
+end
+
+1 1 == if
+	"t" print newline
+	0:Bit if
+		"tt" print newline
+	else
+		"tf" print newline
+	end
+	"te" print newline
+else
+
+	"f" print newline
+	
+	1:Bit if
+		"ft" print newline
+	else
+		"ff" print newline
+	end
+	
+	"fe" print newline
+	
+	
+end
+
+
+
+
+1 #zzz
+loop zzz 5 < while
+
+	begin
+		zzz 1 == if
+			"one" print newline
+		
+		zzz 2 == elseif
+			"two" print newline
+		
+		zzz 3 == elseif
+			"three" print newline
+			
+			skip
+
+		else
+			
+			"other" print newline
+		
+		end
+
+		"iter" print newline
+	end
+	zzz&++
+
+end
+	"end" print newline
+	
+	
+1 zzz=
+loop zzz 5 < while
+
+	begin
+	
+		zzz 1 == if
+			"one" print newline
+			skip
+		end
+		
+		zzz 2 == if
+			"two" print newline
+			skip
+		end
+		
+		zzz 3 == if
+			"three" print newline
+			skip
+		end
+			
+		"other" print newline
+		
+	end
+
+	"iter" print newline
+	
+	zzz&++
+
+end
+	"end" print newline
+	
+proc immediate insertStuff:(code c:Z32)
+
+	code \\   "inserted stuff" print newline   'c print newline  \\ #g
+	g take insert
+
+	
+
+end	
+ 
+ //4 5 +& :token
+ 
+ 
+ proc immediate strinclude:(s:String&)
+ 
+	code \\ 's \\ insert
+ 
+ end
+ 
+ "  \"hello whatever\" print newline " strinclude
+ 
+ 
+ proc test00:(a:Z32; b:Z32)
+	a print "_aaa_" print b print newline
+ end
+ 
+5 10 test00 & #aaa
+
+
+ code (a:Z32; b:Z32) \
+	a print "_bbbb_" print b print newline
+ end \ #bbb
+
+
+11 22 aaa
+22 33 bbb
+
+"use b" print newline
+11 11 bbb & keep #ccc
+88 99 ccc
+
+"use a" print newline
+0 0 aaa & keep 0 0 ccc & =
+88 99 ccc
+
+
+0 0 bbb&&  #pbbb  //pbbb points to bbb variable
+
+"use b" print newline
+
+0 0 ccc&&  #pccc
+
+pbbb@keep  pccc@=
+
+44 44 bbb
+
+
+0 0 +& #intadd 
+0 0 -& #intsub
+
+5 7 intadd 1 + print newline
+
+10 4 intsub print newline
+
+0 0 intadd& keep 0 0 intsub&=
+
+33 3 intsub print newline
+
+
+
+proc immediate ps:(code s:String&->Code%)
+	code \\ 's print 's print newline
+	\\ return
+end
+
+primitive nop debug:();
+
+
+"Test123" strdup #ss
+
+
+
+ss ss ps
+
+
+proc TRUE:(->Bit)
+	"{TRUE}" print
+	true return
+end
+
+
+proc FALSE:(->Bit)
+	"{FALSE}" print
+	false return
+end
+
+
+"true true AND: " TRUE TRUE and prints newline
+"true false AND: " TRUE FALSE and prints newline
+"false true AND: " FALSE TRUE and prints newline
+"false false AND: " FALSE FALSE and prints newline
+
+"true true OR: " TRUE TRUE or prints newline
+"true false OR: " TRUE FALSE or prints newline
+"false true OR: " FALSE TRUE or prints newline
+"false false OR: " FALSE FALSE or prints newline
+
+
+type AA
+	b:Z32;
+	next:AA%;
+end
+
+
+AA new #aa
+AA new #bb
+AA new #cc
+
+111 aa.b=
+222 bb.b=
+333 cc.b=
+
+cc take bb.next=
+bb take aa.next=
+
+aa.next.next take trash
+
+aa if 
+	"aa ok" print newline
+end
+
+aa.next if 
+	"aa.next ok" print newline
+end
+
+aa.next.next if 
+	"aa.next.next ok" print newline
+end
+
+aa.next.next
+
+//aa.next.next if
+//	"aa.next.next is " aa.next.next.b prints newline
+//else
+//	"part aa.next.next is broken" print newline
+//end
+
+
+"done" print newline
+
+/*
+Z32  " "
+[Z32] pointer?" "
+Z32 pointer? " "
+
+
+
+
+Z32% cpointer pointer?" "
+Z32& pointer? " "
+Z32 .&.array.% prints
+newline
+Z32.&.array.%.@.@.@.name   print newline
+Z32 10 .array print newline
+
+
+proc Indent:(n:N32)
+	n#level
+	var i:Z32;
+	newline 0i= loop  i level < while    "   " print 
+
+	i 1 + i =  
+	end
+	
+	"~>|_#$*~>|_#$*" level[] print
+	" " print
+end
+
+String& print&:ExecToken  N32 Indent& disassemble
+
+//readline #ssss
+
+//ssss print newline
+
+proc  aaaa:(a:Z32; isAny:any&)
+	"called aaaa " a " " print newline
+	isAny:String&  print newline
+end
+
+
+proc  abcde:(isAny:any&)
+	"in ancde " isAny:String& prints newline
+	44 isAny aaaa
+
+	
+end
+
+"whatever" #axx
+
+axx abcde
+
+
+"zz" print newline
+
+virtual Term;
+selector t print:(t:Term&);
+
+virtual UTerm;
+selector UTerm.a:Term%;
+selector UTerm.term:Term%;
+
+virtual BinTerm;
+selector BinTerm.a:Term%;
+selector BinTerm.b:Term%;
+selector BinTerm.term:Term;	//binterm is also a term
+
+
+
+type IntegerTerm
+	i:Z32;
+	t:Term;
+end
+proc print:(t:IntegerTerm&)
+	t.i print
+end
+
+
+type AddTerm
+	a:Term%;
+	b:Term%;
+	binterm:BinTerm;
+	term:Term;
+end
+proc print:(t:AddTerm&)
+	"( " t.a  " + "  t.b  " )" prints
+end
+
+//AddTerm new :BinTerm% #bt
+
+
+
+proc :Term:(a:Z32->Term%)
+	IntegerTerm new #it
+	a it.i=
+	it take :Term% return
+end
+
+
+
+proc +:(a:Term%;b:Term%->Term%)
+	AddTerm new #t
+	a take t.a=
+	b take t.b=
+	t take:Term% return
+
+end
+
+
+10:Term  20:Term + #te
+
+te print
+
+code (a:Z32->Z32) \\
+	a a + return
+\\ #fff
+
+proc ffff:(a:Z32->Z32) 
+	a a + return
+end
+
+"fff:" print newline
+Z32 fff&:ExecToken N32 Indent& disassemble
+
+"ffff:" print newline
+Z32 ffff&:ExecToken N32 Indent& disassemble
+
+
+immediate
+	here:ExecToken N32 Indent& disassemble
+	readline #j
+end
+
+20 10 +
+newline
+
+
+*/
+"whatever" strdup "more" 0 4 zstrcatsub #st8
+st8 print newline
+
+
+

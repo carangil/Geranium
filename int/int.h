@@ -118,5 +118,8 @@ typedef struct tokenS {
 
 #define MATCH_EXACT			0
 #define MATCH_IGNORE_SIGNED	1
-#define MATCH_ALLOW_WILD	2
-#define MATCH_MAX_APPROX	2
+#define MATCH_VIRTUAL		2
+#define MATCH_ALLOW_WILD	3
+#define MATCH_MAX_APPROX	3
+
+// 'match virtual' means 

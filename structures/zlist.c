@@ -100,9 +100,9 @@ void* zlist_insert_node_before(zlistnodeT* node, zlistnodeT* newnode) {
 		fprintf(stdout, "Node %p: null or has null prev.\n");
 		exit(1);
 	}
-	if (node->prev->prev == NULL) {
-		printf("setinal case\n");
-	}
+//	if (node->prev->prev == NULL) {
+	//	printf("setinal case\n");
+	//}
 
 	return zlist_insert_node_after(node->prev, newnode);//  OK if prev is the setinal
 

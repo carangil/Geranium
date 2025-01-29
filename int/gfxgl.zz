@@ -1,12 +1,11 @@
-//"base/base.zz" include
 
+"gen/gengraphics.zz" include
 opaque GLSLBody;
 stacked GLSLBody;
 opaque GLSLDrawProc;
 stacked GLSLDrawProc;
 
-"gen.zz" include
-
+//define vector formats
 stacked Vec2;
 type Vec2
     s:Real;
@@ -56,10 +55,7 @@ proc print:(point:Vec4->)
 end
 
 
-proc UpdatePixels:(w:ZWindow& -> )    w 0:Void& UpdatePixels   end
-
 stacked Vec3;  //Vec3 structs are put on the stack
-
 proc :Vec3:(a:Real;b:Real;c:Real->Vec3)     
    var v:Vec3;
     a v.x=
@@ -67,6 +63,12 @@ proc :Vec3:(a:Real;b:Real;c:Real->Vec3)
     c v.z=  
     v return
 end
+
+
+
+
+proc UpdatePixels:(w:ZWindow& -> )    w 0:Void& UpdatePixels   end
+
 
 proc LoadTexture:(filename:String&->Texture%)
     filename ZTGA_TOP BitmapLoadTGA #img
@@ -96,6 +98,7 @@ end
 "../../Zcore-data/cube.obj" 1.0 MeshLoadObj #CubeMesh
 
 //"@../gfxtest/vertex.glsl" "@../gfxtest/fragment.glsl" DefaultShader 
+
 "@../gfxtest/finevertex.glsl" "@../gfxtest/finefragment.glsl" DefaultShader 
 
 NewStyle    #st 
@@ -138,9 +141,8 @@ end
 
 //compile a shader with inline GLSL source
 
-//code (per point:[Vec3]&; per color:[Vec3]& ->GLSLDrawProc)  \\
 	
-	1.0 2.0 :Vec3 #h2
+	//1.0 2.0 :Vec3 #h2
 	
 proc  testVertexShader:	(
 		per point:	[Vec3]&; 
@@ -309,23 +311,35 @@ loop
             e.eventType mask and mask == return
         end
 
+        
+        
+        
         immediate ZEVENT_MOUSE ZEVENT_DELTA or return end constant ZEVENT_MOUSE_DELTA
         
         ev ZEVENT_MOUSE_DELTA eventis    if
 
-      //  "                    md " print ev.A print   " "print  ev.B print newline        
+        
                            ev.A:Real -200.0 / dyaw=
                            ev.B:Real 200.0 / dpitch=
            
         end
+        
+        
 
-        // char events
+    // char events
         ev.eventType ZEVENT_CHAR == if
+        
             ev.A "+"0[]:N32 == if
+            
                 step 1.05 * step=
-            ev.A "-"0[]:N32==  elseif
+                
+            
+            ev.A "-"0[]:N32 ==  elseif
+            
                 step 0.95 * step=
-            ev.A "m"0[]:N32==  elseif
+                
+            ev.A "m"0[]:N32 ==  elseif
+                
                 mouseRel:Bit not:Z32 mouseRel=
 
                 window mouseRel:Bit gfx_mouse_relative
@@ -352,7 +366,10 @@ loop
 	tr.Rotation.ZAxis.x tr.Rotation.ZAxis.y tr.Rotation.ZAxis.z	0.0 :Vec4 modelView.C=
 	tr.Position.x 		tr.Position.y 		tr.Position.z 		1.0 :Vec4 modelView.D=	
 	
-	positions testu colors offset gfx_get_projection_matrix modelView Rock_Height  txc testVertexShader  GFX_TRIANGLE 0 4 draw
+	//positions testu colors offset gfx_get_projection_matrix modelView Rock_Height  txc testVertexShader GFX_TRIANGLE 0 4 draw
+	
+	positions testu colors offset gfx_get_projection_matrix modelView Rock_Height  txc testVertexShader GFX_TRIANGLE 0 4 draw
+	
 	
 //	offset 0.001 + offset=
 		
@@ -363,16 +380,14 @@ loop
 
     0.0 #dx 0.0 #dy 0.0 #dz
     
-    "a" IsPressed if   step.- dx=     end
-    "d" IsPressed if   step   dx=     end
-    "w" IsPressed if   step   dz=     end
-    "s" IsPressed if   step.- dz=     end
-    "r" IsPressed if   step   dy=     end
-    "f" IsPressed if   step.- dy=     end
-
-     "q" IsPressed if   step.-   droll=     end
-     "e" IsPressed if   step     droll=     end
-
+    "a" IsPressed if   step.-   dx=     end
+    "d" IsPressed if   step     dx=     end
+    "w" IsPressed if   step     dz=     end
+    "s" IsPressed if   step.-   dz=     end
+    "r" IsPressed if   step     dy=     end
+    "f" IsPressed if   step.-   dy=     end
+    "q" IsPressed if   step.-   droll=  end
+    "e" IsPressed if   step     droll=  end
 
     camera dz dx dy dyaw dpitch droll gfx_camera_motion_6dof
     camera gfx_camera_view
@@ -381,8 +396,10 @@ loop
 
 
    // CubeMesh.vb GFX_TRIANGLE 0 24:N32 1:Bit Draw
-    st Use
-    CubeMesh.vb GFX_TRIANGLE CubeMesh.start CubeMesh.stop  1:Bit Draw
+   
+
+   // st Use
+   // CubeMesh.vb GFX_TRIANGLE CubeMesh.start CubeMesh.stop  1:Bit Draw
 
     window UpdatePixels  
   
@@ -469,99 +486,6 @@ Vec3 .name print newline
 "^ type name" print newline
 
 
-type delim  end 
-stacked delim;
-var term:delim;
 
-proc prints:(code d:delim)
-    
-end
-
-proc immediate mkprints:(typename:String&  -> Code%)
-
-    "'" #'
-
-    code \\
-        
-        proc immediate prints:(code a: 'typename  ->Code%)
-
-            "returning prints code" print newline 
-            code \
-    
-                 prints ''a print
-        
-            \ return
-
-        end
-
-
-    \\return
-
-end
-
-
-"Z32"     mkprints
-"Real"    mkprints
-"String&" mkprints
-"N8"      mkprints
 
 10:N8 #lf
-
- term 123 " Whatever " 10.0 2.1 +  lf prints
- term 123 456 prints
-
-proc peek:(a:Real->Real)
-    term "<" a  ">" prints
-    a return
-end
-
-1.0 peek 3.0 peek + peek typeof .name print newline
-
-
-code (a:Z32->Z32)\
-
-    a 1 + return
-
-\  #fptr
-
-
-code (a:Real->Real)\
-
-    a 0.1 + return
-
-\  #fptr
-
-100 fptr print newline
-100.0 fptr print newline
-
-proc usefptr:( f:(a:Z32->Z32)&    )
-    f #ff
-    333 ff print newline
-    333 ff print newline
-end
-
-0 fptr noexec usefptr
-
-term
-10 :Real " " 
-123.4 " "
-123.4 :Z32 " " 
-//123.4 :any :Z32
-prints
-
-1.0 2.0 3.0 :Vec3
-1.0 2.0 3.0 :Vec3
-100.1 100.22 100.33 :Vec3 + print
-
-newline
-//arr typeof .name print newline
-
-"type->" print
-
-10 typeof.name print newline
-/*
-10 typeof.& arrayof 20 new #saa
-
-10 typeof arrayof 20 new #yyy
-10 typeof arrayof.% new #yyu
-*/

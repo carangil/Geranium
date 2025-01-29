@@ -1,0 +1,579 @@
+primitive C_ptrequal ==:(a:any&; b:any&-> Bit);
+
+"base/base.zz" include
+
+//"gfxgl.zz" include
+
+
+proc Indent:(n:N32)
+	n#level
+	var i:Z32;
+	newline 0i= loop  i level < while    "   " print 
+
+	i 1 + i =  
+	end
+	
+	"~>|_#$*~>|_#$*" level[] print
+	" " print
+end
+
+123 #g1
+123.4 #g2
+
+proc testreflect:(a:Z32;b:Z32->Z32)
+	100 print
+	a print 
+	"xxxx" print 
+	b print newline
+
+	immediate 50 20 + return end print
+
+	loop
+		b 100 < while
+		b a * b + print newline
+	end
+
+	g1 print newline
+	g2 print newline
+
+	a b + return
+end
+
+
+//Z32 Z32 testreflect&:ExecToken N32 Indent& disassemble
+
+
+
+
+type GLSLDecompiler
+	dc:Decompiler;
+	indentLevel:Z32;
+end
+
+
+proc Indent:(dc: GLSLDecompiler&)
+
+    newline
+    
+    0#i
+    loop i dc.indentLevel < while
+        " " print
+        i&++
+    end
+    
+end
+
+
+proc Dump:(t:ExecToken)
+
+
+    t.prim  " \"" t.text "\"" prints
+
+    
+    t.consttype String& ==
+	t.consttype String% == or if
+		" " t.value:String& " " prints
+	t.consttype Real ==
+		" Real " t.value:Real " " prints
+	else
+		" " t.value:Z32 " " prints
+	end
+        
+        
+    
+    t.evaltype:Bit if
+        " produces " t.evaltype prints
+    end
+    
+       
+
+end
+
+proc Instruction:(dc: GLSLDecompiler& ; t:ExecToken)
+	dc Indent
+	t Dump
+	
+	
+end
+
+proto End:(dc: GLSLDecompiler& ; t:ExecToken);
+
+proc Begin:(dc: GLSLDecompiler& ; t:ExecToken)
+    dc Indent
+	"begin " t.text "{" prints 
+	dc.indentLevel&++
+	dc:Decompiler& t.sub decompile  
+end
+
+proc End:(dc: GLSLDecompiler& ; t:ExecToken)
+	dc.indentLevel&--
+	dc Indent
+	"}end " prints 
+	
+	t Dump
+end
+
+proc Loop:(dc: GLSLDecompiler&; condition:ExecToken; body:ExecToken)
+
+
+end
+
+
+
+
+
+GLSLDecompiler new :Decompiler% #gd
+
+"Decompiled code:" print newline
+gd Z32 Z32 testreflect&:ExecToken decompile
+
+
+/*
+"type is " print
+Z32 Z32 testreflect& typeof #ft
+ft print newline
+ft 
+*/
+
+proc aaa:(a:Z32;b:Z32)
+    a b + print newline
+end
+
+10 20 aaa& #bbb
+
+
+
+
+proc immediate peektype:(a:Type&)
+    newline newline 
+    "TYPE IS " a  prints newline
+end
+
+
+[String%] 10 new #arr
+
+"cats" copy arr 0[]=
+"dogs" copy arr 1[]=
+
+proc GET:(a:[any%]& ; b:Z32 ->like a@@  )
+    a b [] keep #c
+    c take return  
+end
+
+proc GET:(a:[vany%]& ; b:Z32 ->like a@@  )
+    a b [] keep #c
+    c take return  
+end
+
+
+
+arr 1 GET ##d  print newline
+
+
+
+
+type awrap
+    array:[any%]%;
+end
+   
+   
+proc mkwrap:(a:[any%]% ->awrap%)
+    awrap new #n
+    a take n.array=
+    n take return
+end
+
+arr take mkwrap #aw
+    
+virtual boo;
+selector boo.a:Z32;
+
+type testb
+    a:Z32;
+    b:boo;
+end
+
+type testb2
+    c:Real;
+    a:Z32;
+    b:boo;
+end
+
+
+Z32& .size print newline
+boo& .size print newline
+    
+[boo%] 10 new #aboo
+
+testb new:boo% aboo 0[]=
+testb2 new:boo% aboo 1[]=
+testb new:boo% aboo 2[]=
+
+5.5 aboo 1[]:testb2&.c =
+
+
+
+
+
+10 aboo 0[].a=
+22 aboo 1[].a=
+33 aboo 1[].a=
+
+
+aboo 0[].a " "
+aboo 1[].a " "
+aboo 2[].a " " prints newline
+
+
+aboo 1[]:testb2&.a " "     aboo 1[]:testb2&.c prints newline
+
+
+aboo 0[]& printptr newline
+aboo 1[]& printptr newline
+aboo 2[]& printptr newline
+
+aboo 0[] printptr newline
+aboo 1[] printptr newline
+aboo 2[] printptr newline
+
+
+aboo 0 GET trash
+
+proc .hash:(s:String&->N32)
+
+    0:N32 #hash
+    
+    0#i  loop 
+
+        s i[] #c 
+        c:Bit while
+        
+        hash    31 * 
+                c:N32 + 
+                        hash=
+        i&++
+    end 
+    hash return
+end
+
+
+
+0#i loop i 3 < while
+
+
+    "Cats" "cats" .hash  prints newline
+    "staC" "staC" .hash  prints newline
+    "dogs" "dogs" .hash  prints newline
+
+i&++ end
+
+
+
+//working hashmap with string key to any%:
+
+type HashEntry
+    key:String%;
+    value:any%;
+    next:HashEntry%;
+end
+
+type HashMap
+    buckets:[HashEntry%]%;
+end
+
+
+proc []=:(a:any%; h:HashMap&; key:String&)
+    h.buckets :Bit if
+        "buckets valid" print newline
+    else 
+        "buckets nil" print newline
+        
+        [HashEntry%] 1 new h.buckets = //create buckets
+        
+        "create " h.buckets.size " buckets" prints newline
+        
+    end
+    
+    "hash " key.hash  prints newline
+
+    key.hash  h.buckets.size mod  #bucketNum
+    
+    //search for existing key
+    
+    h.buckets bucketNum[] keep #bucket
+    
+    loop bucket:Bit while
+        "check key " key "?=" bucket.key  prints newline
+        bucket.key key == if
+            "replace item" print newline
+            a take bucket.value=
+            return
+        end
+        bucket.next keep bucket=
+    end
+    //not found, make new entry
+    
+    HashEntry new #entry
+    key copy entry.key=
+    a take entry.value=
+    h.buckets bucketNum[] take entry.next=
+    entry take h.buckets bucketNum[]=
+end
+
+proc []:(h:HashMap&; key:String& ->any%)
+ h.buckets not :Bit if
+    "nil buckets" print newline
+    0:any% return
+ end
+ 
+ key.hash  h.buckets.size mod  #bucketNum
+ 
+ h.buckets bucketNum[] keep #bucket
+ loop bucket:Bit while
+    "check key " key "?=" bucket.key  prints newline
+    bucket.key key == if
+        bucket.value keep return
+    end
+    bucket.next keep bucket=
+ end
+
+ 0:any% return
+ 
+end
+
+//wrapper so any% value is String%
+
+type StringMap
+    h:HashMap;
+end
+
+proc []:(sh:StringMap&; key:String& -> String%)
+    sh.h key []:String% return
+end
+proc []=:(v:String%; sh:StringMap&; key:String&)
+    v take sh.h key []= 
+end
+
+
+
+immediate 
+
+
+    proc test123:(a:Z32)
+    
+        "test123 " a  prints newline
+    end
+
+    
+    667 test123
+    
+end
+
+555 test123
+
+
+//find a type by string name
+proc :Type:(name:String&->Type&)
+    21 0:Type& name 0 findType return
+end
+
+
+proc immediate dump:()
+
+   
+    loop here:Bit while
+        here .text print
+        here clip trash
+    end
+   
+    
+
+end
+
+proc print:(c:Code&)
+
+ 
+    code ()  \\
+        dump 'c   
+        
+    \\ ##run
+   
+    
+    
+end
+
+
+code |  a b 10 +  |  #tc
+
+tc print
+
+
+
+/*
+
+
+macro mtest:(a:Z32)
+{
+        "boo " a prints newline
+} 
+
+
+888 mtest
+*/
+
+proc immediate MapOf:(vt:Type&)
+
+
+    vt.name "_MapOf" ++    #name
+    
+    name:Type:Bit if
+        return
+    end
+    
+    code () \
+        type 'name
+            h:HashMap;
+        end
+    \ ##c
+    
+    
+    code \
+        proc []:(sh:'name &; key: String& -> $vt% )
+            sh.h key []:String% return
+        end
+        proc []=:(v:$vt%; sh:'name&; key:String&)
+            v take sh.h key []= 
+        end
+        
+    \ insert
+    
+end
+
+
+
+
+//var a:String MapOf;
+
+
+String MapOf
+
+
+//String MapOf
+
+
+proc immediate tf:()
+    "--tf" print newline
+
+    
+    
+end
+
+tf
+
+
+
+
+var x: String_MapOf ;
+
+
+"boo" copy  x  "cat"[]=
+"foo" copy  x  "dog"[]=
+
+x "cat" [] ##k print newline
+x "dog" [] k#= print newline
+
+"----LIVE" print newline
+
+
+"Type name [Z32] is " 
+[Z32] prints newline
+
+//var a:.Z32
+
+
+
+
+var mymap:StringMap;
+
+
+"val" copy mymap "cat" []=
+"val1" copy mymap "dog" []=
+"val7" copy mymap "cat" []=
+
+mymap "cat" [] ##astr print newline
+mymap "dog" [] astr#= print newline
+mymap "boo" [] astr#= print newline
+
+
+
+
+var s:String%;
+
+proc =:( str:String&; p: String%&)
+    str copy p@=
+end
+
+"cat" s=
+
+s print newline
+
+"dog" copy s=
+
+s print newline
+
+type testa
+    a:any;
+end
+
+
+Z32 .size print newline
+
+5 constant five
+
+five typeof .size print newline
+
+s typeof .size print
+
+
+[Z32] 10 new #tz
+tz typeof print newline
+tz typeof .size print newline
+
+tz .size print newline
+"cat":[N8]& .size print newline
+"cat" .len print newline
+
+
+
+
+"cat" "cat" == if "same" print newline else "diff" print newline end
+
+
+virtual vtest;
+selector vtest.item:any%;
+
+type    vz
+    vt:vtest;
+    item: Z32%;
+end
+
+type    vs
+    item: String%;
+    vt:vtest;
+    
+end
+
+var v1:vz;
+var v2:vs;
+
+v1.item typeof print newline
+v2.item typeof print newline
+
+proc fv:( vt: vtest&  )
+    "in fv" print newline
+   
+end
+
+v1 fv
+
+

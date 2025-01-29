@@ -34,9 +34,16 @@ end
 proto print:(s:String&->);
 proto newline:(->);
 
-proc immediate not:(code b:any->Code%)
-	"auto insert :Bit" print newline
-	code \\ 'b :Bit not \\ return
+
+//proc immediate not:(code b:any->Code%)
+	//"auto insert :Bit" print newline
+	//code \\ 'b :Bit not \\ return
+//end
+
+
+proc immediate not:(code a:any& ->Code%)
+    code \\ 'a :Bit not \\ return
+
 end
 
 primitive loadptr H:( a:any&& -> like a@ );
@@ -203,6 +210,7 @@ primitive arrayinfo 3 resize:( n:Z32; Xarray:[any]% -> like Xarray  );
 
 
 
+
 //typecategory List;
 //typecategory %;
 //typecategory &;
@@ -213,3 +221,24 @@ primitive arrayinfo 3 resize:( n:Z32; Xarray:[any]% -> like Xarray  );
 
 "gen/gen.zz" include 
 "base/reflect.zz" include
+
+
+
+//string appending         string1 string2 ++
+
+proc ++:(a:String&;b:String& ->String%)
+    a copy #r
+    r take b 0 -1 zstrcatsub return
+end
+
+//append owned string
+proc ++:(a:String%;b:String& ->String%)
+    a take b 0 -1 zstrcatsub return
+end
+
+
+//append owned string to other string
+proc ++:(a:String%; b:String% ->String%)
+    a take b 0 -1 zstrcatsub return
+end
+

@@ -1,6 +1,6 @@
 
 
-//Zdef proc zstrcatsub zstrcatsub:(s:String%; t:String&; n:Z32; st:Z32 -> String%);
+//Zdef proc zstrcatsub zstrcatsub:(s:String%; t:String&; st:Z32; c:Z32 -> String%);
 char* zstrcatsub(char* dest, char* src, zsize start, zsize count);
 
 

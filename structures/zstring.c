@@ -198,7 +198,7 @@ char* zstrbuild(zvecT* v, char delim){
 
 }
 
-
+//Like printf.  Initial is optional zstring to append to.
 char* zstrprintf(char* initial, char* format, ...) {
 	va_list args, copy;
 	va_start(args, format);

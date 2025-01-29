@@ -100,9 +100,7 @@ end
 proc print:(t:Type&)
 	t not if return end
 		
-	t.name if
-		 t.name print
-	end			
+		
 	
 	t proc? if
 		"(" print
@@ -127,7 +125,11 @@ proc print:(t:Type&)
 		
 	t reference? elseif
 		t.ref "&" prints
-	end
+		
+    t.name elseif
+		 t.name print
+	end		
+	
 	
 end
 

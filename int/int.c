@@ -450,6 +450,10 @@ typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
 
 	zvec_add(types, ty);
 
+	if (!name && ty->ref) {  //all types need some name
+		ty->name = zstrprintf(ty->name, "%s_c%d", ty->ref->name, ty->category);
+	}
+
 	return ty;
 }
 void printSymbols(zvecT* table, char* label);
@@ -765,19 +769,19 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 				break; //don't find 'like' types in this list 
 
 			case DEREFTYPE: //for 'like' types
-				if (name && name[0]) {
+
+				
+				if (name && name[0] && (ref->ref->category == STRUCT)) {
 					//printf(" find %s\n", name);
-					if (ref->ref->category == STRUCT) {
+				
 						typeT* m = findTypeMember(ref->ref, name, NULL, NULL);
 						return m->ref;
-					}
+				
+				}
 
 			
 
-
-					ERR("unhandled like struct member case\n");
-				}
-					return findType(ref->ref->category, ref->ref->ref, ref->ref->name, ref->ref->size);
+				return findType(ref->ref->category, ref->ref->ref, ref->ref->name, ref->ref->size);
 
 			default:
 				ERR("unknown type category %d\n", category);
@@ -1012,6 +1016,37 @@ zbool cmpTypeListToFunc(zvecT* f, zvecT* b, int matchApprox){
 			//compare types of members
 			if (memberf != memberb){
 
+				//if calling with a pointer to a real type, but function expects a pointer to virtual type
+				//the use the function
+				//TODO: need to add the selector table when doing that
+				if (matchApprox == MATCH_VIRTUAL) {
+					if (memberf->ref && memberf->ref->category == VIRTUAL && memberb && memberb->ref->category != VIRTUAL && memberb->ref->members) {
+
+						int j;
+						zbool found = ZFALSE;
+						for (j = 0; j < zvec_count(memberb->ref->members); j++) {
+							typeT* ty = zvec_get_at(memberb->ref->members,j);
+							if (ty->category == MEMBER) {
+
+								if ((ty->ref == memberf->ref)) {
+									if (memberb->category == memberf->category) { //both arg and caller have same kind of pointer (POSS or USER)
+										
+										found = ZTRUE;
+										printf("Matching call by autocast to virtual.  This feature is incomplete and there will be a null selector table.  TODO:  insert a haddselector instruction.");
+										break;
+									}
+								}
+							}
+
+						}
+						if (!found)
+							return ZFALSE;  //not the proper type
+						continue; //next arg
+						
+					}
+					
+				}
+
 				int allow_any = (matchApprox == MATCH_ALLOW_WILD); 
 
 				if (!cmpType(memberb->category, memberb->ref, memberb->name, memberb->size, memberf, allow_any, f, b )) {
@@ -1020,6 +1055,10 @@ zbool cmpTypeListToFunc(zvecT* f, zvecT* b, int matchApprox){
 			}
 		}
 		return ZTRUE;
+}
+
+zbool compatibleType(typeT* a, typeT* b) {
+	return cmpType(a->category, a->ref, a->name, a->size, b, ZTRUE, NULL, NULL);
 }
 
 symbolT* findSymbolEx(zvecT* table, char* name, zvecT* typelist, int matchApprox){ 
@@ -2064,6 +2103,7 @@ tokenT* NAME (exectxT* ex, tokenT* t) {						\
 }
 
 
+
 UNOP(hboolnot, z32, z32, !)
 UNOP(hinvert32, z32, z32, ~)
 UNOP(hneg32, z32, z32, -)
@@ -2846,6 +2886,8 @@ tokenT*  parseType(tokenT* t) {
 	zbool named=ZFALSE;
 	tokenT* next=NULL;
 
+	
+
 	//xprintf("PTstart\n");
 	for ( ; t;  t = next ) {
 
@@ -2886,6 +2928,18 @@ tokenT*  parseType(tokenT* t) {
 			named = ZTRUE;
 			continue;
 		}
+
+		if (!named && t->tok == PASSTHRU) {
+			if ((t->handler == hconstant) && (t->ty == tType)) {
+				t->handler = hnop;
+				t->ty = t->val.as.type;
+				next = tnext(t);
+				named = ZTRUE;
+				continue;
+
+			}
+		}
+
 
 		if (!named && t->tok == NAME){ //simple typename, but only 1 per 'type'
 
@@ -3237,7 +3291,10 @@ void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmemb
 			for (j = 0; j < zvec_count(real_type->members); j++) {
 				typeT* member = zvec_get_at(real_type->members, j);
 				if (!strcmp(member->name, vselector->name)) {
-					if (member->ref == vselector->type) {
+					
+					
+					
+					if ((member->ref == vselector->type) || compatibleType(member->ref, vselector->type)) {
 						
 						//make a symbol for it.
 						symbolT* s;
@@ -3249,7 +3306,7 @@ void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmemb
 						}
 						else {
 
-							s = mkSymbol(NULL, member->name, vselector->type, NULL); 
+							s = mkSymbol(NULL, member->name, member->ref, NULL);
 							s->offset = member->offset;
 						}
 
@@ -3420,9 +3477,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		if (t->tok==ENDFILE || t->tok== PASTENDFILE)
 			return t;
 
-		if (!strcmp(t->str, "STUFF="))
-			printf("STUFF\n");
-
+		
 		if (t != matchApproxToken) { //if this is a new token, try matching exactly first
 			matchApproxToken = t;	//we are on this token
 			matchApprox = MATCH_EXACT;	
@@ -3468,8 +3523,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			t = tnext(t);
 						
-			if (codetype)
+			if (codetype) {
 				tprev(t)->tok = KEND; //turn the end delimiter token into an END token.  Now the quote can be parsed similar to a function body
+				ram_free(tprev(t)->str);
+				tprev(t)->str = ram_strdup("");
+			}
 			else
 				ram_free(tremove(tprev(t))); //no untyped code (raw token snippets), delete this 
 						
@@ -3656,7 +3714,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			continue;
 
 		case KIMMEDIATE:
-			
+		case '$':
 			ts = t;
 
 			if (!immediate_parse) {
@@ -4009,6 +4067,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				
 				checkUsage(ts, t);//check all values are used up
 				
+				printf(" parsed proc %s ", name);
+
 				if (!strcmp(name, "destructor") ) {
 					if (s->type && s->type->members && zvec_count(s->type->members) == 1) {
 						typeT* dt = zvec_get_at(s->type->members, 0);
@@ -4126,6 +4186,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				if (pc->type->ref->islike)
 					printf("return like\n");
 				typeT* lt = resolve_like_type(pc->type->ref, pc->type->members, NULL, ZFALSE);
+				
 				if (tprev(t)->ty != lt   ) {
 					xprintf("Type mismatch expected:\n"); 
 					//printType(pc->type->ref, ZTRUE, ZTRUE);
@@ -4510,7 +4571,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							}
 						}
 						if (j == zvec_count(from->ref->selectors)) {
-							ERR("Struct does not contain selector member for \n");
+							ERR("Struct does not contain selector member for %s\n"
+							);
 						}
 						continue;
 					}
@@ -4570,6 +4632,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		
 
 			//forced typecast
+			printf(" Forced typecast ");
+			printTypeNoRedirect(tprev(ts)->ty, ZFALSE, ZFALSE);
+			printf(" to ");
+			printTypeNoRedirect(ty, ZTRUE, ZFALSE);
+
 			if (tprev(ts)->ty->category != ty->category)
 				xprintf(" Typecast changing from category %d to %d\n", tprev(ts)->ty->category, tprev(t)->ty->category);
 
@@ -5112,6 +5179,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			int fpointer=0;//found symbol is fpointer
 			int noexec = 0;//do not execute found item
 			
+			if (!strcmp(t->str, "[]") && tnext(t)->tok == '=') {
+				//try []= as a function name
+				t->str = zstrcat(t->str, "="); //append '='
+				ram_free(tremove(tnext(t))); //kill '='
+			}
 		
 
 			if ( tnext(t)->tok =='&') 
