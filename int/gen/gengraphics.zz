@@ -61,29 +61,29 @@ end
 181 constant ZKEY_RSHIFT
 182 constant ZKEY_RALT
 255 constant ZKEY_LASTKEY
-10 constant MAXEVENT
+32 constant MAXEVENT
 primitive C_zw_enqueue zw_enqueue:(c_zw:ZWindow&; c_type:N32; c_a:N32; c_b:N32; c_ptr:Void&-> );
 primitive C_zw_queued zw_queued:(c_zw:ZWindow&; c_ev:ZEvent&-> Bit);
 primitive C_zw_event GetEvent:(c_zw:ZWindow&; c_ev:ZEvent&-> Bit);
 primitive C_zw_close Close:(w:ZWindow%->);
-primitive C_zw_pixels UpdatePixels:(c_zw:ZWindow&; c_v:Void&-> );
 primitive C_zprintevent zprintevent:(c_ev:ZEvent&-> );
 1 constant GXDEBUG
 primitive C_checkGLfunc checkGLfunc:(c_file:String&; c_line:Z32; c_hint:String&; c_tolerable:Bit-> );
-primitive C_gfx_mkwindow GLWindow:(c_title:String&; c_w:N32; c_h:N32; c_flags:N32-> ZWindow%);
-primitive C_gfx_mouse_relative gfx_mouse_relative:(c_zw:ZWindow&; c_rel:Bit-> );
+primitive C_gfx_mkwindow NewGraphicsWindow:(c_title:String&; c_w:N32; c_h:N32; c_flags:N32-> ZWindow%);
+primitive C_gfx_swapbuffers SwapBuffers:(c_zw:ZWindow&-> );
+primitive C_gfx_mouse_delta MouseDelta:(c_zw:ZWindow&; c_rel:Bit-> );
 primitive C_gfx_background_color BackgroundColor:(c_r:Real; c_g:Real; c_b:Real; c_a:Real-> );
 primitive C_gfx_frame_clear FrameClear:(c_color:Bit; c_depth:Bit-> );
 primitive C_gfx_depth_buffer DepthBuffer:(c_test:Bit; c_write:Bit-> );
 primitive C_gfx_setup_3d Setup3D:(c_fovy:Real; c_aspect:Real; c_neardist:Real; c_fardist:Real-> );
 primitive C_gfx_setup_2d Setup2D:(c_left:Real; c_right:Real; c_top:Real; c_bottom:Real-> );
-primitive C_gfx_get_projection_matrix gfx_get_projection_matrix:(->Matrix44&);
+primitive C_gfx_get_projection_matrix GetProjectionMatrix:(->Matrix44&);
 1 constant GFX_BLEND_OFF
 2 constant GFX_BLEND_ALPHA
 3 constant GFX_BLEND_ADD
 4 constant GFX_BLEND_MUL
 opaque @gfx_styleT Style;
-primitive C_gfx_style_mk NewStyle:(-> Style%);
+primitive C_gfx_style_mk gfxNewStyle:(-> Style%);
 1 constant GFX_DELETE
 2 constant GFX_TRANSFORM_POINT
 3 constant GFX_TRANSFORM_DIRECTION
@@ -133,8 +133,8 @@ type @gfx_mat_3x3 Matrix33
 end
 primitive C_gfx_spin_matrix gfx_spin_matrix:(c_yaw:Real; c_pitch:Real; c_roll:Real; c_rot:Matrix33&-> );
 type @gfx_transformT Transform
-	@gfx_transformT_pos	Position:Vec3;
 	@gfx_transformT_rot	Rotation:Matrix33;
+	@gfx_transformT_pos	Position:Vec3;
 end
 primitive C_gfx_camera_init gfx_camera_init:(c_cam:Transform&-> );
 primitive C_gfx_trans_init gfx_trans_init:(c_cam:Transform&-> );

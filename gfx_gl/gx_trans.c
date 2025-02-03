@@ -28,12 +28,13 @@ void printMatrix44(char* name, float* m);
 //also then used to add weighted amounts of the 'forward' 'up' and 'right' vectors to the camera position, you get full 6DOF
 //there are not quaternions or other things used here, this is all just straight-up 3D vector math
 
+//Zdef proc gfx_spin_matrix Spin3x3
 void gfx_spin_matrix(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gfx_mat_3x3* rot)
 {
 
- 	vec3* up = &rot->y_axis;
-	vec3* right = &rot->x_axis;
-	vec3* forward = &rot->z_axis;
+ 	vec3* up = &rot->y_axis.vec3;
+	vec3* right = &rot->x_axis.vec3;
+	vec3* forward = &rot->z_axis.vec3;
 
 	
 	
@@ -85,10 +86,10 @@ void gfx_trans_init(gfx_transformT* t)
 {
 	if (t)
 	{
-		vec3set(t->rot.x_axis, 1.0f, 0.0f, 0.0f);
-		vec3set(t->rot.y_axis, 0.0f, 1.0f, 0.0f);
-		vec3set(t->rot.z_axis, 0.0f, 0.0f, 1.0f);
-		vec3set(t->pos, 0.0f, 0.0f, 0.0f);
+		vec4set(t->rot.x_axis, 1.0f, 0.0f, 0.0f, 0.0f);
+		vec4set(t->rot.y_axis, 0.0f, 1.0f, 0.0f, 0.0f);
+		vec4set(t->rot.z_axis, 0.0f, 0.0f, 1.0f, 0.0f);
+		vec4set(t->pos, 0.0f, 0.0f, 0.0f, 1.0f);
 	}
 }
 void gfx_camera_init(gfx_cameraT * t) { //will later add the ability to have a starting position and starting look angle
@@ -127,10 +128,9 @@ void gfx_projection3d (zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat
 	
 	matrix_version++;	
 }
+
 float* gfx_get_projection_matrix() {
-
-	return proj_matrix;
-
+		return proj_matrix;
 }
 
 void gfx_projection2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom) {
@@ -232,17 +232,19 @@ void gfx_camera_view(  gfx_cameraT* cam) {
 
 		/* top part of this matrix is 3x3 matrix.  It is transpose of the camera's matrix. */
 		
-		vec3set(trans.rot.x_axis,  cam->rot.x_axis.VX, cam->rot.y_axis.VX, cam->rot.z_axis.VX);
-		vec3set(trans.rot.y_axis,  cam->rot.x_axis.VY, cam->rot.y_axis.VY, cam->rot.z_axis.VY);
-		vec3set(trans.rot.z_axis,  cam->rot.x_axis.VZ, cam->rot.y_axis.VZ, cam->rot.z_axis.VZ);
+		vec4set(trans.rot.x_axis,  cam->rot.x_axis.VX, cam->rot.y_axis.VX, cam->rot.z_axis.VX,0);
+		vec4set(trans.rot.y_axis,  cam->rot.x_axis.VY, cam->rot.y_axis.VY, cam->rot.z_axis.VY,0);
+		vec4set(trans.rot.z_axis,  cam->rot.x_axis.VZ, cam->rot.y_axis.VZ, cam->rot.z_axis.VZ,0);
 
 		/* bottom part is translation */
 		/* the dot products project the position into the camera space */
 
 		vec3set (trans.pos , -vec3dot(cam->pos, cam->rot.x_axis), -vec3dot(cam->pos, cam->rot.y_axis), -vec3dot(cam->pos, cam->rot.z_axis));
+		trans.pos.named.w = 1;
 
-		modelview_camera_pos = cam->pos;  //track the camera position (will need it internally for lighting)
+		modelview_camera_pos = cam->pos.vec3;  //track the camera position (will need it internally for lighting)
 		
+
 		gfx_load_transform(&trans);  /* replace the current matrix */
 	}
 	else {
@@ -274,10 +276,10 @@ void gfx_save_transform(gfx_transformT* s) {
 
 void gfx_identity(){
 	
-	vec3set(modelview.rot.x_axis, 1, 0, 0);	// x axis inialized to 1,0,0
-	vec3set(modelview.rot.y_axis, 0, 1, 0); // y axis inialized to 0,1,0
-	vec3set(modelview.rot.z_axis, 0, 0, 1); // z axis inialized to 0,0,1
-	vec3set(modelview.pos,    0, 0, 0);			//no translation
+	vec4set(modelview.rot.x_axis, 1, 0, 0, 0);	// x axis inialized to 1,0,0
+	vec4set(modelview.rot.y_axis, 0, 1, 0, 0); // y axis inialized to 0,1,0
+	vec4set(modelview.rot.z_axis, 0, 0, 1, 0); // z axis inialized to 0,0,1
+	vec4set(modelview.pos,    0, 0, 0, 1);			//no translation
 
 	matrix_version++;
 	

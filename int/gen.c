@@ -209,19 +209,6 @@ tokenT* hc_zw_close (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
-void zw_pixels(zwindowT* zw, void* v);
-tokenT* hc_zw_pixels (exectxT* ex, tokenT* t) {	
-	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
-		zw_pixels(
-			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
-			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
-
-	cleanCCall(ex, t, firstArg);
-
-	ex->sp+= (-2+0);
-
-	return tnext(t); 
-}
 void zprintevent(zeventT* ev);
 tokenT* hc_zprintevent (exectxT* ex, tokenT* t) {	
 	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
@@ -266,10 +253,22 @@ tokenT* hc_gfx_mkwindow (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
-void gfx_mouse_relative(struct zwindow_s* zw, zbool rel);
-tokenT* hc_gfx_mouse_relative (exectxT* ex, tokenT* t) {	
+void gfx_swapbuffers(struct zwindow_s* zw);
+tokenT* hc_gfx_swapbuffers (exectxT* ex, tokenT* t) {	
+	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
+		gfx_swapbuffers(
+			(void*)((ex->stack[ex->sp-1].as.ptr.block)+(ex->stack[ex->sp-1].as.ptr.offset)));
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-1+0);
+
+	return tnext(t); 
+}
+void gfx_mouse_delta(struct zwindow_s* zw, zbool rel);
+tokenT* hc_gfx_mouse_delta (exectxT* ex, tokenT* t) {	
 	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
-		gfx_mouse_relative(
+		gfx_mouse_delta(
 			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
 			ex->stack[ex->sp-1].as.z32);
 
@@ -1296,11 +1295,11 @@ void set_handlers(){
 	mkSymbol(global, "C_zw_queued", tPrimitive, hc_zw_queued);
 	mkSymbol(global, "C_zw_event", tPrimitive, hc_zw_event);
 	mkSymbol(global, "C_zw_close", tPrimitive, hc_zw_close);
-	mkSymbol(global, "C_zw_pixels", tPrimitive, hc_zw_pixels);
 	mkSymbol(global, "C_zprintevent", tPrimitive, hc_zprintevent);
 	mkSymbol(global, "C_checkGLfunc", tPrimitive, hc_checkGLfunc);
 	mkSymbol(global, "C_gfx_mkwindow", tPrimitive, hc_gfx_mkwindow);
-	mkSymbol(global, "C_gfx_mouse_relative", tPrimitive, hc_gfx_mouse_relative);
+	mkSymbol(global, "C_gfx_swapbuffers", tPrimitive, hc_gfx_swapbuffers);
+	mkSymbol(global, "C_gfx_mouse_delta", tPrimitive, hc_gfx_mouse_delta);
 	mkSymbol(global, "C_gfx_background_color", tPrimitive, hc_gfx_background_color);
 	mkSymbol(global, "C_gfx_frame_clear", tPrimitive, hc_gfx_frame_clear);
 	mkSymbol(global, "C_gfx_depth_buffer", tPrimitive, hc_gfx_depth_buffer);
@@ -1416,8 +1415,8 @@ void set_handlers(){
 	addCSize("gfx_mat_3x3_y_axis", offsetof(gfx_mat_3x3,y_axis));
 	addCSize("gfx_mat_3x3_z_axis", offsetof(gfx_mat_3x3,z_axis));
 	addCSize("gfx_transformT", sizeof(gfx_transformT));
-	addCSize("gfx_transformT_pos", offsetof(gfx_transformT,pos));
 	addCSize("gfx_transformT_rot", offsetof(gfx_transformT,rot));
+	addCSize("gfx_transformT_pos", offsetof(gfx_transformT,pos));
 	addCSize("zbitmapT", sizeof(zbitmapT));
 	addCSize("zbitmapT_w", offsetof(zbitmapT,w));
 	addCSize("zbitmapT_h", offsetof(zbitmapT,h));

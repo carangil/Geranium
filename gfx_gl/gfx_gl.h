@@ -10,7 +10,6 @@
 #include "zvector.h"		//vector array (data structure)
 #include "zvectormath.h"	//3d math
 #include "math.h"
-#include "math.h"
 
 #ifdef GFXINTERNAL
 #include <glad/glad.h>
@@ -34,11 +33,16 @@ void checkGLfunc(char* file, int line, char* hint, zbool tolerable );
 
 //creates a zwindowT object that gives UI zevents
 //creates an opengl context, and makes it current
-//Zdef proc gfx_mkwindow GLWindow
+
+//Zdef proc gfx_mkwindow NewGraphicsWindow
 struct zwindow_s* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags);
 
+//Zdef proc gfx_swapbuffers SwapBuffers
+void gfx_swapbuffers(struct zwindow_s* zw);
+
 //catures mouse pointer
-void gfx_mouse_relative(struct zwindow_s* zw, zbool rel);
+//Zdef proc gfx_mouse_delta MouseDelta
+void gfx_mouse_delta(struct zwindow_s* zw, zbool rel);
 
 /* Basic framebuffer and setup functions */
 //Zdef proc gfx_background_color BackgroundColor
@@ -56,7 +60,7 @@ void gfx_setup_3d(zfloat32 fovy, zfloat32 aspect, zfloat32 neardist, zfloat32 fa
 //Zdef proc gfx_setup_2d Setup2D
 void gfx_setup_2d(zfloat32 left, zfloat32 right, zfloat32 top, zfloat32 bottom);
 
-//Zdef proc gfx_get_projection_matrix gfx_get_projection_matrix:(->Matrix44&);
+//Zdef proc gfx_get_projection_matrix GetProjectionMatrix:(->Matrix44&);
 float* gfx_get_projection_matrix();
 
 /* graphics styles (high level wrapper for shaders and their parameters) */
@@ -74,7 +78,7 @@ typedef struct gfxstyleS {
 
 //Zdef opaque gfx_styleT Style
 
-//Zdef proc gfx_style_mk NewStyle
+//Zdef proc gfx_style_mk gfxNewStyle
 gfx_styleT* gfx_style_mk();
 
 //set properties.  Pass GFX_DELETE if need to remove a value

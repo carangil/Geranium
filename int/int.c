@@ -7,7 +7,7 @@ FILE* logfile;
 #include "math.h"
 #endif
 void breakpoint() {
-            	           	printf("breakpoint here\n");
+             	           	printf("breakpoint here\n");
 }
 
 #define ERR( ...)  do {xprintf(__VA_ARGS__); fprintf(stderr,__VA_ARGS__);fflush(stderr);breakpoint();  exit(1);} while(0)
@@ -88,7 +88,7 @@ typedef struct parsectxS{
 #define KSELECTOR	0x8012
 #define KCPOINTER	0x8013
 #define KNEW0		0x8014
-#define __KCOUNT	0x8015
+#define PREFIX		0x8015
 #define KLIKE		0x8016	
 #define XKRESIZE	0x8017
 #define KOPAQUE		0x8018
@@ -106,7 +106,7 @@ typedef struct parsectxS{
 
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
 						"new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0",
-						"__.count", "like", "Xresize","opaque","immediate", "code", "stacked", "typeof", "constant",
+						"prefix", "like", "Xresize","opaque","immediate", "code", "stacked", "typeof", "constant",
 						 "per" , "alias", "skip", "Xbegin", "and", "or", NULL};
 
 zuint32 findKeyword(char* c){
@@ -451,7 +451,7 @@ typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
 	zvec_add(types, ty);
 
 	if (!name && ty->ref) {  //all types need some name
-		ty->name = zstrprintf(ty->name, "%s_c%d", ty->ref->name, ty->category);
+		ty->name = zstrprintf(ty->name, "%s_C%d", ty->ref->name, ty->category);
 	}
 
 	return ty;
@@ -648,7 +648,7 @@ zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty, z
 	if (ty->category != category)  //early exit for categories that should match
 		return ZFALSE;
 	
-	if ((category == SIMPLE)||(category==STRUCT)){
+	if ((category == SIMPLE)||(category==STRUCT) || (category==PENDING)){
 		//check named types
 		if (strcmp(ty->name, name))
 			return ZFALSE;
@@ -1064,7 +1064,9 @@ zbool compatibleType(typeT* a, typeT* b) {
 symbolT* findSymbolEx(zvecT* table, char* name, zvecT* typelist, int matchApprox){ 
 	zuint32 i;
 	symbolT* s;
-		
+	if (!strcmp(name, ".next") && typelist)
+		printf("boo");
+
 	for (i = 0; i < zvec_count(table); i++) {
 		s = zvec_get_at(table, i);
 
@@ -1394,6 +1396,7 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 					printList(subtree, NULL, 0, 2);
 					//printf("%p\n", subtree);
 					
+					
 					typeT* rt = subtree->ty->ref;
 
 					if (subtree->tok == REDIRECT) {
@@ -1459,6 +1462,7 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 }
 
 tokenT* hglobal (exectxT* ex, tokenT* t) {	//push pointer to global variable on stack
+
 
 	if (!ex->globalvars)
 		ERR("No access to global variables in current scope");
@@ -1867,8 +1871,7 @@ tokenT* hbreakloop (exectxT* ex, tokenT* t) {
 tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP is set
 	
 	while(!ex->stop){
-		
-		exe(ex, tsub(t) );;
+		exe(ex, tsub(t) );; 
 	}
 	if(ex->stop== STOPLOOP)
 		ex->stop=0;
@@ -3501,7 +3504,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		switch (t->tok) {
 
 		
-		
+		//case '~':
+			//t = tnext(t);
+		//	ram_free(tremove(tprev(t)));
+		//	continue;
+
 		case KCODE:
 				typeT* codetype = NULL;
 
@@ -3870,7 +3877,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		case KPROTO:		//proc prototype
 			typeT* type = NULL;
 			int isImmediate = 0;
-			char* primsym = NULL;
+			symbolT* primsym = NULL;
 			int immval = 0;
 			
 			if (ts->tok == KPRIMITIVE) {
@@ -4571,7 +4578,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							}
 						}
 						if (j == zvec_count(from->ref->selectors)) {
-							ERR("Struct does not contain selector member for %s\n"
+							ERR("Struct does not contain selector member \n"
 							);
 						}
 						continue;
@@ -4599,7 +4606,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						}
 					}
 					if (j == zvec_count(from->ref->members)) {
-						ERR("Struct does not contain selector member for \n" );
+						ERR("Struct does not contain selector member for %s", ty->name );
 					}
 					continue;
 
@@ -4656,8 +4663,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t->val.as.ptr.block = tprev(t)->ty;
 			t->val.as.ptr.offset = 0;
 			t->ty = tType;
-			fold(tprev(t), t);
 			
+			fold(tprev(t), t);
+			t->useslocal = 0; //no local
 			t = tnext(t);
 			continue;
 
@@ -4908,7 +4916,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//store stacked value
 			//user pointer to stacked value
 			if (tprev(t)->ty && (tprev(t)->ty->category == POINTERUSER) && (tprev(t)->ty->ref->stacked)
-				&& tprev(tprev(t))->ty->stacked) {
+				&& tprev(tprev(t))->ty->stacked
+				&& tprev(t)->ty->ref == tprev(tprev(t))->ty  //and same type
+				) {
 
 				t->handler = hstorebytes;
 				t->val.as.n32 = tprev(tprev(t))->ty->size;
@@ -5099,12 +5109,20 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 				
 			if (tprev(t)->ty == tType){	//suchas as MyWhateverStrucutre new
+
+				if (tprev(t)->handler != hconstant) {
+					ERR("alloction requires a constant type\n");
+				}
+
+				
+				
 				typeT* rt = (void*) tprev(t)->val.as.type;
 				if (tprev(t)->handler == hredirectsub) {
 					tokenT* redirected = tprev(t)->val.as.token;
 					rt = tsub(redirected)->val.as.type;
 				}
-					
+				
+				
 				
 				if ((rt->category == ARRAYSTATIC)||(rt->category == ARRAYDYNAMIC)){
 					printType(rt, ZTRUE, ZTRUE);
@@ -5116,7 +5134,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				t->ty = findType(POINTERPOSSESSIVE, rt, NULL, 0);
 				xprintf(" new will return \n");
 				printType( rt, 1, 1);
-				fold(tprev(t), t);
+				
+				ram_free(tremove(tprev(t))); //remove type token
+			//	fold(tprev(t), t);
+
 				t->handler =   halloc;
 				t = tnext(t);
 				continue;
@@ -5127,6 +5148,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			break;						
 			
 		}//end switch
+		
 		
 		//if didn't match anything above, continue on
 				
@@ -5750,7 +5772,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 			
 			printf("%s Undefined\n", t->str);
-	 		ERR("  Undefined symbol:%s line %d\n\n", t->str, t->line); 
+ 	 		ERR("  Undefined symbol:%s line %d\n\n", t->str, t->line); 
 					
 		}//end str
 		xprintf("?How to parse %x %c\n", t->tok, t->tok);
@@ -5787,7 +5809,7 @@ void cleanCCall(exectxT* ex, tokenT* t, void* first) {
 extern scanmain(int argc, char** args);
 
 int main(int argc, char** args){
-	
+
 	if ((argc > 1) && !strcmp(args[1] , "-scan")) {
 		return scanmain(argc - 1, args + 1);
 	}

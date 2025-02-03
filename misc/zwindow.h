@@ -43,7 +43,7 @@ typedef struct zevent_s {
 
 
 //mouse events specify x and y in a and b
-//(ev.type & ZEVENT_MOUSE_R) means the event concerns the left mouse button
+//(ev.type & ZEVENT_MOUSE_L) means the event concerns the left mouse button
 #define ZEVENT_MOUSE_L		0x00000100
 #define ZEVENT_MOUSE_M		0x00000200
 #define ZEVENT_MOUSE_R		0x00000400
@@ -119,10 +119,10 @@ typedef struct zevent_s {
 
 
 
-#define MAXEVENT 10
+#define MAXEVENT 32
 typedef struct zwindow_s {
 	zbool(*event) (struct zwindow_s* w, zeventT* ev);
-	void (*pixels) (struct zwindow_s* w, void* pixels);
+//	void (*pixels) (struct zwindow_s* w, void* pixels);
 	void (*close) (struct zwindow_s* w);
 	int w, h;
 	zeventT queue[MAXEVENT];
@@ -146,8 +146,7 @@ zbool zw_event(zwindowT* zw, zeventT* ev);
 //Zdef proc zw_close Close:(w:ZWindow%->);
 void zw_close(zwindowT* zw);
 
-//Zdef proc zw_pixels UpdatePixels
-void zw_pixels(zwindowT* zw, void* v);
+
 
 void zprintevent(zeventT* ev);  //debug function
 

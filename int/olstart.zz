@@ -533,6 +533,90 @@ Z32 .size print newline
 five typeof .size print newline
 
 s typeof .size print
+//
+junk:
+var a:Transform;
+
+
+
+
+proc print:(aa:Transform&->)
+    "Transform " print
+    "pos:" print aa.Position print
+    ",x:" print aa.Rotation.XAxis print
+    ",y:" print aa.Rotation.YAxis print 
+    ",z:" print aa.Rotation.ZAxis print
+
+end
+
+a gfx_trans_init
+a print
+
+proc =:(x:Real; y:Real;z:Real;v:Vec3&->)
+    x v.x=
+    y v.y=
+    z v.z=
+end
+
+
+var vv:Vec3;
+1.0 vv.x=
+
+var v:Vec3;
+
+1.1 2.2 3.3 v=
+
+v #v2 
+
+newline
+
+"v " print
+v print newline
+
+"v2 " print
+v2 print newline
+newline
+
+6.6 v2.x=
+
+"v " print
+v print newline
+
+"v2 " print
+v2 print newline
+newline
+
+v2 print
+v2 print
+
+1111. 2222. 33333. :Vec3 #h   //todo:##var for stacked structs
+h print
+
+
+5.5 10.0 121.0 :Vec3 print
+
+v2.x print newline
+v2& #vp
+"vp.x " print vp.x print newline
+"v.x  " print v.x print newline
+
+
+10.0 20.0 30.0 :Vec3 0.55 0.066 0.77 :Vec3 + print
+
+1.0 2.0 3.0 :Vec3
+-1.0 2.0 3.0 :Vec3 Cross print newline
+
+1.0 2.0 3.0 :Vec3
+-1.0 2.0 3.0 :Vec3 Dot print newline
+
+Vec3 .name print newline
+
+"^ type name" print newline
+
+
+
+
+10:N8 #lf
 
 
 [Z32] 10 new #tz

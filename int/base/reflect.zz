@@ -137,6 +137,9 @@ end
 
 primitive C_ptrequal ==:(a:Type&;b:Type&->Bit);
 
+proc immediate printi:(a:Type&)
+    "imm " print a print newline
+end
 
 proc disassemble:(ti:ExecToken; level:N32;indent:(n:N32)& )
 
@@ -183,8 +186,12 @@ proc disassemble:(ti:ExecToken; level:N32;indent:(n:N32)& )
 		t.evaltype if
 			"->" t.evaltype prints
 		end
-		t.next t=
+	//	t typeof printi
 		
+	//	t ~ .next typeof printi
+		//immediate "BOO" print newline end
+		t.next t=
+		//immediate "BOO" print newline end
 	end
 end
 

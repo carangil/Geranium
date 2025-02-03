@@ -344,7 +344,7 @@ extern "C" zwindowT* pt_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flag
 	ptw->display->listener(ptw->wl);
 	ptw->display->open(title, w, h, Output::Windowed, Mode::TrueColor);
 	ptw->iface.event = pt_event;  //function to get events
-	ptw->iface.pixels = pt_pixels;
+	//ptw->iface.pixels = pt_pixels;
 	ptw->iface.close= pt_close;
 	ptw->iface.w=w;
 	ptw->iface.h=h;

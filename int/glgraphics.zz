@@ -1,0 +1,103 @@
+"gen/gengraphics.zz" include
+
+opaque GLSLBody;
+stacked GLSLBody;
+opaque GLSLDrawProc;
+stacked GLSLDrawProc;
+
+//define vector formats
+stacked Vec2;
+type Vec2
+    s:Real;
+    t:Real;
+end
+
+stacked Vec4;
+type Vec4
+    r:Real;
+    g:Real;
+    b:Real;
+    a:Real;
+end
+
+
+
+//define 4x4 matrix as 3 axis and 1 position
+type Matrix44
+	A:Vec4;
+	B:Vec4;
+	C:Vec4;
+	D:Vec4;
+end
+
+
+
+
+proc :Vec2:(s:Real;t:Real->Vec2)
+	var v:Vec2;
+	s v.s=
+	t v.t=
+	v return
+end
+
+proc :Vec4:(r:Real;g:Real;b:Real;a:Real->Vec4)
+	var v:Vec4;
+	r v.r=
+	g v.g=
+	b v.b=
+	a v.a=
+	v return
+end
+
+
+proc print:(point:Vec3->)
+    "<" print point.x print  "," print point.y print  "," print point.z print ">" print
+end
+
+proc print:(point:Vec4->)
+    "<" print point.r print  "," print point.g print  "," print point.b print "," print point.a print ">" print
+end
+
+
+stacked Vec3;  //Vec3 structs are put on the stack
+proc :Vec3:(a:Real;b:Real;c:Real->Vec3)     
+   var v:Vec3;
+    a v.x=
+    b v.y=
+    c v.z= 
+//1.0 v.padding=
+    v return
+end
+
+
+proc immediate GLSL:(code a:String&; code b:String&->Code%)
+	code \\
+		'a		//vertex shader source string
+		'b		//fragment shader source string
+		glsl	//at compile time, create a structure that contains the source, and datatype of the function this is in the body of.
+				//that struct pointer is baked into a push h_constant for runtime
+		prep 	//at run time, this creates VBOs if needed, compiles the shader if needed, and binds vbos, and updates uniforms, and sets that shader as current
+		return	//that prepped shader is returned for one or more draw calls
+	\\ return
+end
+
+
+//some window stuff
+
+
+immediate     ZEVENT_MOUSE ZEVENT_DELTA or return end constant ZEVENT_MOUSE_DELTA
+
+
+immediate     ZEVENT_KEY ZEVENT_DOWN or return end constant ZEVENT_KEY_DOWN
+immediate     ZEVENT_KEY ZEVENT_UP or return end constant ZEVENT_KEY_UP
+
+
+proc is?:(e:ZEvent&; mask:Z32 -> Bit)
+    e.eventType mask and mask == return
+end
+    
+        
+        
+        
+        
+        

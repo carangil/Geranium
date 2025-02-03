@@ -55,7 +55,7 @@ typedef union
 {
 	namedv4 named;
 	zfloat32 array[VEC4LEN];
-	namedv3 v3;
+	vec3 vec3;
 } vec4;
 
 

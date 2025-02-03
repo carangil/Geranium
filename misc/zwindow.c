@@ -51,9 +51,7 @@ void zw_close(zwindowT* zw) {
 	ram_free(zw);
 }
 
-void zw_pixels(zwindowT* zw, void* v) {
-	zw->pixels(zw, v);
-}
+
 
 
 zuint32 eventMasks[] = { ZEVENT_KEY, ZEVENT_CHAR, ZEVENT_MOUSE, ZEVENT_CLOSE, ZEVENT_DOWN, ZEVENT_UP, ZEVENT_MOVE, ZEVENT_DELTA, ZEVENT_MOUSE_STATE_L, ZEVENT_MOUSE_STATE_M,ZEVENT_MOUSE_STATE_R,ZEVENT_MOUSE_L,ZEVENT_MOUSE_M, ZEVENT_MOUSE_R,ZKEY_CTRL, ZKEY_SHIFT, ZKEY_ALT , 0 };

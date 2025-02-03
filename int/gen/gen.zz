@@ -1,4 +1,4 @@
-primitive C_zstrcatsub zstrcatsub:(s:String%; t:String&; n:Z32; st:Z32 -> String%);
+primitive C_zstrcatsub zstrcatsub:(s:String%; t:String&; st:Z32; c:Z32 -> String%);
 primitive C_fopen File_Open:(c_filename:String&; c_mode:String&-> File%);
 0 constant Procmap_zrand
 primitive C_zrand zrand:(-> N32);

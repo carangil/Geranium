@@ -914,7 +914,7 @@ void recurse_skeleton(gfx_jointT* joint, int frame, int op) {
 
 	gfx_save_transform(&joint->stransform);  //save joint transform
 	
-	joint->point = joint->stransform.pos;  //our bone starts at local '0', which is the same as the position part of the transform we just saved
+	joint->point = joint->stransform.pos.vec3;  //our bone starts at local '0', which is the same as the position part of the transform we just saved
 	
 	
 	vec3 ao = joint->total_offset; //take the total offset from the root

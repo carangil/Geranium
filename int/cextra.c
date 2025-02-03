@@ -179,8 +179,12 @@ tokenT* h_glslprocbody(exectxT* ex, tokenT* t) {
 					si->type = GFX_MAT33;
 				else if (arg->ref == OFTYPE(TYPE("Matrix44"), POINTERUSER))
 					si->type = GFX_MAT44;
+				else if (arg->ref == OFTYPE(TYPE("Transform"), POINTERUSER))
+					si->type = GFX_MAT44;
 				else if (arg->ref == OFTYPE(TYPE("Texture"), POINTERUSER))
 					si->type = GFX_TEXTURE;
+				else
+					printf("Unknown input type to shader:%s\n", arg->ref->name);
 
 
 				if (arg->isPer) {

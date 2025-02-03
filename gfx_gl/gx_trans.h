@@ -7,11 +7,11 @@
 #define Structmap_namedv3 Vec3:x=x:Real;y=y:Real;z=z:Real;
 
 
-
-typedef struct gfx_mat_3x3_s {
-	vec3 x_axis;  /*RIGHT vector */
-	vec3 y_axis;  /*UP vector*/
-	vec3 z_axis;  /* Forward Vector (-z) */
+//3x3 matrix is padded out so it can be inside an opengl 4x4 matrix
+typedef struct gfx_mat_3x3_ps {
+	vec4 x_axis;  /*RIGHT vector */
+	vec4 y_axis;  /*UP vector*/
+	vec4 z_axis;  /* Forward Vector (-z) */
 } gfx_mat_3x3;
 
 //Zdef struct gfx_mat_3x3 Matrix33:x_axis=XAxis:Vec3;y_axis=YAxis:Vec3;z_axis=ZAxis:Vec3;
@@ -20,12 +20,18 @@ typedef struct gfx_mat_3x3_s {
 void gfx_spin_matrix(zfloat32 yaw, zfloat32 pitch, zfloat32 roll, gfx_mat_3x3* rot);
 
 typedef struct gfx_transform_s {
-	vec3 pos;			//translation
-	gfx_mat_3x3 rot;		//contains rotation and possible scaling
+	gfx_mat_3x3 rot;	//contains rotation and possible scaling
+	vec4 pos;			//translation
 } gfx_transformT;
 
+typedef union  {
+	gfx_transformT transform;
+	zfloat32 array[16];
+} gfx_mat_4x4 ;
+
+
 typedef	gfx_transformT gfx_cameraT;
-//Zdef struct gfx_transformT Transform:pos=Position:Vec3;rot=Rotation:Matrix33;
+//Zdef struct gfx_transformT Transform:rot=Rotation:Matrix33;pos=Position:Vec3;
 //Zdef type gfx_cameraT Transform
 
 

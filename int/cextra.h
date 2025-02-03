@@ -42,7 +42,11 @@ zint32 load16(zuint16  * z);
 //vector math functions
 
 //Zdef stacked Vec3	
+
+
+////Zdef struct namedv3	Vec3:x=x:Real;y=y:Real;z=z:Real;wpadding=padding:Real;
 //Zdef struct namedv3	Vec3:x=x:Real;y=y:Real;z=z:Real;
+
 //Zdef type	vec3		Vec3
 //Zdef handler vec3add     +:(a:Vec3;b:Vec3->Vec3);
 //Zdef handler vec3sub     -:(a:Vec3;b:Vec3->Vec3);

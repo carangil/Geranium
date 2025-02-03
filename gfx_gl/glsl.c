@@ -308,10 +308,10 @@ int gfx_sizeof(int type) {
 	switch ( (type&GXI_BASETYPEMASK) ) {
 		case GFX_FLOAT: return  (int)sizeof(zfloat32) * 1;
 		case GFX_FLOAT2: return (int)sizeof(zfloat32) * 2;
-		case GFX_FLOAT3: return (int)sizeof(zfloat32) * 3;
+		case GFX_FLOAT3: return (int)sizeof(zfloat32) * VEC3LEN;
 		case GFX_FLOAT4: return (int)sizeof(zfloat32) * 4;
-		case GFX_MAT33: return  (int)sizeof(zfloat32) * 9;
-		case GFX_MAT44: return  (int)sizeof(zfloat32) * 16;
+		case GFX_MAT33: return  (int)sizeof(gfx_mat_3x3);
+		case GFX_MAT44: return  (int)sizeof(gfx_mat_4x4);
 		case GFX_TEXTURE: return sizeof(int);  //texture integer
 	}
 	
@@ -348,7 +348,9 @@ void gfx_set_input(gfx_shader_inputT* si,  void* data) {
 			glUniform4fv(si->loc, count, data);
 			break;
 		case GFX_MAT33:
-			glUniformMatrix3fv(si->loc, count,0, data);
+		//	glUniformMatrix3x4fv(si->loc, count,0, data);
+			printf("3x3 matrix debug:  3x4 or 4x3?");
+			break;
 		case GFX_MAT44:
 			glUniformMatrix4fv(si->loc, count,0, data);
 			break;
@@ -422,7 +424,7 @@ void gfx_set_input(gfx_shader_inputT* si,  void* data) {
 			case (GFX_FLOAT3|GFX_ARRAY):
 
 				glVertexAttribPointer(si->loc,
-					3,  /*number of components */
+					VEC3LEN,  /*number of components */
 					GL_FLOAT, /*GL data type*/
 					0, 0, /* normalized, stride. stride 0 means densely packed */
 					0);//offset is zero

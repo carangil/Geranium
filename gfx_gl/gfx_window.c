@@ -148,7 +148,7 @@ zuint32 mouse_button_state=0;
 
 zbool mouse_relative = ZFALSE;
 
-void gfx_mouse_relative(zwindowT* zw, zbool rel) {
+void gfx_mouse_delta(zwindowT* zw, zbool rel) {
 
 	if (rel) {
 		mouse_relative = 1;  //turn on relative mode  .throw away first value
@@ -274,21 +274,15 @@ void gfxi_init() {
 	return ZFALSE;
 }
 
-void gfx_pixels(zwindowT * zw, void* px) {
+void gfx_swapbuffers(zwindowT * zw) {
 	gfx_windowT* win = (gfx_windowT*)zw;
 
-	if (px == NULL)
-		glfwSwapBuffers(win->fwindow);
-	else {
-		printf(" non-framebuffer pixels not supported ");
-	}
-
+	glfwSwapBuffers(win->fwindow);
+	
 	//get the window size and fix the viewport
 	int w, h;
 
-
 	glfwGetWindowSize(win->fwindow, &w, &h);
-
 	
 	glViewport(0, 0, w, h);
 	//the above is also updating the 'w' and 'h' coordinates, so the app can use them in drawing the next frame, if they are adapting to window size
@@ -328,7 +322,7 @@ gfx_windowT* gxi_current_window = NULL;
 //creation of first window will init glfw
 
 struct zwindow_s* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags) {
-
+	
 	memset(keystatus, 0, sizeof(keystatus));
 
 	gfx_windowT* win = ram_alloc(sizeof(gfx_windowT),  window_cleanup ); 
@@ -388,7 +382,6 @@ struct zwindow_s* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags)
 
 	//set interface functions
 	win->iface.close = gfx_close;
-	win->iface.pixels = gfx_pixels;
 	win->iface.event = gfx_event;
 
 	//get the window size and fix the viewport
