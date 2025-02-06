@@ -63,7 +63,7 @@ zbool ptrequal(void* a, void* b);
 //Zgen genreflect.zz
 
 //Traverse data types
-//Zdef  struct	typeT	Type:name=name:String cpointer;size=size:N32;category=category:N32;ref=ref:Type&;len=len:N32;
+//Zdef  struct	typeT	Type:name=name:String cpointer;size=size:N32;category=category:N32;ref=ref:Type&;len=len:N32;isPer=isPer:Bit;
 
 
 //Zdef type size_t Z32
@@ -94,6 +94,7 @@ typeT* type_member(typeT* t, zuint32 i);
 //Zdef stacked ExecToken
 //Zdef opaque vptrT ExecToken
 //Zdef opaque vptrT Symbol
+//Zdef stacked Symbol
 
 //uncompiled code
 //Zdef handler heretoken		here:(->CodeToken);
@@ -143,5 +144,3 @@ typeT* type_member(typeT* t, zuint32 i);
 //Zdef handler glslprocbody	immediate% glsl:(vsource:String&;fsource:String&->GLSLBody);
 //Zdef handler prepshader	prep:(p:GLSLBody->GLSLDrawProc);
 //Zdef handler execdraw		draw:(p:GLSLDrawProc; prim:N32;start:N32; stop:N32);
-
-

@@ -202,10 +202,12 @@ primitive C_load_bvh load_bvh:(c_filename:String&; c_scale:Real; c_ignorelist:zv
 1 constant SKEL_OP_DRAW
 primitive C_recurse_skeleton recurse_skeleton:(c_joint:gfx_jointT&; c_frame:Z32; c_op:Z32-> );
 primitive C_debug_print_skeleton debug_print_skeleton:(c_joint:gfx_jointT&; c_indent:Z32-> );
+primitive C_gfx_shader_add_input gfx_shader_add_input:(c_sg:gx_shadergroupT&; c_name:String&; c_type:Z32; c_uniform:Bit-> );
 primitive C_gx_shader_source ShaderSource:(c_vsource:String&; c_fsource:String&-> ShaderGroup%);
 primitive C_gx_set_basic_shader DefaultShader:(c_vsource:String&; c_fsource:String&-> );
 primitive C_gx_shader_variant gx_shader_variant:(c_sg:ShaderGroup&; c_key:String&; c_st:Style&; c_vb:VBuffer&-> gx_shader_variantT%);
-primitive C_gx_compile_shader gx_compile_shader:(c_vsource:String&; c_fsource:String&; c_gfx_shader_inputs:zvecT&; c_flags:Z32-> gfx_shaderT%);
+primitive C_gx_shader_variant2 gx_shader_variant2:(c_sg:ShaderGroup&; c_mask:zuint64-> gx_shader_variantT%);
+primitive C_gx_compile_shader gx_compile_shader:(c_vsource:String&; c_fsource:String&; c_gfx_shader_inputs:zvecT&; c_mask:zuint64-> gx_shader_variantT%);
 primitive C_gfx_sizeof gfx_sizeof:(c_type:Z32-> Z32);
 primitive C_gfx_set_input gfx_set_input:(c_input:gfx_shader_inputT&; c_data:Void&-> );
-primitive C_gx_use_shader gx_use_shader:(c_shader:gfx_shaderT&-> );
+primitive C_gx_use_shader gx_use_shader:(c_shader:gx_shader_variantT&-> );

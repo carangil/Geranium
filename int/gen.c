@@ -1178,6 +1178,21 @@ tokenT* hc_debug_print_skeleton (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
+void gfx_shader_add_input(gx_shadergroupT* sg, char* name, int type, zbool uniform);
+tokenT* hc_gfx_shader_add_input (exectxT* ex, tokenT* t) {	
+	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
+		gfx_shader_add_input(
+			(void*)((ex->stack[ex->sp-4].as.ptr.block)+(ex->stack[ex->sp-4].as.ptr.offset)),
+			(void*)((ex->stack[ex->sp-3].as.ptr.block)+(ex->stack[ex->sp-3].as.ptr.offset)),
+			ex->stack[ex->sp-2].as.z32,
+			ex->stack[ex->sp-1].as.z32);
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-4+0);
+
+	return tnext(t); 
+}
 gx_shadergroupT* gx_shader_source(char* vsource, char* fsource);
 tokenT* hc_gx_shader_source (exectxT* ex, tokenT* t) {	
 	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
@@ -1223,7 +1238,22 @@ tokenT* hc_gx_shader_variant (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
-gfx_shaderT* gx_compile_shader(char* vsource, char* fsource, zvecT* gfx_shader_inputs, int flags);
+gx_shader_variantT* gx_shader_variant2(gx_shadergroupT* sg, zuint64 mask);
+tokenT* hc_gx_shader_variant2 (exectxT* ex, tokenT* t) {	
+	void* firstArg = ex->stack[ex->sp-2].as.ptr.block;
+	ex->stack[ex->sp-2].as.ptr.block=(void*) gx_shader_variant2(
+			(void*)((ex->stack[ex->sp-2].as.ptr.block)+(ex->stack[ex->sp-2].as.ptr.offset)),
+			ex->stack[ex->sp-1].as.z32);
+	ex->stack[ex->sp-2].as.ptr.level=0; 
+	ex->stack[ex->sp-2].as.ptr.offset=0; 
+
+	cleanCCall(ex, t, firstArg);
+
+	ex->sp+= (-2+1);
+
+	return tnext(t); 
+}
+gx_shader_variantT* gx_compile_shader(char* vsource, char* fsource, zvecT* gfx_shader_inputs, zuint64 mask);
 tokenT* hc_gx_compile_shader (exectxT* ex, tokenT* t) {	
 	void* firstArg = ex->stack[ex->sp-4].as.ptr.block;
 	ex->stack[ex->sp-4].as.ptr.block=(void*) gx_compile_shader(
@@ -1266,7 +1296,7 @@ tokenT* hc_gfx_set_input (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
-void gx_use_shader(gfx_shaderT* shader);
+void gx_use_shader(gx_shader_variantT* shader);
 tokenT* hc_gx_use_shader (exectxT* ex, tokenT* t) {	
 	void* firstArg = ex->stack[ex->sp-1].as.ptr.block;
 		gx_use_shader(
@@ -1363,9 +1393,11 @@ void set_handlers(){
 	mkSymbol(global, "C_load_bvh", tPrimitive, hc_load_bvh);
 	mkSymbol(global, "C_recurse_skeleton", tPrimitive, hc_recurse_skeleton);
 	mkSymbol(global, "C_debug_print_skeleton", tPrimitive, hc_debug_print_skeleton);
+	mkSymbol(global, "C_gfx_shader_add_input", tPrimitive, hc_gfx_shader_add_input);
 	mkSymbol(global, "C_gx_shader_source", tPrimitive, hc_gx_shader_source);
 	mkSymbol(global, "C_gx_set_basic_shader", tPrimitive, hc_gx_set_basic_shader);
 	mkSymbol(global, "C_gx_shader_variant", tPrimitive, hc_gx_shader_variant);
+	mkSymbol(global, "C_gx_shader_variant2", tPrimitive, hc_gx_shader_variant2);
 	mkSymbol(global, "C_gx_compile_shader", tPrimitive, hc_gx_compile_shader);
 	mkSymbol(global, "C_gfx_sizeof", tPrimitive, hc_gfx_sizeof);
 	mkSymbol(global, "C_gfx_set_input", tPrimitive, hc_gfx_set_input);
@@ -1385,6 +1417,7 @@ void set_handlers(){
 	addCSize("typeT_category", offsetof(typeT,category));
 	addCSize("typeT_ref", offsetof(typeT,ref));
 	addCSize("typeT_len", offsetof(typeT,len));
+	addCSize("typeT_isPer", offsetof(typeT,isPer));
 	addCSize("vptrT", sizeof(vptrT));
 	addCSize("vptrT", sizeof(vptrT));
 	addCSize("vptrT", sizeof(vptrT));

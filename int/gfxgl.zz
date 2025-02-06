@@ -60,51 +60,190 @@ false #mouseRel
 
 
 
+
+
 //compile a shader with inline GLSL source
 proc  testVertexShader:	(
 		per point:	[Vec3]&; 
 		testu:		[Vec4]&;  
 		per color:	[Vec4]&; 
-		offset:		Real;
+		offset:		Real&;
 		projection:	Matrix44&; 
 		modelView:	Transform&;	
 		diff: 		Texture&;
-		per texcoord:	[Vec2]& 	->GLSLDrawProc)
+		extra: Vec4&;
+		per texcoord:	[Vec2]&;
+		
+		
+		->GLSLDrawProc)
 		
 	"
-		in vec3 point;
+		in vec4 point;
+		#if MASK_color
 		in vec4 color;
+		#endif
+		
+		uniform vec4 extra;
 		uniform mat4 projection;
 		uniform mat4 modelView;
 		uniform vec4 testu[8];
 		uniform float offset;
 		in vec2 texcoord;
-		out vec2 f_texcoord;	
+		out vec2 f_texcoord;
 		out vec4 f_color;
+		out vec4 f_extra;
 		
 		void main(){
-			vec4 transformed = modelView * vec4(point.x, point.y, point.z+offset, 1.0);
+			vec4 transformed = modelView * vec4(point.x+offset, point.y, point.z +testu[3].y, 1.0);
+			//vec4 transformed = modelView * point;
 			gl_Position=  projection * transformed;
 			f_texcoord = texcoord;
-			f_color = color + testu[0];
+            
+            f_extra = extra;
+            
+            
+			
+			#if MASK_color && MASK_testu
+                f_color = color + testu[0];
+			#else
+                f_color = vec4(.5,1,.5,1.0);
+            #endif
+            
+             
+            
 		}
 	"
 	
 	"
 		in vec4 f_color;
 		in vec2 f_texcoord;
+		in vec4 f_extra;
 		out vec4 pset;
 		uniform sampler2D diff;
 		
 		void main(){
-		
-			pset = f_color * texture( diff, f_texcoord);
+            
+			pset = f_extra  +  f_color * texture( diff, f_texcoord);
 		
 		}
 	
 	"  GLSL 
 
 end
+
+
+
+//
+
+
+type GLSLDecompiler
+	dc:Decompiler;
+	indentLevel:Z32;
+end
+
+
+proc Indent:(dc: GLSLDecompiler&)
+
+    newline
+    
+    0#i
+    loop i dc.indentLevel < while
+        " " print
+        i&++
+    end
+    
+end
+
+
+proc Dump:(t:ExecToken)
+
+
+    t.prim  " \"" t.text "\"" prints
+
+    
+    t.consttype String& ==
+	t.consttype String% == or if
+		" " t.value:String& " " prints
+	t.consttype Real ==
+		" Real " t.value:Real " " prints
+	else
+		" " t.value:Z32 " " prints
+	end
+        
+        
+    
+    t.evaltype:Bit if
+        " produces " t.evaltype prints
+    end
+    
+       
+
+end
+
+proc Instruction:(dc: GLSLDecompiler& ; t:ExecToken)
+	dc Indent
+	t Dump
+	
+	
+end
+
+proto End:(dc: GLSLDecompiler& ; t:ExecToken);
+
+proc Begin:(dc: GLSLDecompiler& ; t:ExecToken)
+    dc Indent
+	"begin " t.text "{" prints 
+	dc.indentLevel&++
+	dc:Decompiler& t.sub decompile  
+end
+
+proc End:(dc: GLSLDecompiler& ; t:ExecToken)
+	dc.indentLevel&--
+	dc Indent
+	"}end " prints 
+	
+	t Dump
+end
+
+GLSLDecompiler new #decomp
+
+primitive symtoken :ExecToken:(s:Symbol -> ExecToken);
+
+
+proc dsym:(s:Symbol)
+    "symbol type: " print
+    s.type print newline
+    decomp:Decompiler&  s:ExecToken decompile 
+end
+
+
+proc minShader:(per a:[Vec3]&; per b:[Vec3]& ; c:Vec3 -> )
+
+    a b + c +
+
+end
+
+[Vec3]& [Vec3]& Vec3  minShader&:Symbol dsym
+
+
+//[Vec3]& [Vec4]& [Vec4]& Real& Matrix44& Transform& Texture& Vec4& [Vec2]& testVertexShader&:Symbol dsym
+
+
+//##f typeof print newline
+
+//decomp:Decompiler& [Vec3]& [Vec4]& [Vec4]& Real& Matrix44& Transform& Texture& Vec4& [Vec2]& testVertexShader&
+
+
+loop end
+
+
+//
+
+
+[Vec3]& [Vec4]& [Vec4]& Real& Matrix44& Transform& Texture& Vec4& [Vec2]& testVertexShader&:ExecToken
+
+loop end
+
+
 
  //#testVertexShader
 
@@ -141,8 +280,10 @@ end
 1.0 0.0 :Vec2 txc 1[]=
 0.0 1.0 :Vec2 txc 2[]=
 
-0.5 0.5 0.5  1.0:Vec4 testu 0[]=
-0.8 -1.0 0.8  1.0 :Vec4 testu 1[]=
+1.0 0.5 0.5  1.0:Vec4 testu 0[]=
+
+
+
 
 
 
@@ -223,10 +364,35 @@ loop
 	
 	tr gfx_save_transform
 	
-	positions testu colors offset GetProjectionMatrix tr Rock_Height  txc testVertexShader GFX_TRIANGLE 0 4 draw
+	var extra:Vec4;
+	1.0 0.0 0.0 1.0 :Vec4 extra=
+	
+	"boo" print newline
+	newline newline
+	
+	//"string" 3[]& #aa typeof print newline
+	
+	"string" copy& ##a typeof print newline
+	
+	
+	positions testu colors offset& GetProjectionMatrix tr Rock_Height   extra& txc testVertexShader& ##tvs typeof print newline
+
+	
+	
+		loop end
+	
+	
+	positions testu colors offset& GetProjectionMatrix tr Rock_Height   extra& txc testVertexShader GFX_TRIANGLE 0 4 draw
+	
+
+	//positions testu 0:[Vec4]& offset GetProjectionMatrix tr Rock_Height  txc testVertexShader GFX_TRIANGLE 0 4 draw
+	
 		
-	offset 0.001 + offset=
+	//positions 0:[Vec4]& colors 0:any&:Real& GetProjectionMatrix tr Rock_Height   extra&  txc testVertexShader GFX_TRIANGLE 0 4 draw
+	
 		
+	offset 0.01 + offset=
+    testu 3[].g   0.01 +   testu 3[].g=
     
     0.0 #dx 0.0 #dy 0.0 #dz
     

@@ -9,7 +9,7 @@
 #define PI 3.14159
 
 
-//#define VMATH_PAD4
+#define VMATH_PAD4
 
 #define VEC4LEN 4
 

@@ -21,6 +21,8 @@ zbool gxi_delete_shadergroup(void* v) {
 
 	ram_free(sg->fsource);
 	ram_free(sg->vsource);
+	ram_free(sg->shader_inputs);
+
 	zlist_cleanup(&sg->variants);
 
 	return ZTRUE;
@@ -54,6 +56,8 @@ gx_shadergroupT* gx_shader_source(char* vsource, char* fsource) {
 		sg->fsource = ram_strdup(fsource);
 
 
+	sg->shader_inputs = zvec_mk(NULL, 8);
+
 	return sg;
 
 }
@@ -64,6 +68,21 @@ int get_shader_uniform_loc(gx_shader_variantT* shader, char* name) {
 	gxdprintf(" UNFM %s -> %d\n", name, loc);
 	checkGLNote("finding uniform uloc", ZTRUE);
 	return loc;
+}
+
+zbool freeshaderinput(void* v) {
+	gfx_shader_inputT* si = v;
+	ram_free(si->name);
+	return ZTRUE;
+}
+
+void gfx_shader_add_input(gx_shadergroupT* sg, char* name, int type, zbool uniform) {
+	gfx_shader_inputT*  si = ram_alloc(sizeof(*si), freeshaderinput);
+
+	si->type = type;
+	si->name = zstrdup(name);
+	si->uniform = uniform;
+	zvec_add(sg->shader_inputs, si);
 }
 
 int get_shader_attribute_loc(gx_shader_variantT* shader, char* name) {
@@ -105,12 +124,32 @@ gx_shadergroupT* current_shader_group = NULL;
 gx_shader_variantT* current_variant = NULL;
 
 
+gx_shader_variantT* gx_shader_variant2(gx_shadergroupT* sg, zuint64 mask) {
+
+	gx_shader_variantT* variant;
+
+	for (variant = zlist_head(&(sg->variants)); variant; variant = zlist_next(variant)) {
+		if (variant->mask == mask) {
+			//printf("Found variant for %x\n", mask);
+			return variant;
+			break;
+		}
+ 	}
+
+	//otherwise compile variant
+
+	variant = gx_compile_shader(sg->vsource, sg->fsource, sg->shader_inputs, mask);
+		
+	zlist_addhead(&sg->variants, &variant->zlistnode);
+
+	return variant;
+}
 
 gx_shader_variantT* gx_shader_variant(gx_shadergroupT* sg, char* key, gfx_styleT* st, gfx_vertex_bufferT* vb) {
 
 	int i;
 	int status = 0;
-	char log[1024];
+	char log[GL_INFO_LOG_LENGTH];
 	int len = 0;
 
 
@@ -321,18 +360,22 @@ int gfx_sizeof(int type) {
 
 
 extern void* gxi_current_vbo;
-void gfx_set_input(gfx_shader_inputT* si,  void* data) {
+void gfx_set_input(gfx_shader_inputT* si, void* data) {
 	float* f = data; //for debugger
 	int tu = 0;
 	gxi_current_vbo = NULL;  //to clear out the old renderer status.  get rid of this when vbuffer_draw goes away
+	if (si->loc ==-1){
+		return; //skip values that aren't present in the shader (optimized out or otherwise)
+	}
 
 	if (si->uniform) {	//uniforms
-		int count = si->count;
+		int count = 1;
 
-		if (si->type & GFX_ARRAY) {
+		//printf("Set uniform: %s  %d  %d count\n", si->name, si->type, count);
+
+		if (si->type & GFX_ARRAY) 
 			count = zarray_size(data);
-		}
-
+		
 		switch ( (si->type)&(GXI_BASETYPEMASK)) {
 
 		case GFX_FLOAT:
@@ -375,6 +418,8 @@ void gfx_set_input(gfx_shader_inputT* si,  void* data) {
 		int size = gfx_sizeof(si->type);
 		int count = zarray_size(data);
 		
+		//printf("Set attribute: %s  %d  %d count  %d each\n", si->name, si->type, count, size);
+
 		zbool toupdate = ZFALSE;
 
 		if (!gs->buffer) {
@@ -424,9 +469,9 @@ void gfx_set_input(gfx_shader_inputT* si,  void* data) {
 			case (GFX_FLOAT3|GFX_ARRAY):
 
 				glVertexAttribPointer(si->loc,
-					VEC3LEN,  /*number of components */
+					3,  /*number of components */
 					GL_FLOAT, /*GL data type*/
-					0, 0, /* normalized, stride. stride 0 means densely packed */
+					0, sizeof(zfloat32)*VEC3LEN, /* normalized, stride. stride VEC3LEN is 3 or 4 depending on padding settings */
 					0);//offset is zero
 								
 
@@ -442,13 +487,15 @@ void gfx_set_input(gfx_shader_inputT* si,  void* data) {
 }
 
 
-void gx_use_shader(gfx_shaderT* shader) {
+void gx_use_shader(gx_shader_variantT* shader) {
 	current_variant = NULL;
 	glUseProgram(shader->program);
 	gxi_new_texture_set();
 }
 
-gfx_shaderT* gx_compile_shader(char* vsource, char* fsource, zvecT * inputs, int flags){
+gx_shader_variantT* gx_compile_shader(char* vsource, char* fsource, zvecT * inputs, zuint64 mask){
+
+	//plan is, if mask is set, there will be some ifdefs in the vsource and fsource that skip part of the program
 
 	int i;
 	int status = 0;
@@ -460,14 +507,34 @@ gfx_shaderT* gx_compile_shader(char* vsource, char* fsource, zvecT * inputs, int
 	int hline = 1;
 	char* header = zstrdup("#version 330\n");
 
+	
+	//set all mask values
+	zuint64 bit = 1;
+	for (i = 0; i < zvec_count(inputs); i++) {
+
+		gfx_shader_inputT* si = zvec_get_at(inputs, i);
+
+		if (!mask || (mask & bit)) 
+			header = zstrprintf(header, "#define MASK_%s 1\n", si->name);
+	
+		else 
+			header = zstrprintf(header, "#define MASK_%s 0\n", si->name);
+		
+
+		bit <<= 1;
+
+	} 
+	
+	 
+
 	char* vs[] = { header, vsource };
 	char* fs[] = { header, fsource };
 
 	printf(" vertex:\n %s %s  fragment:\n  %s %s\n", vs[0], vs[1], fs[0], fs[1]);
-
+	 
 	//add parameters that mask off some areas
 				
-	shader->v_shader = glCreateShader(GL_VERTEX_SHADER);
+      	shader->v_shader = glCreateShader(GL_VERTEX_SHADER);
 
 	glShaderSource(shader->v_shader, 2, (const char**)vs, NULL);
 
@@ -533,7 +600,7 @@ gfx_shaderT* gx_compile_shader(char* vsource, char* fsource, zvecT * inputs, int
 	//set all the uniform/attribute positions
 
 	for (i = 0; i < zvec_count(inputs); i++) {
-		gfx_shader_inputT* si = zvec_get_at(inputs, i);
+ 		gfx_shader_inputT* si = zvec_get_at(inputs, i);
 		if (si->uniform)
 			si->loc = glGetUniformLocation(shader->program, si->name);
 		else
@@ -542,6 +609,7 @@ gfx_shaderT* gx_compile_shader(char* vsource, char* fsource, zvecT * inputs, int
 		printf(" %d  %d %s\n", si->uniform, si->loc, si->name);
 	}
 
+	shader->mask = mask;
 
 	return shader;
 }

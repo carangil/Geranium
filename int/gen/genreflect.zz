@@ -4,6 +4,7 @@ type @typeT Type
 	@typeT_category	category:N32;
 	@typeT_ref	ref:Type&;
 	@typeT_len	len:N32;
+	@typeT_isPer	isPer:Bit;
 end
 primitive C_findType findType:(category:Z32; ref:Type&; name:String&; size:Z32->Type&);
 primitive C_printTypeNoRedirect printTypeNoRedirect:(c_ty:Type&; c_line:Bit; c_skipmembers:Bit-> );
@@ -14,6 +15,7 @@ opaque @vptrT CodeToken;
 stacked ExecToken;
 opaque @vptrT ExecToken;
 opaque @vptrT Symbol;
+stacked Symbol;
 primitive C_heretoken  here:(->CodeToken);
 primitive C_tokenclip  clip:(t:CodeToken->Code%);
 primitive C_codecat  ++:(c:Code&;d:Code%);  //appends d to c.  frees d

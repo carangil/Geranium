@@ -105,7 +105,12 @@ proc print:(t:Type&)
 	t proc? if
 		"(" print
 		0#i loop t i[] ##arg:Bit while
-			arg.name ":" t.ref 	";" prints
+			
+			arg.isPer if
+                "per " print
+            end
+			
+			arg.name ":" arg.ref 	";" prints
 			i&++
 		end
 		"->" t.ref ")" prints

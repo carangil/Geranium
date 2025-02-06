@@ -64,6 +64,7 @@ typedef struct parsectxS{
 #define REDIRECT	0x9005
 #define LOADEXEC	0x9006
 #define TYPECAST	0x9007
+#define PERARG		0x9008
 
 //Token values that are also user-accessible keywords: These are intentionally high enough to not conflict with a pair
 #define KWORDS		0x8000
@@ -1218,6 +1219,14 @@ tokenT* hnop(exectxT* ex, tokenT* t) {	//do nothing
 
 	return tnext(t);
 }
+
+tokenT* hunimplemented(exectxT* ex, tokenT* t) {	
+
+	ERR("Operation unimplemented on cpu\n");
+
+	return tnext(t);
+}
+
 
 void exe (exectxT* c, struct tokenS* t){
 	
@@ -2635,6 +2644,7 @@ void addhandlers(struct parsectxS* pctx) {
 
 	HANDLER(pctx, nop);
 	HANDLER(pctx, tokenval);
+	HANDLER(pctx, unimplemented);
 
 	//things that are generally not directly user-accessible
 
@@ -5168,7 +5178,26 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					
 				if (m->ref->islike)
 					printf("like arg\n");
-				t->ty = findType(POINTERUSER, resolve_like_type(m->ref, pc->type->members, 0, ZFALSE), NULL, 0);
+		
+				typeT* lt = resolve_like_type(m->ref, pc->type->members, 0, ZFALSE);
+
+				if (m->isPer) {
+
+					printf("'per type':  better be a pointer to array\n");
+
+					lt = lt->ref->ref;
+					
+					t->ty = lt;
+					t->tok = PERARG;
+					t->useslocal = 1;
+
+					t->val.as.z32 = so;
+					t = tnext(t);
+					continue;
+				}
+
+
+				t->ty = findType(POINTERUSER, lt , NULL, 0);
 
 				t->tok = STACKARG;
 				t->useslocal = 1;
