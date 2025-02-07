@@ -216,13 +216,49 @@ proc dsym:(s:Symbol)
 end
 
 
-proc minShader:(per a:[Vec3]&; per b:[Vec3]& ; c:Vec3 -> )
+proc minShader:(per a:[Vec3]&; per b:[Vec3]& ; c:Vec3 ; d: Vec3& -> )
 
-    a b + c +
+    a b + c + print newline
+    
+
 
 end
 
-[Vec3]& [Vec3]& Vec3  minShader&:Symbol dsym
+[Vec3]& [Vec3]& Vec3 Vec3& minShader&:Symbol dsym
+
+proc immediate T:()
+    "OK" print newline
+end
+
+//proc testautoderef:(a:Z32; b:Z32&)
+
+
+proc testautoderef:(a:Z32; b&:Z32&)
+    
+    "in testautoderef, bref is " print    b& printptr
+
+    b& if
+        "b is present "  a b + prints newline
+        6 b =
+    else
+        "b not present" print newline
+    end
+      
+  
+end
+
+
+22 #bref
+
+"bref is "  bref  " " prints  bref& printptr newline
+
+30 bref& testautoderef
+30 0:Z32& testautoderef
+
+
+"bref is "  bref prints newline
+
+loop end
 
 
 //[Vec3]& [Vec4]& [Vec4]& Real& Matrix44& Transform& Texture& Vec4& [Vec2]& testVertexShader&:Symbol dsym

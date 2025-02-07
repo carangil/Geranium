@@ -66,6 +66,7 @@ typedef struct parsectxS{
 #define TYPECAST	0x9007
 #define PERARG		0x9008
 
+
 //Token values that are also user-accessible keywords: These are intentionally high enough to not conflict with a pair
 #define KWORDS		0x8000
 #define KVAR		0x8000
@@ -382,8 +383,9 @@ typedef struct typeS{
 	struct typeS* parent;	//'parent' type, only for members, only in certain situations (currently when finding the 'real' type behind a virtual)
 	zvecT* members;  //(typeT*) structs or function parameters
 	zvecT* selectors; //(symbolT*)  function selectors
-	int trashAfterPrimitive; //only for function args (members), only when passing %pointer
-	int isPer;	//for function areg MEMBERs 
+	zbool trashAfterPrimitive; //only for function args (members), only when passing %pointer
+	zbool isPer;	//for function areg MEMBERs 
+	zbool deref;  //true if the called function is to automatically deref the pointer
 	int tid;
 	struct symbolS* destructorproc;
 	zbool stacked;
@@ -1233,8 +1235,12 @@ void exe (exectxT* c, struct tokenS* t){
 	struct tokenS* ts=t;
 	char* str = "";
 	while(t && ! c->stop){  //until out of instructions, or a return is bubbling up
-						
+
+
+
 		instruction handler = t->handler;
+
+		
 
 		if (c->debugstack) {
 			str=safestr(t->str);
@@ -1248,6 +1254,9 @@ void exe (exectxT* c, struct tokenS* t){
 
 		if (debug_break)
 			printf("debug\n");
+
+		if (t->breakpoint)
+			printf("break\n");
 
 		if (!t->skipargs)
 			t = evalsubs(c, t);
@@ -1506,11 +1515,13 @@ tokenT* hlocal (exectxT* ex, tokenT* t) {	//push pointer to local variable on st
 
 tokenT* hstackread (exectxT* ex, tokenT* t) {	//read a stack variable (really function parameters)
 	
-	if (!tsub(t)){
-		ERR("hstackread needs sub for stack position offset\n");
-	}
+//	if (!tsub(t)){
+	//	ERR("hstackread needs sub for stack position offset\n");
+	//}
 	
-	ex->stack[ex->sp] = ex->stack[ ex->fp + tsub(t)->val.as.z32 ];
+	//ex->stack[ex->sp] = ex->stack[ ex->fp + tsub(t)->val.as.z32 ];
+
+	ex->stack[ex->sp] = ex->stack[ex->fp + t->val.as.z32];
 	
 #ifdef EXEDEBUG
 	xprintf(" READ STACK POSITION + %d  option %d\n", tsub(t)->val.as.z32, t->val.as.n32);
@@ -3093,6 +3104,14 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 
 			t = tnext(t);
 		}
+
+		if (t->tok == NAME && tnext(t)->tok == '&' && reqname){		//if we are naming parameters, and the name is followed by &
+			// so like  a&:Real&	
+			argStyle = 3; //function accepts pointer, but inside function it is automatically dereferenced
+						  //the pointer cannot be written to inside the function
+			ram_free(tremove(tnext(t))); //remove &
+
+		}
 						
 		t = parseVar(t, &name, &type  );
 		//printList((tokenT*)t->zlistnode.prev->prev->prev, t, ENDFILE,0);
@@ -3130,6 +3149,9 @@ tokenT*  parseTypeList(tokenT* t, typeT* parent) {
 			
 			if (argStyle == 2)
 				mty->isPer = 1;
+
+			if (argStyle == 3)
+				mty->deref = 1;
 
 			if (t->tok == KTRASH) {
 				//todo: only applicable to primitive parameter lists, but at this part of the code, we don't know that's what we are doing.
@@ -3514,10 +3536,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		switch (t->tok) {
 
 		
-		//case '~':
-			//t = tnext(t);
-		//	ram_free(tremove(tprev(t)));
-		//	continue;
+		case '~':
+			t = tnext(t);
+			ram_free(tremove(tprev(t)));
+			t->breakpoint = ZTRUE;
+			continue;
 
 		case KCODE:
 				typeT* codetype = NULL;
@@ -4802,6 +4825,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				t->ty = tprev(t)->ty->ref;
 				tprev(t)->ty = NULL;
 
+				t->val = tprev(t)->val; //take the stack position value
+
 				fold(tprev(t), t);
 				
 				t->handler = hstackread;
@@ -5181,6 +5206,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		
 				typeT* lt = resolve_like_type(m->ref, pc->type->members, 0, ZFALSE);
 
+				
 				if (m->isPer) {
 
 					printf("'per type':  better be a pointer to array\n");
@@ -5197,9 +5223,19 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				}
 
 
-				t->ty = findType(POINTERUSER, lt , NULL, 0);
+				
 
-				t->tok = STACKARG;
+				if (m->deref) {
+					//if the var is a deref arg, then there are two options
+					//1. the var is being used as a var.  the '@' sign will be a real one
+					//2. the var is being used as a bool to see if it exists
+					t->handler = hstackread;
+					t->ty = lt;
+				}
+				else {
+					t->tok = STACKARG;
+					t->ty = findType(POINTERUSER, lt, NULL, 0);
+				}
 				t->useslocal = 1;
 			
 

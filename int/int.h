@@ -112,6 +112,7 @@ typedef struct tokenS {
 	struct tokenS** debug_subs;
 	struct tokenS** debug_next;
 	struct tokenS** debug_prev;
+	zbool breakpoint;
 
 }tokenT;
 
