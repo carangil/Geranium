@@ -61,7 +61,8 @@ typedef struct exectxS {
 	}exectxT;
 #define STOPFUNC 1
 #define STOPLOOP 2
-#define STOPBLOCK 2
+#define STOPBLOCK 3
+#define RELOOP 4
 
 //tokens for interpreter
 //custom handlers should restrict to using a few macros

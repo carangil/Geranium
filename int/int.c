@@ -102,14 +102,14 @@ typedef struct parsectxS{
 #define KPER		0x801e
 #define KALIAS		0x801f
 #define KSKIP		0x8020
-#define KBEGIN		0x8021
+#define XXKBEGIN		0x8021  /*deleted*/
 #define KAND		0x8022
 #define KOR			0x8023
 
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
 						"new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0",
 						"prefix", "like", "Xresize","opaque","immediate", "code", "stacked", "typeof", "constant",
-						 "per" , "alias", "skip", "Xbegin", "and", "or", NULL};
+						 "per" , "alias", "skip", "XXbegin", "and", "or", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -1883,15 +1883,22 @@ tokenT* hbreakblock (exectxT* ex, tokenT* t) {
 	ex->stop = STOPBLOCK; //flag to signal block breakage
 	return NULL;//stop running this block of instructions
 }
-tokenT* hbreakloop (exectxT* ex, tokenT* t) {
-	ex->stop=STOPLOOP; //flag to signal loop breakage
-	return NULL;//stop running this block of instructions
+tokenT* hbreakcontinueloop (exectxT* ex, tokenT* t) {
+	
+	if (t->val.as.n32 == 1)
+ 		ex->stop = RELOOP;
+	else
+		ex->stop=STOPLOOP; //flag to signal loop breakage
+
+	return NULL;//stop running this block of instructionsST
 }
 
 tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP is set
 	
 	while(!ex->stop){
 		exe(ex, tsub(t) );; 
+		if (ex->stop == RELOOP)
+			ex->stop = 0;
 	}
 	if(ex->stop== STOPLOOP)
 		ex->stop=0;
@@ -2195,6 +2202,9 @@ tokenT* hgroup (exectxT* ex, tokenT* t){
 		ex->stop = 0;
 	}
 	
+	//if (ex->stop)
+	//	return NULL;  //stopping
+
 	return tnext(t);
 }
 
@@ -2672,7 +2682,7 @@ void addhandlers(struct parsectxS* pctx) {
 	HANDLER(pctx, condblock);  //conditional execution (IF)
 	HANDLER(pctx, breakblock);
 	HANDLER(pctx, loop);
-	HANDLER(pctx, breakloop);
+	HANDLER(pctx, breakcontinueloop);
 	
 	//reflection 
 	HANDLER(pctx, symtoken); //get symbols for an executable proc
@@ -3535,7 +3545,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 		switch (t->tok) {
 
-		
+
 		case '~':
 			t = tnext(t);
 			ram_free(tremove(tprev(t)));
@@ -3543,10 +3553,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			continue;
 
 		case KCODE:
-				typeT* codetype = NULL;
+			typeT* codetype = NULL;
 
 			t = tnext(t);
-			
+
 			if (t->tok == '(') {
 				//this code is TYPED
 				t = parseType(t);
@@ -3554,7 +3564,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				ram_free(tremove(tprev(t))); //remove the datatype token
 			}
 
-			
+
 			char* endString = ram_addref(t->str);
 			t = tnext(t);
 			ram_free(tremove(tprev(t))); //remove  start delimiter token
@@ -3562,7 +3572,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			ram_free(endString);
 
 			t = tnext(t);
-						
+
 			if (codetype) {
 				tprev(t)->tok = KEND; //turn the end delimiter token into an END token.  Now the quote can be parsed similar to a function body
 				ram_free(tprev(t)->str);
@@ -3570,36 +3580,36 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 			else
 				ram_free(tremove(tprev(t))); //no untyped code (raw token snippets), delete this 
-						
-			
-			
+
+
+
 			lfold(ts, t);
-			
+
 
 			ts->handler = hsubst;
 			ts->skipargs = ZTRUE;
 			//ts->val.as.ptr.block = tsub(t);
 			//ts->val.as.ptr.offset = 0;
-			
+
 			if (codetype) {
 				//code assigned a proc type.  This needs to be compiled into a function
 				ts->ty = codetype;
 				tokenT* comp = mkToken(COMPILE, "SYScompile", 0);
 				zlist_insert_node_after(&ts->zlistnode, comp);
 				t = tnext(ts);
-				
-				
+
+
 			}
 			else {
 				//untyped code:  just a list of tokens
 				ts->ty = findType(POINTERPOSSESSIVE, tCode, NULL, 0);
 			}
-			
+
 
 			continue;
-				
+
 		case COMPILE:
-			
+
 			if (tprev(t)->ty && (tprev(t)->ty->category == FUNCTION)) {
 				typeT* proctype = tprev(t)->ty;
 				fold(tprev(ts), t);
@@ -3621,7 +3631,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//two booleans
 			if (tprev(t)->ty == tBit && tprev(tprev(t))->ty == tBit) {
 				fold(tprev(tprev(t)), t);
-				
+
 				t->handler = hboolshort;
 				t->ty = tBit;
 				t->skipargs = ZTRUE;
@@ -3629,30 +3639,18 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					t->val.as.n32 = 1;
 				else
 					t->val.as.n32 = 0;
-												
+
 				t = tnext(t);
 				continue;
 			}
 
 			break;
 
-		case KBEGIN:
-			ts = t;
-			t = tnext(t);
-		
-			pc->endable++;
-			t = parse(pc, t);
-			t = tnext(t);
-			ram_free(tremove(tprev(t))); //delete 'end'
-			
-			lfold(ts, t);
-			ts->handler = hgroup;
-			ts->val.as.n32 = 1;
-			
-			break;
+
 
 		case KSKIP:
-			t->handler = hbreakblock;
+			t->handler = hbreakcontinueloop;
+			t->val.as.n32 = 1;
 			t = tnext(t);
 			break;
 
@@ -3664,28 +3662,28 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 
 
-			if ( (pc->endable == 1) && pc->type && (pc->type->category == FUNCTION)  ) {
+			if ((pc->endable == 1) && pc->type && (pc->type->category == FUNCTION)) {
 
-				if( pc->type->ref && (tprev(t)->tok != KRETURN))
+				if (pc->type->ref && (tprev(t)->tok != KRETURN))
 					ERR("End of proc without returning a value\n");
 
 				t->handler = hreturn;
-				
-		
+
+
 			}
-						
+
 
 			if (pc->endable) {
 				pc->endable--;
 				//xprintf(" 'end' block \n");
-				
+
 				return t;
 			}
 
 			ERR(" Cannot 'end' in the global context\n");
 
 		case KOPAQUE:
-		
+
 
 			csize = 0;
 			if (tnext(t)->tok == '@' && tnext(tnext(t))->tok == NAME) {
@@ -3697,8 +3695,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			typeT* ot = findType(NAMED, NULL, t->str, 0);
 			if (ot)
 				ot->size = csize;
-			else	
-				mkType(OPAQUE, NULL, t->str, csize );
+			else
+				mkType(OPAQUE, NULL, t->str, csize);
 
 			t = tnext(t);
 			if (t->tok != ';')
@@ -3710,7 +3708,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 		case KALIAS:
 			ts = t;
-			name =  tnext(ts)->str;
+			name = tnext(ts)->str;
 
 			t = parseType(tnext(tnext(t)));
 
@@ -3724,7 +3722,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			continue;
 
-	
+
 		case KVIRTUAL:
 
 			csize = 0;
@@ -3740,8 +3738,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//TODO:  proc selector prototypes:   selector arg1 Fun:(arg0:Z32;arg1:MyVirtualType& ->);
 			//the above should add 'Fun' proc to the virtual type's list of supported functions
 			//When calling a virtual proc, The 'selector' argument the one whose method table is searched
-			if ((t->tok == NAME) && (t->str) && (tnext(t)->tok == ';')) {						
-				typeT* vt = mkType(VIRTUAL, NULL, t->str, 0);			
+			if ((t->tok == NAME) && (t->str) && (tnext(t)->tok == ';')) {
+				typeT* vt = mkType(VIRTUAL, NULL, t->str, 0);
 				vt->selectors = zvec_mk(NULL, 4);
 				//zvec_disown(vt->selectors);
 			}
@@ -3767,49 +3765,49 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			//if (prev_imm_context_ty != immediate_parse->type)
 				//printf("pushing new immediate context type\n");
-			
+
 			immediate_parse->type = tImmediate;
 
 			if (!pc->exec || !pc->exec->globalvars)
 				immediate_parse->no_global_vars = ZTRUE;
 			else
 				immediate_parse->no_global_vars = ZFALSE; //enable global variables for immediate blocks that are created after program is running?
-						
-			
+
+
 	//		if (immediate_parse->endable) {
 	//			ERR("Nested immediate blocks:  This makes adding immediate variables (growing immediate space) impossible on-the-fly\n");
 	//		}
-			
-			
-			
 
-	
+
+
+
+
 
 			immediate_parse->endable++;
 			t = parse(immediate_parse, tnext(t));
 			immediate_parse->type = prev_imm_context_ty;
 
-	
+
 			t = tnext(t);
-						
+
 			lfold(ts, t);
 			tokenT* sub = tsub(ts);
 			printList(sub, NULL, 0, 10);
 
 			printSymbols(immediate_parse->symbols, "immediate symbols");
 			checkUsage(sub, NULL);//check all values are used up
-			
+
 			//run it
-			
-			int oldfp=0;
-			
-		//	exectxT* oldint = immediate_parse->interrupted_parser_context;
+
+			int oldfp = 0;
+
+			//	exectxT* oldint = immediate_parse->interrupted_parser_context;
 
 			if (immediate_parse->exec) {
 				oldfp = immediate_parse->exec->fp;
 				immediate_parse->exec->sp = immediate_parse->exec->fp;
 			}
-			
+
 			parsectxT* oldparent = immediate_parse->parent;
 			immediate_parse->parent = pc;
 
@@ -3819,7 +3817,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			start(immediate_parse, sub, NULL);
 
 			t = immediate_parse->t;  //get what might have been changed
-			
+
 			immediate_parse->t = savet;  //restore the saved t value
 
 			immediate_parse->parent = oldparent;
@@ -3834,7 +3832,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				ts->handler = hconstant;
 				ts->skipargs = ZTRUE;
 				ts->ty = rettype;
-				ts->val = immediate_parse->exec->stack[spdone-2];
+				ts->val = immediate_parse->exec->stack[spdone - 2];
 				//TODO: if returning a String&, why not just return is as a constant?
 				if (rettype != tType && (rettype->category == POINTERUSER)) {
 					//Don't return user pointers from immediate blocks.
@@ -3849,26 +3847,26 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					ts->handler = hconstantaddref; //need to add ref when putting on the stack
 					ts->skipargs = ZTRUE;
 				}
-				
+
 				//special case if code is returned: just insert it
 				//the above setting of val_to_free will clear out the empty code token
-				
+
 				if (rettype->category == POINTERPOSSESSIVE && rettype->ref == tCode) {
 					//if an immediate block returns code, the code is inserted directly into the token list
 					//printf(" Insert code here\n");
-					
-					tokenT* t2=  ts->val.as.token;
+
+					tokenT* t2 = ts->val.as.token;
 					if (t2->restrict_parse_context && t2->restrict_parse_context != pc) {
 						ERR("Inserting code that contains quoted arg subtrees from other contexts; not allowed\n");
 					}
 					t2 = tsub(t2);
 					tokenT* t2next;
 					tokenT* prev = ts;  //start inserting after ts
-					while(t2){
-				
+					while (t2) {
+
 						t2next = tnext(t2);
 						tremove(t2);
-						insert_after(prev,t2); //remove and insert after the previous one
+						insert_after(prev, t2); //remove and insert after the previous one
 						prev = t2;
 						t2 = t2next;
 
@@ -3879,25 +3877,26 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				}
 
 
-				
-			} else 
-				ts->handler = hnop;		
-						
+
+			}
+			else
+				ts->handler = hnop;
+
 
 
 			continue;
 
 		case KSELECTOR:		//proc selector
 		case KPRIMITIVE:	//primitive declaration
-		
+
 
 			xprintf(" Alias is %s\n", tnext(t)->str);
 			name2 = ram_addref(tnext(t)->str);
 
 			ram_free(tremove(tnext(t)));
-			
-						
-			if ( t->tok == KSELECTOR &&  tnext(t)->tok == NAME && tnext(t)->str[0]=='.') {
+
+
+			if (t->tok == KSELECTOR && tnext(t)->tok == NAME && tnext(t)->str[0] == '.') {
 				//printf(" data selector for %s\n", name2);
 
 				dataselector = 1;
@@ -3912,12 +3911,12 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			int isImmediate = 0;
 			symbolT* primsym = NULL;
 			int immval = 0;
-			
+
 			if (ts->tok == KPRIMITIVE) {
-				
+
 				s = findSymbol(primitives, name2, NULL);
 				if (s) {
-					handler = s->handler;			
+					handler = s->handler;
 					primsym = s;
 					if (tnext(t)->tok == NUMBER) {
 						immval = atoi(tnext(t)->str);
@@ -3928,12 +3927,12 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				else
 					ERR("No primitive named %s\n", name2);
 
-			} 
+			}
 
-			if ( (t->tok == KPROC || t->tok == KPRIMITIVE) && tnext(t)->tok == KIMMEDIATE) {  //proc flagged as immediate
-				
+			if ((t->tok == KPROC || t->tok == KPRIMITIVE) && tnext(t)->tok == KIMMEDIATE) {  //proc flagged as immediate
+
 				ram_free(tremove(tnext(t)));
-				isImmediate = 1;  
+				isImmediate = 1;
 
 				if (tnext(t)->tok == '%') {
 					if (t->tok != KPRIMITIVE) {
@@ -3955,19 +3954,19 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//	isImmediate = 1;  
 
 			//name = tnext(t)->str;
-			
+
 			char* tmpstring = NULL;
 
 			if (tnext(t)->tok == ':') {
 				ram_free(tremove(tnext(t))); //delete colon
-					
-				
+
+
 				char* tmpstring = zstrndup(":", 32);
 				tmpstring = zstrcat(tmpstring, tnext(t)->str);
 				ram_free(tnext(t)->str);
 				tnext(t)->str = tmpstring;
 			}
-		
+
 
 			if (tnext(tnext(t))->tok == '=') { //function name that ends in '='
 				tnext(t)->str = zstrcat(tnext(t)->str, "=");
@@ -3980,12 +3979,12 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (dataselector)
 				name++;
 
-			
+
 			xprintf("proc/var %s   %s is type ", ts->str, name);
 			printType(type, 1, 1);
-						
+
 			if (!name) {
-				ERR("Expected name and ':'\n");			
+				ERR("Expected name and ':'\n");
 			}
 
 			if (type->category == PENDING) {
@@ -4005,10 +4004,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 				for (i = 0; i < zvec_count(global->symbols); i++) {
 					ss = zvec_get_x_at(global->symbols, symbolT*, i);
-					
+
 					if (!ss->isPrototype)
 						continue;
-					 
+
 					if (!strcmp(name, ss->name)) {
 						//same name
 
@@ -4032,7 +4031,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 
 			if (s) {
-				s->isImmediate = isImmediate;	
+				s->isImmediate = isImmediate;
 			}
 
 			if (ts->tok == KPROTO) {
@@ -4056,7 +4055,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						}
 						if (pt->ref->category != VIRTUAL)
 							ERR("Selectors can only operate on virtual types\n");
-						
+
 						s->selectorNum = zvec_count(pt->ref->selectors); //track which selector this is
 						zvec_add(pt->ref->selectors, ram_addref(s));
 						s->selectorArg = i;
@@ -4069,15 +4068,15 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					ERR("No such arg %s\n", name2);
 			}
 			if (dataselector) {
- 				//char* stmp = zstrdup2(name2, name);
+				//char* stmp = zstrdup2(name2, name);
 				//s = mkSymbol(pc, stmp, type, handler);
- 				s = mkSymbol(NULL, name, type, handler);
+				s = mkSymbol(NULL, name, type, handler);
 				//add to the selector table
 				if (type->category == VIRTUAL)
-					s->isSelector = 4;			
+					s->isSelector = 4;
 				else
 					s->isSelector = 2;
-			//	s->handler = hdataselect;
+				//	s->handler = hdataselect;
 
 				typeT* vt = findType(VIRTUAL, NULL, name2, 0);
 
@@ -4095,21 +4094,21 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (ts->tok == KPROC) {
 				//procedures go into a body of statements
 				printf(" parse proc %s ", name);
-					printTypeNoRedirect(type, ZTRUE, ZFALSE);
-				s->subctx = mkcontext(name);		
+				printTypeNoRedirect(type, ZTRUE, ZFALSE);
+				s->subctx = mkcontext(name);
 				s->subctx->parent = pc;
-				
+
 				s->subctx->endable++; //its a subcontext
 				s->subctx->type = s->type;
-			//	t->sym = s;
+				//	t->sym = s;
 				s->handler = hcall;  //need to set handler before parsing, in case of recursion
 				t = parse(s->subctx, t);
-				
+
 				checkUsage(ts, t);//check all values are used up
-				
+
 				printf(" parsed proc %s ", name);
 
-				if (!strcmp(name, "destructor") ) {
+				if (!strcmp(name, "destructor")) {
 					if (s->type && s->type->members && zvec_count(s->type->members) == 1) {
 						typeT* dt = zvec_get_at(s->type->members, 0);
 						//dt is the 0th arg of the function. ->ref is the type, which would be a pointer to something.  then ->ref again for the thing
@@ -4118,7 +4117,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						}
 					}
 				}
-								  
+
 				//t should now be 'end' 
 			}
 			else if (t->tok != ';') {
@@ -4126,58 +4125,59 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 
 			if (t->tok == KEND) {
-				
+
 			}
 
 			t = tnext(t); //skip past semicolon (or 'end')
-			
+
 			lfold(ts, t);  //everything up to an including semicolon folded
 			//ts->tok = 0;  //to break tokennext chains from escaping the proc
 			if (!s->isPrototype)
 				s->tokens = ram_addref(ts); //symbol has this tokenstream
-			
-			
+
+
 			ts->handler = hnop;
-		
+
 
 			continue;
 
-		/*case '?':
-			if (tprev(t)->ty) {
-				if (tprev(t)->ty->ref && tprev(t)->ty->ref->category == VIRTUAL) {
-					printf(" Virtual type %s \n", tprev(t)->ty->ref->name);
-					//need the real type
+			/*case '?':
+				if (tprev(t)->ty) {
+					if (tprev(t)->ty->ref && tprev(t)->ty->ref->category == VIRTUAL) {
+						printf(" Virtual type %s \n", tprev(t)->ty->ref->name);
+						//need the real type
+
+					}
+					else {
+						printf("Known type of size %d\n", tprev(t)->ty->size);
+
+					}
+
 
 				}
-				else {
-					printf("Known type of size %d\n", tprev(t)->ty->size);
-					
-				}
 
+				t = tnext(t);
+				continue;
+				*/
 
-			}
-			
-			t = tnext(t);
-			continue;
-			*/
-		
 		case '#':	//create variable of whaatever type is on the stack, and store 
 		case PAIR('#', '#'):
 
-				t = tnext(t); //is variable name
+			t = tnext(t); //is variable name
 
-			//variables don't need a handler set
-			//if (pc == global)
-			//	handler = hglobal;
-			//else
-				//handler = hlocal;
-
+		//variables don't need a handler set
+		//if (pc == global)
+		//	handler = hglobal;
+		//else
+			//handler = hlocal;
+			s = findSymbol(pc->symbols, t->str, NULL);
+			if (s != NULL)
+ 				ERR(" Redefining %s\n", t->str);
 			s = mkSymbol(pc, t->str, tprev(ts)->ty, NULL);
 
-				
 			t->sym = s; //preresolve this symbol
 
-			if (ts->tok == PAIR('#','#'))
+			if (ts->tok == PAIR('#', '#'))
 				zlist_insert_node_after(t, mkToken('#=', "#=", 0));
 			else {
 				tokenT* tt = mkToken('=', "=", 0);
@@ -4187,7 +4187,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (t->sym) {
 				if (((t->sym->type->category == POINTERUSER) || (t->sym->type->category == POINTERPOSSESSIVE))
 					&& t->sym->type->ref->category == FUNCTION) {
-					zlist_insert_node_after(t, mkToken('&' , "autonoexec", 0));
+					zlist_insert_node_after(t, mkToken('&', "autonoexec", 0));
 				}
 			}
 			fold(ts, t);
@@ -4199,12 +4199,12 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//allow return no value
 
 			t->handler = hreturn;
-			
+
 			if (pc->type == tImmediate) {
-				
+
 				//printf(" compiling return for immediate\n");
 				if (tprev(t)->ty) {
-				//	pc->type = tprev(t)->ty;
+					//	pc->type = tprev(t)->ty;
 					t->ty = tprev(t)->ty;
 					fold(tprev(t), t);
 					t = tnext(t);
@@ -4213,27 +4213,27 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					t->ty = tImmediate; //must return tImmediate type if returning no value (so there is something to pop off the stack)
 					t = tnext(t);
 				}
-			
+
 
 				continue;
 
 			}
-			
+
 			if (pc->type && pc->type->ref) {
 				xprintf(" RETURN a value\n");
 				printType(pc->type->ref, ZTRUE, ZFALSE);
-			
+
 				if (pc->type->ref->islike)
 					printf("return like\n");
 				typeT* lt = resolve_like_type(pc->type->ref, pc->type->members, NULL, ZFALSE);
-				
-				if (tprev(t)->ty != lt   ) {
-					xprintf("Type mismatch expected:\n"); 
+
+				if (tprev(t)->ty != lt) {
+					xprintf("Type mismatch expected:\n");
 					//printType(pc->type->ref, ZTRUE, ZTRUE);
 					printType(lt, ZTRUE, ZTRUE);
 					xprintf("attempt to return: \n");
 					printType(tprev(t)->ty, ZTRUE, ZTRUE);
-					ERR("TYPE MISMATCH %s\n", pc->name );
+					ERR("TYPE MISMATCH %s\n", pc->name);
 				}
 
 				fold(tprev(t), t);
@@ -4246,11 +4246,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			continue;
 
 		case KBREAK:
-			t->handler = hbreakloop;
+			t->handler = hbreakcontinueloop;
 			t = tnext(t);
 			continue;
 
-		
+
 		case KLOOP:
 			ts = t;
 			pc->endable++;
@@ -4285,14 +4285,14 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			fold(tprev(t), t);//take previous node as the condition
 			t->handler = hcondblock;
 			t->skipargs = ZTRUE;
-			t->val.as.n32 = 1;			
+			t->val.as.n32 = 1;
 			return t;
-				
+
 		case KELSE:  //return in the middle
 			return t;
-		
+
 		case KIF:
-		
+
 			ct = tprev(t)->ty;
 
 			if (!ct)
@@ -4308,28 +4308,58 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			tokenT* condition = tremove(tprev(t));
 			ts = t;
-		
+
 			t = tnext(t);
 			pc->endable++;
 
-			t = parse(pc, t); //parse until end
-			
+			t = parse(pc, t); //parse until end, else or elseif
+
 			insert_after(ts, condition); //insert the condition to be the first child
 			lfold(ts, t); //move all the 'true' case code into the cond block
 			ts->handler = hcondblock;
 			ts->skipargs = ZTRUE;
 
-			if (t->tok == KEND) { //simple case
+			//SIMPLE CASE:
+			//  hcondblock (IF) {		
+			//		condition
+			//		true statements
+			//  }
+
+			
+			if (t->tok == KEND) { //simple case, just a condblock
 				t->handler = hnop;
 				t = tnext(t);
 				continue;
 			}
 			
-			tokenT* group = NULL;
+			//COMPLEX CASE:   
+			// in this case, the whole if/elseif/else tree is put in a hgroup
+			//  hcondblock will 'break' the group after it runs
+			//  hgroup{
+			//	
+			//		hcondblock:{			IF
+			//			condition
+			//			true statements
+			//		}
+			//		hcondblock:{			ELSEIF	(0 or more)
+			//			condition
+			//			true statements
+			//		}
+			//								ELSE	(optional)
+			//		else statements			
+			// 
+			//	}							END
+
+
 
 			if (t->tok == KELSE || t->tok == KELSEIF) {
 				ts->val.as.n32 = 1; //COND will break the group after running true clause
 			}
+			else
+				ERR(" unexpected %s\n", t->str);
+
+			
+			
 
 			while (t->tok == KELSEIF) {
 				tokenT* elsif = t;  
@@ -5837,11 +5867,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 			
 			printf("%s Undefined\n", t->str);
- 	 		ERR("  Undefined symbol:%s line %d\n\n", t->str, t->line); 
+     	 		ERR("  Undefined symbol:%s line %d\n\n", t->str, t->line); 
 					
 		}//end str
 		xprintf("?How to parse %x %c\n", t->tok, t->tok);
-		ERR("Unimplemented\n");
+		ERR("Unimplemented\n"); 
 			
 	} //end while
 	xprintf(" returning NULL token\n"); 
