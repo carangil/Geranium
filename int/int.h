@@ -91,8 +91,7 @@ typedef struct tokenS {
 	zuint32 tok;	//A constant defined below, a character, or a pair of characters
 	char* str;	//string representation of this token
 
-	char* altstr;   //alternative to try, such as functions that look like assignments
-	struct tokenS* altnext;
+	
 
 	struct typeS* ty;	//datatype of this token
 	struct typeS* tyorig;	//original datatype of this token (before cast)
@@ -103,7 +102,10 @@ typedef struct tokenS {
 //	instruction arghandler; //function that evaluates the args
 	zbool skipargs;
 	struct symbolS* sym;  //for things like procs that have a bunch of context info
-	int line;	//line number from source file
+	
+	char* sourcefile; //what file
+	int line;
+
 	zbool val_to_free; //if true, free val's ptr block when destroying token
 	int useslocal; // INSTEAD OF TRUE/FALSE, THIS IS A COUNT. if true this code (or its subtrees) refers to local variables (as opposed to global or immediate space)
 	int generated;

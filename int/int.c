@@ -7,7 +7,9 @@ FILE* logfile;
 #include "math.h"
 #endif
 void breakpoint() {
-             	           	printf("breakpoint here\n");
+
+
+ 	printf("breakpoint here\n");
 }
 
 #define ERR( ...)  do {xprintf(__VA_ARGS__); fprintf(stderr,__VA_ARGS__);fflush(stderr);breakpoint();  exit(1);} while(0)
@@ -122,8 +124,7 @@ zuint32 findKeyword(char* c){
 zbool token_cleanup(void* v){
 	tokenT* t = v;
 	ram_free(t->str);
-	ram_free(t->altstr);
-	ram_free(t->altnext);
+	ram_free(t->sourcefile);
 
 	if (t->val_to_free)
 		ram_free(t->val.as.ptr.block);
@@ -221,18 +222,19 @@ int acceptLiteral(char* in, char start, char escape){
 }
 
 //reads string 'in', and adds token nodes AFTER *insert
-void  tokenize(tokenT* insert, char* in){
-
+//filname is optionsl
+void  tokenize(tokenT* insert, char* in, char* filename){
+	char* instart = in;
 	int c,next;
 	tokenT* t=NULL;
 	
 	int line=1;
+	char* fnamecopy = zstrdup(filename);
 
 	while ((c = *in)){
 		next = *(in+1);
 		zuint32 p;
-		if (c == '\n')
-			line++;
+	
 
 		//find twochar patterns like ->,etc. including comment start/end markers
 		//looking for pairs before chars makes sure the matching is 'greedy'
@@ -240,6 +242,7 @@ void  tokenize(tokenT* insert, char* in){
 			if (  p == PAIR('/','/')  ) { //special handling for // comments
 				while(*in!= '\n')
 					in++;
+				in++;//skip
 				line++;
 				continue;
 			}
@@ -259,6 +262,9 @@ void  tokenize(tokenT* insert, char* in){
 	
 			t = mkToken(PAIR(c, next) , in, 2);
 			t->line = line;
+			t->sourcefile = ram_addref(fnamecopy);
+
+
 			zlist_insert_node_after(&insert->zlistnode,&t->zlistnode);
 			insert = t;
 			
@@ -271,9 +277,20 @@ void  tokenize(tokenT* insert, char* in){
 
 		if (lit) {
 			t = mkToken(LITERAL, in, lit);
+			t->line = line;
+			t->sourcefile = ram_addref(fnamecopy);
 			zlist_insert_node_after(&insert->zlistnode,&t->zlistnode);
 			insert = t;
-			in+=lit;
+			
+			while (lit) {
+				if (*in == '\n')
+					line++;
+
+				lit--;
+				in++;
+			}
+
+
 			continue;
 		}
 
@@ -281,7 +298,15 @@ void  tokenize(tokenT* insert, char* in){
 		int space = acceptPatterns(in, " \t\n\r", "", " \t\n\r");
 
 		if (space) {
-			in+= space;
+
+			while (space) {
+				if (*in == '\n')
+					line++;
+
+				space--;
+				in++;
+			}
+
 			//below will turn whitespace into a token.  Currently, whitespace is ignored, so just skip the token
 #if 0			
 			t = mkToken(' ');
@@ -321,6 +346,8 @@ void  tokenize(tokenT* insert, char* in){
 						
 		if (digits || name){
 			t = mkToken( digits? NUMBER : NAME, in ,   digits|name);
+			t->line = line;
+			t->sourcefile = ram_addref(fnamecopy);
 			in += digits|name;
 			zlist_insert_node_after(&insert->zlistnode,&t->zlistnode);
 			insert = t;
@@ -329,11 +356,14 @@ void  tokenize(tokenT* insert, char* in){
 
 		//just some char
 		t = mkToken( *in, in, 1);
-		t->line=line;
+		t->line = line;
+		t->sourcefile = ram_addref(fnamecopy);
+		
 		zlist_insert_node_after(&insert->zlistnode,&t->zlistnode);
 		insert = t;
 		in++;
 	}	
+	ram_free(fnamecopy);
 }
 
 /**** Data Types ****/
@@ -390,6 +420,7 @@ typedef struct typeS{
 	struct symbolS* destructorproc;
 	zbool stacked;
 	zbool islike;  //type needs to be resolved relative to another item
+	zbool genname;  //name is made up by the system
 }typeT;
 
 zvecT* types;
@@ -455,6 +486,7 @@ typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
 
 	if (!name && ty->ref) {  //all types need some name
 		ty->name = zstrprintf(ty->name, "%s_C%d", ty->ref->name, ty->category);
+		ty->genname = ZTRUE;
 	}
 
 	return ty;
@@ -473,18 +505,18 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 	}
 
 	if (ty){
-		xprintf("%d~", ty->tid);
+	//	xprintf("%d~", ty->tid);
 		if (!skipmembers)
-			xprintf("<size%d>", (int)ty->size);
+			xprintf("<%dbyte>", (int)ty->size);
 		
 		switch(ty->category) {
 		case  LIKE:
-			xprintf("LIKE:"); 
+			xprintf("like"); 
 			break;
 		case  PRIMITIVE:
 			xprintf("<PRIMITIVE>");  //continue on as func
 		case  FUNCTION:
-			xprintf("<func>(");
+			xprintf("proc(");
 			end=")";
 			skipmembers=ZFALSE;
 			break;
@@ -492,7 +524,7 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 		case ARRAYSTATIC:
 		case ARRAYDYNAMIC:
 			if (ty->len)
-				xprintf("[%d ", ty->len);
+				xprintf("[%d", ty->len);
 			else
 				xprintf("[");
 			
@@ -519,25 +551,25 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 			}
 			break;
 		case MEMBER:
-			xprintf(".");
+		//	xprintf(".");
 			break;
 		case VIRTUAL:
-			xprintf("(virt) ");
+			//xprintf("(virt) ");
 			break;
 
 		case OPAQUE:
-			xprintf("opaque ");
+			xprintf("<opaque>");
 			break;
 
 		case CPOINTER:
-			end = " cpointer";
+			end = "*";
 			break;
 	
 		case SIMPLE:
 			break;
 
 		case SUBTREE:
-			xprintf("SUBTREE");
+			xprintf("<subtree>");
 			break;
 
 		case DEREFTYPE:
@@ -548,23 +580,27 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 			xprintf(" (U-%x) ", ty->category);
 		}
 		
-		if (ty->name)
-			xprintf("%s%c", ty->name, ty->category == MEMBER? ':':' ');
+		if (ty->name && !ty->genname)
+			xprintf("%s", ty->name);
+		if (ty->category == MEMBER)
+			xprintf(":");
+		
+		
 	
 		if (ty->trashAfterPrimitive)
-			xprintf(" trash  ");
+			xprintf("trash");
 		
 		if (!skipmembers && ty->members){
 			zuint32 i;
 			for (i=0;i<zvec_count(ty->members);i++){
 				printType( zvec_get_at(ty->members,i), ZFALSE, ZTRUE);
-				xprintf("; ");
+				xprintf(";");
 			}
 	
 		}
 
 		if (ty->category == FUNCTION)
-			xprintf(" -> ");
+			xprintf("->");
 				
 		if (ty->ref)
 			printType(ty->ref, ZFALSE, ZTRUE);
@@ -1373,7 +1409,7 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 						str += ex->stack[(ex->sp)].as.ptr.offset;
 						tokenT* stub = NULL;
 						
-						tokenize(zlist_tail_for_insert(&tcode->subs), str);
+						tokenize(zlist_tail_for_insert(&tcode->subs), str, "nofile");
 
 					}
 
@@ -4275,7 +4311,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				ERR(" If: no type input\n");
 
 			if ((ct->category != POINTERUSER) && (ct != tBit) && (ct != tZ32)) {
-				tokenize(ct, ":Bit");
+				tokenize(ct, ":Bit", "nofile");
 				t = ct;
 				continue;
 				//ERR(" if needs Bit or Pointer datatype\n");
@@ -4299,7 +4335,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				ERR(" If: no type input\n");
 
 			if ((ct->category != POINTERUSER) && (ct != tBit) && (ct != tZ32)) {
-				tokenize(tprev(t), ":Bit");
+				tokenize(tprev(t), ":Bit", "nofile");
 				t = tprev(t);
 				continue;
 				//ERR(" if needs Bit or Pointer datatype\n");
@@ -4514,10 +4550,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		case KINCLUDE:
 			xprintf("lit? %x %x\n", tprev(t)->tok, LITERAL);
 			if (tprev(t)->tok == LITERAL) {
-				char* strfile = ram_loadstr(tprev(t)->val.as.ptr.block);
+				char* fname = tprev(t)->val.as.ptr.block;
+				char* strfile = ram_loadstr(fname);
 				if (strfile) {
 
-					tokenize(t, strfile);
+					tokenize(t, strfile, fname);
 					ram_free(strfile);
 					t = tnext(t);
 					ram_free(tremove(tprev(ts)));  //remove 'include'
@@ -5854,20 +5891,24 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 
 
-			if (v) {
+			printf("\n\nERROR Undefined %s\n", t->str);
 
+			if (v) {
 				for (int n = 0; n < zvec_count(v); n++) {
 					typeT* st = zvec_get_at(v, n);
 					printType(st, ZFALSE, ZTRUE);
 					printTypeNoRedirect(st, ZFALSE, ZTRUE);
+
+				
+
 					xprintf(" ");
 					printf(" ");
 
 				}
 			}
 			
-			printf("%s Undefined\n", t->str);
-     	 		ERR("  Undefined symbol:%s line %d\n\n", t->str, t->line); 
+			
+     	 	ERR(" %s  %s:%d\n\n", t->str, t->sourcefile,  t->line);
 					
 		}//end str
 		xprintf("?How to parse %x %c\n", t->tok, t->tok);
@@ -5939,7 +5980,8 @@ int main(int argc, char** args){
 	if (argc < 2)
 		exit(1);
 
-	char* x = ram_loadstr(args[1]);
+	char* fname = args[1];
+	char* x = ram_loadstr(fname);
 
 	global = mkcontext("global");
 	
@@ -5958,7 +6000,7 @@ int main(int argc, char** args){
 	end = mkToken(PASTENDFILE, "PASTENDFILE", 0);
 	zlist_addtail(tokens, &end->zlistnode);
 	
-	tokenize(t, x);
+	tokenize(t, x, fname);
 	
 	ram_free(x);
 	

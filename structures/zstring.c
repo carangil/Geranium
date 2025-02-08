@@ -212,7 +212,7 @@ char* zstrprintf(char* initial, char* format, ...) {
 		str = zstr_mk(s);
 	}
 	else {
-		printf(" %d count, %d size, %d more\n", zarray_count(initial), zarray_size(initial), s);
+		//printf(" %d count, %d size, %d more\n", zarray_count(initial), zarray_size(initial), s);
 		
 		offset = zarray_count(initial) - 1; 
 
