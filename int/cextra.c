@@ -123,82 +123,85 @@ tokenT* h_glslprocbody(exectxT* ex, tokenT* t) {
 	typeT* m33 = (OFTYPE(TYPE("Matrix33"), ARRAYDYNAMIC));
 	typeT* m44 = (OFTYPE(TYPE("Matrix44"), ARRAYDYNAMIC));
 
+	
+	
+	char* vsource = (ex->stack[ex->sp - 3].as.ptr.block + ex->stack[ex->sp - 3].as.ptr.offset);
+	char* fsource = (ex->stack[ex->sp - 2].as.ptr.block + ex->stack[ex->sp - 2].as.ptr.offset);
+	symbolT* sym =  (ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset);
 
-	
-	char* vsource = (ex->stack[ex->sp - 2].as.ptr.block + ex->stack[ex->sp - 2].as.ptr.offset);
-	char* fsource = (ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset);
-	
 	glsl_call_wrapperT* cw = ram_alloc(sizeof(glsl_call_wrapperT), freecw);
 	gx_shadergroupT* sg = gx_shader_source(vsource, fsource);
 	cw->sg = sg;
 
-	if (ex->in_immediate && ex->in_immediate->parent) {
 
-		typeT* ftype = ex->in_immediate->parent->type;
-		if (ftype && ftype->category == FUNCTION) {
-			int i = 0;
-			typeT* arg = NULL;
-			while (arg = type_member(ftype, i)) {
-				int sitype = 0;
+	
 
-				typeT* rt;
+		//typeT* ftype = ex->in_immediate->parent->type;
+	typeT* ftype = sym->type;
+	if (ftype && ftype->category == FUNCTION) {
+		int i = 0;
+		typeT* arg = NULL;
+		while (arg = type_member(ftype, i)) {
+			int sitype = 0;
 
-				if (arg->ref->category == POINTERUSER) {
-					cw->indirect[i] = ZTRUE;
-					rt = arg->ref->ref;
-				}
-				else {
-					rt = arg->ref; 
-				}
+			typeT* rt;
+
+			if (arg->ref->category == POINTERUSER) {
+				cw->indirect[i] = ZTRUE;
+				rt = arg->ref->ref;
+			}
+			else {
+				rt = arg->ref; 
+			}
 			
-				//array types: for now, count is 1 because 
-				if (rt == v1)
-					sitype = GFX_FLOAT | GFX_ARRAY;
-				else if (rt == v2)
-					sitype = GFX_FLOAT2 | GFX_ARRAY;
-				else if (rt == v3)
-					sitype = GFX_FLOAT3 | GFX_ARRAY;
-				else if (rt == v4)
-					sitype = GFX_FLOAT4 | GFX_ARRAY;
-				else if (rt == TYPE("Real"))
-					sitype = GFX_FLOAT;
-				else if (rt == TYPE("Vec2"))
-					sitype = GFX_FLOAT2;
-				else if (rt == TYPE("Vec3"))
-					sitype = GFX_FLOAT3;
-				else if (rt == TYPE("Vec4"))
-					sitype = GFX_FLOAT4;
-				else if (rt == (TYPE("Matrix33") ))
-					sitype = GFX_MAT33;
-				else if (rt == (TYPE("Matrix44") ))
-					sitype = GFX_MAT44;
-				else if (rt == (TYPE("Transform") ))
-					sitype = GFX_MAT44;
-				else if (rt == (TYPE("Texture") ))
-					sitype = GFX_TEXTURE;
-				else
-					printf("Unknown input type to shader:%s\n", arg->ref->name);
+			//array types: for now, count is 1 because 
+			if (rt == v1)
+				sitype = GFX_FLOAT | GFX_ARRAY;
+			else if (rt == v2)
+				sitype = GFX_FLOAT2 | GFX_ARRAY;
+			else if (rt == v3)
+				sitype = GFX_FLOAT3 | GFX_ARRAY;
+			else if (rt == v4)
+				sitype = GFX_FLOAT4 | GFX_ARRAY;
+			else if (rt == TYPE("Real"))
+				sitype = GFX_FLOAT;
+			else if (rt == TYPE("Vec2"))
+				sitype = GFX_FLOAT2;
+			else if (rt == TYPE("Vec3"))
+				sitype = GFX_FLOAT3;
+			else if (rt == TYPE("Vec4"))
+				sitype = GFX_FLOAT4;
+			else if (rt == (TYPE("Matrix33") ))
+				sitype = GFX_MAT33;
+			else if (rt == (TYPE("Matrix44") ))
+				sitype = GFX_MAT44;
+			else if (rt == (TYPE("Transform") ))
+				sitype = GFX_MAT44;
+			else if (rt == (TYPE("Texture") ))
+				sitype = GFX_TEXTURE;
+			else
+				printf("Unknown input type to shader:%s\n", arg->ref->name);
 
-				if (arg->isPer) {
-					gfx_shader_add_input(sg, arg->name, sitype, ZFALSE); //is attribute
-					printf("attr ");
-				} else {
-					gfx_shader_add_input(sg, arg->name, sitype, ZTRUE); //is uniform
-					printf("unfm ");
-				}
-
-				if (cw->indirect[i])
-					printf(" indirect \n");
-
-				printTypeNoRedirect(arg, ZTRUE, ZFALSE);
-				i++;
+			if (arg->isPer) {
+				gfx_shader_add_input(sg, arg->name, sitype, ZFALSE); //is attribute
+				printf("attr ");
+			} else {
+				gfx_shader_add_input(sg, arg->name, sitype, ZTRUE); //is uniform
+				printf("unfm ");
 			}
 
+			if (cw->indirect[i])
+				printf(" indirect \n");
+
+			printTypeNoRedirect(arg, ZTRUE, ZFALSE);
+			i++;
 		}
 
 	}
 
-	ex->sp--;
+	
+
+	ex->sp-=2;
 	
 	ex->stack[ex->sp - 1].as.ptr.block = cw;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
@@ -217,11 +220,10 @@ glsl_call_wrapperT* last_prep_pipe = NULL;
 
 tokenT* h_prepshader(exectxT* ex, tokenT* t) {
 
-	glsl_call_wrapperT* cw = (void*)(ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset);
+	glsl_call_wrapperT* cw = (void*)(ex->stack[ex->sp - 1].as.ptr.block);
 	
 	gx_shadergroupT* sg = cw->sg;
-	
-	
+		
 	last_prep_pipe = cw;
 
 	int argcount = zvec_count(sg->shader_inputs);
@@ -256,6 +258,7 @@ tokenT* h_prepshader(exectxT* ex, tokenT* t) {
 		else
 			gfx_set_input(si, data);	//pointer to item is on stack (for vbo attributes, large uniforms, optional uniforms)
 
+		
 
 	/*	
 		if (si->uniform && (gfx_sizeof(si->type) <= 16) &&  ! (si->type&GFX_ARRAY) && si->type !=GFX_TEXTURE  )  //stack value directly, for small uniforms
@@ -268,6 +271,14 @@ tokenT* h_prepshader(exectxT* ex, tokenT* t) {
 	
 	//all inputs are set; ready to draw
 
+	
+	ex->sp -= zvec_count(sg->shader_inputs);
+
+	//put prepared shader object on stack
+	ex->stack[ex->sp-1 ].as.ptr.block = cw;
+	ex->stack[ex->sp-1 ].as.ptr.offset = 0;
+	
+
 	return tnext(t);
 }
 
@@ -279,7 +290,7 @@ tokenT* h_execdraw(exectxT* ex, tokenT* t) {
 	//an easy way to enforce that execdraw follows setting up a shader
 	//gx_shadergroupT* sg = (void*)(ex->stack[ex->sp - 4].as.ptr.block + ex->stack[ex->sp - 4].as.ptr.offset);
 	
-	glsl_call_wrapperT* cw = (void*)(ex->stack[ex->sp - 4].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset);
+	glsl_call_wrapperT* cw = (void*)(ex->stack[ex->sp - 4].as.ptr.block);
 
 	gx_shadergroupT* sg = cw->sg;
 

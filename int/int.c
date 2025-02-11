@@ -9,10 +9,13 @@ FILE* logfile;
 void breakpoint() {
 
 
- 	printf("breakpoint here\n");
+  	printf("breakpoint here\n");
 }
 
-#define ERR( ...)  do {xprintf(__VA_ARGS__); fprintf(stderr,__VA_ARGS__);fflush(stderr);breakpoint();  exit(1);} while(0)
+
+char* lastfile = NULL;
+char* lastline = 0;
+#define ERR( ...)  do {xprintf(__VA_ARGS__); fprintf(stderr,__VA_ARGS__);fprintf(stderr, "Near %s:%d\n", lastfile, lastline);fflush(stderr);breakpoint();  exit(1);} while(0)
  
 //uncommenting below will log a LOT while running.
 //#define EXEDEBUG 
@@ -27,6 +30,7 @@ typedef struct parsectxS{
 	struct typeS* type;  //if in a procedure, we need to know about its return type and args
 						 //if in an immediate context, need to know about the return type 
 	struct parsectxS* parent;
+	struct symbolS* symfrom;
 	int endable;
 	exectxT* exec;
 	zbool no_global_vars;	//set to true to prevent compiling access to global variables (global functions ok)
@@ -67,6 +71,7 @@ typedef struct parsectxS{
 #define LOADEXEC	0x9006
 #define TYPECAST	0x9007
 #define PERARG		0x9008
+#define SHADERDATA	0x9009
 
 
 //Token values that are also user-accessible keywords: These are intentionally high enough to not conflict with a pair
@@ -94,7 +99,7 @@ typedef struct parsectxS{
 #define KNEW0		0x8014
 #define PREFIX		0x8015
 #define KLIKE		0x8016	
-#define XKRESIZE	0x8017
+#define KSHADER		0x8017
 #define KOPAQUE		0x8018
 #define KIMMEDIATE	0x8019
 #define KCODE		0x801a
@@ -110,7 +115,7 @@ typedef struct parsectxS{
 
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
 						"new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0",
-						"prefix", "like", "Xresize","opaque","immediate", "code", "stacked", "typeof", "constant",
+						"prefix", "like", "shader","opaque","immediate", "code", "stacked", "typeof", "constant",
 						 "per" , "alias", "skip", "XXbegin", "and", "or", NULL};
 
 zuint32 findKeyword(char* c){
@@ -620,7 +625,7 @@ void printTypeNoRedirect(typeT* ty, zbool line, zbool skipmembers) {
 	logfile = old;
 }
 
-typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany, * tImmediate, * tCode, * tExecToken, * tEmptyStack, * tvany; ;
+typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany, * tImmediate, * tCode, * tExecToken, * tEmptyStack, * tvany, *tSymbol ;
 typeT* findType(zuint32 category, typeT* ref, char* name, size_t len);
 
 //given an likename, and a list of arg types a function accepts, and a list of types a caller is using, figure out what type an arg or return value is
@@ -987,6 +992,7 @@ typedef struct symbolS{
 	char* name;
 	char* alias;
 	struct symbolS *primsym; //if symbol took its handler from a primitive, this is the one
+	void* shaderdata;
 	typeT* type;
 	instruction handler;
 	zbool skipargs;//flow control and some other handler need to skip running args
@@ -998,6 +1004,8 @@ typedef struct symbolS{
 	int selectorNum;  //which selector (nth) is this?
 	zbool isPrototype;// true if this symbol is just a function prototype
 	zbool isImmediate; //function runs whenever it is compiled
+	zbool isShader;// when function is called, it only puts it address on the stack, and does not pop off its values
+				   //that address will later be used to identify this function running in a different
 	int   isSelector;// 1 if symbol is a function selector, 2 is is a data selector, 4 if virtual selector
 	zbool isConstant; //1 if symbol is just a constant.  tokens points to the constant handler
 } symbolT;
@@ -1291,6 +1299,7 @@ void exe (exectxT* c, struct tokenS* t){
 		if (debug_break)
 			printf("debug\n");
 
+
 		if (t->breakpoint)
 			printf("break\n");
 
@@ -1325,6 +1334,9 @@ void exe (exectxT* c, struct tokenS* t){
 }
 
 //Individual handlers
+
+
+
 
 tokenT* hconstant (exectxT* ex, tokenT* t) {  //push constant on stack
 	ex->stack[(ex->sp)++] = t->val;
@@ -1388,6 +1400,7 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 
 				newtok = mkToken(PASSTHRU, NULL, 0);	 //PASSTHRU tokens will not be processed by the compiler; in this case the value is compiled now as a constant
 				newtok->ty = last->ty;
+				newtok->val = ex->stack[--(ex->sp)];
 				newtok->val = ex->stack[--(ex->sp)];
 				
 				if (last->ty->category == POINTERPOSSESSIVE) {
@@ -1724,20 +1737,27 @@ tokenT* hselectorptr(exectxT* ex, tokenT* t) { //add constant offset to pointer 
 	return tnext(t);
 }
 
+//finds the first token of an executable symbol
+tokenT* firstTokenHelper(symbolT* s) {
+	tokenT* ts = s->tokens;
+	if (ts->tok == KPROC) {
+		ts = tsub(ts);
+		ts = tnext(ts);
+	}
+	else if (ts->tok == KCODE) {
+		ts = tsub(ts);
+	}
+	return ts;
+}
+
 //returns the first executable token for a proc
 tokenT* hsymtoken(exectxT* ex, tokenT* t) {
 	symbolT* sym = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
 	tokenT* ts = NULL;
 	if (sym && !sym->primsym) {
 		
-		ts = sym->tokens;
-		if (ts->tok == KPROC ) {
-			ts = tsub(ts);
-			ts = tnext(ts);
-		}
-		else if (ts->tok == KCODE) {
-			ts = tsub(ts);
-		}
+		ts = firstTokenHelper(sym);
+		
 	}
 	ex->stack[ex->sp - 1].as.ptr.block = ts;
 	ex->stack[ex->sp - 1].as.ptr.offset=0;
@@ -1969,6 +1989,7 @@ tokenT* h_compile(exectxT* ex, tokenT* t) {
 
 		parsectxT* pc = mkcontext("dynamic");
 		symbolT* s = mkSymbol(NULL, "dynamic", code->ty, NULL);
+		pc->symfrom = s;
 		s->subctx = pc;
 		s->tokens = code; // ram_addref(code); NOT addred, because the symbol's tokens now is the only reference to this code block
 		
@@ -2255,6 +2276,9 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 
 	symbolT* sym = t->sym;
 
+	
+
+
 	if (t->val.as.n32 == 2) {
 		//calling indirectly.  top of stack has pointer to a variable that contains the function pointer
 
@@ -2268,6 +2292,10 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 		t = sym->tokens;
 	}
 	
+
+	
+
+
 	//xprintf(" CALLING PROC %s\n", t->str);
 	//xprintf("pre call SP:%d  FP:%d\n", ex->sp, ex->fp); 
 	
@@ -2304,6 +2332,36 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 			return next;
 		}
 	}
+
+	if (selected->isShader) {
+
+		//free things that are marked 'trackpossptr'
+		//these should really be freed later, but since they are trackpossptr, they should have at least 1 other refcount.
+		//trackpossptr was only so that things can't be invalidated while pointers to them are on the stack.
+		//for what we are using shaders for, this isn't a problem yet
+		tokenT* tv = argsubs;
+		int i;
+		int count = zvec_count(sym->type->members);
+
+		for (i = 0; i < count; i++) {
+			typeT* m = zvec_get_at(sym->type->members, i);
+
+			float* f = ex->stack[ex->sp - count + i].as.ptr.block;
+			if (tv->trackpossptr)
+				ram_free(ex->stack[ex->sp - count + i].as.ptr.block);
+
+			tv = tnext(tv);
+
+		}
+
+		ex->stack[ex->sp].as.ptr.block = sym->shaderdata;  //put symbol on stack instead of calling
+		ex->stack[ex->sp++].as.ptr.offset = 0;
+
+		return tnext(t);
+	}
+
+
+
 
 	//xprintf(" enter call SP:%d  FP:%d\n", ex->sp, ex->fp); 
 	
@@ -2365,6 +2423,7 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 				continue;
 			}
 
+			
 			if ( (tv->trackpossptr)|| resolve_like_type(m->ref,sym->type->members, NULL, ZFALSE)->category == POINTERPOSSESSIVE){
 				//if (m->ref->category == LIKE) {
 					//printf("free like arg\n");
@@ -2797,6 +2856,11 @@ valueT* callint(symbolT* f, valueT* stack, int sp) {
 	if (ex.sp > 0)
 		return ex.stack + ex.sp - 1;
 	return NULL;
+}
+
+
+tokenT* hDEBUG(exectxT* ex, tokenT* t) {  //push constant on stack
+	return hconstant(ex, t);
 }
 
 void start(parsectxT* pctx, tokenT* t, valueT* initial){
@@ -3524,7 +3588,6 @@ tokenT* quote(parsectxT* pc, tokenT* t, char* endString) {
 
 }
 
-
 tokenT*  parse(parsectxT* pc, tokenT* t) {
 	
 	tokenT* ttop = t;
@@ -3558,6 +3621,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		if (t->tok==ENDFILE || t->tok== PASTENDFILE)
 			return t;
 
+		lastfile = t->sourcefile;
+		lastline = t->line;
 		
 		if (t != matchApproxToken) { //if this is a new token, try matching exactly first
 			matchApproxToken = t;	//we are on this token
@@ -3869,6 +3934,21 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				ts->skipargs = ZTRUE;
 				ts->ty = rettype;
 				ts->val = immediate_parse->exec->stack[spdone - 2];
+				
+				if (t->tok == SHADERDATA) {
+					printf("To set shader data\n");
+				
+					if (t->sym->isShader == 2)
+						ts->val_to_free =ZTRUE;
+
+					t->sym->shaderdata= ts->val.as.ptr.block + ts->val.as.ptr.offset;
+					//->shaderdata = ts->val.as.ptr.block;
+					
+					t = tnext(t);
+					ram_free(tremove(tprev(t)));
+				}
+
+
 				//TODO: if returning a String&, why not just return is as a constant?
 				if (rettype != tType && (rettype->category == POINTERUSER)) {
 					//Don't return user pointers from immediate blocks.
@@ -3945,8 +4025,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		case KPROTO:		//proc prototype
 			typeT* type = NULL;
 			int isImmediate = 0;
+			int isShader = 0;
 			symbolT* primsym = NULL;
 			int immval = 0;
+
+			
 
 			if (ts->tok == KPRIMITIVE) {
 
@@ -3962,6 +4045,18 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				}
 				else
 					ERR("No primitive named %s\n", name2);
+
+			}
+
+			if (tnext(t)->tok == KSHADER) {
+				ram_free(tremove(tnext(t)));
+				isShader = 1;
+
+				if (tnext(t)->tok == '%') {
+					ram_free(tremove(tnext(t)));
+					isShader = 2;  //return value should be eventually freed when the code is freed
+				}
+
 
 			}
 
@@ -4068,6 +4163,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			if (s) {
 				s->isImmediate = isImmediate;
+				s->isShader = isShader;
 			}
 
 			if (ts->tok == KPROTO) {
@@ -4132,10 +4228,15 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				printf(" parse proc %s ", name);
 				printTypeNoRedirect(type, ZTRUE, ZFALSE);
 				s->subctx = mkcontext(name);
+				s->subctx->symfrom = s;
 				s->subctx->parent = pc;
 
 				s->subctx->endable++; //its a subcontext
-				s->subctx->type = s->type;
+
+				if (!isShader)
+					s->subctx->type = s->type; //expecting to parse a 'return' real return value if not a shader context
+
+
 				//	t->sym = s;
 				s->handler = hcall;  //need to set handler before parsing, in case of recursion
 				t = parse(s->subctx, t);
@@ -4171,9 +4272,25 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (!s->isPrototype)
 				s->tokens = ram_addref(ts); //symbol has this tokenstream
 
+			if (isShader) {
+				//the proc declaration returns the Symbol
+				ts->handler = hDEBUG;
+				ts->skipargs = ZTRUE;
+				ts->val.as.ptr.block = s;
+				ts->val.as.ptr.offset = 0;
+				ts->ty = tSymbol;
+				
 
-			ts->handler = hnop;
+				//put in a SHADERDATA token so the immediate block the runs after can know to set it
+				tokenT* sd = mkToken(SHADERDATA, "SetShaderData", 0);
+				sd->sym = s;
+				insert_after(t, sd);
+				//t = tprev(t);
 
+			}
+			else {
+				ts->handler = hnop;	//the proc declaration doesn't do anything 
+			}
 
 			continue;
 
@@ -5604,7 +5721,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						
 						if (s->isImmediate) {
 							//add kimmediate token
-							tokenT* timm = mkToken(KIMMEDIATE, "X_immediate", 0);
+							tokenT* timm = mkToken(KIMMEDIATE, "X_immediate", 0);					
 							tokenT* ret = mkToken(KRETURN, "X_return", 0);
 							tokenT* en = mkToken(KEND, "X_end", 0);
 
@@ -5668,7 +5785,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					zlist_addtail(&t->subs, loaderToken);
 				}
 
-				//for variables, (including function pointer variables) put the variable's address on the stack for now 
+				//for va`riables, (including function pointer variables) put the variable's address on the stack for now 
 				//and then follow it with '@' to get it
 				//for static arrays, this is not needed
 
@@ -5971,6 +6088,7 @@ int main(int argc, char** args){
 	tImmediate = mkType(SIMPLE, NULL, "Immediate", sizeof(FLOAT));
 	tCode = mkType(SIMPLE, NULL, "Code", 0); 
 	tExecToken = mkType(PENDING, NULL, "ExecToken", 0);
+	tSymbol = mkType(PENDING, NULL, "Symbol", 0);
 	tEmptyStack = mkType(SIMPLE, NULL, "Empty", 0);
 
 #ifdef FLOAT

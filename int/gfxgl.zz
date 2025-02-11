@@ -1,6 +1,8 @@
 "glgraphics.zz" include
 
 
+
+
 proc LoadTexture:(filename:String&->Texture%)
     filename ZTGA_TOP BitmapLoadTGA #img
     img keep CreateTexture  return
@@ -21,7 +23,9 @@ end
 "Test Window" 1024 768 0 NewGraphicsWindow #window
 
 //set dark blue background color
-0.0 0.0 0.1 1.1 BackgroundColor
+
+
+0.0 0.0 0.1 ~ 1.1  BackgroundColor
 
 //load assets
 "../../Zcore-data/web/Rock_044_SD/Rock_044_Normal.tga"      LoadTexture #Rock_Normal
@@ -62,8 +66,10 @@ false #mouseRel
 
 
 
+
 //compile a shader with inline GLSL source
-proc  testVertexShader:	(
+
+proc    shader% testVertexShader:	(
 		per point:	[Vec3]&; 
 		testu:		[Vec4]&;  
 		per color:	[Vec4]&; 
@@ -73,10 +79,11 @@ proc  testVertexShader:	(
 		diff: 		Texture&;
 		extra: Vec4&;
 		per texcoord:	[Vec2]&;
+		->GLSLBody
+		)
 		
 		
-		->GLSLDrawProc)
-		
+        				
 	"
 		in vec4 point;
 		#if MASK_color
@@ -127,18 +134,18 @@ proc  testVertexShader:	(
 		
 		}
 	
-	"  GLSL 
+	" 
 
-end
+end glslRaw
 
 
 
-//
 
 
 type GLSLDecompiler
-	dc:Decompiler;
+	
 	indentLevel:Z32;
+	dc:Decompiler;
 end
 
 
@@ -183,8 +190,7 @@ end
 proc Instruction:(dc: GLSLDecompiler& ; t:ExecToken)
 	dc Indent
 	t Dump
-	
-	
+
 end
 
 proto End:(dc: GLSLDecompiler& ; t:ExecToken);
@@ -193,7 +199,7 @@ proc Begin:(dc: GLSLDecompiler& ; t:ExecToken)
     dc Indent
 	"begin " t.text "{" prints 
 	dc.indentLevel&++
-	dc:Decompiler& t.sub decompile  
+	dc~:Decompiler& t.sub decompile  
 end
 
 proc End:(dc: GLSLDecompiler& ; t:ExecToken)
@@ -207,6 +213,28 @@ end
 GLSLDecompiler new #decomp
 
 primitive symtoken :ExecToken:(s:Symbol -> ExecToken);
+
+
+
+"testing" print newline
+
+proc testAltEval:(a:Z32;b:Z32->Z32)
+
+	a b * return
+
+end
+
+immediate
+    GLSLDecompiler new #idc
+end
+
+
+
+
+
+
+
+
 
 
 proc dsym:(s:Symbol)
@@ -224,7 +252,10 @@ proc minShader:(per a:[Vec3]&; per b:[Vec3]& ; c:Vec3 ; d: Vec3& -> )
 
 end
 
+
 [Vec3]& [Vec3]& Vec3 Vec3& minShader&:Symbol dsym
+
+//return
 
 proc immediate T:()
     "OK" print newline
@@ -248,6 +279,9 @@ proc testautoderef:(a:Z32; b&:Z32&)
 end
 
 
+T
+
+
 22 #bref
 
 "bref is "  bref  " " prints  bref& printptr newline
@@ -258,28 +292,22 @@ end
 
 "bref is "  bref prints newline
 
-loop end
-
-
 //[Vec3]& [Vec4]& [Vec4]& Real& Matrix44& Transform& Texture& Vec4& [Vec2]& testVertexShader&:Symbol dsym
 
-
+T
 //##f typeof print newline
 
 //decomp:Decompiler& [Vec3]& [Vec4]& [Vec4]& Real& Matrix44& Transform& Texture& Vec4& [Vec2]& testVertexShader&
 
-
-loop end
-
+T
 
 //
 
 
 [Vec3]& [Vec4]& [Vec4]& Real& Matrix44& Transform& Texture& Vec4& [Vec2]& testVertexShader&:ExecToken
 
-loop end
 
-
+T
 
  //#testVertexShader
 
@@ -296,7 +324,7 @@ loop end
 	end
 	SomeVertexFormat] 10 new #singleVBO
 */
-
+T
 [Vec3] 10 new #positions		//ANY (simple) array can be converte to a VBO without having to do anything special
 [Vec4] 10 new #colors
 [Vec4] 8 new #testu	//testu is a uniform array
@@ -329,6 +357,7 @@ loop end
 //testComputeShader
 
 	
+
 
 loop
    
@@ -403,22 +432,23 @@ loop
 	var extra:Vec4;
 	1.0 0.0 0.0 1.0 :Vec4 extra=
 	
-	"boo" print newline
-	newline newline
+
 	
 	//"string" 3[]& #aa typeof print newline
 	
-	"string" copy& ##a typeof print newline
+	//"string" copy& ##a typeof print newline
 	
 	
-	positions testu colors offset& GetProjectionMatrix tr Rock_Height   extra& txc testVertexShader& ##tvs typeof print newline
+	//positions testu colors offset& GetProjectionMatrix tr Rock_Height   extra& txc testVertexShader& ##tvs typeof print newline
 
+  
+
+		
+		
+    positions testu colors offset& GetProjectionMatrix tr Rock_Height   extra& txc  testVertexShader Prepare  GFX_TRIANGLE 0 3 Draw
+        
 	
-	
-		loop end
-	
-	
-	positions testu colors offset& GetProjectionMatrix tr Rock_Height   extra& txc testVertexShader GFX_TRIANGLE 0 4 draw
+	//positions testu colors offset& GetProjectionMatrix tr Rock_Height   extra& txc testVertexShader GFX_TRIANGLE 0 4 draw
 	
 
 	//positions testu 0:[Vec4]& offset GetProjectionMatrix tr Rock_Height  txc testVertexShader GFX_TRIANGLE 0 4 draw

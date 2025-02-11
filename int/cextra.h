@@ -121,6 +121,8 @@ typeT* type_member(typeT* t, zuint32 i);
 //Zdef code primitive tokenval		.value:(t:ExecToken->TokenValue);
 //Zdef code primitive symtoken  	.tokens:(s:Symbol->ExecToken);
 
+
+
 /* type categories */
 #define SIMPLE	1
 #define POINTERUSER 2
@@ -141,6 +143,15 @@ typeT* type_member(typeT* t, zuint32 i);
 //Zgen gengraphics.zz
 
 //Zdef opaque gfx_vertex_bufferT VBuffer
-//Zdef handler glslprocbody	immediate% glsl:(vsource:String&;fsource:String&->GLSLBody);
-//Zdef handler prepshader	prep:(p:GLSLBody->GLSLDrawProc);
-//Zdef handler execdraw		draw:(p:GLSLDrawProc; prim:N32;start:N32; stop:N32);
+
+
+//Zdef stacked GLSLBody
+//Zdef opaque vptrT GLSLDrawProc
+//zdef stacked GLSLDrawProc
+
+//Zdef handler glslprocbody    glslSource:(v:String&;f:String&;s:Symbol->GLSLBody);
+//Zdef handler prepshader      Prepare:(p:GLSLBody->GLSLDrawProc);
+//Zdef handler execdraw        Draw:(p:GLSLDrawProc; prim:N32;start:N32; stop:N32);
+
+
+

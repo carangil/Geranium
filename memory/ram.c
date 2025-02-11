@@ -476,7 +476,7 @@ zuint32 ram_allocs()
 
 	while(node)
 	{
-		fprintf(stderr, "%p alloced at %s:%d (%d refs)  %s\n",
+		fprintf(stderr, "%p alloced at %s:%d (%d refs)  %.40s\n",
 			node+1, node->file, node->line, node->refcount	, node+1 );
 		count++;
 		node = zlist_next(node);

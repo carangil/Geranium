@@ -1,7 +1,9 @@
 opaque @gfx_vertex_bufferT VBuffer;
-primitive C_glslprocbody  immediate% glsl:(vsource:String&;fsource:String&->GLSLBody);
-primitive C_prepshader  prep:(p:GLSLBody->GLSLDrawProc);
-primitive C_execdraw  draw:(p:GLSLDrawProc; prim:N32;start:N32; stop:N32);
+stacked GLSLBody;
+opaque @vptrT GLSLDrawProc;
+primitive C_glslprocbody  glslSource:(v:String&;f:String&;s:Symbol->GLSLBody);
+primitive C_prepshader  Prepare:(p:GLSLBody->GLSLDrawProc);
+primitive C_execdraw  Draw:(p:GLSLDrawProc; prim:N32;start:N32; stop:N32);
 type @zeventT ZEvent
 	@zeventT_type	eventType:Z32;
 	@zeventT_a	A:Z32;

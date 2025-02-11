@@ -1435,6 +1435,7 @@ void set_handlers(){
 	mkSymbol(global, "C_tokensymbol", tPrimitive, h_tokensymbol);
 	mkSymbol(global, "C_symboltype", tPrimitive, h_symboltype);
 	addCSize("gfx_vertex_bufferT", sizeof(gfx_vertex_bufferT));
+	addCSize("vptrT", sizeof(vptrT));
 	mkSymbol(global, "C_glslprocbody", tPrimitive, h_glslprocbody);
 	mkSymbol(global, "C_prepshader", tPrimitive, h_prepshader);
 	mkSymbol(global, "C_execdraw", tPrimitive, h_execdraw);

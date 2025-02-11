@@ -1,9 +1,11 @@
 "gen/gengraphics.zz" include
 
+/*
 opaque GLSLBody;
 stacked GLSLBody;
-opaque GLSLDrawProc;
+opaque @vptrT GLSLDrawProc;
 stacked GLSLDrawProc;
+*/
 
 //define vector formats
 stacked Vec2;
@@ -69,18 +71,17 @@ proc :Vec3:(a:Real;b:Real;c:Real->Vec3)
     v return
 end
 
-
-proc immediate GLSL:(code a:String&; code b:String&->Code%)
-	code \\
-		'a		//vertex shader source string
-		'b		//fragment shader source string
-		glsl	//at compile time, create a structure that contains the source, and datatype of the function this is in the body of.
-				//that struct pointer is baked into a push h_constant for runtime
-		prep 	//at run time, this creates VBOs if needed, compiles the shader if needed, and binds vbos, and updates uniforms, and sets that shader as current
-		return	//that prepped shader is returned for one or more draw calls
-	\\ return
+proc immediate glslRaw:(s:Symbol -> GLSLBody)
+   //this function grabs the first two tokens of a proc and assume they are raw glsl source
+   //in the future, the AST of the proc can be transpiled into glsl source instead
+   
+    s.type print newline
+    s.tokens #t
+    t.value:String&      //vertex shader source
+    t.next.value:String& //fragment shader source
+    s                    
+    glslSource return
 end
-
 
 //some window stuff
 
