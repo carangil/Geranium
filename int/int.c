@@ -1564,13 +1564,13 @@ tokenT* hlocal (exectxT* ex, tokenT* t) {	//push pointer to local variable on st
 
 tokenT* hstackread (exectxT* ex, tokenT* t) {	//read a stack variable (really function parameters)
 	
-//	if (!tsub(t)){
-	//	ERR("hstackread needs sub for stack position offset\n");
-	//}
+	if (!tsub(t)){
+		ERR("hstackread needs sub for stack position offset\n");
+	}
 	
-	//ex->stack[ex->sp] = ex->stack[ ex->fp + tsub(t)->val.as.z32 ];
+	ex->stack[ex->sp] = ex->stack[ ex->fp + tsub(t)->val.as.z32 ];
 
-	ex->stack[ex->sp] = ex->stack[ex->fp + t->val.as.z32];
+	//ex->stack[ex->sp] = ex->stack[ex->fp + t->val.as.z32];
 	
 #ifdef EXEDEBUG
 	xprintf(" READ STACK POSITION + %d  option %d\n", tsub(t)->val.as.z32, t->val.as.n32);
@@ -2056,7 +2056,7 @@ tokenT* hstorecptr(exectxT* ex, tokenT* t) {
 
 tokenT* hload8 (exectxT* ex, tokenT* t) {
 	
-#ifdef EXEDEBUG
+#ifdef EXEDEBUG 
 	xprintf(" Load byte at %p+%d\n",  ex->stack[ex->sp-1].as.ptr.block,  ex->stack[ex->sp-1].as.ptr.block);
 #endif	
 	zbyte i = DEREF(zbyte, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
@@ -5009,7 +5009,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				t->ty = tprev(t)->ty->ref;
 				tprev(t)->ty = NULL;
 
-				t->val = tprev(t)->val; //take the stack position value
+				//t->val = tprev(t)->val; //take the stack position value
 
 				fold(tprev(t), t);
 				
@@ -5407,19 +5407,21 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				}
 
 
-				
+				t->tok = STACKARG;
+
 
 				if (m->deref) {
-					//if the var is a deref arg, then there are two options
-					//1. the var is being used as a var.  the '@' sign will be a real one
-					//2. the var is being used as a bool to see if it exists
-					t->handler = hstackread;
-					t->ty = lt;
+					//if the var is a deref arg, then load it off the stack
+
+
+					tokenT* tn = mkToken('@', "@", 1);  //read from the stackarg.  This is loading either null or a pointer, which can either loaded by the next '@', or the load can be suppreseed with a & for testing
+					tn->generated = 1;
+					insert_after(t, tn);
 				}
-				else {
-					t->tok = STACKARG;
-					t->ty = findType(POINTERUSER, lt, NULL, 0);
-				}
+				
+				
+				t->ty = findType(POINTERUSER, lt, NULL, 0);
+				
 				t->useslocal = 1;
 			
 

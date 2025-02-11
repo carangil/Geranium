@@ -179,7 +179,7 @@ proc disassemble:(ti:ExecToken; level:N32;indent:(n:N32)& )
 		t.consttype String& ==
 		t.consttype String% == or if
 			t.value:String& print
-		t.consttype Real ==
+		t.consttype Real ==    elseif
 			t.value:Real 	print
 		else
 			t.value:Z32 print
