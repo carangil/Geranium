@@ -9,6 +9,7 @@ opaque GLSLDrawProc;
 stacked GLSLDrawProc;
 
 
+
 //more includes at bottom on this file
 
 
@@ -33,6 +34,9 @@ end
 
 proto print:(s:String&->);
 proto newline:(->);
+
+"
+" constant LF
 
 
 //proc immediate not:(code b:any->Code%)
@@ -93,6 +97,7 @@ end
 
 proc immediate prints:(a:Empty)
 end
+
 
 proc immediate prints:(code a:any->Code%)
 	code \
@@ -167,11 +172,11 @@ proc copy:(s:String& -> String%)
 	0 #i loop
 		s i[] news i[]=
 		s i[] 0:N8 == if
-			
 			news take :String%  return
 		end
 		i&++
 	end
+	
     0:String% return
 end
 

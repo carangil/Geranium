@@ -83,6 +83,152 @@ proc immediate glslRaw:(s:Symbol -> GLSLBody)
     glslSource return
 end
 
+
+
+proc argheader:(arg:Type&; isFragmentShader:Bit -> String%)
+            
+        false #isarray
+            
+        arg.ref [Vec3]& == 
+        arg.ref Vec3&   == or
+        arg.ref Vec3    == or if
+        
+            "vec3" #gltype
+        
+       
+        arg.ref [Vec4]& == 
+        arg.ref Vec4&   == or
+        arg.ref Vec4    == or elseif
+        
+            "vec4" gltype=
+        
+        
+        arg.ref [Vec2]& == 
+        arg.ref Vec2&   == or
+        arg.ref Vec2    == or elseif
+        
+            "vec2" gltype=
+        
+        
+        arg.ref Transform& == 
+        arg.ref Matrix44&  == or elseif
+        
+            "mat4" gltype=
+            
+            
+        arg.ref [Real]& == 
+        arg.ref Real    ==  
+        arg.ref Real&   ==  or elseif
+        
+            "float" gltype=
+        
+        arg.ref Texture& ==  elseif
+            "sampler2D" gltype=
+            
+        else
+                                
+            "unknown type " arg.name  " " arg.ref prints newline
+                                
+        end
+                      
+        var line:String%;
+                
+        arg.isPer if
+            //attributes: only for vertex shader
+        
+            isFragmentShader not if 
+                //vertex shader
+                "in "  copy  gltype ++   " " ++ arg.name ++ "; " ++  line=
+            end
+            
+        else
+            
+            "uniform " copy gltype ++ " " ++ arg.name ++ line=
+            
+            arg.ref pointer? if
+                arg.ref.ref array? if
+                    line "[8]" ++ line=   //todo:array bounds
+                end
+            end
+                
+                       
+            line ";" ++ line=
+        end
+    
+    line take return
+   
+end
+
+
+proc immediate glslHeaders:(s:Symbol -> GLSLBody)
+    //this version generates the input and output commands
+    newline
+    
+    s.type print newline
+    s.tokens #t
+    //t.value:String&      //vertex shader source
+    //t.next.value:String& //fragment shader source
+    
+    
+    
+    0#i
+    s.type #ty
+    
+    
+    //generate headers for vertex shader
+    
+    "" copy #vertexHeader
+    
+    loop
+        ty i[] ##arg :Bit while
+                
+        arg false argheader #line
+        
+        line if
+            vertexHeader line ++ LF++ vertexHeader=
+                   
+        end
+        i&++
+    end
+    
+    
+    vertexHeader
+    t.value:String& ++   #vertexSource
+    
+    
+    
+    vertexSource print newline
+        
+    "" copy #fragmentHeader
+    
+  
+    0i= loop
+        ty i[] arg #= :Bit while
+        
+        
+        arg true argheader line=
+        
+        line if 
+             fragmentHeader line ++ LF++ fragmentHeader=
+        end
+        
+        
+        i&++
+    end
+    
+    fragmentHeader t.next.value:String& ++ #fragmentSource
+
+
+   //this function grabs the first two tokens of a proc and assume they are raw glsl source
+   //in the future, the AST of the proc can be transpiled into glsl source instead
+   
+    vertexSource
+    fragmentSource
+    s                    
+    glslSource return
+end
+
+
 //some window stuff
 
 

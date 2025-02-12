@@ -2252,7 +2252,7 @@ tokenT* hreturn (exectxT* ex, tokenT* t){
 	return NULL; //stop instructions stream (process subs first, as they might be return values or something)
 }
 
-tokenT* hgroup (exectxT* ex, tokenT* t){
+tokenT* hifchain (exectxT* ex, tokenT* t){
 	//exe(ex, tsub(t)); //evaluate all the args
 	
 	if ((ex->stop == STOPBLOCK) && t->val.as.n32) {
@@ -2773,7 +2773,7 @@ void addhandlers(struct parsectxS* pctx) {
 	HANDLER(pctx, _compile);
 	
 	//flow control
-	HANDLER(pctx, group);  //a group of statements
+	HANDLER(pctx, ifchain);  //a chain if COND statements
 	HANDLER(pctx, condblock);  //conditional execution (IF)
 	HANDLER(pctx, breakblock);
 	HANDLER(pctx, loop);
@@ -2891,7 +2891,7 @@ void start(parsectxT* pctx, tokenT* t, valueT* initial){
 	}
 	else  {
 		//printf("resuming immediate context\n");
-		pctx->exec->debugstack = 1;
+		//pctx->exec->debugstack = 1;
 	}
 	//spsave = pctx->exec->sp;
 	
@@ -4488,7 +4488,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//COMPLEX CASE:   
 			// in this case, the whole if/elseif/else tree is put in a hgroup
 			//  hcondblock will 'break' the group after it runs
-			//  hgroup{
+			//  hifchain{
 			//	
 			//		hcondblock:{			IF
 			//			condition
@@ -4532,7 +4532,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (t->tok == KEND) {
 				//t->handler = hnop;
 				fold(ts, t);
-				t->handler = hgroup;
+				t->handler = hifchain;
 				t = tnext(t);
 				continue;
 			}
