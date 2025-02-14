@@ -1062,12 +1062,14 @@ zbool cmpTypeListToFunc(zvecT* f, zvecT* b, int matchApprox){
 
 			//compare types of members
 			if (memberf != memberb){
+			
 
+				
 				//if calling with a pointer to a real type, but function expects a pointer to virtual type
 				//the use the function
 				//TODO: need to add the selector table when doing that
-				if (matchApprox == MATCH_VIRTUAL) {
-					if (memberf->ref && memberf->ref->category == VIRTUAL && memberb && memberb->ref->category != VIRTUAL && memberb->ref->members) {
+				if (matchApprox == MATCH_VIRTUAL  ) {
+					if (memberf->ref && memberf->ref->category == VIRTUAL && memberb && memberb->ref  && memberb->ref->category != VIRTUAL && memberb->ref->members) {
 
 						int j;
 						zbool found = ZFALSE;
@@ -1274,14 +1276,19 @@ tokenT* hunimplemented(exectxT* ex, tokenT* t) {
 }
 
 
-void exe (exectxT* c, struct tokenS* t){
+void exe(exectxT* c, struct tokenS* t){
 	
+	if (t) {
+		lastfile = t->sourcefile;
+		lastline = t->line;
+	}
+
 	struct tokenS* ts=t;
 	char* str = "";
 	while(t && ! c->stop){  //until out of instructions, or a return is bubbling up
 
 
-
+		
 		instruction handler = t->handler;
 
 		
@@ -1562,6 +1569,13 @@ tokenT* hlocal (exectxT* ex, tokenT* t) {	//push pointer to local variable on st
 	return tnext(t);
 }
 
+tokenT* hperarg(exectxT* ex, tokenT* t) {	//read a stack variable (really function parameters)
+
+
+	ERR("perarg is not currently supported on cpu");
+	
+}
+
 tokenT* hstackread (exectxT* ex, tokenT* t) {	//read a stack variable (really function parameters)
 	
 	if (!tsub(t)){
@@ -1724,6 +1738,12 @@ tokenT* hoffsetptr (exectxT* ex, tokenT* t) { //add constant offset to pointer
 tokenT* hselectorptr(exectxT* ex, tokenT* t) { //add constant offset to pointer by selector
 
 	typeT* seltable = ex->stack[ex->sp - 1].typeselector;
+
+	if (!seltable) {
+		ERR("null selector ptr %s %d\n", t->sourcefile, t->line);
+
+	}
+
 	symbolT* selected = zvec_get_at(seltable->selectors, t->val.as.n32); //grab the nth function from the selector table
 
 	/*
@@ -1841,7 +1861,7 @@ tokenT* hindex(exectxT* ex, tokenT* t) {	//index into array
 	return tnext(t);
 }
 
-tokenT* harrayinfo(exectxT* ex, tokenT* t) {	//edit array
+tokenT* harrayop(exectxT* ex, tokenT* t) {	//edit array
 
  	void* array = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
 	ex->stack[ex->sp - 1].as.ptr.block = 0;
@@ -1853,14 +1873,36 @@ tokenT* harrayinfo(exectxT* ex, tokenT* t) {	//edit array
 	else if (t->val.as.n32 == 2) {
 		 zarray_use(array, ex->stack[ex->sp - 2].as.n32);
 		 ex->sp-=2;
-	} else if (t->val.as.n32 == 3) {  //resize array
+	}
+	else if (t->val.as.n32 == 3) {  //resize array
 		int newsize = ex->stack[ex->sp - 2].as.n32;
 		ex->stack[ex->sp - 2].as.ptr.block = zarray_resizef(array, t->ty->ref->ref->size, newsize, NULL);
-
+		ex->stack[ex->sp - 2].as.ptr.level = 0;
 		//todo: if lowering size and there are possessive pointers, need to free them
 
 
 		ex->sp -= 1;
+	}
+	else if (t->val.as.n32 == 4) {
+		//appending item to array
+		//stack has item, and then pointer to the array pointer
+		//such as   Z32   and [Z32]%&
+		void** toArray = array;  //item took from the stack points to the array
+		array = *toArray;
+		int* intarray = array;
+		int elemsize = tsub(t)->ty->size;
+				
+		if (zarray_count(array) >= zarray_size(array)) {
+			//expand array
+			array = zarray_resizef(array, elemsize, zarray_size(array) * 2, NULL);
+			*toArray = array;
+		}
+
+		memcpy(((char*)(array)) + elemsize * zarray_count(array), &(ex->stack[ex->sp - 2]), elemsize);
+		zarray_use(array, zarray_count(array) + 1);
+
+		ex->sp -= 2;
+		
 	}
 
 	return tnext(t);
@@ -2807,6 +2849,9 @@ void addhandlers(struct parsectxS* pctx) {
 	//get pointer to item on arg stack (only for stacked structs)
 	HANDLER(pctx, stackptr);
 
+
+	HANDLER(pctx, perarg);
+
 	//memory allocation
 	HANDLER(pctx, alloc);
 	HANDLER(pctx, allocarray);
@@ -2817,7 +2862,7 @@ void addhandlers(struct parsectxS* pctx) {
 	//pointer arithmetic to index into arrays to get struct members
 	HANDLER(pctx, offsetptr);
 	HANDLER(pctx, index);
-	HANDLER(pctx, arrayinfo);	//get size of array
+	HANDLER(pctx, arrayop);	//get size of array
 
 	//get pointer to local, immediate, or global variable
 	HANDLER(pctx, local);
@@ -3507,7 +3552,7 @@ void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmemb
 
 		}
 		else {
-			printf("Type %s does not support selector %s", real_type->name, vselector->name);
+			printf("Type %s does not support selector %s ", real_type->name, vselector->name);
 			printType(vselector->type, ZTRUE, ZFALSE);
 			ERR("");
 		}
@@ -5145,7 +5190,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				if (t->val.as.n32 > sizeof(valueT))
 					ERR(" Type %s does not fit in a stack slot\n", tprev(t)->ty->ref->name);
 
-				fold(ts, t);
+				fold(tprev(tprev(ts)), t);
 				t = tnext(t);
 				continue;
 			}
@@ -5399,6 +5444,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					
 					t->ty = lt;
 					t->tok = PERARG;
+					t->handler = hperarg;
 					t->useslocal = 1;
 
 					t->val.as.z32 = so;

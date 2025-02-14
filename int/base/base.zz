@@ -208,13 +208,11 @@ proc ==:(si:String&; ti:String& -> Bit)
 end
 
 
-primitive arrayinfo 0 .size:( array:[any]& -> Z32);	
-primitive arrayinfo 1 .count :( array:[any]& -> Z32);
-primitive arrayinfo 2 .count=:( n:Z32; array:[any]&);	
-primitive arrayinfo 3 resize:( n:Z32; Xarray:[any]% -> like Xarray  );	
-
-
-
+primitive arrayop 0 .size:( array:[any]& -> Z32);	
+primitive arrayop 1 .count :( array:[any]& -> Z32);
+primitive arrayop 2 .count=:( n:Z32; array:[any]&);	
+primitive arrayop 3 resize:( n:Z32; Xarray:[any]% -> like Xarray  );	
+primitive arrayop 4 push:(a:any; array:[like a]%&);	
 
 //typecategory List;
 //typecategory %;

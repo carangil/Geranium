@@ -16,6 +16,9 @@ proc IsPressed:(s:String& -> Bit)
 end
 
 
+
+    
+
 //create an opengl window
 "Test Window" 1024 768 0 NewGraphicsWindow #window
 
@@ -168,21 +171,116 @@ end glslHeaders     //glslHeaders generate the vertex shader inputs and vertex/f
                     //only the vertex-shader-generated output and pixel-shader-used inputs need to be in the source
                     
 
+//glsl functions
+proto PSet:(color:Vec4);
 
+
+Vec4 PSet&:Symbol  #glslPSet
+
+
+proc fcompileTest:() 
+    
+    1.0 0.0 0.0 1.0 :Vec4 PSet
+    
+end
+
+virtual Exp;
+selector Exp.text:String%;
+selector Exp.type:Type&;
+selector Exp.args:[Exp%]%;
+selector ex Write:(ex:Exp&; ->String% );
+
+
+type GLSLTerminal
+    text:String%;
+    type:Type&;
+    args:[Exp%]%;  //args that might have been used at compile time to generate this leaf node... not used at runtime
+    exp:Exp;
+end
+
+proc Write:(exp:GLSLTerminal& ->String%)
+    exp.text keep return
+end
+
+type GLSLBinop
+    text:String%;
+    args:[Exp%]%;
+    type:Type&;
+    noParen:Bit;
+    
+    exp:Exp;
+    
+end
+
+proc Write:(exp:GLSLBinop& ->String%)
+    
+    exp.noParen if
+        "" copy         #Popen
+        ""            #Pclose
+    else
+        "(" copy        Popen=
+        ")"             Pclose=
+    end
+    
+    Popen take
+    exp.args 0[] Write ++
+    
+    exp.text ++
+    
+    exp.args 1[] Write ++
+    Pclose ++
+    
+    return
+end
+  
+type GLSLFuncOp
+    text:String%;
+    args:[Exp%]%;
+    type:Type&;
+    exp:Exp;
+end
+
+proc Write:(exp:GLSLFuncOp& ->String%)
+
+    exp.text copy "(" ++ #s
+    
+    0#i loop i exp.args  .count < while
+    
+        i 0 > if 
+            s take ", " ++ s=
+        end
+            
+        s take exp.args i[] Write ++ s=
+        
+        i&++
+    end
+    
+    s take ")" ++ return
+    
+end
 
 
 type GLSLDecompiler
+    //for printing
 	indentLevel:Z32;
+		
+	curargs:[Exp%]%;
+		
 	dc:Decompiler;
 end
 
-proc Indent:(dc: GLSLDecompiler&)
-    newline   
+proc Indent:(n: N32)
+ newline   
     0#i
-    loop i dc.indentLevel < while
+    loop i n < while
         " " print
         i&++
     end
+
+end
+
+proc Indent:(dc: GLSLDecompiler&)
+    dc.indentLevel Indent
 end
 
 
@@ -204,50 +302,218 @@ proc Dump:(t:ExecToken)
 
 end
 
-proc Instruction:(dc: GLSLDecompiler& ; t:ExecToken)
-	dc Indent
-	t Dump
-end
+primitive C_ptrequal ==:(s:Symbol; a:any->Bit);
 
 proto End:(dc: GLSLDecompiler& ; t:ExecToken);
 
-proc Begin:(dc: GLSLDecompiler& ; t:ExecToken)
-    dc Indent
-	"begin " t.text "{" prints 
+
+proc Begin:(dc: GLSLDecompiler& ; t:ExecToken; subcount:N32)
+    dc Indent "'" t.text "'" "{" prints newline
+    t:Bit not if
+        "null token" print loop end
+    end
+    
 	dc.indentLevel&++
-	dc~:Decompiler& t.sub decompile  
+
+
+    var exp:Exp%;
+    var subexp:[Exp%]%;
+    
+    dc.curargs take #saveArgs
+   
+    
+    
+    subcount 0 > if                //allocate space for args
+       
+        [Exp%] subcount new0 subexp=     
+        subexp take dc.curargs=
+    end
+    
+    
+    t.prim "local" ==
+    t.prim "perarg" == or
+    t.prim "constant" == or   if
+        "(local/perarg/varname)" t.text print
+        GLSLTerminal new:Exp% exp=
+        t.text copy exp.text=
+
+    
+    t.prim "stackread" == elseif
+     "  (stackread varname)" t.sub.text prints newline
+        GLSLTerminal new:Exp% exp=
+        t.sub.text copy exp.text=
+        
+    t.text:Bit if " text " print end
+    
+    t.text "@" == elseif //load function
+        GLSLTerminal new:Exp% exp=
+        "go into @" print newline
+        dc:Decompiler& t.sub decompile
+        "back to @" print newline
+        
+        dc.curargs:Bit if
+            "got value " dc.curargs 0[].text prints newline
+            dc.curargs 0[].text copy exp.text=
+        else
+            "no value" print newline
+        end
+        
+        
+               
+    t.text "=" ==    elseif     //assignment... args in opposite order than other binop nodes
+    
+        GLSLBinop new ##bin keep :Exp% exp=
+        true bin.noParen=   //no parenthesis
+      
+        t.text copy exp.text=
+        
+        "into dest" print newline
+        
+        dc:Decompiler& t.sub.next   decompile1
+        
+        "into source" print newline
+        dc:Decompiler& t.sub        decompile1
+        dc.curargs take  exp.args=
+        
+    
+    
+    //functions and primitives named like infix operators are treated as such.
+    t.text "=" == 
+    t.text ">" == or
+    t.text ">=" == or
+    t.text "<" == or
+    t.text "<=" == or
+    t.text "==" == or
+    t.text "!=" == or
+    t.text "+" == or
+    t.text "-" == or
+    t.text "*" == or
+    t.text "/" == or elseif
+    
+            
+        GLSLBinop new:Exp% exp=
+        t.text copy exp.text=
+        dc:Decompiler& t.sub        decompile1
+        dc:Decompiler& t.sub.next   decompile1
+        dc.curargs take  exp.args=
+        
+      
+    else
+        dc Indent "TODO: '" t.text "' " t.prim prints
+        t 1 Z32 Indent& disassemble
+    end
+    
+    
+  //  dc Indent "restore args" print newline
+    saveArgs take dc.curargs=  //put args back
+    
+    
+    
+    exp:Bit if
+    
+        dc.curargs:Bit not if
+            [Exp%] 8 new0 dc.curargs=   //create
+        end
+    
+        //dc Indent "putting arg " dc.curargs.count " / " dc.curargs.size  prints newline
+    
+        exp take dc.curargs& push
+    
+    end
+  
+       
+    
+	
 end
+
 
 proc End:(dc: GLSLDecompiler& ; t:ExecToken)
-	dc.indentLevel&--
-	dc Indent
-	"}end " prints 
-	t Dump
+    dc.indentLevel&--
+//    dc Indent "}" print 
+	//t Dump
 end
 
-GLSLDecompiler new #decomp
 
-//primitive symtoken :ExecToken:(s:Symbol -> ExecToken);
-
-
+   
 
 proc dsym:(s:Symbol)
+    
+     GLSLDecompiler new #decomp
+
+    
+    newline
     "symbol type: " print
     s.type print newline
-    decomp:Decompiler&  s:ExecToken decompile 
-end
+    
+    decomp:Decompiler&   s.tokens decompile //s.tokens decompile 
 
-
-proc minShader:(per a:[Vec3]&; per b:[Vec3]& ; c:Vec3 ; d: Vec3& -> )
-
-    a b + c + print newline
+    newline newline
+    
+    0#i loop i decomp.curargs.count < while
+    
+    
+        decomp.curargs i [] Write #g 
+        g ";" prints newline
+        i&++
+    end
+    
+    return
     
 end
 
 
-[Vec3]& [Vec3]& Vec3 Vec3& minShader&:Symbol dsym
+stacked sMatrix44;
+
+proto @:(a:Transform& -> sMatrix44);
+proto @:(a:Matrix44& -> sMatrix44);
+proto +:(a:sMatrix44; b:sMatrix44 ->sMatrix44);
+proto *:(a:sMatrix44; b:sMatrix44 ->sMatrix44);
+proto -:(a:sMatrix44; b:sMatrix44 ->sMatrix44);
+proto *:(a:sMatrix44; b:Real ->sMatrix44);
 
 
+proc minShader:(t&:Matrix44&; u&:Matrix44&; per a:[Vec3]&; per b:[Vec3]& ; c:Vec3 ; d&: Vec3&  ; e:Real  -> )
+
+ var x:Vec3;
+ 
+  c b + x - x=
+
+ 
+ 
+ 
+/*
+ a b + 
+ a c +
+ a d +
+ 
+e 2.0 +
+    
+1.0 #k
+   
+  
+   
+    k 1.0 + k=
+
+   5.2  1.0 2.0 +  /   #g
+   
+   //a  b + #ff
+   
+   //a b Cross g=
+  */ 
+    
+end
+
+"x" print newline
+
+
+
+0:Matrix44& 0:Matrix44& [Vec3]& [Vec3]& Vec3 Vec3& Real minShader&:Symbol.tokens 1 Z32 Indent& disassemble
+
+
+
+0:Matrix44& 0:Matrix44&  [Vec3]& [Vec3]& Vec3 Vec3& Real minShader&:Symbol dsym
+
+return
 
 
 //some graphics data

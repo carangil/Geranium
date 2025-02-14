@@ -98,8 +98,8 @@ end
 
 //print a type
 proc print:(t:Type&)
-	t not if return end
-		
+	t:Bit not if return end
+    
 		
 	
 	t proc? if
@@ -212,27 +212,55 @@ virtual Decompiler;
 //selector dc NewProc:(dc:Decompiler&; name:String&; args:Type& ;  returnType:Type& -> dProc%); 
 
 
-selector dc Instruction:(dc:Decompiler&; t:ExecToken);	//call for leaf nodes
-selector dc Begin:(dc:Decompiler&; t:ExecToken);	//call before args to a treenode
+//selector dc Instruction:(dc:Decompiler&; t:ExecToken);	//call for leaf nodes
+selector dc Begin:(dc:Decompiler&; t:ExecToken; subcount:N32);	//call before args to a treenode
 selector dc End:(dc:Decompiler&; t:ExecToken);
 
 
-//try a more complex decompiler w/ callbacks (goal to be able to have callbaks transpile to other languages)
+
+
+
+//count a list of tokens
+
+proc len:(ti:ExecToken->Z32)
+
+    0 #i
+    ti #t
+		
+	loop t:Bit while
+	
+		i&++	
+   
+		t.next t=
+		
+	end
+
+	i  return
+end
+
+//decompiles one token (and potentially subtokens)
+proc decompile1:(dc:Decompiler&; t:ExecToken)
+   
+   t len #count
+  
+   dc t t len Begin
+   
+   dc t End
+   
+   
+end
+
+
 proc decompile:(dc:Decompiler&; ti:ExecToken)
 
 	ti #t
-		
+    0 #i
+    
 	loop t:Bit while
+
 			
-			t.sub:Bit if
-			
-				dc t Begin
-				dc t End
-			else
-			
-				dc t Instruction
-			
-			end
+		dc t decompile1
+                
 				
 		t.next t=
 		

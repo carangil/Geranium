@@ -364,7 +364,8 @@ tokenT* h_firsttoken(exectxT* ex, tokenT* t) {
 tokenT* h_tokenstring(exectxT* ex, tokenT* t) {
 	
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
-	
+	if (!ts)
+		ERR("no token\n");
 	ex->stack[ex->sp - 1].as.ptr.block = ts->str;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
