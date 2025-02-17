@@ -347,14 +347,18 @@ tokenT* followRedirect(tokenT* there){
 
 tokenT* h_firsttoken(exectxT* ex, tokenT* t) {
 
-	tokenT* there = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+	tokenT* there = ex->stack[ex->sp - 1].as.ptr.block;// +ex->stack[ex->sp - 1].as.ptr.offset;
 
 	there = followRedirect(there);
 	
 	if (there) {
-		ex->stack[ex->sp - 1].as.ptr.block = followRedirect(tsub(there));
-		ex->stack[ex->sp - 1].as.ptr.offset = 0;
+		ex->stack[ex->sp - 1].as.ptr.block = followRedirect(tsub(there));	
 	}
+	else {
+		ex->stack[ex->sp - 1].as.ptr.block = NULL;
+	}
+
+	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
 	return tnext(t);
 }

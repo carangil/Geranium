@@ -109,14 +109,14 @@ typedef struct parsectxS{
 #define KPER		0x801e
 #define KALIAS		0x801f
 #define KSKIP		0x8020
-#define XXKBEGIN		0x8021  /*deleted*/
+#define KNOEXEC		0x8021
 #define KAND		0x8022
 #define KOR			0x8023
 
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
 						"new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0",
 						"prefix", "like", "shader","opaque","immediate", "code", "stacked", "typeof", "constant",
-						 "per" , "alias", "skip", "XXbegin", "and", "or", NULL};
+						 "per" , "alias", "skip", "noexec", "and", "or", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -688,6 +688,12 @@ zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty, z
 		typeT* liketype = resolve_like_type(ty, proc_likes, caller_likes, ZTRUE);		
 		return cmpType(category, ref, name, len, liketype, allow_any, NULL, NULL);
 	}
+
+	if (allow_any && ty == tSymbol && category == POINTERUSER && ref->category == FUNCTION) {
+		return ZTRUE;  //allow vany to match any virtual type
+	}
+
+
 
 	if (ty->category != category)  //early exit for categories that should match
 		return ZFALSE;
@@ -1866,6 +1872,17 @@ tokenT* harrayop(exectxT* ex, tokenT* t) {	//edit array
  	void* array = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
 	ex->stack[ex->sp - 1].as.ptr.block = 0;
 
+	if (!array) {
+		if ((t->val.as.n32 == 0) || (t->val.as.n32 == 1)) {
+			//size or count on null array can be zero, that's fine
+			ex->stack[ex->sp - 1].as.n32 = 0;	
+			printf(" warning: size/count0 for null array\n");
+			return tnext(t);
+		}
+		
+		ERR(" Null array %s %d\n", t->sourcefile, t->line);
+	}
+
 	if (t->val.as.n32 == 0)
 		ex->stack[ex->sp - 1].as.n32 = zarray_size(array);
 	else if (t->val.as.n32 == 1)
@@ -2354,7 +2371,8 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 	if (sym->isSelector) {
  		
 		typeT* seltable = ex->stack[ex->sp  - zvec_count(t->sym->type->members) + t->sym->selectorArg].typeselector;
-		
+		if (!seltable)
+			ERR("Null selector table %s %d\n", t->sourcefile, t->line);
 		//printf(" CALL SELECTOR %d from %s's table for %s\n", t->sym->selectorNum, seltable->parent->name, seltable->ref->name);
 
 		selected = zvec_get_at(seltable->selectors, t->sym->selectorNum); //grab the nth function from the selector table
@@ -2640,8 +2658,10 @@ zbool ptr_array_destructor(void* va){
 
 			vptrselectorT* pv = va;
 			//xprintf("To free each pointer.  size of an array element is %d\n", ty->size);
-			for (i = 0; i < zarray_size(va); i++) {  //for now whole array, not just using 'count'
+			for (i = 0; i < zarray_count(va); i++) {  
+				
 				ram_free(pv[i].ptr.block);
+			
 			}
 
 		}
@@ -2649,7 +2669,8 @@ zbool ptr_array_destructor(void* va){
 
 			vptrT* pv = va;
 			//xprintf("To free each pointer.  size of an array element is %d\n", ty->size);
-			for (i = 0; i < zarray_size(va); i++) {  //for now whole array, not just using 'count'
+			for (i = 0; i < zarray_count(va); i++) {  
+			
 				ram_free(pv[i].block);
 			}
 
@@ -4496,6 +4517,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (!ct)
 				ERR(" If: no type input\n");
 
+			/*
 			if ((ct->category != POINTERUSER) && (ct != tBit) && (ct != tZ32)) {
 				tokenize(tprev(t), ":Bit", "nofile");
 				t = tprev(t);
@@ -4503,7 +4525,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				//ERR(" if needs Bit or Pointer datatype\n");
 
 			}
-
+			*/
 			tokenT* condition = tremove(tprev(t));
 			ts = t;
 
@@ -4578,6 +4600,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				//t->handler = hnop;
 				fold(ts, t);
 				t->handler = hifchain;
+			
+			
 				t = tnext(t);
 				continue;
 			}
@@ -4751,7 +4775,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t = tnext(t);
 			continue;
 			
-		case ':': //typecast
+		case ':': //potential typecast
 
 			//if next token is text, we should attempt a function call instead
 			//this lets a function name start with :
@@ -4760,11 +4784,32 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			//could also beused for constructors:   1.0 2.0 3.0:Vec3  
 			// proc :Vec3(x:Real;y:Real;z:Real -> Vec3);
 			if (tnext(t)->tok == NAME) {
+
+				if (!strcmp(tnext(t)->str, "Vec3"))
+					printf("v");
+
+
 				char* cname = zstrcat(zstrdup(":"), tnext(t)->str);
+
+				
+				if (tnext(tnext(t))->tok == KNOEXEC) {//get function pointer
+					//this can't be a typecast
+					t = tnext(t);
+					ram_free(tremove(tprev(t)));
+					ram_free(t->str);
+					t->str = cname;
+					continue;
+
+				}
+
 				tokenT* nt = mkToken(NAME, cname, 0);
 				insert_after(tprev(t), nt);
+				
+
 				t->tok = TYPECAST;
 				t = tprev(t);
+	
+				
 				ram_free(cname);
 				
 				continue;
@@ -5026,17 +5071,15 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			}
 			
-			
-
 
 			//next token is struct member
 			if (tnext(t)->str && tnext(t)->str[0] == '.'
 				&& tprev(t)->ty
 				&& tprev(t)->ty->ref
 				&& tprev(t)->ty->ref->category == STRUCT 
-				&& (tprev(t)->tok != STACKARG || tprev(t)->ty->ref->stacked) ) {
+				&& (tprev(t)->tok != STACKARG || tprev(t)->ty->ref->stacked     ) ){
 				
-				if (tprev(t)->ty->ref->stacked && tprev(t)->tok == STACKARG)
+				if (tprev(t)->ty->ref->stacked && (tprev(t)->tok == STACKARG))
 					tprev(t)->handler = hstackptr; //get the stack pointer
 
 				//access struct member:  
@@ -5441,10 +5484,21 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					printf("'per type':  better be a pointer to array\n");
 
 					lt = lt->ref->ref;
-					
+				
+					t->handler = hperarg;
+
+					if (tnext(t)->str && tnext(t)->str[0] == '.') {
+							
+						printf("PERARG struct case\n");
+						t->handler = hperarg;//will need to be a different handler to get POINTER
+											//but now both are unimplemented on cpu
+						lt = findType(POINTERUSER, lt, NULL, 0);
+						
+					}
+
 					t->ty = lt;
 					t->tok = PERARG;
-					t->handler = hperarg;
+					
 					t->useslocal = 1;
 
 					t->val.as.z32 = so;
@@ -5506,9 +5560,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		
 
 			if ( tnext(t)->tok =='&') 
-			{
 				noexec = 1;
-			}
+			
+			if (tnext(t)->tok == KNOEXEC)
+				noexec = 1;
+
+			//if (tnext(t)->tok == TYPECAST && tnext(tnext(tnext(t)))->tok == '&')
+				//noexec = 1;  //trying to find function pointer before trying typecast
 
 			tokenT* pos;
 			tokenT* startfold=NULL;
@@ -5656,7 +5714,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					fold(startfold, t);
 
 					if (noexec) {
-						if (tnext(t)->tok == '&') {
+						if (tnext(t)->tok == '&' || tnext(t)->tok == KNOEXEC) {
 							ram_free(tremove(tnext(t))); //remove it
 						}
 						else {
@@ -5940,6 +5998,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					}
 
 				}
+
+
+				
+
+
+
+
 
 				//if we have a pointer to a struct..
 				if (ptype && (ptype->category == POINTERUSER)   && (ptype->ref) && (ptype->ref->category==STRUCT)){
