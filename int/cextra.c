@@ -334,7 +334,7 @@ tokenT* h_heretoken(exectxT* ex, tokenT* t) {
 
 
 tokenT* followRedirect(tokenT* there){
-	//return there; //remove me
+	
 	while (there && there->handler == hredirectsub) {
 		if (tsub(there))
 			ERR("unexpected child\n");
@@ -348,17 +348,43 @@ tokenT* followRedirect(tokenT* there){
 tokenT* h_firsttoken(exectxT* ex, tokenT* t) {
 
 	tokenT* there = ex->stack[ex->sp - 1].as.ptr.block;// +ex->stack[ex->sp - 1].as.ptr.offset;
+	
+	//if 'there' is a redirect, we need to get to the real list of args
 
 	there = followRedirect(there);
+
+	if (there)
+		there = tsub(there); //get first sub (ignoring this might be a redirect)
+
 	
+	ex->stack[ex->sp - 1].as.ptr.block = there;
+	ex->stack[ex->sp - 1].as.ptr.offset = 0;
+
+	return tnext(t);
+}
+
+
+//not sure if this one is needed.  it was to address a bug that I think is now otherwise solved.
+tokenT* h_hasfirsttoken(exectxT* ex, tokenT* t) {
+
+	tokenT* there = ex->stack[ex->sp - 1].as.ptr.block;// +ex->stack[ex->sp - 1].as.ptr.offset;
+
+	//ignore that 'there' might be a redirect.
+	//if we follow it, 'next' won't work
+	// .text, .prim, .type, .valtype etc will all have to do the redirect instead
+
+	there = followRedirect(there);
+
+	if (there)
+		there = tsub(there); //get first sub
+
+
 	if (there) {
-		ex->stack[ex->sp - 1].as.ptr.block = followRedirect(tsub(there));	
+		ex->stack[ex->sp - 1].as.n32=1;
 	}
 	else {
-		ex->stack[ex->sp - 1].as.ptr.block = NULL;
+		ex->stack[ex->sp - 1].as.n32 = 0;
 	}
-
-	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
 	return tnext(t);
 }
@@ -370,6 +396,9 @@ tokenT* h_tokenstring(exectxT* ex, tokenT* t) {
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
 	if (!ts)
 		ERR("no token\n");
+
+	ts = followRedirect(ts);
+	
 	ex->stack[ex->sp - 1].as.ptr.block = ts->str;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
@@ -383,6 +412,9 @@ tokenT* h_tokenstring(exectxT* ex, tokenT* t) {
 
 typeT* tvaltype(tokenT* t){
 	
+
+	t = followRedirect(t);
+
 	if (t->handler == hconstant || t->handler == hconstantaddref){
 		//if this was a constant instruction, the constant is val, so is the same type as the runtime value
 		return t->ty;
@@ -397,7 +429,9 @@ typeT* tvaltype(tokenT* t){
 tokenT* h_tokenvaltype(exectxT* ex, tokenT* t) {
 	
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
-	
+
+	ts = followRedirect(ts);
+
 	ex->stack[ex->sp - 1].as.ptr.block = tvaltype(ts);
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 	
@@ -408,6 +442,9 @@ tokenT* h_tokenvaltype(exectxT* ex, tokenT* t) {
 tokenT* h_tokenevaltype(exectxT* ex, tokenT* t) {
 
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+
+
+	ts = followRedirect(ts);
 
 	ex->stack[ex->sp - 1].as.ptr.block = ts->ty;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
@@ -420,6 +457,11 @@ tokenT* h_tokenevaltype(exectxT* ex, tokenT* t) {
 tokenT* h_tokensymbol(exectxT* ex, tokenT* t) {
 
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+	
+
+	ts = followRedirect(ts);
+	
+	
 	if (ts)
 		ex->stack[ex->sp - 1].as.ptr.block = ts->sym;
 	else
@@ -430,6 +472,8 @@ tokenT* h_tokensymbol(exectxT* ex, tokenT* t) {
 
 tokenT* h_symboltype(exectxT* ex, tokenT* t) {
 	symbolT* s = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+	
+	
 	if (s)
 		ex->stack[ex->sp - 1].as.ptr.block = s->type;
 	else
@@ -445,11 +489,9 @@ tokenT* h_tokennext(exectxT* ex, tokenT* t) {
 
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
 	
-	if (ts && ts->tok)
-		ts = followRedirect(tnext(ts));
-	else
-		ts = NULL;
-
+	if (ts)
+		ts = tnext(ts);
+	
 	ex->stack[ex->sp - 1].as.ptr.block = ts;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
@@ -543,6 +585,10 @@ tokenT* h_tokenprim(exectxT* ex, tokenT* t) {
 	char* name = "Unknown";
 
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
+	
+
+	ts = followRedirect(ts);
+
 	if (ts && ts->sym && ts->sym->primsym) {
 		name = ts->sym->primsym->name;
 	}

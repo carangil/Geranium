@@ -2,4 +2,578 @@ primitive C_ptrequal ==:(a:any&; b:any&-> Bit);
 
 "base/base.zz" include
 
-"gfxgl.zz" include
+proc DONE:()
+    "DONE" print newline
+    loop end
+
+end
+
+"hi" print newline
+
+//testing 'like' behavior of simple args
+
+proc add:(a:Z32; b:like a -> like a)
+
+    b typeof print newline
+    a b + return
+
+end
+
+3 2 add typeof
+
+2 3 add print newline
+
+
+//testing stacking case
+proc allocz:(a:Z32 -> [like a]%)
+
+    [Z32] a new return
+
+end
+
+
+
+0 allocz #arr
+
+arr typeof print newline
+
+//testing propagating
+
+proc pass:(a:any% -> like a)
+
+    "inner type " a take typeof prints newline
+
+    a take return
+
+end
+
+"teststring copied to type: " copy pass #copied
+copied copied take typeof prints newline
+
+
+//testing dereferenced like type:
+
+proc geta:(a:Z32%& -> like a@@)
+
+    a@@ return
+
+end
+
+
+Z32 new #pz
+
+10 pz@=
+
+pz typeof print newline
+pz& geta print newline
+
+123 2 +  123 "As"  prints newline
+
+
+
+
+proc .hash:(s:String&->N32)
+  
+
+    0:N32 #hash
+    
+    0#i  loop 
+
+        s i[] #c 
+        c:Bit while
+        
+        hash    31 * 
+                c:N32 + 
+                        hash=
+        i&++
+    end 
+    hash return
+end
+
+
+
+//need a hashmap
+
+
+
+virtual Hashable;
+selector h proc .hash:(h:Hashable& -> N32);
+selector h proc copy:(h:Hashable& -> like h @ % );
+selector h proc ==:(h:Hashable& ; h2: like h->Bit);
+
+type String             //if a type already exists, it can be extended, but only
+    virtual h:Hashable;
+end
+
+
+virtual HashEntry;
+selector HashEntry.next:HashEntry%;
+selector HashEntry.key:Hashable%;
+selector HashEntry.value:any%;
+
+
+
+virtual HashMap;
+selector HashMap.buckets:[HashEntry%];
+
+
+
+
+type StringToString
+    key:    String%;
+    value:  String%;
+    next:   StringToString%;
+    
+    virtual h:HashEntry;
+end
+
+
+[StringToString%] 30 new #sst
+
+
+"test" :Hashable&  copy #tc
+
+tc take typeof  "<-- copied after casting "  prints newline
+
+
+
+proc testcopy:(a:Hashable& -> like a@%)
+
+    a typeof " <-- testcopy a inside function" prints newline
+    a typeof.@.% " <-- testcopy return value inside function" prints newline
+
+    a copy return
+
+end
+
+"test2" .hash print newline
+"test2" :Hashable& testcopy #tcc
+
+tcc take typeof  "<-- copied in testcopy with casting "  prints newline
+tcc .hash  " <-- called ... proves the copy preserved the typeselector" prints newline
+
+"test2"  testcopy #tnc
+
+tnc take typeof  "<-- copied in testcopy without casting.  testcopy's  return liketype should see the real type "  prints newline
+tnc .hash  " <-- called " prints newline
+
+
+
+//sst typeof "<---" prints newline
+
+
+
+!
+/*
+proc insert:( m: [StringToString%]& )
+
+    
+    m typeof print newline
+    
+
+end
+*/
+
+//sst insert
+
+
+
+
+
+
+
+//allowed to cast to/from types of single matching element
+var s:String%;
+s :any& printptr newline 
+
+"aaaaaaa" print newline
+ "sdf" copy  s=
+
+
+//s typeof print newline
+
+
+
+
+s& typeof print newline
+//"aaaa"  s&:Hashable&
+
+//hash prints newline
+
+
+//s print newline
+
+
+//s .hash print newline
+
+var he:StringToString;
+
+"test" copy he.key=
+
+
+var st:StringToStringTable;
+
+
+
+
+
+
+/*proc init:(st:StringToStringTable% -> StringToStringTable%)
+
+    
+
+    return st
+end*/
+
+
+
+
+
+
+/*
+proc []=:(a:any%; h:HashMap&; key:Hashable&)
+
+
+
+    h.buckets :Bit if
+        "buckets valid" print newline
+    else 
+        "buckets nil" print newline
+        
+        [HashEntry%] 1 new h.buckets = //create buckets
+        
+        "create " h.buckets.size " buckets" prints newline
+        
+    end
+    
+   
+    
+end
+    
+
+*/
+
+
+
+
+proc dohash:(h:Hashable&)    
+    h .hash print newline
+    
+    "did hash" print newline
+
+    
+        
+    //h  ~copy  #c
+    
+    //c:any& printptr newline
+    "got " print
+    //c typeof print newline
+        
+    //h .hash print newline
+    
+    
+    "using return as hashable" print newline
+    
+    
+    //h //c 123
+    
+    //c .hash print newline
+        
+    
+end
+
+
+Hashable& dohash&:Symbol.tokens   0:(a:N32->)&  disassemble
+
+
+
+virtual Booable;
+selector b proc Boo:(b:Booable&; c:Z32 );
+selector b proc Boo2:(b:Booable&; c:Real );
+selector h proc copy:(h:Booable& -> Booable%);
+
+type String             //if a type already exists, it can be extended, but only
+    virtual h:Hashable;
+    virtual b:Booable;
+end
+
+proc Boo:(a:String&; c:Z32)
+
+    "boo " c " on " a prints newline
+end
+
+
+proc Boo2:(a:String&; c:Real)
+
+    "2 " c " on " a prints newline
+end
+
+
+
+//s:Hashable& dohash
+
+
+//s copy #bb
+
+//s copy :Booable% #bb
+/*
+
+bb copy #bb2
+
+bb2 11 Boo
+
+bb2 13.3 Boo2
+*/
+
+//loop end
+
+
+
+
+/*
+proc []=:(c:any%; h:HashMap& ;k:Hashable& )
+
+    k.hash #h
+    "hashed to " h prints newline
+
+end
+*/
+
+//"abc":HashableString& st "test" []=
+
+/*
+proc []=:(a:any%; h:HashMap&; key:String&)
+    h.buckets :Bit if
+        "buckets valid" print newline
+    else 
+        "buckets nil" print newline
+        
+        [HashEntry%] 1 new h.buckets = //create buckets
+        
+        "create " h.buckets.size " buckets" prints newline
+        
+    end
+    
+    "hash " key.hash  prints newline
+
+    key.hash  h.buckets.size mod  #bucketNum
+    
+    //search for existing key
+    
+    h.buckets bucketNum[] keep #bucket
+    
+    loop bucket:Bit while
+        "check key " key "?=" bucket.key  prints newline
+        bucket.key key == if
+            "replace item" print newline
+            a take bucket.value=
+            return
+        end
+        bucket.next keep bucket=
+    end
+    //not found, make new entry
+    
+    HashEntry new #entry
+    key copy entry.key=
+    a take entry.value=
+    h.buckets bucketNum[] take entry.next=
+    entry take h.buckets bucketNum[]=
+end
+
+
+
+
+
+*/
+
+
+//var sm:StringStringMap
+
+
+//k hash sm.bucket.count mod sm.bucket []
+
+
+
+
+
+
+
+proc test:(h:Hashable& -> like h @ % ) 
+~
+    h .hash print newline
+   
+   
+   h ~ copy  return
+   
+end
+
+
+"whatever"  ~ test typeof "<<<<" prints newline
+
+//to typeof print newline
+//to print newline
+
+//to print newline
+
+/*
+type intHash
+    v:N32;
+    virtual gh:Hashable;     //intHash can become a virtual Hashable 
+end
+ 
+
+proc Test:(i:intHash&)
+    "intHash called test" print newline
+end
+
+proc Hash:(i:intHash&->N32)
+    "intHash called" print newline
+    i.v return
+end
+
+
+
+
+
+
+
+type fhash
+    a:Real;
+    v:N32;
+    virtual gfh:Hashable;     //intHash can become a virtual Hashable 
+end
+
+
+proc Test:(i:fhash&)
+    "fhash called test" print newline
+end
+
+proc Hash:(i:fhash&->N32)
+    "fhash called" print newline
+    i.v return
+end
+
+
+
+
+var a:intHash;
+30 a.v=
+
+
+a:Hashable& Hash print newline
+a:Hashable& Test  newline
+
+
+
+ 
+
+
+
+
+virtual hasHashable;
+selector hasHashable.a:Z32;
+selector hasHashable.b:Z32;
+selector hasHashable.h:Hashable;
+
+
+
+type hasA
+    a:Z32;
+    b:Z32;
+    h:intHash;  //means hasA contains an instance of intHash
+    
+    virtual c:hasHashable;    //fulfills requirements of being a 'container'
+end
+
+type hasB
+    virtual c:hasHashable;    //fulfills requirements of being a 'container'
+    
+    h:fhash;  //means hasA contains an instance of intHash
+    a:Z32;
+    b:Z32;
+
+end
+
+
+var ha:hasA;
+
+
+var hb:hasB;
+
+3.3 hb.h.a=
+77 hb.h.v=
+
+
+44 ha.h.v=
+
+
+ha.h :Hashable&  Hash print newline
+hb.h :Hashable&  Hash print newline
+
+
+
+
+
+
+proc use_h:(hh:hasHashable&)
+    
+    hh.h& Hash print newline
+        
+end
+
+
+
+
+ha:hasHashable& use_h
+
+hb:hasHashable& use_h
+*/
+
+
+//selector VTYPE.field:any Hashable;
+/*
+
+
+virtual container;
+selector container.a:
+selector container.h:Hashable;
+//selector virtual container.c:
+
+proc use_h:(c:container&)
+    //c.h
+
+end
+
+
+type hasA
+
+    h:intHash;  //means hasA contains an instance of intHash
+    
+    +container; //means hasA conforms to container
+end
+
+type hasB
+    h:testHash;
+    c:container;
+end
+
+var ha:hasA;
+
+44 ha.h.v =
+
+
+ha.h:Hashable& Hash print newline
+
+//ha:container& use_h
+
+
+
+//ha:Container& useh
+*/
+//DONE
+
+ 
+"banana" print newline
+
+
+//"gfxgl.zz" include

@@ -110,6 +110,7 @@ typeT* type_member(typeT* t, zuint32 i);
 //Zdef stacked TokenValue
 
 
+//Zdef handler hasfirsttoken	.hasSub:(c:ExecToken->Bit);
 //Zdef handler firsttoken		.sub:(c:ExecToken->ExecToken);
 //Zdef handler tokenvaltype		.consttype:(c:ExecToken->Type&);
 //Zdef handler tokenevaltype	.evaltype:(c:ExecToken->Type&);

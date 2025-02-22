@@ -201,8 +201,29 @@ proc disassemble:(ti:ExecToken; level:N32;indent:(n:N32)& )
 end
 
 
+
+
 proc disassemble:(ti:ExecToken;ndent:(n:N32)&)
-	ti 0 ndent disassemble  newline
+
+    proc Indent:(n: N32)
+        newline   
+        0#i
+        loop i n < while
+            " " print
+            i&++
+        end
+    end
+
+    ndent 0:any& == if
+        "null indent func, using default" print newline
+        
+        ti  0   0 Indent& disassemble  newline
+    else
+        ti 0 ndent disassemble  newline
+    end
+
+    
+    
 end
 
 

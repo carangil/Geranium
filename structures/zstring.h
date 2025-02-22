@@ -7,12 +7,18 @@
 //Pass ZSTRING_ALL when ALL of a string should be used (instead of just n bytes)
 #define ZSTRING_ALL ((size_t)-1)
 
+//size when making empty strings
+//overridable
+#ifndef ZSTRING_INITSIZE
+	#define ZSTRING_INITSIZE 32
+#endif
+
 //Copy C or zstring into a new zstring
 char* zstrndup(char* a, zsize n);
 #define zstrdup(SSS)  zstrndup(SSS,ZSTRING_ALL)
 
 //Split C or zstring on delimiter, returning vector of zstrings
-zvecT* zstrsplit(zvecT* v, char* str, char delim);
+zvecT* zstrsplit(zvecT* initial, char* str, char delim);
 
 //Combine vector of C or zstrings to a new zstring.  Optional delimiter inserted
 char*  zstrbuild(zvecT* v, char delim);

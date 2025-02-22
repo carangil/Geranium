@@ -432,14 +432,23 @@ var GLSLMapping:gmapping%;
 
 proc GLSLAddFunc : (s:Symbol; name:String&)
     
-   gmapping new #gm 
+    gmapping new #gm 
     
-
     s gm.symbol=
     name copy gm.glsl=
     GLSLMapping take gm.next=
     gm take GLSLMapping=
+end
+
+
+proc GLSLAddType : (t:Type&; name:String&)
     
+    gmapping new #gm 
+    
+    t gm.type=
+    name copy gm.glsl=
+    GLSLMapping take gm.next=
+    gm take GLSLMapping=
 end
 
 
@@ -449,8 +458,9 @@ proc LookupFunction:(s:Symbol->String%)
     GLSLMapping keep #gm
     loop gm:Bit while
     
-    
+
         gm.symbol s == if
+           
             gm.glsl copy return
         end
     
@@ -458,6 +468,22 @@ proc LookupFunction:(s:Symbol->String%)
     end
     0:String% return
 end
+
+
+proc LookupType:(t:Type&->String%)
+    GLSLMapping keep #gm
+    loop gm:Bit while
+    
+        gm.type t == if
+            gm.glsl copy return
+        end
+    
+        gm.next keep gm=
+    end
+    0:String% return
+end
+
+
 
 proto :Vec4:(v:Vec3;a:Real->Vec4);
 
@@ -521,7 +547,8 @@ proto End:(dc: GLSLDecompiler& ; t:ExecToken);
 
 
 proc Begin:(dc: GLSLDecompiler& ; t:ExecToken; subcount:N32)
-    dc Indent "'" t.text "'" "{" prints newline
+    dc Indent  t.prim " '" t.text "'" "{" prints newline
+
     t:Bit not if
         "null token" print loop end
     end
@@ -680,16 +707,16 @@ proc Begin:(dc: GLSLDecompiler& ; t:ExecToken; subcount:N32)
     
     
     
-    
-    
-    
+
     t.sub:Bit elseif  //treat as function call
             
         GLSLFuncOp new:Exp% exp=
     
         t.symbol LookupFunction #fname
+
         fname:Bit if
             fname copy exp.text=
+            "using name "fname prints newline
         else
             "/*auto*/ " copy t.text ++ exp.text=
         end
@@ -775,6 +802,8 @@ proc dsym:(s:Symbol)
         i&++
     end
     
+    loop end
+    
     return
     
 end
@@ -784,14 +813,26 @@ stacked sMatrix44;
 
 proto @:(a:Transform& -> sMatrix44);
 proto @:(a:Matrix44& -> sMatrix44);
+
+
+
+proto +:(a:Vec4; b:Vec4 ->Vec4);
+
+
 proto +:(a:sMatrix44; b:sMatrix44 ->sMatrix44);
 proto *:(a:sMatrix44; b:sMatrix44 ->sMatrix44);
-proto *:(a:Transform&; b:sMatrix44 ->sMatrix44);
-proto *:(a:sMatrix44&; b:Transform ->sMatrix44);
-proto -:(a:sMatrix44; b:sMatrix44 ->sMatrix44);
-proto *:(a:sMatrix44; b:Vec4 ->sMatrix44);
-proto boo:(a:Real;b:Real->Real);
+proto *:(a:sMatrix44; b:Vec4 ->Vec4);
+
 proto _GLSLRAW:(a:String&);
+
+
+
+
+
+
+
+
+
 
 
 
@@ -800,7 +841,8 @@ proc foo:(a:Real;b:Real;c:Real -> Real)
     a b + c * return
 end
 
-proto rasterize:(v:Vec3);
+
+
 
 
 /*
@@ -844,6 +886,24 @@ proc immediate printType:(a:Type&)
     a print newline
 end
 
+
+
+proc immediate rasterize:(code vv:Vec4)
+
+    code \\   "gl_Position=" _GLSLRAW   'vv    \\ insert
+
+    
+    
+end 
+
+proc immediate dbl:(code a:Real)
+
+    code \\ 'a 'a - \\ insert return
+
+end
+
+
+
 proc   minShader:	(
 		per point:	[Vec3]&; 
 		testu:		[Vec4]&;  
@@ -852,19 +912,17 @@ proc   minShader:	(
 		projection&:Matrix44&; 
 		modelView&:	Transform&;	
 		diff: 		Texture&;
-		extra: Vec4&;
+		extra&: Vec4&;
 		per texcoord:	[Vec2]&;
 		
 		)
 
+		
+		
 		modelView   point 1.0:Vec4 *  #transformed
+		projection transformed *  rasterize
+
 		
-		projection transformed * #gl_Position
-		
-		
-//		point 
-		
-		point 1.0:Vec4 #v4
 		
 	    //out vec2 f_texcoord;
 		//out vec4 f_color;
@@ -999,8 +1057,6 @@ end
 //0:Matrix44& 0:Matrix44&  [Vec3]& [Vec3]& Vec3 Vec3& Real minShader&:Symbol dsym
 
 [Vec3]& [Vec4]& [Vec4]& Real& Matrix44& Transform& Texture& Vec4& [Vec2]& minShader&:Symbol dsym
-
-loop end
 
 
 /*

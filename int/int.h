@@ -20,6 +20,12 @@ typedef struct vptrS {
 	zuint16	level;
 }vptrT;
 
+typedef  struct {
+	struct tokenS* original;
+	struct tokenS* redirected;
+}tokenCursorT;
+
+
 typedef struct vptrselectorS {
 	vptrT ptr;
 	struct typeS* typeselector;
@@ -33,8 +39,9 @@ typedef union valu {	//Generic value (datatype is tracked through other means)
 	FLOAT f;
 #endif
 	struct typeS* type; //not datatype of valU, but represents a detatype itself (datatypes can be on the stack)  
-
-	//debugging:
+	
+	tokenCursorT tc;
+	
 	struct symbolT* symbol;
 	struct tokenS* token;
 	
@@ -95,6 +102,9 @@ typedef struct tokenS {
 
 	struct typeS* ty;	//datatype of this token
 	struct typeS* tyorig;	//original datatype of this token (before cast)
+	
+	struct typeS* traced_like_type;
+
 	valueT val;	//token's constant value
 	struct typeS* tyval; //type of the above constant
 	zlistT subs;	//make a tree out of token list

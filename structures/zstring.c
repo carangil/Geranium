@@ -44,7 +44,7 @@ char* zstrndup(char* a, zsize n) {
 	char *z;
 	
 	if (a == NULL)
-        	return zstr_mk(0);
+        	return zstr_mk(ZSTRING_INITSIZE);
    
 	if (n == ZSTRING_ALL) {
 		n = strlen(a);
