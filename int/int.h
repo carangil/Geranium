@@ -51,6 +51,7 @@ typedef union valu {	//Generic value (datatype is tracked through other means)
 typedef struct valueS {
 	valU as;
 	struct typeS* typeselector;
+	zbool split_pointer;
 }valueT;
 
 /**** Execution Context ****/
@@ -92,6 +93,7 @@ void exe(exectxT* c, struct tokenS* t);
 
 typedef struct tokenS* (*instruction) (exectxT*, struct tokenS*);
 
+#define SPLIT_SELECTOR_POINTER 1
 
 typedef struct tokenS {
 	zlistnodeT zlistnode;
@@ -99,7 +101,7 @@ typedef struct tokenS {
 	char* str;	//string representation of this token
 
 	
-
+	int ty_flags;
 	struct typeS* ty;	//datatype of this token
 	struct typeS* tyorig;	//original datatype of this token (before cast)
 	

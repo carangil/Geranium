@@ -135,7 +135,7 @@ selector h proc copy:(h:Hashkey& -> like h @ % );
 selector h proc ==:(h:Hashkey& ; h2: like h->Bit);
 
 type String
-    virtual hk:Hashkey;
+    //virtual hk:Hashkey;
 end
 
 type HashEntry
@@ -143,6 +143,7 @@ type HashEntry
     value:any%;
     next:HashEntry%;
 end
+
 
 
 
@@ -222,21 +223,232 @@ proc []:(h:HashMap&; key:String& ->any%)
 end
 
 
-proc immediate Get:(code h:HashMap&; code k:String&)
+virtual hvalue;
+selector h copy:(h:hvalue&->hvalue%);
 
-    code \\
 
-        h.
-        
-
-    \\ insert
-    
+type String
+    virtual c:hvalue;
 end
 
 type StringHashMap
     buckets:[HashEntry%]%;
     virtual hm:HashMap;
+    key:String%;
+    value:String%;
 end
+
+
+virtual pair;
+//selector pair.value:any%;
+selector pair.value:hvalue%;
+selector pair.key:String%;
+selector pair.next:pair%;
+
+type spair
+    key:String%;
+    value:String%;
+    next: spair%;
+    virtual p:pair;
+end
+
+
+virtual passthru;
+selector passthru.x:[pair%]%;
+
+    
+type pstring
+  //  x:[String%]%;
+    x:spair;
+    virtual pt:passthru;
+end
+
+var S:pstring;
+
+[spair%] 3 new #zz
+
+//zz 0[] ~:pair&
+
+
+zz keep typeof print newline
+
+//"hi"  copy zz 0[]=
+//"cat" copy zz 1[]=
+//"dog" copy zz 2[]=
+
+
+//zz keep typeof print newline
+//zz keep S.x=
+
+
+proc  GetFromBucket:(  pi:pair% ; k:String& -> like pi.value )
+  
+  pi take #p
+  
+    
+  "looking for " k prints newline
+  
+  loop
+    
+    p:Bit while
+    
+    "-" p.key prints newline
+    
+    p.key k == if
+        "match" print newline
+        p.value keep return
+    else
+        "continue" print newline
+    end
+       
+    
+    
+    p.next keep p=
+  
+  end
+  
+  null return
+  
+end
+
+
+proc  PutInBucket:(   v: like pi.value;    pi:pair% ; k:String& -> like pi )
+  
+  pi keep #p
+  
+    v printptr
+    v typeof "================" prints newline
+    
+  "looking for " k "to insert" prints newline
+  
+  loop
+    
+    p:Bit while
+    
+    " see " p.key prints newline
+    
+    p.key k == if
+        "match.. time to write" print newline
+        
+        v take p.value =
+        
+        pi take return
+        
+        
+    else
+        "continue" print newline
+    end
+           
+    
+    p.next keep p=
+  
+  end
+  
+  pi dtypeof new p=
+  
+  p:any& printptr
+  
+  "p.next&" print
+  p.next&  :any& printptr newline
+  
+  "p.next" print
+ ~ p.next  :any& printptr newline
+    
+  "set v value" print newline
+  v take p.value= 
+ 
+  k copy p.key=
+ 
+ 
+  "p is " print
+  p:any& printptr newline
+  
+  "p.next" print
+  p.next  any& printptr newline
+  
+  
+ 
+  pi
+  take
+  p.next
+  =
+  
+  "not in bucket: todo insert " k     prints newline
+  
+  p take return
+  
+  
+  
+  //pi dtypeof new
+  
+  //pi typeof " "  pi dtypeof print newline
+  
+  
+  
+end
+
+
+
+
+
+
+
+//proc  GetB:(   p:pair&; k:String% -> like p.b )
+  //p.b keep return
+//end
+
+spair new zz 0[]=
+
+"test" copy zz 0[].value=
+"cat" copy zz 0[].key=
+
+spair new #nn
+"butt" copy nn.value=
+"dog" copy  nn.key=
+
+nn keep zz 0[].next=
+
+
+/*
+spair new #n2
+"33" copy n2.value=
+"x" copy  n2.key=
+
+n2 keep zz 0[].next.next=
+*/
+
+
+//zz 0[]keep  "cat" GetA& Indent disassemble
+
+
+//zz 0[]keep  "x" GetFromBucket  ##tmp print newline
+zz 0[]keep  "cat" GetFromBucket  ##tmp print newline
+zz 0[]keep  "dog" GetFromBucket  tmp#= print newline
+zz 0[]keep  "q" GetFromBucket  tmp#= print newline
+
+
+//zz 0[]keep typeof print newline return
+
+zz 0[] :any& printptr newline
+
+"newtest" copy  zz 0[]keep  "cat"  PutInBucket   zz 0[]=
+
+zz 0[]  :any& printptr newline
+"snail" copy  zz 0[]keep  "pest"  PutInBucket   zz 0[]=
+zz 0[]  :any& printptr newline
+
+
+zz 0[]keep  "cat" GetFromBucket  tmp#= print newline
+zz 0[]keep  "dog" GetFromBucket  tmp#= print newline
+zz 0[]keep  "q" GetFromBucket  tmp#= print newline
+ zz 0[]keep  "pest" GetFromBucket  tmp#= print newline
+
+//typeof print newline
+
+
+//S Get typeof print newline
+
+return
 
 var HM:StringHashMap;
 
@@ -278,7 +490,7 @@ return
 
 //end
 
-
+/*
 "test" :Hashkey&  copy #tc
 
 tc take typeof  "<-- copied after casting "  prints newline
@@ -329,3 +541,4 @@ ia 1 getInt@  "<<<<<<<" prints newline
 ia 2 getInt@  "<<<<<<<" prints newline
 
 return
+*/
