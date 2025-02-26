@@ -2,128 +2,6 @@ primitive C_ptrequal ==:(a:any&; b:any&-> Bit);
 
 "base/base.zz" include
 
-proc DONE:()
-    "DONE" print newline
-    loop end
-
-end
-
-"hi" print newline
-
-//testing 'like' behavior of simple args
-
-proc add:(a:Z32; b:like a -> like a)
-
-    b typeof print newline
-    a b + return
-
-end
-
-3 2 add typeof
-
-2 3 add print newline
-
-//testing stacking case
-proc allocz:(a:Z32 -> [like a]%)
-    [Z32] a new return
-end
-
-0 allocz #arr
-
-arr typeof print newline
-
-//testing propagating
-
-proc pass:(a:any% -> like a)
-    "inner type " a take typeof prints newline
-    a take return
-end
-
-"teststring copied to type: " copy pass #copied
-copied copied take typeof prints newline
-
-
-//testing dereferenced like type:
-
-proc geta:(a:Z32%& -> like a@@)
-    a@@ return
-end
-
-Z32 new #pz
-
-10 pz@=
-
-pz typeof print newline
-pz& geta print newline
-
-
-//testing like a struct member
-
-virtual GA;
-//selector g geta:(g:GA&);
-
-
-type A
-    a:Z32;
-    b:Real;
-    virtual ga:GA;
-end
-
-type B
-    b:String%;
-    a:Z32;
-    virtual ga:GA;
-end
-
-proc geta:(b:like h.a ; h:A&)
-    h.a print newline
-    b print newline "dddddddddddddd" print newline
-end
-
-
-proc geta:(b:B&)
-    b.a print
-end
-
-var aa:A;
-33 aa.a =
-
-
-var bb:B;
-77  bb.a =
-
-
-aa.a " " bb.a prints newline
-
-44 aa geta
-
-
-
-
-
-123 2 +  123 "As"  prints newline
-
-
-
-
-proc .hash:(s:String&->N32)
-  
-
-    0:N32 #hash
-    
-    0#i  loop 
-
-        s i[] #c 
-        c:Bit while
-        
-        hash    31 * 
-                c:N32 + 
-                        hash=
-        i&++
-    end 
-    hash return
-end
-
 
 
 //need a hashmap
@@ -135,114 +13,14 @@ selector h proc copy:(h:Hashkey& -> like h @ % );
 selector h proc ==:(h:Hashkey& ; h2: like h->Bit);
 
 type String
-    //virtual hk:Hashkey;
+    virtual hk:Hashkey;
 end
-
-type HashEntry
-    key:String%;
-    value:any%;
-    next:HashEntry%;
-end
-
-
-
-
-virtual HashMap;
-selector HashMap.buckets:[HashEntry%]%;
-
-
-
-
-virtual VHashEntry;
-selector VHashEntry.key:Hashkey;
-selector VHashEntry.value:any%;
-selector VHashEntry.nexy:VHashEntry%;
-
-virtual VHashMap;
-selector VHashMap.buckets:[VHashEntry%];
-
-
-
-proc []=:(a:any%; h:HashMap&; key:String&)
-    h.buckets :Bit if
-        "buckets valid" print newline
-    else 
-        "buckets nil" print newline
-        
-        [HashEntry%] 1 new h.buckets = //create buckets
-        
-        "create " h.buckets.size " buckets" prints newline
-        
-    end
-    
-    "hash " key.hash  prints newline
-
-    key.hash  h.buckets.size mod  #bucketNum
-    
-    //search for existing key
-    
-    h.buckets bucketNum[] keep #bucket
-    
-    loop bucket:Bit while
-        "check key " key "?=" bucket.key  prints newline
-        bucket.key key == if
-            "replace item" print newline
-            a take bucket.value=
-            return
-        end
-        bucket.next keep bucket=
-    end
-    //not found, make new entry
-    
-    HashEntry new #entry
-    key copy entry.key=
-    a take entry.value=
-    h.buckets bucketNum[] take entry.next=
-    entry take h.buckets bucketNum[]=
-end
-
-proc []:(h:HashMap&; key:String& ->any%)
- h.buckets not :Bit if
-    "nil buckets" print newline
-    0:any% return
- end
- 
- key.hash  h.buckets.size mod  #bucketNum
- 
- h.buckets bucketNum[] keep #bucket
- loop bucket:Bit while
-    "check key " key "?=" bucket.key  prints newline
-    bucket.key key == if
-        bucket.value keep return
-    end
-    bucket.next keep bucket=
- end
-
- 0:any% return
- 
-end
-
-
-virtual hvalue;
-selector h copy:(h:hvalue&->hvalue%);
-
-
-type String
-    virtual c:hvalue;
-end
-
-type StringHashMap
-    buckets:[HashEntry%]%;
-    virtual hm:HashMap;
-    key:String%;
-    value:String%;
-end
-
 
 virtual pair;
-//selector pair.value:any%;
-selector pair.value:hvalue%;
-selector pair.key:String%;
+selector pair.value:any%;
+//selector pair.value:hvalue%;
+//selector pair.key:String%;
+selector pair.key:Hashkey%;
 selector pair.next:pair%;
 
 type spair
@@ -253,46 +31,18 @@ type spair
 end
 
 
-virtual passthru;
-selector passthru.x:[pair%]%;
-
-    
-type pstring
-  //  x:[String%]%;
-    x:spair;
-    virtual pt:passthru;
-end
-
-var S:pstring;
-
-[spair%] 3 new #zz
-
-//zz 0[] ~:pair&
-
-
-zz keep typeof print newline
-
-//"hi"  copy zz 0[]=
-//"cat" copy zz 1[]=
-//"dog" copy zz 2[]=
-
-
-//zz keep typeof print newline
-//zz keep S.x=
-
-
-proc  GetFromBucket:(  pi:pair% ; k:String& -> like pi.value )
+proc  GetFromBucket:(  pi:pair% ; k:Hashkey& -> like pi.value )
   
   pi take #p
   
     
-  "looking for " k prints newline
+//  "looking for " k prints newline
   
   loop
     
     p:Bit while
     
-    "-" p.key prints newline
+   // "-" p.key prints newline
     
     p.key k == if
         "match" print newline
@@ -312,20 +62,20 @@ proc  GetFromBucket:(  pi:pair% ; k:String& -> like pi.value )
 end
 
 
-proc  PutInBucket:(   v: like pi.value;    pi:pair% ; k:String& -> like pi )
+proc  PutInBucket:(   v: like pi.value;    pi:pair% ; k:Hashkey& -> like pi )
   
   pi keep #p
   
     v printptr
     v typeof "================" prints newline
     
-  "looking for " k "to insert" prints newline
+  //"looking for " k "to insert" prints newline
   
   loop
     
     p:Bit while
     
-    " see " p.key prints newline
+ //   " see " p.key prints newline
     
     p.key k == if
         "match.. time to write" print newline
@@ -366,38 +116,22 @@ proc  PutInBucket:(   v: like pi.value;    pi:pair% ; k:String& -> like pi )
   "p.next" print
   p.next  any& printptr newline
   
-  
  
-  pi
-  take
-  p.next
-  =
+  pi  take  p.next  =
   
-  "not in bucket: todo insert " k     prints newline
+ // "not in bucket: todo insert " k     prints newline
   
   p take return
-  
-  
-  
+    
   //pi dtypeof new
-  
   //pi typeof " "  pi dtypeof print newline
-  
-  
   
 end
 
-
-
-
-
-
-
-//proc  GetB:(   p:pair&; k:String% -> like p.b )
-  //p.b keep return
-//end
+[spair%] 10 new #zz
 
 spair new zz 0[]=
+
 
 "test" copy zz 0[].value=
 "cat" copy zz 0[].key=
@@ -407,6 +141,64 @@ spair new #nn
 "dog" copy  nn.key=
 
 nn keep zz 0[].next=
+
+
+virtual HashTable;
+selector HashTable.buckets:[pair%]%;
+
+
+type stringtable
+    buckets:[spair%]%;
+    virtual htab:HashTable;
+end
+
+/*
+
+proc  GetFrom0:(  pi:[pair%]% ; k:Hashkey& -> like pi )
+  
+  pi take #p
+  
+    
+
+  
+  loop
+    
+    p:Bit while
+    
+   // "-" p.key prints newline
+    /*
+    p.key k == if
+        "match" print newline
+        p.value keep return
+    else
+        "continue" print newline
+    end
+       
+    
+    
+  //  p.next keep p=
+  
+  end
+  
+  null return
+  
+end
+*/
+
+
+proc Get:( pi: [spair%]&  ; k:Hashkey& -> like pi)
+
+    null return
+end
+
+//stringtable new #table
+
+//zz keep table.buckets=
+
+[spair%] 10 new #table
+
+table "Cat" Get typeof  "<<<<<<<<<<<<<"  prints newline
+
 
 
 /*
@@ -450,95 +242,3 @@ zz 0[]keep  "q" GetFromBucket  tmp#= print newline
 
 return
 
-var HM:StringHashMap;
-
-"boo" copy HM:HashMap& "1" []=
-"foo" copy HM:HashMap& "2" []=
-
-HM "1" [] typeof print
-HM "1" []:String% ##s print
-HM "2" []:String% s#= print
-
-
-//Z32 Z32& =& print newline
-
-//String% String%& =& typeof print newline
-
-//var sss:String%;
-//"aa" copy sss = & print newline
-
-
-return
-
-
-   // String& sm:HashMap& String& 
-
-    
-//Put& typeof print newline
-
-"whatever" copy #f
-
-//f take sm "testkey":Hashkey& Put
-
-
-//"whatever" copy   sm:HashMap&    "testkey":Hashkey&  []=
-
-
-//proc []=(v:String%; sm:[StringMap%]&; k:String%)
-
-
-
-//end
-
-/*
-"test" :Hashkey&  copy #tc
-
-tc take typeof  "<-- copied after casting "  prints newline
-
-
-proc testcopy:(a:Hashkey& -> like a@%)
-
-    a typeof " <-- testcopy a inside function" prints newline
-    a typeof.@.% " <-- testcopy return value inside function" prints newline
-
-    a copy return
-
-end
-
-"test2" .hash print newline
-"test2" :Hashkey& testcopy #tcc
-
-tcc take typeof  "<-- copied in testcopy with casting "  prints newline
-tcc .hash  " <-- called ... proves the copy preserved the typeselector" prints newline
-
-"test2"  testcopy #tnc
-
-tnc take typeof  "<-- copied in testcopy without casting.  testcopy's  return liketype should see the real type "  prints newline
-tnc .hash  " <-- called " prints newline
-
-
-
-[String%] 3 new #sa
-
-
-"hi"  copy sa 0[]=
-"cat" copy sa 1[]=
-"dog" copy sa 2[]=
-
-
-
-
-[Z32] 10 new #ia
-
-
-111 ia 1[]=
-33334 ia 2[]=
-
-
-primitive index 4  getInt:( arr: [Z32]&; idx:Z32 -> Z32&);
-
-ia 1 getInt@  "<<<<<<<" prints newline
-ia 2 getInt@  "<<<<<<<" prints newline
-
-return
-*/
