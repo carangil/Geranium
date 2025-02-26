@@ -207,6 +207,25 @@ proc ==:(si:String&; ti:String& -> Bit)
 	true return
 end
 
+proc .hash:(s:String&->N32)
+  
+
+    0:N32 #hash
+    
+    0#i  loop 
+
+        s i[] #c 
+        c:Bit while
+        
+        hash    31 * 
+                c:N32 + 
+                        hash=
+        i&++
+    end 
+    hash return
+end
+
+
 
 primitive arrayop 0 .size:( array:[any]& -> Z32);	
 primitive arrayop 1 .count :( array:[any]& -> Z32);
