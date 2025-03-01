@@ -414,7 +414,7 @@ void  tokenize(tokenT* insert, char* in, char* filename){
 //AN INTOTYPE means get the type of ref's struct element by name
 #define INTOTYPE 27
 
-#define VINFO 28
+#define MISSINGSELECTOR 28
 
 typedef struct typeS{
 	char* name;
@@ -467,6 +467,9 @@ typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
 		
 		
 	ty->ref = ref;
+
+
+
 
 	if (category != MEMBER && ((category == LIKE)|| (ref && ref->islike)))
 		ty->islike = ZTRUE;
@@ -831,6 +834,7 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 			case FUNCTION:
 			case SUBTREE:
 			case CPOINTER:
+			case MISSINGSELECTOR:
 
 				if (cmpType(category, ref, NULL, len, ty, ZFALSE, NULL, NULL))
 					return ty;
@@ -863,7 +867,11 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 
 
 
-	if (ref &&((category == ARRAYDYNAMIC)||(category==ARRAYSTATIC) || (category == POINTERUSER)|| (category == POINTERPOSSESSIVE) || (category==SUBTREE) ||(category == CPOINTER) ) ) {
+	if (ref &&
+		((category == ARRAYDYNAMIC)||(category==ARRAYSTATIC) || 
+		(category == POINTERUSER)|| (category == POINTERPOSSESSIVE) || 
+		(category==SUBTREE) ||(category == CPOINTER) ||
+		(category == MISSINGSELECTOR) 	)) {
 
 		//If array or pointer, find the type 'underneath' and make it
 
@@ -1037,8 +1045,8 @@ typedef struct symbolS{
 				   //that address will later be used to identify this function running in a different
 	int   isSelector;// 1 if symbol is a function selector, 2 is is a data selector, 4 if virtual selector
 	zbool isConstant; //1 if symbol is just a constant.  tokens points to the constant handler
-	typeT* offsetSelectorTable;  //when offsetting a point with selectorptr, also change the selector table to reflect the new role
-	zbool offsetSelectorIsForTarget;
+	//typeT* offsetSelectorTable;  //when offsetting a point with selectorptr, also change the selector table to reflect the new role
+//	zbool offsetSelectorIsForTarget;
 	char* debug_comment;
 } symbolT;
 
@@ -1223,7 +1231,9 @@ zbool cmpTypeListToFunc(zvecT* f, zvecT* b, int matchApprox){
 						zbool found = ZFALSE;
 						for (j = 0; j < zvec_count(memberb->ref->members); j++) {
 							typeT* ty = zvec_get_at(memberb->ref->members,j);
-							if (ty->category == MEMBER) {
+
+						
+							//if (ty->category == MEMBER) {
 
 								if ((ty->ref == memberf->ref)) {
 									if (memberb->category == memberf->category) { //both arg and caller have same kind of pointer (POSS or USER)
@@ -1233,7 +1243,7 @@ zbool cmpTypeListToFunc(zvecT* f, zvecT* b, int matchApprox){
 										break;
 									}
 								}
-							}
+							//}
 
 						}
 						if (!found)
@@ -1490,7 +1500,6 @@ void exe(exectxT* c, struct tokenS* t){
 
 		
 
-;
 
 		if (debug_break)
 			printf("debug\n");
@@ -1559,7 +1568,7 @@ tokenT* hgettypeselector(exectxT* ex, tokenT* t) {  //adds selectors to item on 
 	ex->stack[ex->sp - 1].as.ptr.block = ex->stack[(ex->sp) - 1].typeselector;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 	ex->stack[ex->sp - 1].as.ptr.level = 0;
-	ex->stack[ex->sp - 1].split_pointer = 0;
+
 	
 	return tnext(t);
 }
@@ -1850,15 +1859,16 @@ tokenT* hstoreptr (exectxT* ex, tokenT* t) {  //store a pointer
 	vptrT* vp = &DEREF(vptrT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset);
 
 	if (t->val.as.n32 & 8) {  //also store selector
-
-		if (ex->stack[ex->sp - 1].split_pointer) {
-			printf("store split pointer?\n");
-			//don't store the typeselector, since the destination is already assumed to be something
+		
+		if (ex->stack[ex->sp - 1].applyselector) {
+			printf("todo: check proper type storing to\n");
+			ex->stack[ex->sp - 1].applyselector = NULL;
 		}
 		else {
 			DEREF(vptrselectorT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset).typeselector = ex->stack[ex->sp - 2].typeselector;
 		}
 	}
+	
 
 	DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.ptr;
 	ex->sp-=2;
@@ -1893,16 +1903,18 @@ tokenT* hloadptr (exectxT* ex, tokenT* t) { //load a pointer
 	vptrselectorT* vps = &DEREF(vptrselectorT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset);
 	vptrT* vp = &DEREF(vptrT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset);
 
-	if (ex->stack[ex->sp - 1].split_pointer) {
-		//the real pointer loaded from memory is to be combined with the typeselector on the stack
-		//this makes a virtual pointer (fat) (with type selector table) out of a real pointer
-		
-		ex->stack[ex->sp - 1].split_pointer = 0; //clear the flag
-		
-	}else if (t->val.as.n32 & 8) {  //also load selector  
-		ex->stack[ex->sp - 1].typeselector = DEREF(vptrselectorT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset).typeselector;
+	if (t->val.as.n32 & 8) {  //also load selector  
+
+		if (ex->stack[ex->sp - 1].applyselector) {
+			ex->stack[ex->sp - 1].typeselector = ex->stack[ex->sp - 1].applyselector;
+			ex->stack[ex->sp - 1].applyselector = NULL;
+		}
+		else {
+			ex->stack[ex->sp - 1].typeselector = DEREF(vptrselectorT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset).typeselector;
+		}
+	
 	}
-	else if (! t->val.as.n32 ) { 
+	else { 
 		ex->stack[ex->sp - 1].typeselector = NULL;  //blank out if not needed
 	}
 
@@ -1933,13 +1945,18 @@ tokenT* hloadptr (exectxT* ex, tokenT* t) { //load a pointer
 
 tokenT* htakeptr (exectxT* ex, tokenT* t) { //load a pointer, source is made null  (doesn't affect reference count)
 
-	if (t->val.as.n32 & 8) {  //also load selector
+	if (t->val.as.n32 & 8) {  //also load selector (loading virtual pointer)
+		
+		if (ex->stack[ex->sp - 1].typeselector) { 
+			if (ex->stack[ex->sp - 1].typeselector->category != MISSINGSELECTOR)
+				ERR("should not be a typeselector here\n");
 
-		if (ex->stack[ex->sp - 1].split_pointer)
-			ex->stack[ex->sp - 1].split_pointer = 0;
-		 else
+		}else {
 			ex->stack[ex->sp - 1].typeselector = DEREF(vptrselectorT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset).typeselector;
+		}
 	}
+	else
+		ex->stack[ex->sp - 1].typeselector = NULL;  //loaded a real pointer
 	 
  	vptrT tmp = DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
 
@@ -1960,6 +1977,10 @@ tokenT* hoffsetptr (exectxT* ex, tokenT* t) { //add constant offset to pointer
 }
 
 tokenT* hselectorptr(exectxT* ex, tokenT* t) { //add constant offset to pointer by selector
+	if (dobreak)
+		printf("breakpoint\n");
+
+	int line = t->line;
 
 	typeT* seltable = ex->stack[ex->sp - 1].typeselector;
 
@@ -1975,15 +1996,55 @@ tokenT* hselectorptr(exectxT* ex, tokenT* t) { //add constant offset to pointer 
 		t->val.as.n32, seltable->ref->name,
 		selected->offset, seltable->parent->name);
 		*/
-	
-	ex->stack[ex->sp - 1].as.ptr.offset += selected->offset;
-	ex->stack[ex->sp - 1].typeselector = selected->offsetSelectorTable;  //only needed when selectorptring into a virtual struct																		 
 
-	if (selected->offsetSelectorIsForTarget)
-		ex->stack[ex->sp - 1].split_pointer = ZTRUE;																	 //HEREAA
+	ex->stack[ex->sp - 1].as.ptr.offset += selected->offset;
+	
+
+	if (selected->type->category == MISSINGSELECTOR)
+		ex->stack[ex->sp - 1].applyselector = selected->type;
+	else
+		ex->stack[ex->sp - 1].applyselector = NULL;
+	
+
+	//ex->stack[ex->sp - 1].typeselector = selected->offsetSelectorTable;  //only needed when selectorptring into a virtual struct																		 
+
+
+
+//	if (selected->offsetSelectorIsForTarget)
+	//	ex->stack[ex->sp - 1].split_pointer = ZTRUE;																	 //HEREAA
 
 	return tnext(t);
 }
+
+
+
+tokenT* hselectorreadvptr(exectxT* ex, tokenT* t) { //add constant offset to pointer by seltable, then read
+
+	typeT* seltable = ex->stack[ex->sp - 1].typeselector;
+
+	if (!seltable) {
+		ERR("null selector ptr %s %d\n", t->sourcefile, t->line);
+
+	}
+
+	symbolT* selected = zvec_get_at(seltable->selectors, t->val.as.n32); //grab the nth function from the selector table
+
+	/*
+	printf(" Data selector %d for virtual type %s is  %d for real type %s\n",
+		t->val.as.n32, seltable->ref->name,
+		selected->offset, seltable->parent->name);
+		*/
+
+	ex->stack[ex->sp - 1].as.ptr.offset += selected->offset;
+	//ex->stack[ex->sp - 1].typeselector = selected->offsetSelectorTable;  //only needed when selectorptring into a virtual struct																		 
+
+	//if (selected->offsetSelectorIsForTarget)
+		//ex->stack[ex->sp - 1].split_pointer = ZTRUE;																	 //HEREAA
+
+	return tnext(t);
+}
+
+
 
 
 
@@ -2106,6 +2167,9 @@ tokenT* hindex(exectxT* ex, tokenT* t) {	//index into array
 	ex->sp--;
 	return tnext(t);
 }
+
+
+
 
 tokenT* harrayop(exectxT* ex, tokenT* t) {	//edit array
 
@@ -2435,9 +2499,15 @@ tokenT* hprintptr (exectxT* ex, tokenT* t) {
 		printf("/");
 		printTypeNoRedirect(ex->stack[ex->sp].typeselector->parent, ZFALSE, ZTRUE);
 	}
-	if (ex->stack[ex->sp].split_pointer)
-		printf("(split)");
+	if (ex->stack[ex->sp].applyselector) {
+		printf(" apply ");
+		printTypeNoRedirect(ex->stack[ex->sp].applyselector, ZFALSE, ZTRUE);
+		printf("/");
+		printTypeNoRedirect(ex->stack[ex->sp].applyselector->parent, ZFALSE, ZTRUE);
+	}
+	
 	printf("}");
+	ex->stack[ex->sp].typeselector = NULL;
 	return tnext(t);
 }
 
@@ -3767,8 +3837,45 @@ void checkUsage(tokenT* start, tokenT* end){
 	
 	
 } 
+
+
+void printSelectorTable(typeT* ty, int recurse) {
+
+	int i;
+	if (recurse < 0){
+		printf("...\n");
+		return;
+	}
+
+	printf(" Selector Table %p for %s as %s\n", ty,  ty->parent->name, ty->ref->name);
+	for (i = 0; i < zvec_count(ty->selectors); i++) {
+		symbolT* s = zvec_get_at(ty->selectors, i);
+
+		printf("%d:%s \t+%d ", i, s->name, s->offset);
+
+		if (s->type->category == FUNCTION)
+			printf(" function\n");
+		else {
+
+			if (s->type->category == MISSINGSELECTOR) {
+				printf(" real to virtual %s -> %s \n", s->type->ref->name, s->type->parent->name);
+				printSelectorTable(s->type, recurse - 1);
+			}
+			else {
+				printf(" real %s  \n", s->type->name);
+			}
+			
+		}
+
+	}
+
+	printf("-------\n");
+}
+
 //checks that real_type implements all the selectors of vtype
 void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmember) {
+
+	
 
 	if (real_type_vmember->selectors) {
 
@@ -3795,11 +3902,12 @@ void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmemb
 	//zvec_disown(real_type_vmember->selectors);
 
 	int n;
+
+	printf("Create selector table for %s -> %s\n", real_type->name, vtype->name);
+
 	for (n = 0; n < zvec_count(vtype->selectors); n++) {
 		symbolT* vselector = zvec_get_at(vtype->selectors, n);
-		xprintf(" Need to find member %s implementation of %s ",
-			real_type->name,
-			vselector->name);
+		
 		
 		/*
 		if (vselector->isSelector == 4) {
@@ -3815,8 +3923,15 @@ void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmemb
 				typeT* member = zvec_get_at(real_type->members, j);
 				if (!strcmp(member->name, vselector->name)) {
 					
-					
-					
+					printf(" %s.%s: %s  AS   %s:%s\n",
+						real_type->name,
+						member->name,
+						member->ref->name,
+						
+						member->ref->name,
+						vselector->type->name						
+						);
+										
 					if ((member->ref == vselector->type) || compatibleType(member->ref, vselector->type, ZTRUE)) {
 						
 						//make a symbol for it.
@@ -3829,7 +3944,7 @@ void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmemb
 						}
 						else*/
 						
-						
+												
 						{
 
 							s = mkSymbol(NULL, member->name, member->ref, NULL);
@@ -3849,23 +3964,32 @@ void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmemb
 								typeT* membervtype = vselector->type->ref; //virtual type
 
 								typeT* realmembertype = member->ref->ref; //real type
-								printf("b\n");
+					
 								int b;
 
 								if ((membervtype->category == VIRTUAL) && (realmembertype->category != VIRTUAL)) {
 									//find the realmembervtype member that supports the membervtype
 									int a;
+									//printf(" %s view of %s %s is missing selector (ok)\n", vselector->type->name, realmembertype->name, realmember
+
+							
+
+									
 									for (a = 0; a < zvec_count(realmembertype->members); a++) {
 										typeT* m = zvec_get_at(realmembertype->members, a);
+										
 										if (m->ref == membervtype) {
 											//we found the supporting member
-											s->offsetSelectorTable = m;
-											s->offsetSelectorIsForTarget = 1;
+											s->type = m;
+											m->category = MISSINGSELECTOR;
+
+
+											//s->type = findType(MISSINGSELECTOR, m, NULL, 0);
 											break;
 										}
 
 									}
-
+									
 
 								}
 
@@ -3996,6 +4120,7 @@ void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmemb
 		ram_free(v); //frop up X
 	}
 
+	printSelectorTable(real_type_vmember, 1);
 
 
 }
@@ -6530,10 +6655,24 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						symbolT* s = zvec_get_at(ptype->ref->selectors, j);
 						//todo: check it really is a data selector
 						if (!strcmp(s->name, t->str + 1)) {
-							//get real type selector table
-							t->handler =  hselectorptr;
-							t->val.as.n32 = s->selectorNum;
-							t->ty = findType(POINTERUSER, s->type, NULL, 0);
+
+
+							if (s->type->ref && s->type->ref->category == VIRTUAL) {
+								//if the real type has a pointer to virtual pointer
+								//it could actually be a pointer to a real type that should be 
+								//expanded out to a virtual type
+								
+								t->handler = hselectorptr; //this needs to be resolved by a load/take/store
+								t->val.as.n32 = s->selectorNum;
+								t->ty = findType(POINTERUSER, s->type, NULL, 0);
+								t->breakpoint = 1;
+							}
+							else {
+								//get real type selector table offset
+								t->handler = hselectorptr;
+								t->val.as.n32 = s->selectorNum;
+								t->ty = findType(POINTERUSER, s->type, NULL, 0);
+							}
 
 							found = 1;
 							break;

@@ -30,6 +30,14 @@ type spair
     virtual p:pair;
 end
 
+type ipair
+    key:String%;
+    value:Z32%;
+    next: spair%;
+    virtual p:pair;
+end
+
+
 
 proc  GetFromBucket:(  pi:pair% ; k:Hashkey& -> like pi.value )
   
@@ -44,16 +52,39 @@ proc  GetFromBucket:(  pi:pair% ; k:Hashkey& -> like pi.value )
     
    // "-" p.key prints newline
     
-    p.key k == if
+    
+    "P  " print p printptr newline
+    "p& " print p& printptr newline
+    
+    
+    "P NEXT" print p.next printptr newline
+    
+    "P NEXT&" print p.next& printptr newline
+    
+    
+    
+    
+    "P VALUE" print p.value printptr newline
+    "P KEY"  print p.key printptr newline
+    
+    
+    
+    p.key 
+    
+    k == if
         "match" print newline
-        p.value keep return
+        p    .value keep return
     else
         "continue" print newline
     end
        
+    "p.key: " print p.key printptr newline
     
-    
-    p.next keep p=
+    p //~
+    .next 
+    keep 
+    p
+    =
   
   end
   
@@ -94,15 +125,17 @@ proc  PutInBucket:(   v: like pi.value;    pi:pair% ; k:Hashkey& -> like pi )
   
   end
   
+  
+  "NEW ITEM" print newline
+  
   pi dtypeof new p=
   
   p:any& printptr
   
-  "p.next&" print
-  p.next&  :any& printptr newline
+
   
   "p.next" print
- ~ p.next  :any& printptr newline
+  p.next   printptr newline
     
   "set v value" print newline
   v take p.value= 
@@ -215,7 +248,13 @@ n2 keep zz 0[].next.next=
 
 //zz 0[]keep  "x" GetFromBucket  ##tmp print newline
 zz 0[]keep  "cat" GetFromBucket  ##tmp print newline
-zz 0[]keep  "dog" GetFromBucket  tmp#= print newline
+
+
+
+zz 0[]keep  "dog"  GetFromBucket  tmp#= print newline
+
+
+
 zz 0[]keep  "q" GetFromBucket  tmp#= print newline
 
 
@@ -223,7 +262,14 @@ zz 0[]keep  "q" GetFromBucket  tmp#= print newline
 
 zz 0[] :any& printptr newline
 
+
+
 "newtest" copy  zz 0[]keep  "cat"  PutInBucket   zz 0[]=
+
+// "back to read" print newline
+
+zz 0[]keep  "cat" GetFromBucket  tmp#= print newline
+
 
 zz 0[]  :any& printptr newline
 "snail" copy  zz 0[]keep  "pest"  PutInBucket   zz 0[]=

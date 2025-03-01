@@ -50,8 +50,9 @@ typedef union valu {	//Generic value (datatype is tracked through other means)
 
 typedef struct valueS {
 	valU as;
-	struct typeS* typeselector;
-	zbool split_pointer;
+	struct typeS* typeselector;  //selector table for the current type's view
+	struct typeS* applyselector;	//selector table to apply to the reads or check write for this item
+
 }valueT;
 
 /**** Execution Context ****/
