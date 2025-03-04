@@ -51,8 +51,7 @@ typedef union valu {	//Generic value (datatype is tracked through other means)
 typedef struct valueS {
 	valU as;
 	struct typeS* typeselector;  //selector table for the current type's view
-	struct typeS* applyselector;	//selector table to apply to the reads or check write for this item
-
+	
 }valueT;
 
 /**** Execution Context ****/
@@ -133,10 +132,18 @@ typedef struct tokenS {
 }tokenT;
 
 
+
+//proc search matchApprox values
+
 #define MATCH_EXACT			0
 #define MATCH_IGNORE_SIGNED	1
 #define MATCH_VIRTUAL		2
-#define MATCH_ALLOW_WILD	3
-#define MATCH_MAX_APPROX	3
+#define MATCH_LIKE  		3
+#define MATCH_ALLOW_WILD	4
+#define MATCH_MAX_APPROX	4
 
-// 'match virtual' means 
+// exact:  only the exact same types
+// ignore signed:  N32 and Z32 considered the same
+// match virtual:  can pass a real pointer as virtual (adds a typeselector
+// match like:  'like' types are resolved
+// allow wild:  any&, any% will match things

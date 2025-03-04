@@ -4,6 +4,23 @@ primitive C_ptrequal ==:(a:any&; b:any&-> Bit);
 
 
 
+
+
+virtual TestV;
+selector TestV.F:Z32;
+
+
+type TestR
+    F:Z32;
+    virtual tv:TestV;
+end
+
+TestR new #tr
+tr :TestV&
+
+
+
+
 //need a hashmap
 
 
@@ -22,17 +39,22 @@ selector pair.value:any%;
 //selector pair.key:String%;
 selector pair.key:Hashkey%;
 selector pair.next:pair%;
+selector pair.nextG:pair%;
+//selector pair.TEST:Z32%;
 
 type spair
     key:String%;
     value:String%;
     next: spair%;
+    nextG:pair%;
     virtual p:pair;
+    //TEST:Z32%;
 end
 
 type ipair
     key:String%;
     value:Z32%;
+    nextG:pair%;
     next: spair%;
     virtual p:pair;
 end
@@ -97,21 +119,24 @@ proc  PutInBucket:(   v: like pi.value;    pi:pair% ; k:Hashkey& -> like pi )
   
   pi keep #p
   
-    v printptr
-    v typeof "================" prints newline
+  "PUT. start with p as " print    p printptr  newline
+   
     
   //"looking for " k "to insert" prints newline
   
   loop
     
     p:Bit while
+      
+      "PUT. loop start with p as " print    p printptr  newline
     
- //   " see " p.key prints newline
     
     p.key k == if
+    
+    
         "match.. time to write" print newline
-        
-        v take p.value =
+ 
+       v take p.value =
         
         pi take return
         
@@ -120,13 +145,16 @@ proc  PutInBucket:(   v: like pi.value;    pi:pair% ; k:Hashkey& -> like pi )
         "continue" print newline
     end
            
+    "PUT. p next " print    p.next printptr  newline
     
     p.next keep p=
   
   end
   
   
+  
   "NEW ITEM" print newline
+ 
   
   pi dtypeof new p=
   
@@ -176,19 +204,10 @@ spair new #nn
 nn keep zz 0[].next=
 
 
-virtual HashTable;
-selector HashTable.buckets:[pair%]%;
-
-
-type stringtable
-    buckets:[spair%]%;
-    virtual htab:HashTable;
-end
-
 /*
 
 proc  GetFrom0:(  pi:[pair%]% ; k:Hashkey& -> like pi )
-  
+  :%s
   pi take #p
   
     
@@ -218,20 +237,88 @@ proc  GetFrom0:(  pi:[pair%]% ; k:Hashkey& -> like pi )
 end
 */
 
-
+/*
 proc Get:( pi: [spair%]&  ; k:Hashkey& -> like pi)
-
+    "spair version" print newline
     null return
 end
+*/
+/*
+proc AA:(a:pair&)
+  "pair version" print newline
+end
+
+
+proc AA:(a:spair&)
+  "spair version" print newline
+end
+*/
+
+
+/*
+
+
+
+pair new #P2
+
+P1 AA
+P2 AA
+*/
 
 //stringtable new #table
 
 //zz keep table.buckets=
 
+
+
+
 [spair%] 10 new #table
 
-table "Cat" Get typeof  "<<<<<<<<<<<<<"  prints newline
 
+
+proc Get:( pi:[pair%]&  ; k:Hashkey& -> like pi[].value)
+
+    newline "get start" print newline newline
+    pi 0[] keep #p
+    
+    p printptr newline
+    
+    loop 
+        "p " print   p printptr newline
+        p :Bit  while
+        
+        "key " p.key :String& prints newline
+        
+        p.key k == if
+            p.value keep return
+        end
+        
+        p.next keep p =
+    
+       
+    end
+    
+    null return
+end
+
+
+
+
+//[pair%] 10 new #pa
+
+//table "Cat" Get ##bb
+
+
+
+//table "Cat" Gets ##bc
+
+//pa "Cat" Get ##bd
+
+ zz  "cat" Get ##l   "!!!!!" prints  newline
+
+//return
+//table:[pair%]& "Cat" Get ##bb
+//return
 
 
 /*
@@ -247,15 +334,15 @@ n2 keep zz 0[].next.next=
 
 
 //zz 0[]keep  "x" GetFromBucket  ##tmp print newline
-zz 0[]keep  "cat" GetFromBucket  ##tmp print newline
+zz 0[]keep  "cat" GetFromBucket  ##tmp "<<<<<<<<<<<<<<<<<<<" prints newline
 
 
 
-zz 0[]keep  "dog"  GetFromBucket  tmp#= print newline
+zz 0[]keep  "dog"  GetFromBucket  tmp#= "<<<<<<<<<<<<<<<<<<<" prints newline
 
 
 
-zz 0[]keep  "q" GetFromBucket  tmp#= print newline
+zz 0[]keep  "q" GetFromBucket tmp#=   "<<<<<<<<<<<<<<<<<<<" prints newline
 
 
 //zz 0[]keep typeof print newline return
@@ -263,12 +350,19 @@ zz 0[]keep  "q" GetFromBucket  tmp#= print newline
 zz 0[] :any& printptr newline
 
 
+zz 0[]keep  "cat" GetFromBucket  tmp#=  "<<<<<<<<<<<<<<<<<<<" prints newline
 
-"newtest" copy  zz 0[]keep  "cat"  PutInBucket   zz 0[]=
 
-// "back to read" print newline
+"zz0 " print  zz 0[]:pair& printptr newline
 
-zz 0[]keep  "cat" GetFromBucket  tmp#= print newline
+"newtest" copy  zz 0[]keep  "cat"  PutInBucket  #ppp
+
+"zz0 " print  zz 0[]:pair& printptr newline
+
+
+//~ zz 0[]keep  "cat" GetFromBucket  tmp#=  "<<<<<<<<<<<<<<<<<<<" prints newline
+
+
 
 
 zz 0[]  :any& printptr newline
@@ -279,9 +373,13 @@ zz 0[]  :any& printptr newline
 zz 0[]keep  "cat" GetFromBucket  tmp#= print newline
 zz 0[]keep  "dog" GetFromBucket  tmp#= print newline
 zz 0[]keep  "q" GetFromBucket  tmp#= print newline
- zz 0[]keep  "pest" GetFromBucket  tmp#= print newline
+zz 0[]keep  "pest" GetFromBucket  tmp#= print newline
 
 //typeof print newline
+
+ zz  "dog" Get ##dd  "!!!!!" prints  newline
+"Zzz" print newline
+return
 
 
 //S Get typeof print newline
