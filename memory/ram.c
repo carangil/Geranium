@@ -18,6 +18,7 @@
 #endif
 
 #define MYMAGIC 0xf1e2f3e4
+#define FREEMAGIC 0xABCDEF88
 
 #define GPU_STORAGE
 
@@ -44,6 +45,7 @@ typedef struct mem_header_s
 {
 #ifdef RAM_DEBUG
 	zlistnodeT zlistnode;
+	int debug_size;
 #endif
 	ram_destructor destructor;
 #ifdef RAM_DEBUG
@@ -163,9 +165,11 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_siz
                 
 
 #ifdef RAM_DEBUG
-                int aa=zlock_inc(&ram_allocs_cnt);
+		x->debug_size = size ;
+
+        int aa=zlock_inc(&ram_allocs_cnt);
 				
-                zlock(&ram_debug_lock);
+        zlock(&ram_debug_lock);
                 
 		
 		
@@ -282,14 +286,17 @@ void ram_free(void* thing)
 			if (do_free)
 			{
 							  
-#ifdef RAM_DEBUG
+#ifdef RAM_DEBUG 
+
                               int x=  zlock_dec(&ram_allocs_cnt);
-								
+#ifndef RAM_FAKE_FREE		
+							  
                                 zlock(&ram_debug_lock);
                                 
                                 zlist_remove_mid(&header->zlistnode);
 
                                 zunlock(&ram_debug_lock);
+#endif
 #endif
                          
 				buffer = (char*) header;
@@ -298,7 +305,8 @@ void ram_free(void* thing)
 					//printf("Free physical buffer %p with shadow %d.  Header starts at %p Userdata at %p\n", buffer, header->shadow_size, header, header+1);
 				}
 #ifdef RAM_FAKE_FREE
-				header->magic = 0xABCDEF88;
+				header->magic = FREEMAGIC;
+				
 #else
 				free(buffer);
 #endif
@@ -396,6 +404,7 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 #endif
 		buffer = realloc(buffer, sizeof(mem_headerT) + size + header->shadow_size);  //attempt resize to new size;
 
+		
 
 		if (buffer)
 			header = (mem_headerT*)(buffer + shadow_size);
@@ -414,7 +423,7 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 		else                    /*Put old one back on list */
                        	zlist_addhead_nocheck(&_ram_debuglist, &oldheader->zlistnode);
 		
-                
+		header->debug_size = size + shadow_size;
                 zunlock(&ram_debug_lock);
 #endif
 
@@ -472,17 +481,39 @@ zuint32 ram_allocs()
 	int count=0;
 
 	mem_headerT* node = zlist_head(&_ram_debuglist);
-	
+
+#ifdef RAM_FAKE_FREE
+	int totbytes = 0;
+#endif
 
 	while(node)
 	{
-		fprintf(stderr, "%p alloced at %s:%d (%d refs)  %.40s\n",
-			node+1, node->file, node->line, node->refcount	, node+1 );
-		count++;
+
+
+		
+#ifdef RAM_FAKE_FREE
+		totbytes += node->debug_size;
+#endif
+
+		if (node->magic != FREEMAGIC) 
+		{
+			fprintf(stderr, " %d bytes ", node->debug_size);
+
+			fprintf(stderr, "%p alloced at %s:%d (%d refs)  %.40s\n",
+				node + 1, node->file, node->line, node->refcount, node + 1);
+
+			count++;
+		}
+
+
 		node = zlist_next(node);
 	}
 	
 	fprintf(stderr, "%d unfreed allocations\n", count);
+
+#ifdef RAM_FAKE_FREE
+	fprintf(stderr, "%d bytes   (%d K) ever allocated\n", totbytes, totbytes / 1024);
+#endif
 
 	if (ram_allocs_cnt != count)
 		fprintf(stderr, " Internal inconsistency in ram.c, oops\n");
