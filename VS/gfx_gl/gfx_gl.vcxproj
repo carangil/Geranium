@@ -103,7 +103,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(SolutionDir)..gfx_gl\glad\include;$(SolutionDir)\..\..\external\glfw-3.3.8.bin.WIN64\include\GLFW;$(SolutionDir)\..\..\external\glfw-3.3.8.bin.WIN64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)\..\gfx_gl;$(SolutionDir)\hcopy</IncludePath>
+    <IncludePath>$(SolutionDir)\..\gfx_gl\glad\include;$(SolutionDir)\..\..\external\glfw-3.3.8.bin.WIN64\include\GLFW;$(SolutionDir)\..\..\external\glfw-3.3.8.bin.WIN64\include;$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)\..\gfx_gl;$(SolutionDir)\hcopy</IncludePath>
     <LibraryPath>H:\projects\external\glfw-3.3.8.bin.WIN64\lib-vc2019;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
