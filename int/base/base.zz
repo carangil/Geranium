@@ -9,6 +9,13 @@ opaque GLSLDrawProc;
 stacked GLSLDrawProc;
 
 
+primitive arrayop 0 .size:( array:[any]& -> Z32);	
+primitive arrayop 1 .count :( array:[any]& -> Z32);
+primitive arrayop 2 .count=:( n:Z32; array:[any]&);	
+primitive arrayop 3 resize:( n:Z32; Xarray:[any]% -> like Xarray  );	
+primitive arrayop 4 push:(a:any; array:[like a]%& );
+
+
 
 //more includes at bottom on this file
 
@@ -38,6 +45,8 @@ proto newline:(->);
 "
 " constant LF
 
+primitive C_ptrequal ==:(a:any&; b:any&-> Bit);
+
 
 //proc immediate not:(code b:any->Code%)
 	//"auto insert :Bit" print newline
@@ -50,7 +59,7 @@ proc immediate not:(code a:any& ->Code%)
 
 end
 
-primitive loadptr H:( a:any&& -> like a@ );
+//primitive loadptr H:( a:any&& -> like a@ );
 
 
 //basic console io
@@ -64,6 +73,9 @@ primitive printptr  printptr:(a:vany& ->);
 primitive readchar  getch:(->N8);
 primitive equal32   ==:(a:N8; b:N8 -> Bit);
 
+
+primitive printptr  print:(a:any& ->);
+primitive printptr  print:(a:vany& ->);
 
 
 proc newline:(->)
@@ -82,6 +94,11 @@ proc print:(s:String&->)
 	s:Bit not if
 		"{null}" print
 		return
+	end
+	
+	s.size 0== if
+        "{0count}" print
+        return
 	end
 	
 	0 #i
@@ -146,7 +163,7 @@ proc readline:(->String%)
 		end
 	end
 	
-	s take:String% return  //take ownership of s, cast to a string pointer, return ownership of s
+	s take return  //take ownership of s, cast to a string pointer, return ownership of s
 	
 end
 
@@ -172,12 +189,12 @@ proc copy:(s:String& -> String%)
 	0 #i loop
 		s i[] news i[]=
 		s i[] 0:N8 == if
-			news take :String%  return
+			news take  return
 		end
 		i&++
 	end
 	
-    0:String% return
+    null return
 end
 
 proc ==:(si:String&; ti:String& -> Bit)
@@ -227,11 +244,8 @@ end
 
 
 
-primitive arrayop 0 .size:( array:[any]& -> Z32);	
-primitive arrayop 1 .count :( array:[any]& -> Z32);
-primitive arrayop 2 .count=:( n:Z32; array:[any]&);	
-primitive arrayop 3 resize:( n:Z32; Xarray:[any]% -> like Xarray  );	
-primitive arrayop 4 push:(a:any; array:[like a]%&);	
+
+
 
 //typecategory List;
 //typecategory %;

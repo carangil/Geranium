@@ -1,7 +1,8 @@
 #include "int.h"
-#define XDEBUG 1
-#define xprintf(a,...) (XDEBUG?fprintf(logfile, a, __VA_ARGS__),fflush(logfile):0)
-FILE* logfile;
+#include "signal.h"
+#define XDEBUG 0
+#define xprintf(a,...) (logfile?fprintf(logfile, a, __VA_ARGS__),fflush(logfile):0)
+FILE* logfile=NULL;
  
 #ifdef FLOAT 
 #include "math.h"
@@ -12,7 +13,7 @@ void breakpoint() {
 
 int dobreak = 0;
 char* lastfile = NULL;
-char* lastline = 0;
+int lastline = 0;
 
 typedef struct{
 	char* message;
@@ -32,7 +33,7 @@ errorT* fgetError(errorT* error) {
 	return NULL;
 }
 
-char* fsetError(errorT* error, char* message, tokenT* t, int flags) {
+void fsetError(errorT* error, char* message, tokenT* t, int flags) {
 
 	fprintf(stderr, "\n\n%s\n",message);
 	error->message = message;
@@ -49,6 +50,7 @@ char* fsetError(errorT* error, char* message, tokenT* t, int flags) {
 	if (flags && EQUIT)
 		exit(1);
 
+	
 }
 
 
@@ -90,7 +92,7 @@ typedef struct parsectxS{
 	exectxT* exec;
 	zbool no_global_vars;	//set to true to prevent compiling access to global variables (global functions ok)
 	tokenT* t; //where parser left of if calling into a Z program to parse
-	char* name;
+	char* prefix;
 }parsectxT;
 
 /**** Tokenizer ****/
@@ -188,7 +190,7 @@ zbool token_cleanup(void* v){
 	ram_free(t->sourcefile);
 
 	if (t->val_to_free)
-		ram_free(t->val.as.ptr.block);
+		ram_free(t->val.as.ptr.addr.bytes);
 	zlist_cleanup(&t->subs);
 	return ZTRUE;
 }
@@ -210,9 +212,9 @@ tokenT* mkToken(zuint32 tok, char* str, zuint32 len){
 	}
 
 	//tokenT** s that point to the listnode... so in a debugger we can see *debug_next as next as a tokenT
-	t->debug_next = &t->zlistnode.next;
-	t->debug_prev = &t->zlistnode.prev;
-	t->debug_subs = &t->subs.sentinal_head.next;
+	t->debug_next = (tokenT**) &t->zlistnode.next;
+	t->debug_prev = (tokenT**) &t->zlistnode.prev;
+	t->debug_subs = (tokenT**) &t->subs.sentinal_head.next;
 	return t;
 }
 
@@ -434,11 +436,11 @@ void  tokenize(tokenT* insert, char* in, char* filename){
 #define PRIMITIVE		7
 #define POINTERPOSSESSIVE 8
 #define CPOINTER		9
-#define OPAQUE			10
+#define ZOPAQUE			10
 #define VIRTUAL			11
 #define LAST_REAL_TYPE	10
 
-//OPAQUE is an opaque value with a size.  
+//OPAQUE is an opaque value with a size.  ZOPAQUE because it conflicts with a built-in windows thing 
 //CPOINTER is a machine-sized pointer compatible with C.  Not reference counted, etc. Using Z pointers is preferred, but when a pointer needs to be stored in a C struct, it has to be C-sized
 //ARRAYSTATIC have a fixed size.  To be embedded directly in structs, etc
 //ARRAYDYNAMIC are heap allocated
@@ -501,7 +503,7 @@ zbool type_cleanup(void* v){
 }
 
 //creates a type and returns a pointer do it.  Caller does not need to free the pointer, it will be cleaned up at the end
-typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
+typeT* mkType(zuint32 category, typeT* ref, char* name, zuint32 szlen){
 	
 	typeT* ty= ram_alloc(sizeof(typeT), type_cleanup);
 		
@@ -519,8 +521,8 @@ typeT* mkType(zuint32 category, typeT* ref, char* name, size_t szlen){
 		ty->islike = ZTRUE;
 
 	if (category == ARRAYSTATIC || category == ARRAYDYNAMIC){	
-		ty->len = szlen;
-		ty->size = szlen * ref->size;
+		ty->len =  szlen;
+		ty->size =  szlen * ref->size;
 	}
 	else if (category == MEMBER){
 		ty->offset = szlen;
@@ -636,7 +638,7 @@ void printType(typeT* ty, zbool line, zbool skipmembers){
 			//xprintf("(virt) ");
 			break;
 
-		case OPAQUE:
+		case ZOPAQUE:
 			xprintf("<opaque>");
 			break;
 
@@ -696,8 +698,8 @@ void printTypeNoRedirect(typeT* ty, zbool line, zbool skipmembers) {
 	logfile = old;
 }
 
-typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany, * tImmediate, * tCode, * tExecToken, * tEmptyStack, * tvany, *tSymbol, *tNullptr ;
-typeT* findType(zuint32 category, typeT* ref, char* name, size_t len);
+typeT* tType, * tPrimitive, * tZ32, * tN32, * tN8, * tBit, * tString, * tReal, * tany, * tImmediate, * tCode,  * tEmptyStack, * tvany, *tSymbol, *tNullptr ;
+typeT* findType(zuint32 category, typeT* ref, char* name, zuint32 len);
 typeT* findTypeMember(typeT* type, char* name, int* pos, int* count);
 
 //given an likename, and a list of arg types a function accepts, and a list of types a caller is using, figure out what type an arg or return value is
@@ -714,7 +716,7 @@ typeT* tInvalid = NULL;
 //compare two types, return true if equivalent
 //if allow_any is set, than 'any' can match any type. (meaning any& will match all references, [any%] will match all arrays of possiesve pointers, etc)
 
-zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty, zbool matchApprox, zvecT* proc_likes, zvecT* caller_likes){
+zbool cmpType(zuint32 category, typeT* ref, char* name, zuint32 len, typeT* ty, zbool matchApprox, zvecT* proc_likes, zvecT* caller_likes){
 
 	if (ty == tInvalid)
 		return ZFALSE;
@@ -815,7 +817,7 @@ zbool cmpType(zuint32 category, typeT* ref, char* name, size_t len, typeT* ty, z
 }
 
 //finds simple or struct types, OR creates composite types (arrays, pointers of existing types) as needed
-typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
+typeT* findType(zuint32 category, typeT* ref, char* name, zuint32 len){
 
 	typeT* ty;
 	typeT* found=NULL;
@@ -841,7 +843,7 @@ typeT* findType(zuint32 category, typeT* ref, char* name, size_t len){
 			case SIMPLE: //simple types matched by name only
 			case STRUCT: 
 			case PENDING:
-			case OPAQUE:
+			case ZOPAQUE:
 			case ALIAS:
 				if (!strcmp(name, ty->name)){
 					//found on name
@@ -973,7 +975,7 @@ int printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indentin){
 		}
 		//check if there are redirected subshredirectsub
 		if (t->tok == PASSTHRU && t->handler == hredirectsub) {
-			tokenT* redirected = t->val.as.token;
+			tokenT* redirected = t->val.as.ptr.addr.token;
 			if (redirected && zlist_head(&redirected->subs)) {
 				//indent = 
 				xprintf("\n");
@@ -1026,7 +1028,7 @@ int printList(tokenT* t, tokenT* cur, zuint32 stop_tok, int indentin){
 			xprintf(" handler %p ", t->handler);
 		}
 
-		xprintf("(%p %x)",t->val.as.ptr.block, t->val.as.ptr.offset);
+		xprintf("(%p %x)",t->val.as.ptr.addr.bytes, t->val.as.ptr.offset);
 		
 		if (!zlist_head(&t->subs))
 			xprintf("}");
@@ -1089,7 +1091,7 @@ void check_implementation(typeT* vtype, typeT* real_type, typeT* real_type_vmemb
 //is_caller:  If this is true, the like type is resolved using the caller's types.  Otherwise, it is from the point of 
 //view of the function.
 typeT* resolve_like_type(typeT* liketype, zvecT* proc_likes, zvecT* caller_likes, zbool is_caller) {
-	int i;
+	zuint32 i;
 
 	if (!liketype || !liketype->islike) {
 		return liketype;
@@ -1135,7 +1137,7 @@ typeT* resolve_like_type(typeT* liketype, zvecT* proc_likes, zvecT* caller_likes
 			if (unwrapped->category == VIRTUAL) {
 				//find the selctor, and return its type
 
-				for (int i = 0; i < zvec_count(unwrapped->selectors); i++) {
+				for (zuint32 i = 0; i < zvec_count(unwrapped->selectors); i++) {
 					symbolT* sel = zvec_get_at(unwrapped->selectors, i);
 
 					if (!strcmp(sel->name, liketype->name)) {
@@ -1351,7 +1353,7 @@ symbolT* findSymbol(zvecT* table, char* name, zvecT* typelist) {
 zvecT* primitives=NULL;
 
 char* findSymbolByHandler(instruction handler) {
-	int i;
+	zuint32 i;
 	if (!handler)
 		return NULL;
 	for (i = 0; i < zvec_count(primitives); i++) {
@@ -1373,7 +1375,7 @@ symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction h
 	
 	if (!type) {
 		setError(pctx, NULL, "no type for symbol\n");
-		return &invalidToken;
+		return NULL;
 	}
 		
 	if (type == tPrimitive) {
@@ -1390,10 +1392,8 @@ symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction h
 		//if ((type->category == POINTERPOSSESSIVE || type->category == POINTERUSER) && (type->ref->category == FUNCTION))
 		//	printf("overloading function\n");
 	} else if (table &&  findSymbol(table, name, NULL)){
-			
-
 		setErrorf(pctx, NULL, " Attempt to redefine %s in same context\n", name);
-		return &invalidToken;
+		return NULL;
 	}
 		
 	sym = ram_alloc(sizeof(symbolT), symbol_cleanup);
@@ -1423,7 +1423,7 @@ symbolT* mkSymbol(struct parsectxS* pctx, char* name, typeT* type, instruction h
 }
 
 void printSymbols(zvecT* table , char* label){
-	int i;	
+	zuint32 i;	
 	xprintf("\n\nSymbols for %s\n", label);
 	for (i=0;i<zvec_count(table);i++){
 		symbolT* sym = zvec_get_x_at(table, symbolT*, i);
@@ -1438,7 +1438,7 @@ void free_array_of_possessive_pointers(void* v, zuint32 len, zbool virtual);
 /**** Execution ****/
 zbool struct_clean(void* v, typeT* ty);
 void clean_context_pointers( zvecT* table, char* vars){
-	int i;
+	zuint32 i;
 	for (i=0;i<zvec_count(table);i++){
 		symbolT* sym = zvec_get_x_at(table, symbolT*, i);
 		if (sym->type->category == POINTERPOSSESSIVE){
@@ -1522,17 +1522,18 @@ void exe(exectxT* c, struct tokenS* t){
 		if (t->breakpoint)
 			printf("break\n");
 
+
 		if (handler) 
 			t = handler(c, t);
 				
 		if (c->debugstack) {
 			xprintf("exe->  %s",  str);
 			xprintf("sp %x:\n", c->sp);
-			int i;
+			zuint32 i;
 			for (i = 0; i <= c->sp+2; i++) {
 				if (i == c->sp)
 					xprintf("INVALID:");
-				xprintf("%d: (%p+%x)/%d", i, c->stack[i].as.ptr.block, c->stack[i].as.ptr.offset, c->stack[i].as.z32);
+				xprintf("%d: (%p+%x)/%d", i, c->stack[i].as.ptr.addr.bytes, c->stack[i].as.ptr.offset, c->stack[i].as.z32);
 				if (c->stack[i].typeselector)
 					printType(c->stack[i].typeselector, ZTRUE, ZFALSE);
 
@@ -1553,20 +1554,20 @@ tokenT* hconstant (exectxT* ex, tokenT* t) {  //push constant on stack
 
 tokenT* hconstantaddref(exectxT* ex, tokenT* t) {  //push constant on stack (add ref)
 	ex->stack[(ex->sp)++] = t->val;
-	ram_addref(t->val.as.ptr.block);
+	ram_addref(t->val.as.ptr.addr.bytes);
 	return tnext(t);
 }
 
 tokenT* haddselector(exectxT* ex, tokenT* t) {  //adds selectors to item on pointer stack
 												//for casting real type to a virtual type
-	ex->stack[(ex->sp)-1].typeselector = t->val.as.type;
+	ex->stack[(ex->sp)-1].typeselector = t->val.as.ptr.addr.type;
 	return tnext(t);
 }
 
 tokenT* hgettypeselector(exectxT* ex, tokenT* t) {
 	//gets the typeselectorm, which represents the dynamic type of a virtual type
 	//this is only used so it can be used to allocate things
-	ex->stack[ex->sp - 1].as.ptr.block = ex->stack[(ex->sp) - 1].typeselector;
+	ex->stack[ex->sp - 1].as.ptr.addr.bytes = (char*) ex->stack[(ex->sp) - 1].typeselector;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 	ex->stack[ex->sp - 1].as.ptr.level = 0;
 	ex->stack[(ex->sp) - 1].typeselector = NULL; //not needed anymore
@@ -1575,7 +1576,7 @@ tokenT* hgettypeselector(exectxT* ex, tokenT* t) {
 }
 
 tokenT* hredirectsub(exectxT* ex, tokenT* t) {
-	tokenT* redirect = t->val.as.token;
+	tokenT* redirect = t->val.as.ptr.addr.token;
 	exe(ex, tsub(redirect));
 	return tnext(t);
 }
@@ -1611,7 +1612,7 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 				if (last->ty->category == POINTERUSER && last->ty!=tType) { 
 
 					ex->stack[(ex->sp)].as.ptr.level = 0; //heap object
-					ex->stack[(ex->sp)].as.ptr.block = NULL;
+					ex->stack[(ex->sp)].as.ptr.addr.bytes = NULL;
 					ex->stack[(ex->sp)].typeselector = NULL;
 					ex->stack[(ex->sp)++].as.ptr.offset = 0;
 					fprintf(stderr, "Cannot bake non-possessive pointers into code %s %d \n", t->sourcefile, t->line);
@@ -1639,16 +1640,16 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 				
 					//string turns into a token
 					if (last->ty->ref == tString) {
-						char* str = ex->stack[--(ex->sp)].as.ptr.block;
+						char* str = ex->stack[--(ex->sp)].as.ptr.addr.bytes;
 						str += ex->stack[(ex->sp)].as.ptr.offset;
 						tokenT* stub = NULL;
-						tokenize(zlist_tail_for_insert(&tcode->subs), str, "nofile");
+						tokenize(zlist_tail_for_insert(&tcode->subs), str, "dynamic");
 					}
 
 					if (last->ty->ref == tCode) {
 						//inserting raw list of tokens
 						--(ex->sp);
-						tokenT* from = ex->stack[(ex->sp)].as.ptr.offset + (char*)ex->stack[(ex->sp)].as.ptr.block;
+						tokenT* from = ex->stack[(ex->sp)].as.ptr.offset + ex->stack[(ex->sp)].as.ptr.addr.token;
 						from = tsub(from);
 						while (from) {
 							tokenT* copyt = mkToken(from->tok, from->str, 0);
@@ -1659,12 +1660,12 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 								copyt->tok = PASSTHRU;
 								copyt->ty = from->ty;
 								if (from->handler == hconstantaddref)
-									ram_addref(copyt->val.as.ptr.block);
+									ram_addref(copyt->val.as.ptr.addr.bytes);
 							} else if (from->handler ) {
 								ERR("Unknown copy token case\n");
 							}
 							//todo:copy values and crap
-							zlist_addtail(&tcode->subs, copyt);
+							zlist_addtail(&tcode->subs, &copyt->zlistnode );
 							from = tnext(from);
 
 						}
@@ -1673,7 +1674,7 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 
 				if (last->ty->category == SUBTREE) {
 					--(ex->sp);
-					tokenT* subtree = ex->stack[(ex->sp)].as.ptr.offset + (char*)ex->stack[(ex->sp)].as.ptr.block;
+					tokenT* subtree = ex->stack[(ex->sp)].as.ptr.offset + (char*)ex->stack[(ex->sp)].as.ptr.addr.bytes;
 		
 					printList(subtree, NULL, 0, 2);
 					
@@ -1696,7 +1697,7 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 					newtok= mkToken(PASSTHRU, "callredirect", 0); //PASSTHRU token so this isn't reparsed
 					newtok->handler = hredirectsub;  //hredirectsub runs the 
 					newtok->skipargs = ZTRUE;
-					newtok->val.as.token = ram_addref(subtree);
+					newtok->val.as.ptr.addr.token = ram_addref(subtree);
 					newtok->val_to_free = ZTRUE;
 					newtok->ty = rt;
 					
@@ -1714,10 +1715,10 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 				}
 			}
 		} else 
-			newtok = mkToken(t2->tok, t2->str, strlen(t2->str)); //copy the token
+			newtok = mkToken(t2->tok, t2->str, (zuint32) strlen(t2->str)); //copy the token
 
 		if (newtok) {
-			zlist_addtail(&tcode->subs, newtok);
+			zlist_addtail(&tcode->subs, &newtok->zlistnode   );
 			printList(newtok, NULL, 0, 2);
 		}
 		t2 = tnext(t2);
@@ -1728,7 +1729,7 @@ tokenT* hsubst(exectxT* ex, tokenT* t) {  //copy linear list of tokens
 	xprintf(">>\n");
 		
 	ex->stack[(ex->sp)].as.ptr.level = 0; //heap object
-	ex->stack[(ex->sp)].as.ptr.block = tcode;
+	ex->stack[(ex->sp)].as.ptr.addr.bytes = (char*) tcode;
 	ex->stack[(ex->sp)].typeselector = NULL;
 	ex->stack[(ex->sp)++].as.ptr.offset = 0;
 
@@ -1740,39 +1741,40 @@ tokenT* hglobal (exectxT* ex, tokenT* t) {	//push pointer to global variable on 
 	if (!ex->globalvars)
 		ERR("No access to global variables in current scope");
 
- 	ex->stack[(ex->sp)].as.ptr.block = ex->globalvars;
+ 	ex->stack[(ex->sp)].as.ptr.addr.bytes = ex->globalvars;
 	ex->stack[(ex->sp)].as.ptr.level = 0;
 	ex->stack[(ex->sp)].typeselector = NULL;
 	ex->stack[(ex->sp)++].as.ptr.offset = t->val.as.ptr.offset;
 	
-	//xprintf(" Global block %p +%d\n", ex->globalvars  ,   t->val.as.ptr.offset);
+	//xprintf(" Global addr.bytes %p +%d\n", ex->globalvars  ,   t->val.as.ptr.offset);
 	return tnext(t);
 }
 
-tokenT* himmvar(exectxT* ex, tokenT* t) {	//push pointer to immediate scope variable on stack (immediate scope is the 'global' scope for immediate blocks
+tokenT* himmvar(exectxT* ex, tokenT* t) {	//push pointer to immediate scope variable on stack (immediate scope is the 'global' scope for immediate addr.bytess
 
 	if (!ex->immediatevars)
 		ERR("No access to immediate  variables in current scope");
 
-	ex->stack[(ex->sp)].as.ptr.block = ex->immediatevars;
+	ex->stack[(ex->sp)].as.ptr.addr.bytes = ex->immediatevars;
 	ex->stack[(ex->sp)].as.ptr.level = 0;
 	ex->stack[(ex->sp)].typeselector = NULL;
 	ex->stack[(ex->sp)++].as.ptr.offset = t->val.as.ptr.offset;
-	//xprintf(" Global block %p +%d\n", ex->globalvars  ,   t->val.as.ptr.offset);
+	//xprintf(" Global addr.bytes %p +%d\n", ex->globalvars  ,   t->val.as.ptr.offset);
 	return tnext(t);
 }
 
 tokenT* hlocal (exectxT* ex, tokenT* t) {	//push pointer to local variable on stack
-	ex->stack[(ex->sp)].as.ptr.block = ex->vars;
+	ex->stack[(ex->sp)].as.ptr.addr.bytes = ex->vars;
 	ex->stack[(ex->sp)].as.ptr.level = ex->level;//pointer is in this stack frame
 	ex->stack[(ex->sp)].typeselector = NULL;
 	ex->stack[(ex->sp)++].as.ptr.offset = t->val.as.ptr.offset;
-	//xprintf(" local block %p +%d   level %d\n", ex->vars  ,   t->val.as.ptr.offset, t>val.as.ptr.level);
+	//xprintf(" local addr.bytes %p +%d   level %d\n", ex->vars  ,   t->val.as.ptr.offset, t>val.as.ptr.level);
 	return tnext(t);
 }
 
 tokenT* hperarg(exectxT* ex, tokenT* t) {	//read a stack variable (really function parameters)
 	ERR("perarg is not currently supported on cpu");
+	return NULL;
 }
 
 tokenT* hstackread (exectxT* ex, tokenT* t) {	//read a stack variable (really function parameters)
@@ -1787,13 +1789,13 @@ tokenT* hstackread (exectxT* ex, tokenT* t) {	//read a stack variable (really fu
 	xprintf(" READ STACK POSITION + %d  option %d\n", tsub(t)->val.as.z32, t->val.as.n32);
 #endif
 	if (t->val.as.n32 == 1)
-		ex->stack[ ex->fp + tsub(t)->val.as.z32 ].as.ptr.block = 0;  //zero out the source ( KTAKE on possessive pointer)
+		ex->stack[ ex->fp + tsub(t)->val.as.z32 ].as.ptr.addr.bytes = 0;  //zero out the source ( KTAKE on possessive pointer)
 	
 	if (t->val.as.n32 == 2)
 		ex->stack[ex->sp].as.ptr.level = ex->level+1; //add level to source (so it must be used or passed but not locally stored or returned)
 
 	if (t->val.as.n32 == 4) {
-		ram_addref(ex->stack[ex->sp].as.ptr.block);
+		ram_addref(ex->stack[ex->sp].as.ptr.addr.bytes);
 		ex->stack[ex->sp].as.ptr.level = 0;
 	}
 
@@ -1804,7 +1806,7 @@ tokenT* hstackread (exectxT* ex, tokenT* t) {	//read a stack variable (really fu
 
 tokenT* hstackptr(exectxT* ex, tokenT* t) {	//get pointer to nth item on stack (only for structs kept on the stack)
 	
- 	ex->stack[ex->sp].as.ptr.block = &ex->stack[ex->fp + t->val.as.z32];
+ 	ex->stack[ex->sp].as.ptr.addr.bytes = &ex->stack[ex->fp + t->val.as.z32];
 	ex->stack[ex->sp].as.ptr.offset = 0;
 	ex->stack[(ex->sp)].typeselector = NULL;
 	ex->stack[ex->sp].as.ptr.level = ex->level + 1; //add level to source (so it must be used or passed but not locally stored)
@@ -1816,6 +1818,7 @@ tokenT* hstackptr(exectxT* ex, tokenT* t) {	//get pointer to nth item on stack (
 
 void* NULLERR() {
 	ERR("Null pointer\n");
+	return NULL;
 }
 
 #define CHECK(BBB)  ( BBB?BBB: NULLERR() )
@@ -1835,12 +1838,12 @@ tokenT* hstoreptr (exectxT* ex, tokenT* t) {  //store a pointer
 	if (t->val.as.n32 & 1) {
 		//flag to free the destination pointer if its non-null
 #ifdef EXEDEBUG
-		xprintf(" storeptr: free block in destination address  %p\n", DEREF(vptrT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset).block);
+		xprintf(" storeptr: free addr.bytes in destination address  %p\n", DEREF(vptrT, ex->stack[ex->sp - 1].as.ptr.addr.bytes, ex->stack[ex->sp - 1].as.ptr.offset).addr.bytes);
 #endif
-		ram_free(DEREF(vptrT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset).block);
+		ram_free(DEREF(vptrT, ex->stack[ex->sp - 1].as.ptr.addr.bytes, ex->stack[ex->sp - 1].as.ptr.offset).addr.bytes);
 	}
 
-	//vptrT* vp = &DEREF(vptrT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset);
+	//vptrT* vp = &DEREF(vptrT, ex->stack[ex->sp - 1].as.ptr.addr.bytes, ex->stack[ex->sp - 1].as.ptr.offset);
 
 	if (t->val.as.n32 & 8) {  //also store selector
 		
@@ -1849,11 +1852,11 @@ tokenT* hstoreptr (exectxT* ex, tokenT* t) {  //store a pointer
 			ex->stack[ex->sp - 1].typeselector = NULL;
 		}
 		else {
-			DEREF(vptrselectorT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset).typeselector = ex->stack[ex->sp - 2].typeselector;
+			DEREF(vptrselectorT, ex->stack[ex->sp - 1].as.ptr.addr.bytes, ex->stack[ex->sp - 1].as.ptr.offset).typeselector = ex->stack[ex->sp - 2].typeselector;
 		}
 	}
 	
-	DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.ptr;
+	DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.addr.bytes, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.ptr;
 
 	ex->stack[(ex->sp-1)].typeselector = NULL;
 	ex->stack[(ex->sp-2)].typeselector = NULL;
@@ -1870,7 +1873,7 @@ tokenT* hstoreptrnp(exectxT* ex, tokenT* t) {  //stores pointer without popping
 	ex->stack[ex->sp - 1] = saved;
 	
 	if (t->val.as.n32 & 16) {	//was storing possessive, so addref the value that was stored
-		ram_addref(ex->stack[ex->sp - 1].as.ptr.block);
+		ram_addref(ex->stack[ex->sp - 1].as.ptr.addr.bytes);
 	} else {
 		ex->stack[(ex->sp - 1)].as.ptr.level = ex->level + 1;//pointer 'belongs' to deeper stack frames
 	}
@@ -1880,15 +1883,15 @@ tokenT* hstoreptrnp(exectxT* ex, tokenT* t) {  //stores pointer without popping
 
 tokenT* hloadptr (exectxT* ex, tokenT* t) { //load a pointer
 	
-	if (!ex->stack[ex->sp - 1].as.ptr.block) {
+	if (!ex->stack[ex->sp - 1].as.ptr.addr.bytes) {
 		//loading a null pointer from null just results in null instead of crash
 		ex->stack[ex->sp - 1].as.ptr.offset = 0;
 		ex->stack[ex->sp - 1].typeselector = NULL;
 		return tnext(t);
 	}
 		
-	vptrselectorT* vps = &DEREF(vptrselectorT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset);
-	vptrT* vp = &DEREF(vptrT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset);
+	vptrselectorT* vps = &DEREF(vptrselectorT, ex->stack[ex->sp - 1].as.ptr.addr.bytes, ex->stack[ex->sp - 1].as.ptr.offset);
+	vptrT* vp = &DEREF(vptrT, ex->stack[ex->sp - 1].as.ptr.addr.bytes, ex->stack[ex->sp - 1].as.ptr.offset);
 		
 	if (t->val.as.n32 & 8) {  //also load selector  
 		if (ex->stack[ex->sp - 1].typeselector) {
@@ -1896,14 +1899,14 @@ tokenT* hloadptr (exectxT* ex, tokenT* t) { //load a pointer
 			//keep typeselector if already one: this would be if this a going to be applies to array elements later 
 		}
 		else {
-			ex->stack[ex->sp - 1].typeselector = DEREF(vptrselectorT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset).typeselector;
+			ex->stack[ex->sp - 1].typeselector = DEREF(vptrselectorT, ex->stack[ex->sp - 1].as.ptr.addr.bytes, ex->stack[ex->sp - 1].as.ptr.offset).typeselector;
 		}
 	}
 	else { 
 		ex->stack[ex->sp - 1].typeselector = NULL;  //blank out if not needed
 	} 
 
-	ex->stack[ex->sp-1].as.ptr = DEREF(vptrT,  ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
+	ex->stack[ex->sp-1].as.ptr = DEREF(vptrT,  ex->stack[ex->sp-1].as.ptr.addr.bytes, ex->stack[ex->sp-1].as.ptr.offset);
 	
 	if ( t->val.as.n32 & 1) {
 		//the pointer will be assigned ex->level + 1
@@ -1920,7 +1923,7 @@ tokenT* hloadptr (exectxT* ex, tokenT* t) { //load a pointer
 	}
 	if (t->val.as.n32 & 2){
 		//non-possessive pointer, passed into a function, needs to be addreffed
-		ram_addref(ex->stack[ex->sp-1].as.ptr.block);
+		ram_addref(ex->stack[ex->sp-1].as.ptr.addr.bytes);
 	}
 	
 	return tnext(t);
@@ -1935,16 +1938,16 @@ tokenT* htakeptr (exectxT* ex, tokenT* t) { //load a pointer, source is made nul
 	//		printf("has tsel\n");
 		}
 		else {
-			ex->stack[ex->sp - 1].typeselector = DEREF(vptrselectorT, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset).typeselector;
+			ex->stack[ex->sp - 1].typeselector = DEREF(vptrselectorT, ex->stack[ex->sp - 1].as.ptr.addr.bytes, ex->stack[ex->sp - 1].as.ptr.offset).typeselector;
 		}
 	}
 	else
 		ex->stack[ex->sp - 1].typeselector = NULL;  //loaded a real pointer
 	 
- 	vptrT tmp = DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
+ 	vptrT tmp = DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.addr.bytes, ex->stack[ex->sp-1].as.ptr.offset);
 
 	//zero the source pointer
-	DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset).block = NULL;
+	DEREF(vptrT, ex->stack[ex->sp-1].as.ptr.addr.bytes, ex->stack[ex->sp-1].as.ptr.offset).addr.bytes = NULL;
 	
 	ex->stack[ex->sp-1].as.ptr = tmp;
 	
@@ -2010,12 +2013,12 @@ tokenT* firstTokenHelper(symbolT* s) {
 
 //returns the first executable token for a proc
 tokenT* hsymtoken(exectxT* ex, tokenT* t) {
-	symbolT* sym = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+	symbolT* sym = ex->stack[ex->sp - 1].as.ptr.addr.bytes + ex->stack[ex->sp - 1].as.ptr.offset;
 	tokenT* ts = NULL;
 	if (sym && !sym->primsym) {
 		ts = firstTokenHelper(sym);	
 	}
-	ex->stack[ex->sp - 1].as.ptr.block = ts;
+	ex->stack[ex->sp - 1].as.ptr.addr.bytes = ts;
 	ex->stack[ex->sp - 1].as.ptr.offset=0;
 	return tnext(t);
 }
@@ -2024,17 +2027,29 @@ typeT* tvaltype(tokenT* t);
 //returns the constant embedded in a token,//NOT  but only if the expected type is correct
 tokenT* htokenval(exectxT* ex, tokenT* t) {
 
-	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
-	typeT* tsty = tvaltype(t);
+	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.addr.bytes + ex->stack[ex->sp - 1].as.ptr.offset;
+	if (ts->val.as.n32 == 234)
+		printf("x\n");
 
-	//if (tsty == t->ty) {	//if expected type
+	typeT* tsty = tvaltype(ts);
+
+	
+	if (tsty == t->ty  ) {	//if expected type
 		ex->stack[ex->sp - 1] = ts->val;
-		if (t->ty->category == POINTERPOSSESSIVE)
-			ram_addref(t->val.as.ptr.block);
-	//}
-	//else {
-		//memset(&ex->stack[ex->sp - 1], 0, sizeof(ex->stack[ex->sp - 1]));
-	//}
+
+		
+		if (t->ty->category == POINTERPOSSESSIVE) {
+			ram_addref(t->val.as.ptr.addr.bytes); //maybe ts?
+			ERR("check here at %s %d\n", __FILE__, __LINE__);
+		}
+	}
+	else {
+		memset(&ex->stack[ex->sp - 1], 0, sizeof(ex->stack[ex->sp - 1]));
+
+		if (t->ty == tN32 || t->ty == tZ32)
+			ex->stack[ex->sp - 1].as.n32 = ts->val.as.n32;
+
+	}
 
 	return tnext(t);
 }
@@ -2044,14 +2059,14 @@ tokenT* htesttype(exectxT* ex, tokenT* t) { //convert a virtual pointer to real 
 	typeT* tsel = ex->stack[ex->sp - 1].typeselector;
 
 	if ( !tsel    //not virtual
-		|| tsel->parent != t->val.as.type->ref //type selector table isn't of the correct type
+		|| tsel->parent != t->val.as.ptr.addr.type->ref //type selector table isn't of the correct type
 		){
 
-		if (t->val.as.type->category == POINTERPOSSESSIVE) {
-			ram_free(ex->stack[ex->sp - 1].as.ptr.block);
+		if (t->val.as.ptr.addr.type->category == POINTERPOSSESSIVE) {
+			ram_free(ex->stack[ex->sp - 1].as.ptr.addr.bytes);
 		}
 
-		ex->stack[ex->sp - 1].as.ptr.block = NULL;
+		ex->stack[ex->sp - 1].as.ptr.addr.bytes = NULL;
 	}
 
 	ex->stack[ex->sp - 1].typeselector = NULL;
@@ -2077,18 +2092,18 @@ tokenT* hchselector(exectxT* ex, tokenT* t) {
 
 tokenT* hindex(exectxT* ex, tokenT* t) {	//index into array
 	
-	if (!ex->stack[ex->sp - 2].as.ptr.block) {
+	if (!ex->stack[ex->sp - 2].as.ptr.addr.bytes) {
 		ERR("index null array");
 		
 		return NULL;
 	}
 	int idx = ex->stack[ex->sp - 1].as.n32;
-	if (idx >= zarray_size(ex->stack[ex->sp - 2].as.ptr.block))
-		ERR(" PAST ARRAY BOUNDS\n");
+	if (idx >= zarray_size(ex->stack[ex->sp - 2].as.ptr.addr.bytes))
+		ERR(" PAST ARRAY BOUNDS %s %d\n", t->sourcefile, t->line);
 	
 	if (ex->stack[ex->sp - 2].typeselector) {
 		//use correct size for array
-		typeT* ty = zarray_get_meta(ex->stack[ex->sp - 2].as.ptr.block);
+		typeT* ty = zarray_get_meta(ex->stack[ex->sp - 2].as.ptr.addr.bytes);
 		ex->stack[ex->sp - 2].as.ptr.offset += idx * ty->size;
 	} else {
 		ex->stack[ex->sp - 2].typeselector = NULL;
@@ -2101,8 +2116,8 @@ tokenT* hindex(exectxT* ex, tokenT* t) {	//index into array
 
 tokenT* harrayop(exectxT* ex, tokenT* t) {	//edit array
 
- 	void* array = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
-	ex->stack[ex->sp - 1].as.ptr.block = 0;
+ 	void* array = ex->stack[ex->sp - 1].as.ptr.addr.bytes + ex->stack[ex->sp - 1].as.ptr.offset;
+	ex->stack[ex->sp - 1].as.ptr.addr.bytes = 0;
 
 	if (!array) {
 		if ((t->val.as.n32 == 0) || (t->val.as.n32 == 1)) {
@@ -2125,7 +2140,7 @@ tokenT* harrayop(exectxT* ex, tokenT* t) {	//edit array
 	}
 	else if (t->val.as.n32 == 3) {  //resize array
 		int newsize = ex->stack[ex->sp - 2].as.n32;
-		ex->stack[ex->sp - 2].as.ptr.block = zarray_resizef(array, t->ty->ref->ref->size, newsize, NULL);
+		ex->stack[ex->sp - 2].as.ptr.addr.bytes = zarray_resizef(array, t->ty->ref->ref->size, newsize, NULL);
 		ex->stack[ex->sp - 2].as.ptr.level = 0;
 		//todo: if lowering size and there are possessive pointers, need to free them
 		ex->sp -= 1;
@@ -2255,13 +2270,13 @@ tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP i
 
 parsectxT* global = NULL;
 parsectxT* immediate_parse = NULL;
-parsectxT* mkcontext(char* name);
+parsectxT* mkcontext();
 tokenT* parse(parsectxT* pc, tokenT* t);
 
 int debugtimes = 0;
 
 tokenT* h_compile(exectxT* ex, tokenT* t) {
-	tokenT* code = ex->stack[ex->sp-1].as.ptr.offset + (char*)ex->stack[ex->sp-1].as.ptr.block;
+	tokenT* code = ex->stack[ex->sp-1].as.ptr.offset + (char*)ex->stack[ex->sp-1].as.ptr.addr.bytes;
 
 	if (!code) {
 		printf("compile null code.. return null \n");
@@ -2276,14 +2291,14 @@ tokenT* h_compile(exectxT* ex, tokenT* t) {
 	*/
 
 	//need to see if its compiled
-	if (!code->val.as.ptr.block) {
+	if (!code->val.as.ptr.addr.bytes) {
 		//needs to compile
 
 		if (code->restrict_parse_context) {
 			ERR("Compiling code that contains subtree from other context: not allowed\n");
 		}
 
-		parsectxT* pc = mkcontext("dynamic");
+		parsectxT* pc = mkcontext();
 		symbolT* s = mkSymbol(NULL, "dynamic", code->ty, NULL);
 		pc->symfrom = s;
 		s->subctx = pc;
@@ -2292,7 +2307,7 @@ tokenT* h_compile(exectxT* ex, tokenT* t) {
 		code->sym = s;  //toek syms are not freed; they are freed by whatever owns the symbol, usually sumbol table.  in this case, since its an anonymous function, the symbol is passed back to the user as a possessive pointer to keep track of
 		pc->type = code->ty;
 		pc->endable = 1;
-		pc->parent = t->val.as.ptr.block;
+		pc->parent = t->val.as.ptr.addr.bytes;
 		parse(pc, tsub(code));
 
 		if (getError(pc)) {
@@ -2300,7 +2315,7 @@ tokenT* h_compile(exectxT* ex, tokenT* t) {
 			ram_free(pc);
 			ram_free(code);
 			//ram_free(s);
-			ex->stack[ex->sp - 1].as.ptr.block = NULL;  //track sym instead
+			ex->stack[ex->sp - 1].as.ptr.addr.bytes = NULL;  //track sym instead
 			ex->stack[ex->sp - 1].as.ptr.offset = 0;
 			ex->stack[ex->sp - 1].typeselector = NULL;
 			return tnext(t);
@@ -2312,7 +2327,7 @@ tokenT* h_compile(exectxT* ex, tokenT* t) {
 	}
 
 	//ex->stack[ex->sp-1].as.ptr.level = 0; //heap object  NOT doing this, since this should only be fed possessive code pointers directly from a subst token
-	ex->stack[ex->sp - 1].as.ptr.block = code->sym;  //track sym instead
+	ex->stack[ex->sp - 1].as.ptr.addr.bytes = code->sym;  //track sym instead
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 	ex->stack[ex->sp - 1].typeselector = NULL;
 	return tnext(t);
@@ -2320,9 +2335,9 @@ tokenT* h_compile(exectxT* ex, tokenT* t) {
 
 tokenT* hload32 (exectxT* ex, tokenT* t) {
 
-	zint32 i = DEREF(zint32, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
+	zint32 i = DEREF(zint32, ex->stack[ex->sp-1].as.ptr.addr.bytes, ex->stack[ex->sp-1].as.ptr.offset);
 	//xprintf(" Loaded 32 %d   from +%x\n", i,ex->stack[ex->sp-1].as.ptr.offset );
-	ex->stack[ex->sp-1].as.ptr.block=NULL;
+	ex->stack[ex->sp-1].as.ptr.addr.bytes=NULL;
 	ex->stack[ex->sp-1].as.z32 = i;
 	
 	return tnext(t);
@@ -2331,7 +2346,7 @@ tokenT* hload32 (exectxT* ex, tokenT* t) {
 
 tokenT* hstore32 (exectxT* ex, tokenT* t) {
 	
-	DEREF(zint32, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.z32;
+	DEREF(zint32, ex->stack[ex->sp-1].as.ptr.addr.bytes, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.z32;
 	ex->sp-=2;
 	return tnext(t);
 }
@@ -2343,9 +2358,9 @@ tokenT* hstore32np(exectxT* ex, tokenT* t) {
 }
 
 tokenT* hloadcptr(exectxT* ex, tokenT* t) {
-	void* i = DEREF(void*, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset);
+	void* i = DEREF(void*, ex->stack[ex->sp - 1].as.ptr.addr.bytes, ex->stack[ex->sp - 1].as.ptr.offset);
 	//xprintf(" Loaded 32 %d   from +%x\n", i,ex->stack[ex->sp-1].as.ptr.offset );
-	ex->stack[ex->sp - 1].as.ptr.block = i;
+	ex->stack[ex->sp - 1].as.ptr.addr.bytes = i;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 	ex->stack[ex->sp - 1].as.ptr.level = 9999; //
 
@@ -2354,7 +2369,7 @@ tokenT* hloadcptr(exectxT* ex, tokenT* t) {
 
 tokenT* hstorecptr(exectxT* ex, tokenT* t) {
 	//store block+offset as a flattened c pointer
-	DEREF(void*, ex->stack[ex->sp - 1].as.ptr.block, ex->stack[ex->sp - 1].as.ptr.offset) = ex->stack[ex->sp - 2].as.ptr.block + ex->stack[ex->sp - 2].as.ptr.offset;
+	DEREF(void*, ex->stack[ex->sp - 1].as.ptr.addr.bytes, ex->stack[ex->sp - 1].as.ptr.offset) = ex->stack[ex->sp - 2].as.ptr.addr.bytes + ex->stack[ex->sp - 2].as.ptr.offset;
 	ex->sp -= 2;
 	return tnext(t);
 }
@@ -2362,10 +2377,10 @@ tokenT* hstorecptr(exectxT* ex, tokenT* t) {
 tokenT* hload8 (exectxT* ex, tokenT* t) {
 	
 #ifdef EXEDEBUG 
-	xprintf(" Load byte at %p+%d\n",  ex->stack[ex->sp-1].as.ptr.block,  ex->stack[ex->sp-1].as.ptr.block);
+	xprintf(" Load byte at %p+%d\n",  ex->stack[ex->sp-1].as.ptr.addr.bytes,  ex->stack[ex->sp-1].as.ptr.addr.bytes);
 #endif	
-	zbyte i = DEREF(zbyte, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
-	ex->stack[ex->sp-1].as.ptr.block=NULL;
+	zbyte i = DEREF(zbyte, ex->stack[ex->sp-1].as.ptr.addr.bytes, ex->stack[ex->sp-1].as.ptr.offset);
+	ex->stack[ex->sp-1].as.ptr.addr.bytes=NULL;
 	ex->stack[ex->sp-1].as.n32 = i;
 		
 	return tnext(t);
@@ -2374,15 +2389,15 @@ tokenT* hload8 (exectxT* ex, tokenT* t) {
 tokenT* hstore8 (exectxT* ex, tokenT* t) {
 		
 #ifdef EXEDEBUG
-	xprintf(" Store byte at %p+%d\n",  ex->stack[ex->sp-1].as.ptr.block,  ex->stack[ex->sp-1].as.ptr.offset);
+	xprintf(" Store byte at %p+%d\n",  ex->stack[ex->sp-1].as.ptr.addr.bytes,  ex->stack[ex->sp-1].as.ptr.offset);
 #endif
-	DEREF(zbyte, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset) = (zbyte) ex->stack[ex->sp-2].as.n32;
+	DEREF(zbyte, ex->stack[ex->sp-1].as.ptr.addr.bytes, ex->stack[ex->sp-1].as.ptr.offset) = (zbyte) ex->stack[ex->sp-2].as.n32;
 	ex->sp-=2;
 	return tnext(t);
 }
 
 tokenT* hloadbytes(exectxT* ex, tokenT* t) {
-	void* thing = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+	void* thing = ex->stack[ex->sp - 1].as.ptr.addr.bytes + ex->stack[ex->sp - 1].as.ptr.offset;
 	memcpy(&ex->stack[ex->sp - 1], thing, t->val.as.n32);
 	return tnext(t);
 }
@@ -2390,7 +2405,7 @@ tokenT* hloadbytes(exectxT* ex, tokenT* t) {
 tokenT* hstorebytes(exectxT* ex, tokenT* t) {
 
 	void* thing = &ex->stack[ex->sp - 2];
-	void* destination = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+	void* destination = ex->stack[ex->sp - 1].as.ptr.addr.bytes + ex->stack[ex->sp - 1].as.ptr.offset;
 
 	memcpy(destination, thing, t->val.as.n32);
 	ex->sp -= 2;
@@ -2413,14 +2428,14 @@ tokenT* hprintfloat (exectxT* ex, tokenT* t) {
 }
 
 tokenT* hfload (exectxT* ex, tokenT* t) {
-	FLOAT f = DEREF(FLOAT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset);
-	ex->stack[ex->sp-1].as.ptr.block=NULL;
+	FLOAT f = DEREF(FLOAT, ex->stack[ex->sp-1].as.ptr.addr.bytes, ex->stack[ex->sp-1].as.ptr.offset);
+	ex->stack[ex->sp-1].as.ptr.addr.bytes=NULL;
 	ex->stack[ex->sp-1].as.f = f;
 	return tnext(t);
 }
 
 tokenT* hfstore (exectxT* ex, tokenT* t) {
-	DEREF(FLOAT, ex->stack[ex->sp-1].as.ptr.block, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.f;
+	DEREF(FLOAT, ex->stack[ex->sp-1].as.ptr.addr.bytes, ex->stack[ex->sp-1].as.ptr.offset) = ex->stack[ex->sp-2].as.f;
 	ex->sp-=2;
 	return tnext(t);
 }
@@ -2434,7 +2449,7 @@ tokenT* hprintchar (exectxT* ex, tokenT* t) {
 
 tokenT* hprintptr (exectxT* ex, tokenT* t) {
 	ex->sp--;
-	printf("{%p+%x lvl%d refs%d ", ex->stack[ex->sp].as.ptr.block,  ex->stack[ex->sp].as.ptr.offset, ex->stack[ex->sp].as.ptr.level   , ram_numrefs( ex->stack[ex->sp].as.ptr.block)  );
+	printf("{%p+%x lvl%d refs%d ", ex->stack[ex->sp].as.ptr.addr.bytes,  ex->stack[ex->sp].as.ptr.offset, ex->stack[ex->sp].as.ptr.level   , ram_numrefs( ex->stack[ex->sp].as.ptr.addr.bytes)  );
 	if (ex->stack[ex->sp].typeselector) {
 		printTypeNoRedirect(ex->stack[ex->sp].typeselector, ZFALSE, ZTRUE);
 		printf("/");
@@ -2553,7 +2568,7 @@ tokenT* hreturn (exectxT* ex, tokenT* t){
 		//if returning from an immediate block, put the return type on the stack too
 		//if the immediate block is not returning a value, t->ty should have been set to tImmediate anyway
 		//because returning from here is expecting to take the type off of the stack
-		ex->stack[ex->sp++].as.type = t->ty;
+		ex->stack[ex->sp++].as.ptr.addr.type = t->ty;
 	}
 	return NULL; //stop instructions stream (process subs first, as they might be return values or something)
 }
@@ -2588,9 +2603,9 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 
 		vptrT destination;
 		ex->sp--;
-		destination = DEREF(vptrT, ex->stack[ex->sp].as.ptr.block, ex->stack[ex->sp].as.ptr.offset);
+		destination = DEREF(vptrT, ex->stack[ex->sp].as.ptr.addr.bytes, ex->stack[ex->sp].as.ptr.offset);
 		indirect = 1;
-		sym = destination.block;
+		sym = destination.addr.bytes;
 		if (!sym)
 			ERR("Null proc pointer\n");
 		t = sym->tokens;
@@ -2659,15 +2674,15 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 		for (i = 0; i < count; i++) {
 			typeT* m = zvec_get_at(sym->type->members, i);
 
-			float* f = ex->stack[ex->sp - count + i].as.ptr.block;
+			float* f = ex->stack[ex->sp - count + i].as.ptr.addr.bytes;
 			if (tv->trackpossptr)
-				ram_free(ex->stack[ex->sp - count + i].as.ptr.block);
+				ram_free(ex->stack[ex->sp - count + i].as.ptr.addr.bytes);
 
 			tv = tnext(tv);
 
 		}
 
-		ex->stack[ex->sp].as.ptr.block = sym->shaderdata;  //put symbol on stack instead of calling
+		ex->stack[ex->sp].as.ptr.addr.bytes = sym->shaderdata;  //put symbol on stack instead of calling
 		ex->stack[ex->sp++].as.ptr.offset = 0;
 
 		return tnext(t);
@@ -2720,7 +2735,7 @@ tokenT* hcall (exectxT* ex, tokenT* t) {
 				//if (m->ref->category == LIKE) {
 					//printf("free like arg\n");
 				//}
-				ram_free(ex->stack[ex->fp - count + i].as.ptr.block);
+				ram_free(ex->stack[ex->fp - count + i].as.ptr.addr.bytes);
 			}
 
 			ex->stack[ex->fp - count + i].typeselector = NULL;
@@ -2778,7 +2793,7 @@ zbool struct_clean(void* v, typeT* ty){
 	
 		valueT val[100];
 		memset(&val, 0, sizeof(val));
-		val[0].as.ptr.block = v;
+		val[0].as.ptr.addr.bytes = v;
 
 		callint(ty->destructorproc, val, 1 );
 	}
@@ -2789,7 +2804,7 @@ zbool struct_clean(void* v, typeT* ty){
 		//xprintf(" fields: %s  %d n", member->name, member->offset);
 		if (member->ref->category == POINTERPOSSESSIVE){
 			vptrT* vp = (void*) (member->offset  +  (char*)(v));
-			ram_free( vp->block);
+			ram_free( vp->addr.bytes);
 		}
 		if (member->ref->category == STRUCT){
 			struct_clean( member->offset  +  (char*)(v) , member->ref);
@@ -2832,7 +2847,7 @@ tokenT* halloc(exectxT* ex, tokenT* t) {
 	
 	if (t->val.as.n32==1) {
 		//if there is a type, then this is the 
-		typeT* typeselector = ex->stack[ex->sp - 1].as.ptr.block;
+		typeT* typeselector = ex->stack[ex->sp - 1].as.ptr.addr.bytes;
 
 		alloctype = typeselector->parent;
 		
@@ -2856,12 +2871,12 @@ tokenT* halloc(exectxT* ex, tokenT* t) {
 	ex->stack[ex->sp].as.ptr.offset=0;
 	
 	if (alloctype->members){  //structs need destructors optimization TODO: structures that don't have possessive pointer don't actually need destructirs
-		ex->stack[ex->sp].as.ptr.block = ram_alloc_shadow( size ,struct_destructor, sizeof(typeT*)  ); //struct needs type pointer
-		typeT** typtr = ram_shadow(ex->stack[ex->sp].as.ptr.block); //get the shadow
+		ex->stack[ex->sp].as.ptr.addr.bytes = ram_alloc_shadow( size ,struct_destructor, sizeof(typeT*)  ); //struct needs type pointer
+		typeT** typtr = ram_shadow(ex->stack[ex->sp].as.ptr.addr.bytes); //get the shadow
 		if (typtr)
 			*typtr = alloctype;
 	} else {
-		ex->stack[ex->sp].as.ptr.block = ram_alloc(size, NULL  ); //simple types with no members need no destructor
+		ex->stack[ex->sp].as.ptr.addr.bytes = ram_alloc(size, NULL  ); //simple types with no members need no destructor
 	}
 	
 	(ex->sp)++;
@@ -2876,13 +2891,13 @@ void free_array_of_possessive_pointers(void* v, zuint32 len, zbool virtual){
 		vptrT* vprs = v;
 		int j;
 		for (j = 0; j < len; j++)
-			ram_free(vprs[j].block);
+			ram_free(vprs[j].addr.bytes);
 	}
 	else {
 		vptrselectorT* vprs = v;
 		int j;
 		for (j = 0; j < len; j++)
-			ram_free(vprs[j].ptr.block);
+			ram_free(vprs[j].ptr.addr.bytes);
 	}
 }
 
@@ -2913,7 +2928,7 @@ zbool ptr_array_destructor(void* va){
 			//xprintf("To free each pointer.  size of an array element is %d\n", ty->size);
 			for (i = 0; i < zarray_count(va); i++) {  
 				
-				ram_free(pv[i].ptr.block);
+				ram_free(pv[i].ptr.addr.bytes);
 			
 			}
 
@@ -2924,7 +2939,7 @@ zbool ptr_array_destructor(void* va){
 			//xprintf("To free each pointer.  size of an array element is %d\n", ty->size);
 			for (i = 0; i < zarray_count(va); i++) {  
 			
-				ram_free(pv[i].block);
+				ram_free(pv[i].addr.bytes);
 			}
 
 		}
@@ -2958,18 +2973,18 @@ tokenT* hallocarray(exectxT* ex, tokenT* t) {
 		
 	ex->stack[ex->sp] .as.ptr.level=0;
 	ex->stack[ex->sp] .as.ptr.offset=0;
-	//ex->stack[(ex->sp)++].as.ptr.block = ram_alloc( size ,NULL  );
+	//ex->stack[(ex->sp)++].as.ptr.addr.bytes = ram_alloc( size ,NULL  );
 
 	int arraycount = ex->stack[ex->sp].as.z32;
-	ex->stack[ex->sp].as.ptr.block = zarray_allocf(size, arraycount, ptr_array_destructor, __FILE__, __LINE__ );
+	ex->stack[ex->sp].as.ptr.addr.bytes = zarray_allocf(size, arraycount, ptr_array_destructor, __FILE__, __LINE__ );
 
 	if (t->val.as.z32 == 1) {
-		zarray_use(ex->stack[ex->sp].as.ptr.block, arraycount);  //say all the elements are in use
+		zarray_use(ex->stack[ex->sp].as.ptr.addr.bytes, arraycount);  //say all the elements are in use
 	}
 
-	//xprintf(" Created array %d count  %d size\n", zarray_count(ex->stack[ex->sp].as.ptr.block), zarray_size(ex->stack[ex->sp].as.ptr.block));
+	//xprintf(" Created array %d count  %d size\n", zarray_count(ex->stack[ex->sp].as.ptr.addr.bytes), zarray_size(ex->stack[ex->sp].as.ptr.addr.bytes));
 
-	zarray_set_meta( ex->stack[ex->sp].as.ptr.block, t->ty->ref);
+	zarray_set_meta( ex->stack[ex->sp].as.ptr.addr.bytes, t->ty->ref);
 	(ex->sp)++;
 	//exit(1);
 	return tnext(t);
@@ -2979,10 +2994,10 @@ tokenT* hfree(exectxT* ex, tokenT* t) {
 	//exe(ex, tsub(t)); //evaluate all the args
 	ex->sp--;
 #ifdef EXEDEBUG	
-	xprintf(" TO TRASH %p\n", ex->stack[ex->sp].as.ptr.block );
+	xprintf(" TO TRASH %p\n", ex->stack[ex->sp].as.ptr.addr.bytes );
 #endif
-	ram_free(ex->stack[ex->sp].as.ptr.block);
-	ex->stack[ex->sp].as.ptr.block=0;
+	ram_free(ex->stack[ex->sp].as.ptr.addr.bytes);
+	ex->stack[ex->sp].as.ptr.addr.bytes=0;
 	return tnext(t);
 }
 
@@ -2990,11 +3005,11 @@ tokenT* haddref(exectxT* ex, tokenT* t) {
 	//exe(ex, tsub(t)); //evaluate all the args
 	
 #ifdef EXEDEBUG
-	xprintf(" TO KEEP %p\n", ex->stack[ex->sp-1].as.ptr.block );
+	xprintf(" TO KEEP %p\n", ex->stack[ex->sp-1].as.ptr.addr.bytes );
 #endif
 	//this also does not pop off the stack, the value stays on
 	
-	ram_addref(ex->stack[ex->sp-1].as.ptr.block);  //retention is on the BLOCK.  Means you can addref PART of a block... the whole block will be kept and waste memory, but this is OK for now; it will eventually be freed.  
+	ram_addref(ex->stack[ex->sp-1].as.ptr.addr.bytes);  //retention is on the BLOCK.  Means you can addref PART of a block... the whole block will be kept and waste memory, but this is OK for now; it will eventually be freed.  
 	
 	ex->stack[ex->sp - 1].as.ptr.level = 0;
 
@@ -3127,6 +3142,8 @@ void addhandlers(struct parsectxS* pctx) {
 	//get pointer to item on arg stack (only for stacked structs)
 	HANDLER(pctx, stackptr);
 
+	//short-circuit and/or 
+	HANDLER(pctx, boolshort);
 
 	HANDLER(pctx, perarg);
 
@@ -3403,7 +3420,7 @@ tokenT*  parseType(parsectxT* pc, tokenT* t) {
 		if (!named && t->tok == PASSTHRU) {
 			if ((t->handler == hconstant) && (t->ty == tType)) {
 				t->handler = hnop;
-				t->ty = t->val.as.type;
+				t->ty = t->val.as.ptr.addr.type;
 				next = tnext(t);
 				named = ZTRUE;
 				continue;
@@ -3751,15 +3768,15 @@ zbool parsectx_cleanup(void* v){
 	parsectxT* pc = v;
 	ram_free(pc->symbols);
 	ram_free(pc->exec);
-	ram_free(pc->name);
+	ram_free(pc->prefix);
 	ram_free(pc->error.message);
 	return ZTRUE;
 }
 
-parsectxT* mkcontext(char* name)
+parsectxT* mkcontext()
 {
 	parsectxT* c = ram_alloc(sizeof(parsectxT), parsectx_cleanup);
-	c->name = zstrdup(name);
+	
 	c->symbols = zvec_mk(NULL, 10);
 	return c;
 }
@@ -4121,7 +4138,7 @@ tokenT* quote(parsectxT* pc, tokenT* t, char* endString) {
 
 
 
-		if ((t->tok == '$') || (t->tok == '\'')) {
+		if ( (t->tok == '$') || (t->tok == '\'')) {
 
 			tokenT* dollar = t;
 			
@@ -4132,8 +4149,8 @@ tokenT* quote(parsectxT* pc, tokenT* t, char* endString) {
 			}
 			zlist_insert_node_after(t, mkToken(KEND, "end", 3));
 			pc->endable++;
-			if (t->line == 464)
-				printf("x");
+		
+
 			t = parse(pc, tnext(dollar)); //t is 'end' after this call
 
 			if (getError(pc)) {
@@ -4223,7 +4240,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 		case KNULL:
 			t->handler = hconstant;
-			t->val.as.ptr.block = 0;
+			t->val.as.ptr.addr.bytes = NULL;
 			t->val.as.ptr.offset = 0;
 			t->val.typeselector = NULL;
 			t->ty = tNullptr;
@@ -4277,7 +4294,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			ts->handler = hsubst;
 			ts->skipargs = ZTRUE;
-			//ts->val.as.ptr.block = tsub(t);
+			//ts->val.as.ptr.addr.bytes = tsub(t);
 			//ts->val.as.ptr.offset = 0;
 
 			if (codetype) {
@@ -4305,7 +4322,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				t = tnext(t);
 
 				ts->handler = h_compile;
-				ts->val.as.ptr.block = ram_addref(pc);
+				ts->val.as.ptr.addr.bytes = ram_addref(pc);
 				ts->val_to_free = ZTRUE;
 				ts->ty = findType(POINTERPOSSESSIVE, proctype, NULL, 0);
 
@@ -4314,7 +4331,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			break;
 
-		case KAND:
+		case KAND:  //these need compiler support (are a special form because of short-circuit)
 		case KOR:
 
 			//two booleans
@@ -4337,7 +4354,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 
 
-		case KSKIP:
+		case KSKIP: //TODO: check we are in a loop
 			t->handler = hbreakcontinueloop;
 			t->val.as.n32 = 1;
 			t = tnext(t);
@@ -4390,7 +4407,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (ot)
 				ot->size = csize;
 			else
-				mkType(OPAQUE, NULL, t->str, csize);
+				mkType(ZOPAQUE, NULL, t->str, csize);
 
 			t = tnext(t);
 
@@ -4460,7 +4477,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			if (!immediate_parse) {
 				//create parse context for immediate blocks
-				immediate_parse = mkcontext("immediate");
+				immediate_parse = mkcontext();
 				immediate_parse->type = tImmediate;
 			}
 
@@ -4526,7 +4543,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			immediate_parse->exec->sp = immediate_parse->exec->fp;
 			immediate_parse->exec->fp = oldfp;
 
-			typeT* rettype = immediate_parse->exec->stack[spdone - 1].as.type;
+			typeT* rettype = immediate_parse->exec->stack[spdone - 1].as.ptr.addr.type;
 
 			if (rettype != tImmediate) {
 				ts->handler = hconstant;
@@ -4540,8 +4557,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					if (t->sym->isShader == 2)
 						ts->val_to_free = ZTRUE;
 
-					t->sym->shaderdata = ts->val.as.ptr.block + ts->val.as.ptr.offset;
-					//->shaderdata = ts->val.as.ptr.block;
+					t->sym->shaderdata = ts->val.as.ptr.addr.bytes + ts->val.as.ptr.offset;
+					//->shaderdata = ts->val.as.ptr.addr.bytes;
 
 					t = tnext(t);
 					ram_free(tremove(tprev(t)));
@@ -4573,7 +4590,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					//if an immediate block returns code, the code is inserted directly into the token list
 					//printf(" Insert code here\n");
 
-					tokenT* t2 = ts->val.as.token;
+					tokenT* t2 = ts->val.as.ptr.addr.token;
 					if (t2->restrict_parse_context && t2->restrict_parse_context != pc) {
 
 
@@ -4882,9 +4899,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			if (ts->tok == KPROC) {
 				//procedures go into a body of statements
-				printf(" parse proc %s ", name);
-				printTypeNoRedirect(type, ZTRUE, ZFALSE);
-				s->subctx = mkcontext(name);
+	
+				s->subctx = mkcontext();
 				s->subctx->symfrom = s;
 				s->subctx->parent = pc;
 
@@ -4911,7 +4927,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 
 
-				printf(" parsed proc %s ", name);
+
 
 				if (!strcmp(name, "destructor")) {
 					if (s->type && s->type->members && zvec_count(s->type->members) == 1) {
@@ -4945,7 +4961,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				//the proc declaration returns the Symbol
 				ts->handler = hDEBUG;
 				ts->skipargs = ZTRUE;
-				ts->val.as.ptr.block = s;
+				ts->val.as.ptr.addr.bytes = s;
 				ts->val.as.ptr.offset = 0;
 				ts->ty = tSymbol;
 
@@ -5002,7 +5018,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				return NULL;
 
 			t->sym = s; //preresolve this symbol
-
+			
 			if (ts->tok == PAIR('#', '#'))
 				zlist_insert_node_after(t, mkToken('#=', "#=", 0));
 			else {
@@ -5054,9 +5070,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				typeT* lt = resolve_like_type(pc->type->ref, pc->type->members, NULL, ZFALSE);
 
 				if (tprev(t) && tprev(t)->ty == tNullptr &&
+					//Null pointer can be regarded as any pointer type
 					((lt->category == POINTERPOSSESSIVE) || (lt->category == POINTERUSER))) {
-
-					printf(" allowing nullptr return to replace any pointer type\n");
 				}
 				else if (lt && (!tprev(t) || tprev(t)->ty != lt)) {
 					printf("Type mismatch expected:\n");
@@ -5344,9 +5359,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t->ty = findType(POINTERUSER, tString, NULL, 0); //findType(ARRAYDYNAMIC, tN8, NULL, 0);
 			t->handler = hconstant;
 			t->skipargs = ZTRUE;
-			t->val.as.ptr.block = zstrndup(t->str + 1, strlen(t->str) - 2); //t->str already a zstring
+			t->val.as.ptr.addr.bytes = zstrndup(t->str + 1, strlen(t->str) - 2); //t->str already a zstring
 			//unescape slashes
-			char* rpos = t->val.as.ptr.block;
+			char* rpos = t->val.as.ptr.addr.bytes;
 			char* wpos = rpos;
 			do {
 				if (*rpos == '\\')
@@ -5387,7 +5402,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		case KINCLUDE:
 			xprintf("lit? %x %x\n", tprev(t)->tok, LITERAL);
 			if (tprev(t)->tok == LITERAL) {
-				char* fname = tprev(t)->val.as.ptr.block;
+				char* fname = tprev(t)->val.as.ptr.addr.bytes;
 				char* strfile = ram_loadstr(fname);
 				if (strfile) {
 
@@ -5399,7 +5414,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					continue;
 				}
 				else {
-					ERR("cannot open file %s\n", tprev(t)->val.as.ptr.block);
+					ERR("cannot open file %s\n", tprev(t)->val.as.ptr.addr.bytes);
 				}
 			}
 			break;
@@ -5436,10 +5451,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			// proc :Vec3(x:Real;y:Real;z:Real -> Vec3);
 			if (tnext(t)->tok == NAME) {
 
-				if (!strcmp(tnext(t)->str, "Vec3"))
-					printf("v");
-
-
+				
 				char* cname = zstrcat(zstrdup(":"), tnext(t)->str);
 
 				
@@ -5478,7 +5490,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				&& (tnext(t)->handler == hconstant)
 				&& (tnext(t)->ty == tType) ) {
 
-				ty = tnext(t)->val.as.type;
+				ty = tnext(t)->val.as.ptr.addr.type;
 				t = tnext(tnext(t));
 			}
 			else {
@@ -5501,11 +5513,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				) 
 			{
 				ERR(" use .tokens instead\n");
-				ts->handler = hsymtoken;
-				ts->ty = tExecToken;
-				fold(tprev(ts), ts);
-				ram_free(tremove(tnext(ts)));
-				continue;
+			
 			}
 
 
@@ -5584,7 +5592,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 							ram_free(tremove(tnext(ts)));
 							ts->handler = haddselector;	//push the set of selectors
-							ts->val.as.type = t2;				//TODO: put the selectors on a seperate stack
+							ts->val.as.ptr.addr.type = t2;				//TODO: put the selectors on a seperate stack
 							ts->tyval = tType;
 							ts->ty = ty;
 							fold(tprev(ts), ts);
@@ -5616,7 +5624,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				) {
 				ram_free(tremove(tnext(ts)));
 				ts->handler = htesttype;	//check if its the right type
-				ts->val.as.type = ty;
+				ts->val.as.ptr.addr.type = ty;
 				ts->tyval = tType;
 				ts->ty = ty;
 				fold(tprev(ts), ts);
@@ -5625,12 +5633,25 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			}
 
 		
+			//allow a few passive casts
 
-			//forced typecast
-			printf(" Forced typecast ");
-			printTypeNoRedirect(tprev(ts)->ty, ZFALSE, ZFALSE);
-			printf(" to ");
-			printTypeNoRedirect(ty, ZTRUE, ZFALSE);
+			int allowed = 0;
+
+			allowed = allowed || (ty == tBit);  //anything to bool
+
+			allowed = allowed || ((tprev(t)->ty == tN32 || tprev(t)->ty == tZ32|| tprev(t)->ty == tN8) && (ty == tN32 || ty == tZ32|| ty == tN8));
+
+
+			if (!allowed) {
+				//forced typecast
+				//
+				printf("Warning forced typecast  allowed:%d", allowed);
+				printTypeNoRedirect(tprev(ts)->ty, ZFALSE, ZFALSE);
+				printf(" to ");
+				printTypeNoRedirect(ty, ZTRUE, ZFALSE);
+				printf(" %s %d\n", t->sourcefile, t->line);
+			}
+
 
 			if (tprev(ts)->ty->category != ty->category)
 				xprintf(" Typecast changing from category %d to %d\n", tprev(ts)->ty->category, tprev(t)->ty->category);
@@ -5648,7 +5669,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		case KTYPEOF:
 			t->handler = hconstant;
 			t->skipargs = ZTRUE;
-			t->val.as.ptr.block = tprev(t)->ty;
+			t->val.as.ptr.addr.bytes = tprev(t)->ty;
 			t->val.as.ptr.offset = 0;
 			t->ty = tType;
 			
@@ -5665,7 +5686,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (!tprev(t)->ty || tprev(t)->ty->category != POINTERUSER || tprev(t)->ty->ref->category != VIRTUAL)
 				ERR("dtypeof is only for non-possesive pointers of virtual types\n");
 
-			t->val.as.type = tprev(t)->ty->ref;  //the virtual type to keep it as
+			t->val.as.ptr.addr.type = tprev(t)->ty->ref;  //the virtual type to keep it as
 			t->ty = tType;
 
 			fold(tprev(t), t);
@@ -5742,20 +5763,16 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 		case '@':
 
-			//if next token is &, remove both (cancels to just leave the pointer)
-			//varname  puts varname
-			if (tnext(t)->tok == '&') {
+			//look at the next token	
+			switch (tnext(t)->tok) {
+
+			case '&':
 				t = tnext(t);
 				ram_free(tremove(ts));
 				ts = t;
 				t = tnext(t);
 				ram_free(tremove(ts));
 				continue;
-			}
-
-			
-			
-			switch (tnext(t)->tok) {
 
 
 				//if next token is assignment, remove the '@' token
@@ -5950,18 +5967,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (tprev(tprev(t))->ty->ref != tprev(t)->ty->ref->ref)
 				break;
 
-		//	xprintf(" COMPARE ");
-			//printType(tprev(t)->ty->ref->ref, ZFALSE, ZTRUE);
-		//	xprintf(" TO ");
-		//	printType(tprev(tprev(t))->ty->ref, ZTRUE, ZTRUE);
-
-
-		//	if (tprev(t)->ty->ref->ref != tprev(tprev(t))->ty->ref) {
-			//	printf("type mismatch \n");
-				//break;
-		//	}
-
-
+		
 			//handle     @= case.... if '@' a pointer to get a variable, and store to the variable...
 			//  pointervar =         //writes a pointer to a pointer variable
 			// The pointer variable is represented by a pointer to some kind of pointer
@@ -6088,7 +6094,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							
 				fold(  tprev(t), t); //put array size as sub
 					
-				typeT* rt = (void*) tprev(t)->val.as.ptr.block;  //value of item  (todo fix to be like below non-array case)
+				typeT* rt = (void*) tprev(t)->val.as.ptr.addr.bytes;  //value of item  (todo fix to be like below non-array case)
 				if (tprev(t)->handler != hconstant) {
 					ERR("alloction requires a constant type\n");
 
@@ -6121,7 +6127,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 				if (tprev(t)->handler == hgettypeselector) {
 
-					t->ty = findType(POINTERPOSSESSIVE, tprev(t)->val.as.type,NULL, 0);
+					t->ty = findType(POINTERPOSSESSIVE, tprev(t)->val.as.ptr.addr.type,NULL, 0);
 					t->val.as.n32 = 1;
 					t->handler = halloc;
 					fold(tprev(t), t);
@@ -6132,10 +6138,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					ERR("alloction requires a constant type\n");
 				}
 
-				typeT* rt = (void*) tprev(t)->val.as.type;
+				typeT* rt = (void*) tprev(t)->val.as.ptr.addr.type;
 				if (tprev(t)->handler == hredirectsub) {
-					tokenT* redirected = tprev(t)->val.as.token;
-					rt = tsub(redirected)->val.as.type;
+					tokenT* redirected = tprev(t)->val.as.ptr.addr.token;
+					rt = tsub(redirected)->val.as.ptr.addr.type;
 				}
 				
 				
@@ -6314,7 +6320,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					if (noexec && tt == tType) {
 						//if no exec, instead of a placeholder expression of the arg type, allow using a Type& of that type
 						//instead of  1 1 +&   it is ok to say Z32 Z32 +&
-						tt = pos->val.as.type;
+						tt = pos->val.as.ptr.addr.type;
 					}
 
 				//	if ((ignoresigned == t) && (tt == tZ32))
@@ -6387,9 +6393,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				
 				//ram_free(v);
 				//v = NULL;
-				if (matchApprox != 0) {
-					printf(" Found symbol %s  approximation:%d\n", t->str, matchApprox);
-				}
+				//if (matchApprox != 0) {
+				//	printf(" Found symbol %s  approximation:%d\n", t->str, matchApprox);
+			//	}
 
 				//xprintf(" Found symbol %s  local:%d \n", t->str, local);
 				//printType(s->type,0,0);
@@ -6473,7 +6479,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 									tokenT* cast = mkToken(TYPECAST, "varrayargtypecast", 0);
 									cast->ty = arglt;
 									cast->handler = haddselector;
-									cast->val.as.type = arrayVType;
+									cast->val.as.ptr.addr.type = arrayVType;
 
 									ts->tyval = tType;
 									insert_after(tv, cast);
@@ -6506,7 +6512,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 									for (int j = 0; j < zvec_count(parmlt->ref->members); j++) {
 										typeT* t2 = zvec_get_at(parmlt->ref->members, j);
 										if (t2->ref && (arglt->ref->tid == t2->ref->tid)) {
-											cast->val.as.type = t2;
+											cast->val.as.ptr.addr.type = t2;
 
 
 											check_implementation(arglt->ref, parmlt->ref, t2);
@@ -6514,7 +6520,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 											break;
 										}
 									}
-									if (!cast->val.as.type)
+									if (!cast->val.as.ptr.addr.type)
 										ERR("no selector table found\n");
 
 									ts->tyval = tType;
@@ -6551,7 +6557,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 								printTypeNoRedirect(argtype->ref, ZFALSE, ZTRUE);
 								*/
 
-								redirect->val.as.token = redirect;  //push self on stack
+								redirect->val.as.ptr.addr.token = redirect;  //push self on stack
 								//redirect->tyval = tType;// WRONG?
 								redirect->restrict_parse_context = pc;
 								insert_after(tv, redirect);
@@ -6586,8 +6592,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 
 							//getc(stdin);
-							//	xprintf(" addref %p +%d\n", ex->stack[ex->fp-count+i].as.ptr.block, ex->stack[ex->fp-count+i].as.ptr.offset);
-								//ram_addref( ex->stack[ex->fp-count+i].as.ptr.block );
+							//	xprintf(" addref %p +%d\n", ex->stack[ex->fp-count+i].as.ptr.addr.bytes, ex->stack[ex->fp-count+i].as.ptr.offset);
+								//ram_addref( ex->stack[ex->fp-count+i].as.ptr.addr.bytes );
 						}
 
 
@@ -6605,7 +6611,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 							t->handler = s->handler;
 							if (s->primsym)
 
-								if (t->val.as.z32 || t->val.as.ptr.block)
+								if (t->val.as.z32 || t->val.as.ptr.addr.bytes)
 									printf("this should be zero\n");
 								if (s->immval)
 									t->val.as.z32 = s->immval;
@@ -6655,14 +6661,22 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 					if (noexec) {
 						//printf(" noexec regular function\n");
-						t->handler = hconstant;
+						
 						t-> skipargs = ZTRUE;
-						t->val.as.symbol = s;
+						t->val.as.ptr.addr.symbol = s;
 
 					//	t->val.as.n32 = 0xffff;
 						//t->sym = 
 					
-						t->ty = findType(POINTERUSER, s->type, NULL, 0);
+						if (tnext(t)->tok == KKEEP) {
+							ram_free(tremove(tnext(t)));
+							t->ty = findType(POINTERPOSSESSIVE, s->type, NULL, 0);
+							t->handler = hconstantaddref;
+						}
+						else {
+							t->ty = findType(POINTERUSER, s->type, NULL, 0);
+							t->handler = hconstant;
+						}
 			
 						t = tnext(t);
 						continue;
@@ -6701,7 +6715,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					loaderToken-> skipargs = ZTRUE;
 				}
 
-				loaderToken->val.as.ptr.block = 0;
+				loaderToken->val.as.ptr.addr.bytes = 0;
 				loaderToken->val.as.ptr.offset = s->offset;
 
 				if (fpointer && !noexec) {
@@ -6783,7 +6797,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 						t->trackpossptr = tprev(t)->trackpossptr;  //if was tracking from a possessive pointer, still track this pointer is derived from that
 						fold(tprev(t), t);
 
-						//for static arrays or substructs (that are embedded (not pointers)) then the pointer addition already made a pointer to the substruct/array.  For other cases (it is a pointer to a struct, integer, etc) then insert a load token.  
+						//for static arrays or substhructs (that are embedded (not pointers)) then the pointer addition already made a pointer to the substruct/array.  For other cases (it is a pointer to a struct, integer, etc) then insert a load token.  
 						if ((found != 2 )&&(t->ty->ref->category != ARRAYSTATIC) && (t->ty->ref->category != STRUCT)) { //todo maybe also type->stacked
 							tokenT* tn = mkToken('@', "@", 1);  //load the variable
 							tn->generated = 1;
@@ -6872,7 +6886,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 				ts = tprev(tn);
 				xprintf("Found type %s\n", ty->name);
 				ts->ty = tType;
-				ts->val.as.type = ty;
+				ts->val.as.ptr.addr.type = ty;
 				ts->tyval = tType;
 				ts->handler = hconstant;
 				ts->skipargs = ZTRUE;
@@ -6969,7 +6983,7 @@ void cleanCCall(exectxT* ex, tokenT* t, void* first) {
 				if (i == 0)
 					ram_free(first); //first arg is passed seperately because the C return value has already overwritten it
 				else
-					ram_free(ex->stack[ex->sp - count + i].as.ptr.block);
+					ram_free(ex->stack[ex->sp - count + i].as.ptr.addr.bytes);
 			}
 
 		}
@@ -6981,18 +6995,29 @@ void cleanCCall(exectxT* ex, tokenT* t, void* first) {
 
 extern scanmain(int argc, char** args);
 
+
+void ctrlc(int s) {
+
+	printf("ctrl c pressed\n");
+
+	signal(SIGINT, ctrlc);  //set up for another
+
+}
+
 int main(int argc, char** args){
+
+	signal(SIGINT, ctrlc);
 
 	if ((argc > 1) && !strcmp(args[1] , "-scan")) {
 		return scanmain(argc - 1, args + 1);
 	}
 
-	logfile = fopen("debug.log", "wb");
+	if (XDEBUG) {
+		logfile = fopen("debug.log", "wb");
+	}
 
-	if (!logfile)
-		logfile = stdout;
-	else
-		printf("Debug output is to file\n");
+	if (logfile)
+		printf("Debug output is to file debug.log \n");
 		
 	tInvalid = mkType(SIMPLE, NULL, "invalid", 0); //does not match anything
 
@@ -7005,10 +7030,14 @@ int main(int argc, char** args){
 	tN32 = mkType( SIMPLE, NULL, "N32", sizeof(zuint32));
 	tN8 = mkType( SIMPLE, NULL, "N8", sizeof(zbyte));
 	tBit = mkType( SIMPLE, NULL, "Bit", sizeof(zbyte));
-	tString = mkType(SIMPLE, NULL, "String", sizeof(char*));
+
+	tString = mkType(ARRAYDYNAMIC, tN8, "String", 0);
+
+	//tString = mkType(SIMPLE, NULL, "String", sizeof(char*));
+
+
 	tImmediate = mkType(SIMPLE, NULL, "Immediate", sizeof(FLOAT));
 	tCode = mkType(SIMPLE, NULL, "Code", 0); 
-	tExecToken = mkType(PENDING, NULL, "ExecToken", 0);
 	tSymbol = mkType(PENDING, NULL, "Symbol", 0);
 	tEmptyStack = mkType(SIMPLE, NULL, "Empty", 0);
 	tNullptr = mkType(NULLPTRCAT, NULL, "Nullptr", 0);  //Nullptr will match any pointer type on the stack
@@ -7023,12 +7052,11 @@ int main(int argc, char** args){
 	char* fname = args[1];
 	char* x = ram_loadstr(fname);
 
-	global = mkcontext("global");
+	global = mkcontext();
 	
-
 	//set up the invalid token to point to itelf, so tnext and tprev don't care
-	invalidToken.zlistnode.prev = &invalidToken;
-	invalidToken.zlistnode.next = &invalidToken;
+	invalidToken.zlistnode.prev = &invalidToken.zlistnode;
+	invalidToken.zlistnode.next = &invalidToken.zlistnode;
 
 	zlistT* tokens = ram_alloc(sizeof(zlistT), (ram_destructor) zlist_cleanup);
 	
@@ -7083,6 +7111,7 @@ int main(int argc, char** args){
 			
 	printSymbols(global->symbols, "globals");
  	printList(zlist_head(tokens),NULL,ENDFILE, 0);
+
 
 	start(global, tnext((tokenT*)zlist_head(tokens)) , NULL  );//run
 	 

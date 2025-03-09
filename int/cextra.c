@@ -125,9 +125,9 @@ tokenT* h_glslprocbody(exectxT* ex, tokenT* t) {
 
 	
 	
-	char* vsource = (ex->stack[ex->sp - 3].as.ptr.block + ex->stack[ex->sp - 3].as.ptr.offset);
-	char* fsource = (ex->stack[ex->sp - 2].as.ptr.block + ex->stack[ex->sp - 2].as.ptr.offset);
-	symbolT* sym =  (ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset);
+	char* vsource = (ex->stack[ex->sp - 3].as.ptr.addr.bytes + ex->stack[ex->sp - 3].as.ptr.offset);
+	char* fsource = (ex->stack[ex->sp - 2].as.ptr.addr.bytes + ex->stack[ex->sp - 2].as.ptr.offset);
+	symbolT* sym =  (ex->stack[ex->sp - 1].as.ptr.addr.bytes + ex->stack[ex->sp - 1].as.ptr.offset);
 
 	glsl_call_wrapperT* cw = ram_alloc(sizeof(glsl_call_wrapperT), freecw);
 	gx_shadergroupT* sg = gx_shader_source(vsource, fsource);
@@ -203,7 +203,7 @@ tokenT* h_glslprocbody(exectxT* ex, tokenT* t) {
 
 	ex->sp-=2;
 	
-	ex->stack[ex->sp - 1].as.ptr.block = cw;
+	ex->stack[ex->sp - 1].as.ptr.addr.bytes = cw;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 	return tnext(t);
 }
@@ -220,7 +220,7 @@ glsl_call_wrapperT* last_prep_pipe = NULL;
 
 tokenT* h_prepshader(exectxT* ex, tokenT* t) {
 
-	glsl_call_wrapperT* cw = (void*)(ex->stack[ex->sp - 1].as.ptr.block);
+	glsl_call_wrapperT* cw = (void*)(ex->stack[ex->sp - 1].as.ptr.addr.bytes);
 	
 	gx_shadergroupT* sg = cw->sg;
 		
@@ -234,7 +234,7 @@ tokenT* h_prepshader(exectxT* ex, tokenT* t) {
 		//time to populate all the values
 
 	for (i = 0; i < zvec_count(sg->shader_inputs); i++) {
- 		void* data = ex->stack[ex->sp - 1 - argcount + i].as.ptr.block + ex->stack[ex->sp - 1 - argcount + i].as.ptr.offset;
+ 		void* data = ex->stack[ex->sp - 1 - argcount + i].as.ptr.addr.bytes + ex->stack[ex->sp - 1 - argcount + i].as.ptr.offset;
 		if (data || ! cw->indirect[i] )
 			mask |= bit;					//set if the pointer to data is non-null OR we are using stack data (!indirect)
 		bit <<= 1;
@@ -248,7 +248,7 @@ tokenT* h_prepshader(exectxT* ex, tokenT* t) {
 	//time to populate all the values
 	for (i = 0; i < zvec_count(sg->shader_inputs); i++) {
 		gfx_shader_inputT* si = zvec_get_at(sg->shader_inputs, i);
-		void* data = ex->stack[ex->sp - 1 - argcount + i].as.ptr.block  + ex->stack[ex->sp - 1 - argcount + i].as.ptr.offset;
+		void* data = ex->stack[ex->sp - 1 - argcount + i].as.ptr.addr.bytes  + ex->stack[ex->sp - 1 - argcount + i].as.ptr.offset;
 
 		if (!data)
 			continue; //skip
@@ -275,7 +275,7 @@ tokenT* h_prepshader(exectxT* ex, tokenT* t) {
 	ex->sp -= zvec_count(sg->shader_inputs);
 
 	//put prepared shader object on stack
-	ex->stack[ex->sp-1 ].as.ptr.block = cw;
+	ex->stack[ex->sp-1 ].as.ptr.addr.bytes = cw;
 	ex->stack[ex->sp-1 ].as.ptr.offset = 0;
 	
 
@@ -288,9 +288,9 @@ tokenT* h_execdraw(exectxT* ex, tokenT* t) {
 	
 	//this doesn't actually use the sg on the stack, it just takes it off that stack.
 	//an easy way to enforce that execdraw follows setting up a shader
-	//gx_shadergroupT* sg = (void*)(ex->stack[ex->sp - 4].as.ptr.block + ex->stack[ex->sp - 4].as.ptr.offset);
+	//gx_shadergroupT* sg = (void*)(ex->stack[ex->sp - 4].as.ptr.addr.bytes + ex->stack[ex->sp - 4].as.ptr.offset);
 	
-	glsl_call_wrapperT* cw = (void*)(ex->stack[ex->sp - 4].as.ptr.block);
+	glsl_call_wrapperT* cw = (void*)(ex->stack[ex->sp - 4].as.ptr.addr.bytes);
 
 	gx_shadergroupT* sg = cw->sg;
 
@@ -324,7 +324,7 @@ tokenT* h_heretoken(exectxT* ex, tokenT* t) {
 
 	tokenT* here = ex->in_immediate->t;
 
-	ex->stack[ex->sp].as.ptr.block = here;
+	ex->stack[ex->sp].as.ptr.addr.bytes = here;
 	ex->stack[ex->sp].as.ptr.offset = 0;
 
 	ex->sp++;
@@ -338,7 +338,7 @@ tokenT* followRedirect(tokenT* there){
 	while (there && there->handler == hredirectsub) {
 		if (tsub(there))
 			ERR("unexpected child\n");
-		there = there->val.as.token;
+		there = there->val.as.ptr.addr.token;
 		there = tsub(there);
 	}
 	return there;
@@ -347,7 +347,7 @@ tokenT* followRedirect(tokenT* there){
 
 tokenT* h_firsttoken(exectxT* ex, tokenT* t) {
 
-	tokenT* there = ex->stack[ex->sp - 1].as.ptr.block;// +ex->stack[ex->sp - 1].as.ptr.offset;
+	tokenT* there = ex->stack[ex->sp - 1].as.ptr.addr.bytes;// +ex->stack[ex->sp - 1].as.ptr.offset;
 	
 	//if 'there' is a redirect, we need to get to the real list of args
 
@@ -357,7 +357,7 @@ tokenT* h_firsttoken(exectxT* ex, tokenT* t) {
 		there = tsub(there); //get first sub (ignoring this might be a redirect)
 
 	
-	ex->stack[ex->sp - 1].as.ptr.block = there;
+	ex->stack[ex->sp - 1].as.ptr.addr.bytes = there;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
 	return tnext(t);
@@ -367,7 +367,7 @@ tokenT* h_firsttoken(exectxT* ex, tokenT* t) {
 //not sure if this one is needed.  it was to address a bug that I think is now otherwise solved.
 tokenT* h_hasfirsttoken(exectxT* ex, tokenT* t) {
 
-	tokenT* there = ex->stack[ex->sp - 1].as.ptr.block;// +ex->stack[ex->sp - 1].as.ptr.offset;
+	tokenT* there = ex->stack[ex->sp - 1].as.ptr.addr.bytes;// +ex->stack[ex->sp - 1].as.ptr.offset;
 
 	//ignore that 'there' might be a redirect.
 	//if we follow it, 'next' won't work
@@ -393,13 +393,13 @@ tokenT* h_hasfirsttoken(exectxT* ex, tokenT* t) {
 //returns the string representation of a token
 tokenT* h_tokenstring(exectxT* ex, tokenT* t) {
 	
-	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
+	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.addr.bytes;
 	if (!ts)
 		ERR("no token\n");
 
 	ts = followRedirect(ts);
 	
-	ex->stack[ex->sp - 1].as.ptr.block = ts->str;
+	ex->stack[ex->sp - 1].as.ptr.addr.bytes = ts->str;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
 	return tnext(t);
@@ -428,11 +428,11 @@ typeT* tvaltype(tokenT* t){
 //returns the type embedded in a token (NOT the token's runtime type, but of ty->val)
 tokenT* h_tokenvaltype(exectxT* ex, tokenT* t) {
 	
-	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.addr.bytes + ex->stack[ex->sp - 1].as.ptr.offset;
 
 	ts = followRedirect(ts);
 
-	ex->stack[ex->sp - 1].as.ptr.block = tvaltype(ts);
+	ex->stack[ex->sp - 1].as.ptr.addr.bytes = tvaltype(ts);
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 	
 	return tnext(t);
@@ -441,12 +441,12 @@ tokenT* h_tokenvaltype(exectxT* ex, tokenT* t) {
 //returns the type the token returns at runtime
 tokenT* h_tokenevaltype(exectxT* ex, tokenT* t) {
 
-	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.addr.bytes + ex->stack[ex->sp - 1].as.ptr.offset;
 
 
 	ts = followRedirect(ts);
 
-	ex->stack[ex->sp - 1].as.ptr.block = ts->ty;
+	ex->stack[ex->sp - 1].as.ptr.addr.bytes = ts->ty;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
 	return tnext(t);
@@ -456,28 +456,28 @@ tokenT* h_tokenevaltype(exectxT* ex, tokenT* t) {
 //returns the token's symbol 
 tokenT* h_tokensymbol(exectxT* ex, tokenT* t) {
 
-	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.addr.bytes + ex->stack[ex->sp - 1].as.ptr.offset;
 	
 
 	ts = followRedirect(ts);
 	
 	
 	if (ts)
-		ex->stack[ex->sp - 1].as.ptr.block = ts->sym;
+		ex->stack[ex->sp - 1].as.ptr.addr.bytes = ts->sym;
 	else
-		ex->stack[ex->sp - 1].as.ptr.block = NULL;
+		ex->stack[ex->sp - 1].as.ptr.addr.bytes = NULL;
 
 	return tnext(t);
 }
 
 tokenT* h_symboltype(exectxT* ex, tokenT* t) {
-	symbolT* s = ex->stack[ex->sp - 1].as.ptr.block + ex->stack[ex->sp - 1].as.ptr.offset;
+	symbolT* s = ex->stack[ex->sp - 1].as.ptr.addr.bytes + ex->stack[ex->sp - 1].as.ptr.offset;
 	
 	
 	if (s)
-		ex->stack[ex->sp - 1].as.ptr.block = s->type;
+		ex->stack[ex->sp - 1].as.ptr.addr.bytes = s->type;
 	else
-		ex->stack[ex->sp - 1].as.ptr.block = NULL;
+		ex->stack[ex->sp - 1].as.ptr.addr.bytes = NULL;
 
 	return tnext(t);
 }
@@ -487,12 +487,12 @@ tokenT* h_symboltype(exectxT* ex, tokenT* t) {
 //returns the next token  like token=next(token)
 tokenT* h_tokennext(exectxT* ex, tokenT* t) {
 
-	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
+	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.addr.bytes;
 	
 	if (ts)
 		ts = tnext(ts);
 	
-	ex->stack[ex->sp - 1].as.ptr.block = ts;
+	ex->stack[ex->sp - 1].as.ptr.addr.bytes = ts;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
 	return tnext(t);
@@ -507,7 +507,7 @@ tokenT* h_tokenclip(exectxT* ex, tokenT* t) {
 	tokenT* here = ex->in_immediate->t;
 	//clip takes from 'here' to passed in position (inclusive) and returns it as a Code%
 	//That 
-	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
+	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.addr.bytes;
 
 	if (!ts) 
 		ERR("cannot clip to null\n");
@@ -521,7 +521,7 @@ tokenT* h_tokenclip(exectxT* ex, tokenT* t) {
 
 	tremove(tcode);
 
-	ex->stack[ex->sp - 1].as.ptr.block = tcode;
+	ex->stack[ex->sp - 1].as.ptr.addr.bytes = tcode;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
 	return tnext(t);
@@ -530,7 +530,7 @@ tokenT* h_tokenclip(exectxT* ex, tokenT* t) {
 
 tokenT* h_tokeninsert(exectxT* ex, tokenT* t) {
 
-	tokenT* additional = ex->stack[ex->sp - 1].as.ptr.block;
+	tokenT* additional = ex->stack[ex->sp - 1].as.ptr.addr.bytes;
 	ex->sp -= 1;
 
 	if (!additional)	//nothing to add, just return what was already there	
@@ -556,8 +556,8 @@ tokenT* h_tokeninsert(exectxT* ex, tokenT* t) {
 tokenT* h_codecat(exectxT* ex, tokenT* t) {
 
 
-	tokenT* first = ex->stack[ex->sp - 2].as.ptr.block;
-	tokenT* additional = ex->stack[ex->sp-1].as.ptr.block;
+	tokenT* first = (tokenT*)ex->stack[ex->sp - 2].as.ptr.addr.bytes;
+	tokenT* additional = (tokenT*) ex->stack[ex->sp-1].as.ptr.addr.bytes;
 	ex->sp-=2;
 	
 	if (!additional)	//nothing to add, just return what was already there	
@@ -584,7 +584,7 @@ tokenT* h_codecat(exectxT* ex, tokenT* t) {
 tokenT* h_tokenprim(exectxT* ex, tokenT* t) {
 	char* name = "Unknown";
 
-	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.block;
+	tokenT* ts = (tokenT*) ex->stack[ex->sp - 1].as.ptr.addr.bytes;
 	
 
 	ts = followRedirect(ts);
@@ -596,7 +596,7 @@ tokenT* h_tokenprim(exectxT* ex, tokenT* t) {
 		name = findSymbolByHandler(ts->handler);
 	
 	
-	ex->stack[ex->sp - 1].as.ptr.block = name;
+	ex->stack[ex->sp - 1].as.ptr.addr.bytes = name;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
 	return tnext(t);

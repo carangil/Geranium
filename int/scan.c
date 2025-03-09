@@ -204,11 +204,11 @@ void create_handler_function(int isunsigned, char* return_type, char* name , zve
 	
 	printf(" Handler for name:%s  return_type:%s   pointer:%d\n", name, return_type, return_pointer);
 	
-	fprintf(outc, "	void* firstArg = ex->stack[ex->sp-%d].as.ptr.block;\n", argcount);
+	fprintf(outc, "	void* firstArg = ex->stack[ex->sp-%d].as.ptr.addr.bytes;\n", argcount);
 
 	//set destination
 	if (return_pointer){
-		fprintf(outc, "	ex->stack[ex->sp-%d].as.ptr.block=(void*) ", argcount);
+		fprintf(outc, "	ex->stack[ex->sp-%d].as.ptr.addr.bytes=(void*) ", argcount);
 	} else {
 		as = get_as(return_type, isunsigned);
 		if (as)
@@ -229,7 +229,7 @@ void create_handler_function(int isunsigned, char* return_type, char* name , zve
 		argT* arg= zvec_get_at(args, j);
 		
 		if (strchr(arg->ctype, '*')){
-			fprintf(outc, "(void*)((ex->stack[ex->sp-%d].as.ptr.block)+(ex->stack[ex->sp-%d].as.ptr.offset))" , j+1, j+1 );
+			fprintf(outc, "(void*)((ex->stack[ex->sp-%d].as.ptr.addr.bytes)+(ex->stack[ex->sp-%d].as.ptr.offset))" , j+1, j+1 );
 		}
 		else{
 			as = get_as(arg->ctype, 0);
@@ -572,7 +572,7 @@ void process_zdef(char* zdef) {
 	printf(" cname {%s}\n", cname);
 
 	char* definition = eat_chars(s+1, " \t"); //skip over space
-
+	
 	char* defend = to_chars(definition, " \t\r\n/");
 
 	char* defword = zstrndup(definition, defend - definition);

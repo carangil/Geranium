@@ -198,7 +198,7 @@ type GLSLAddressing //for struct members or array indexing
     text:String%;
     type:Type&;
     args:[Exp%]%;  //args that might have been used at compile time to generate this leaf node... not used at runtime
-    exp:Exp;
+    virtual exp:Exp;
 end
 
 
@@ -234,7 +234,7 @@ type GLSLTerm
     type:Type&;
     args:[Exp%]%; //are not printed 
     nosemi:Bit; //no semicolon, even if at top level
-    exp:Exp;
+    virtual exp:Exp;
 end
 
 proc Write:(exp:GLSLTerm&;top:Bit ->String%)
@@ -265,7 +265,7 @@ type GLSLBinop
     type:Type&;
     noParen:Bit;
     
-    exp:Exp;
+    virtual exp:Exp;
     
 end
 
@@ -304,14 +304,14 @@ type GLSLFuncOp
     text:String%;
     args:[Exp%]%;
     type:Type&;
-    exp:Exp;
+    virtual exp:Exp;
 end
 
 type GLSLBlock
     text:String%;
     args:[Exp%]%;   //if, else if, and else blocks  (maybe while too)
     type:Type&;
-    exp:Exp;
+    virtual exp:Exp;
 end
 
 proc Write:(exp:GLSLBlock&; top:Bit ->String%)
@@ -344,7 +344,7 @@ type GLSLIfChain
     text:String%;
     args:[Exp%]%;   //list of statements
     type:Type&;
-    exp:Exp;
+    virtual exp:Exp;
 end
 
 proc Write:(exp:GLSLIfChain&;top:Bit ->String%)
@@ -501,7 +501,7 @@ type GLSLDecompiler
 		
 	curargs:[Exp%]%;
 		
-	dc:Decompiler;
+	virtual dc:Decompiler;
 end
 
 

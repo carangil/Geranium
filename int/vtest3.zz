@@ -1,0 +1,482 @@
+
+
+
+
+
+
+
+virtual TestV;
+selector TestV.F:Z32;
+
+
+type TestR
+    F:Z32;
+    virtual tv:TestV;
+end
+
+TestR new #trf
+trf :TestV&
+
+
+
+
+//need a hashmap
+
+
+virtual Hashkey;
+selector h proc .hash:(h:Hashkey& -> N32);
+selector h proc copy:(h:Hashkey& -> like h @ % );
+selector h proc ==:(h:Hashkey& ; h2: like h->Bit);
+
+type String
+    virtual hk:Hashkey;
+end
+
+virtual pair;
+selector pair.value:any%;
+//selector pair.value:hvalue%;
+//selector pair.key:String%;
+selector pair.key:Hashkey%;
+selector pair.next:pair%;
+selector pair.nextG:pair%;
+selector pair.testfp:(p:pair%);
+//selector pair.TEST:Z32%;
+
+type spair
+    key:String%;
+    value:String%;
+    next: spair%;
+    nextG:pair%;
+    testfp:(p:spair%; a:Z32);
+    
+    virtual p:pair;
+    //TEST:Z32%;
+end
+
+type ipair
+    key:String%;
+    value:Z32%;
+    nextG:pair%;
+    next: spair%;
+    virtual p:pair;
+end
+
+
+virtual Printer;
+selector p Print:(a:Z32; p:Printer% -> like p@%);
+
+
+
+var z:Z32;
+
+
+type [spair%]
+    virtual p:Printer;
+end
+
+proc Print:(a:Z32 ; x:[spair%]%->like x@%)
+
+    a print
+    x take return
+end
+
+
+
+proc  GetFromBucket:(  pi:pair% ; k:Hashkey& -> like pi.value )
+  
+  pi take #p
+  
+    
+//  "looking for " k prints newline
+  
+  loop
+    
+    p:Bit while
+    
+   // "-" p.key prints newline
+    
+    
+    "P  " print p printptr newline
+    "p& " print p& printptr newline
+    
+    
+    "P NEXT" print p.next printptr newline
+    
+    "P NEXT&" print p.next& printptr newline
+    
+    
+    
+    
+    "P VALUE" print p.value printptr newline
+    "P KEY"  print p.key printptr newline
+    
+    
+    
+    p.key 
+    
+    k == if
+        "match" print newline
+        p    .value keep return
+    else
+        "continue" print newline
+    end
+       
+    "p.key: " print p.key printptr newline
+    
+    p //~
+    .next 
+    keep 
+    p
+    =
+  
+  end
+  
+  null return
+  
+end
+
+
+proc  PutInBucket:(   v: like pi.value;    pi:pair% ; k:Hashkey& -> like pi )
+  
+  pi keep #p
+  
+  "PUT. start with p as " print    p printptr  newline
+   
+    
+  //"looking for " k "to insert" prints newline
+  
+  loop
+    
+    p:Bit while
+      
+      "PUT. loop start with p as " print    p printptr  newline
+    
+    
+    p.key k == if
+    
+    
+        "match.. time to write" print newline
+ 
+       v take p.value =
+        
+        pi take return
+        
+        
+    else
+        "continue" print newline
+    end
+           
+    "PUT. p next " print    p.next printptr  newline
+    
+    p.next keep p=
+  
+  end
+  
+  
+  
+  "NEW ITEM" print newline
+ 
+  
+  pi dtypeof new p=
+  
+  p:any& printptr
+  
+
+  
+  "p.next" print
+  p.next   printptr newline
+    
+  "set v value" print newline
+  v take p.value= 
+ 
+  "copy  " print k copy ##jjj printptr newline
+ 
+    //loop end
+    
+    
+    
+    
+  k copy p.key=
+ 
+ 
+  "p is " print
+  p:any& printptr newline
+  
+  "p.next" print
+  p.next  any& printptr newline
+  
+ 
+  pi  take  p.next  =
+  
+ // "not in bucket: todo insert " k     prints newline
+  
+  p take return
+    
+  //pi dtypeof new
+  //pi typeof " "  pi dtypeof print newline
+  
+end
+
+[spair%] 10 new #zz
+
+spair new zz 0[]=
+
+
+"test" copy zz 0[].value=
+"cat" copy zz 0[].key=
+
+spair new #nn
+"butt" copy nn.value=
+"dog" copy  nn.key=
+
+nn keep zz 0[].next=
+
+
+10 zz keep Print #lll
+
+newline
+newline
+//return
+
+
+proc []:(v: like pi[].value;  pi:[pair%]&;  k:Hashkey& -> like pi)
+    "called putX" print
+    
+    k.hash print newline
+    
+    null return
+
+end
+
+
+"what" copy  zz "key" [] ##n newline
+
+///return
+
+/*
+
+proc  GetFrom0:(  pi:[pair%]% ; k:Hashkey& -> like pi )
+  :%s
+  pi take #p
+  
+    
+
+  
+  loop
+    
+    p:Bit while
+    
+   // "-" p.key prints newline
+    /*
+    p.key k == if
+        "match" print newline
+        p.value keep return
+    else
+        "continue" print newline
+    end
+       
+    
+    
+  //  p.next keep p=
+  
+  end
+  
+  null return
+  
+end
+*/
+
+/*
+proc Get:( pi: [spair%]&  ; k:Hashkey& -> like pi)
+    "spair version" print newline
+    null return
+end
+*/
+/*
+proc AA:(a:pair&)
+  "pair version" print newline
+end
+
+
+proc AA:(a:spair&)
+  "spair version" print newline
+end
+*/
+
+
+/*
+
+
+
+pair new #P2
+
+P1 AA
+P2 AA
+*/
+
+//stringtable new #table
+
+//zz keep table.buckets=
+
+
+
+
+[spair%] 10 new #table
+
+
+
+proc Get:( pi:[pair%]&  ; k:Hashkey& -> like pi[].value)
+
+    newline "get start" print newline newline
+    pi 0[] keep #p
+    
+    p printptr newline
+    
+    loop 
+        "p " print   p printptr newline
+        p :Bit  while
+        
+        "key " p.key :String& prints newline
+        
+        p.key k == if
+            p.value keep return
+        end
+        
+        p.next keep p =
+    
+       
+    end
+    
+    null return
+end
+
+
+
+
+//[pair%] 10 new #pa
+
+//table "Cat" Get ##bb
+
+
+
+//table "Cat" Gets ##bc
+
+//pa "Cat" Get ##bd
+
+ zz  "cat" Get ##l   "!!!!!" prints  newline
+
+//return
+//table:[pair%]& "Cat" Get ##bb
+//return
+
+
+/*
+spair new #n2
+"33" copy n2.value=
+"x" copy  n2.key=
+
+n2 keep zz 0[].next.next=
+*/
+
+
+//zz 0[]keep  "cat" GetA& Indent disassemble
+
+
+//zz 0[]keep  "x" GetFromBucket  ##tmp print newline
+zz 0[]keep  "cat" GetFromBucket  ##tmp "<<<<<<<<<<<<<<<<<<<" prints newline
+
+
+
+zz 0[]keep  "dog"  GetFromBucket  tmp#= "<<<<<<<<<<<<<<<<<<<" prints newline
+
+
+
+zz 0[]keep  "q" GetFromBucket tmp#=   "<<<<<<<<<<<<<<<<<<<" prints newline
+
+
+//zz 0[]keep typeof print newline return
+
+zz 0[] :any& printptr newline
+
+
+zz 0[]keep  "cat" GetFromBucket  tmp#=  "<<<<<<<<<<<<<<<<<<<" prints newline
+
+
+"zz0 " print  zz 0[]:pair& printptr newline
+
+"newtest" copy  zz 0[]keep  "cat"  PutInBucket  #ppp
+
+"zz0 " print  zz 0[]:pair& printptr newline
+
+
+//~ zz 0[]keep  "cat" GetFromBucket  tmp#=  "<<<<<<<<<<<<<<<<<<<" prints newline
+
+
+
+
+zz 0[]  :any& printptr newline
+"snail" copy  zz 0[]keep  "pest"  PutInBucket   zz 0[]=
+zz 0[]  :any& printptr newline
+
+
+zz 0[]keep  "cat" GetFromBucket  tmp#= print newline
+zz 0[]keep  "dog" GetFromBucket  tmp#= print newline
+zz 0[]keep  "q" GetFromBucket  tmp#= print newline
+zz 0[]keep  "pest" GetFromBucket  tmp#= print newline
+"aaaaaaaaaa" print newline
+
+//typeof print newline
+
+ zz  "dog" Get ##dd  "!!!!!" prints  newline
+"Zzz" print newline
+
+//"gfxgl.zz" include
+
+
+
+[Z32] 10 new0 #ii
+
+10 ii& push 
+12 ii& push
+
+0 #ic
+loop
+    ic ii.count < while
+    ii ic[]  print newline
+    ic&++
+
+end
+
+
+//try making array generically
+
+proc mkArrayLike:(a:any -> [like a]%)
+    null return
+end
+
+zz typeof print newline
+zz 0[] typeof mkArrayLike typeof print newline
+
+"stuff" #stra
+
+
+
+
+code () \
+
+    10 20 + return
+
+\ #jj
+
+
+
+
+
+
+
+
+
+
+
+
+

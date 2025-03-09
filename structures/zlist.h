@@ -59,6 +59,7 @@ void* zlist_tail(zlistT*);
 
 zlistT* zlist_check_init(zlistT* list);
 
+
 #define zlist_addhead(ZLIST,ZNODE)      zlist_insert_node_after( &(zlist_check_init(ZLIST)->sentinal_head), ZNODE)
 #define zlist_addtail(ZLIST,ZNODE)      zlist_insert_node_after( zlist_check_init(ZLIST)->sentinal_tail.prev, ZNODE)
 
@@ -70,4 +71,7 @@ zlistT* zlist_check_init(zlistT* list);
 void* zlist_remove_mid( zlistnodeT* node);
 void* zlist_insert_node_after( zlistnodeT* node, zlistnodeT* newnode);
 void* zlist_insert_node_before(zlistnodeT* node, zlistnodeT* newnode);
+
+#define ZLISTNODE(ITEM)  &( (ITEM)->zlistnode)
+void zlist_init(zlistT* list);
 zbool zlist_cleanup(zlistT* list);

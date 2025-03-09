@@ -69,27 +69,27 @@ end
 
 //returns a reference of
 proc .&:(t:Type&->Type&)
-	POINTERUSER t 0:String& 0 findType return
+	POINTERUSER t null 0 findType return
 end
 
 //returns a cpointer of
 proc .cpointer:(t:Type&->Type&)
-	CPOINTER t 0:String& 0 findType return
+	CPOINTER t null 0 findType return
 end
 
 //returns possessive pointer of
 proc .%:(t:Type&->Type&)
-	POINTERPOSSESSIVE t 0:String& 0 findType return
+	POINTERPOSSESSIVE t null 0 findType return
 end
 
 //returns array of
 proc .array:(t:Type&->Type&)
-	ARRAYDYNAMIC t 0:String& 0 findType return
+	ARRAYDYNAMIC t null 0 findType return
 end
 
 //returns static sized array of
 proc .array:(t:Type&;n:Z32->Type&)
-	ARRAYSTATIC t 0:String& n findType return 
+	ARRAYSTATIC t null n findType return 
 end
 
 proc .@:(t:Type&->Type&)
@@ -146,10 +146,29 @@ proc immediate printi:(a:Type&)
     "imm " print a print newline
 end
 
+
+
+proc defaultIndent:(n: N32)
+      newline   
+      0#i
+      loop i n < while
+      " " print
+      i&++
+      end
+end
+    
+
 proc disassemble:(ti:ExecToken; level:N32;indent:(n:N32)& )
 
 	indent #Indent
-
+	
+	N32 Indent&:Bit not if
+	
+       
+        N32 defaultIndent&  N32 Indent&=
+    end
+	
+	
 	ti #t
 	0 #count
 		
@@ -178,6 +197,7 @@ proc disassemble:(ti:ExecToken; level:N32;indent:(n:N32)& )
 	
 		t.consttype String& ==
 		t.consttype String% == or if
+		   "!STRING!" print   
 			t.value:String& print
 		t.consttype Real ==    elseif
 			t.value:Real 	print
@@ -214,7 +234,7 @@ proc disassemble:(ti:ExecToken;ndent:(n:N32)&)
         end
     end
 
-    ndent 0:any& == if
+    ndent null == if
         "null indent func, using default" print newline
         
         ti  0   0 Indent& disassemble  newline

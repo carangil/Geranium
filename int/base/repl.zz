@@ -1,0 +1,53 @@
+
+proc sys_repl:()
+
+    newline
+    
+"Z interactive" print newline
+
+    
+    loop
+        
+        "" copy #source
+        "Z>" print
+        
+        loop
+            
+            readline #line 
+            
+            line "." == if 
+            
+                                        
+                code (->) \
+                    'source
+                \ #f 
+                
+                f& if 
+                    f
+                    newline
+                else
+                
+                    "Did not compile" print newline
+                end
+                
+                
+                break
+                
+                
+            line "quit" == 
+            line "exit" == or elseif
+                true #doQuit
+                break
+            end
+            
+            
+            " >" print
+            source take LF ++ line ++ source=
+        
+            
+        end//loop
+        
+        doQuit until
+    end//loop
+
+end

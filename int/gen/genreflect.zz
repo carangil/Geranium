@@ -24,6 +24,7 @@ primitive C_tokennext  .next:(t:CodeToken->CodeToken);
 primitive C_tokenstring  .text:(t:CodeToken->String&);
 opaque @valueT TokenValue;
 stacked TokenValue;
+primitive C_hasfirsttoken  .hasSub:(c:ExecToken->Bit);
 primitive C_firsttoken  .sub:(c:ExecToken->ExecToken);
 primitive C_tokenvaltype  .consttype:(c:ExecToken->Type&);
 primitive C_tokenevaltype  .evaltype:(c:ExecToken->Type&);

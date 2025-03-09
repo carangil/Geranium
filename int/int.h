@@ -13,17 +13,21 @@
 #define MATH_FUNC_SUFFIX(FFF)   FFF ## f
 
 
+union ptrtype {
+	char* bytes;
+	struct tokenS* token;
+	struct symbolS* symbol;
+	struct typeS* type;
+};
 
 typedef struct vptrS {
-	char* block;	/* char instead of void, for strict aliasing */
+	union ptrtype addr;
+
 	zuint32 offset;
 	zuint16	level;
 }vptrT;
 
-typedef  struct {
-	struct tokenS* original;
-	struct tokenS* redirected;
-}tokenCursorT;
+
 
 
 typedef struct vptrselectorS {
@@ -38,13 +42,9 @@ typedef union valu {	//Generic value (datatype is tracked through other means)
 #ifdef FLOAT
 	FLOAT f;
 #endif
-	struct typeS* type; //not datatype of valU, but represents a detatype itself (datatypes can be on the stack)  
 	
-	tokenCursorT tc;
-	
-	struct symbolT* symbol;
-	struct tokenS* token;
-	
+	//struct symbolT* symbol;
+
 
 } valU;
 
