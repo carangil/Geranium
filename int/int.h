@@ -18,6 +18,8 @@ union ptrtype {
 	struct tokenS* token;
 	struct symbolS* symbol;
 	struct typeS* type;
+	struct valueS* stackval;
+	struct parsectxS* parsectx;
 };
 
 typedef struct vptrS {
