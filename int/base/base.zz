@@ -17,6 +17,20 @@ primitive arrayop 4 push:(a:any; array:[like a]%& );
 
 
 
+primitive geterror 0 error?:(->N32);
+primitive geterror 1 errorMessage:(->String&);
+primitive seterror error:(message: String%; ecode:N32);
+
+proc clearError:(->)
+    null 0 error
+end
+
+proc error:(msg:String%)
+    msg take 1 error
+end
+
+
+
 //more includes at bottom on this file
 
 
@@ -141,7 +155,7 @@ proc readline:(->String%)
 	
 	loop
 		getch #c			//read a character
-		c:Z32 10 == until	//if newline, exit loop
+		c:Z32 10 == if break end	//if newline, exit loop
 		
 		c s i[]=		//set s[i] to c
 		
@@ -182,7 +196,7 @@ proc .len:(s:String& -> Z32)
 end
 
 proc copy:(s:String& -> String%)
-	s .len #le
+	s.len #le
 	
 	[N8] le 1+  new #news
 	
@@ -206,7 +220,7 @@ proc ==:(si:String&; ti:String& -> Bit)
 		"" s=
 	end
 	
-	t :Bit not if
+	t:Bit not if
 		"" t=
 	end
 	
@@ -243,21 +257,8 @@ proc .hash:(s:String&->N32)
 end
 
 
-
-
-
-
-//typecategory List;
-//typecategory %;
-//typecategory &;
-
-//primitive loadptr:(  p:any&& -> like p@);
-//primitive storeptr:( p:any&; dst: like p& );
-
-
 "gen/gen.zz" include 
 "base/reflect.zz" include
-
 
 
 //string appending         string1 string2 ++
@@ -278,3 +279,15 @@ proc ++:(a:String%; b:String% ->String%)
     a take b 0 -1 zstrcatsub return
 end
 
+
+
+proc error:(msg:String&)
+    msg copy 1 error
+end
+
+
+//print a string from possessive pointer (frees the string)
+proc print:(s:String%)
+    s  print
+
+end

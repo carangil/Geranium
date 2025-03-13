@@ -1,15 +1,15 @@
 
-proc sys_repl:()
 
-    newline
-    
-"Z interactive" print newline
+proc sys_Repl:()
 
-    
+    newline    
+    "Z interactive" print newline
+ 
     loop
         
         "" copy #source
-        "Z>" print
+        "Z> " print
+        1 #linecount
         
         loop
             
@@ -17,20 +17,21 @@ proc sys_repl:()
             
             line "." == if 
             
-                                        
-                code (->) \
-                    'source
-                \ #f 
-                
+                code (->) \ 'source \ #f 
+            
+                //got a function?
                 f& if 
-                    f
+                    cover
+                        f
+                    end
                     newline
-                else
-                
-                    "Did not compile" print newline
                 end
-                
-                
+                                
+                error?  if
+                    error? " " errorMessage  prints newline
+                    clearError
+                end
+                            
                 break
                 
                 
@@ -40,14 +41,18 @@ proc sys_repl:()
                 break
             end
             
-            
-            " >" print
-            source take LF ++ line ++ source=
-        
+
+           source take line ++  LF ++  source=
+           
+            linecount&++
+            linecount " : " prints
+           
+       
             
         end//loop
         
         doQuit until
+        
     end//loop
 
 end

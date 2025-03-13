@@ -127,7 +127,7 @@ tokenT* h_glslprocbody(exectxT* ex, tokenT* t) {
 	
 	char* vsource = (ex->stack[ex->sp - 3].as.ptr.addr.bytes + ex->stack[ex->sp - 3].as.ptr.offset);
 	char* fsource = (ex->stack[ex->sp - 2].as.ptr.addr.bytes + ex->stack[ex->sp - 2].as.ptr.offset);
-	symbolT* sym =  (ex->stack[ex->sp - 1].as.ptr.addr.bytes + ex->stack[ex->sp - 1].as.ptr.offset);
+	symbolT* sym =  (ex->stack[ex->sp - 1].as.ptr.addr.symbol);
 
 	glsl_call_wrapperT* cw = ram_alloc(sizeof(glsl_call_wrapperT), freecw);
 	gx_shadergroupT* sg = gx_shader_source(vsource, fsource);
@@ -203,7 +203,7 @@ tokenT* h_glslprocbody(exectxT* ex, tokenT* t) {
 
 	ex->sp-=2;
 	
-	ex->stack[ex->sp - 1].as.ptr.addr.bytes = cw;
+	ex->stack[ex->sp - 1].as.ptr.addr.bytes =(void*) cw;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 	return tnext(t);
 }
@@ -227,7 +227,7 @@ tokenT* h_prepshader(exectxT* ex, tokenT* t) {
 	last_prep_pipe = cw;
 
 	int argcount = zvec_count(sg->shader_inputs);
-	int i;
+	zuint32 i;
 	zuint64 mask = 0; 
 	zuint64 bit = 1;
 	//check for missing values

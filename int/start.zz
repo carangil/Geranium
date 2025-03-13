@@ -1,12 +1,49 @@
 "base/base.zz" include
 "base/repl.zz" include
 
+sys_Repl& .tokens null disassemble
 
 
-sys_repl& .tokens null disassemble
+proc isPrime:(n:N32->Bit)
+
+    n 1 <= if
+        false return
+    end
+
+    2 #i loop
+    
+      i n == until
+       
+       n i mod:Bit not if
+            false return
+       end
+        
+       i&++
+       
+    end
+
+    true return
+end
 
 
-sys_repl
 
+0 #i loop
+    
+    i isPrime if
+        i  " " prints
+    end
+    i&++
+    i 1000 >= until
+end
+
+
+
+//4 isPrime print newline
+//7 isPrime print newline
+
+
+
+
+sys_Repl
 
 

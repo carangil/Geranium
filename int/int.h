@@ -56,6 +56,38 @@ typedef struct valueS {
 	
 }valueT;
 
+
+//the error is text to display to the user, such as compile errors.
+#define ZERROR_GENERIC	0x01000000
+//stop until we have a frame that handles errors
+#define ZERROR_STOP		0x02000000	
+
+//quit the application immediately
+#define ZERROR_QUIT		0x04000000
+
+//other flags might be like:
+#define ZERROR_MATH (0x1000 | ZERROR_STOP)
+#define ZERROR_NULL (0x2000 | ZERROR_STOP)
+#define ZERROR_IO	(0x4000)
+#define ZERROR_BRK	(0x8000 | ZERROR_STOP)
+
+typedef struct {
+	char* message;
+	char* file;
+	int line;
+	int code;
+} errorT;
+
+
+#define ERR(...)									fsetError(NULL, zstrprintf(NULL, __VA_ARGS__), NULL, ZERROR_QUIT)
+#define setError(pobj, ptoken, MSG)					fsetError(&(pobj)->error, zstrdup(MSG), ptoken, ZERROR_GENERIC)
+#define setErrorf(pobj, ptoken, ...)				fsetError(&(pobj)->error, zstrprintf(NULL, __VA_ARGS__), ptoken, ZERROR_GENERIC)
+#define setErrorFlags(pobj, FLAGS, ptoken, MSG)		fsetError(&(pobj)->error, zstrdup(MSG), ptoken, FLAGS)
+#define setErrorFlagsf(pobj,FLAGS, ptoken, ...)		fsetError(&(pobj)->error, zstrprintf(NULL, __VA_ARGS__), ptoken, FLAGS)
+#define getError(pobj)								fgetError(&(pobj)->error)
+#define moveError(DST,SRC)							fmoveError( &(DST)->error, &(SRC)->error)
+void fsetError(errorT* error, char* message, struct tokenS* t, int flags);
+
 /**** Execution Context ****/
 typedef struct exectxS {
 	valueT* stack;  //call/parameter stack
@@ -64,6 +96,7 @@ typedef struct exectxS {
 	char* vars; 	//local data space
 	char* globalvars; //global data space
 	char* immediatevars; //global data space for immediate blocks
+	errorT error;
 	int stop;
 	int level;//stackframe level
 	int debugstack;
@@ -71,8 +104,9 @@ typedef struct exectxS {
 	}exectxT;
 #define STOPFUNC 1
 #define STOPLOOP 2
-#define STOPBLOCK 3
-#define RELOOP 4
+#define STOPBLOCK 4
+#define RELOOP 8
+#define STOPERROR  16
 
 //tokens for interpreter
 //custom handlers should restrict to using a few macros
