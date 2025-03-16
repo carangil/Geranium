@@ -2304,10 +2304,15 @@ tokenT* hbreakcontinueloop (exectxT* ex, tokenT* t) {
 tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP is set
 	
 	while(!ex->stop){
-		exe(ex, tsub(t) );; 
+		exe(ex, tsub(t) ); 
+
 		if (ex->stop == RELOOP)
 			ex->stop = 0;
-		 
+		
+		if (!ex->stop) {
+			exe(ex, t->val.as.ptr.addr.token); //run the loop step (increment)
+		}
+
 	}
 	if(ex->stop == STOPLOOP)
 		ex->stop=0;
@@ -2319,11 +2324,14 @@ tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP i
 
 zbool parse_debugging = ZFALSE;
 
-tokenT* parse(parsectxT* pc, tokenT* t);
+tokenT* parse(parsectxT* pc, tokenT* t, zbool single); 
+//if set to single, only iterates a single  token
+//note: if that token is 'loop' or 'if' or some recursive stuff, it will finish that before returning
+
+
 //invoke the C parser from inside an immediate handler;
 
 tokenT* hparse(exectxT* ex, tokenT* t) {
-
 
 	parsectxT* pc = ex->in_immediate->parent;
 	tokenT* here = ex->in_immediate->t;
@@ -2332,13 +2340,20 @@ tokenT* hparse(exectxT* ex, tokenT* t) {
 
 	printf(" Start hparse in %s", pc->debug_name);
 	
+	zbool single = ZFALSE;
 
+	if (t->val.as.n32 == 1) {
+		printf(" single\n");
+		single = ZTRUE;
+	}
 	pc->endable++;
 	pc->type =NULL;
-	here = parse(pc, here);
+	here = parse(pc, here, single);
 
-	here->handler = hnop;
-	here = tnext(here);
+	if (!single) { //if not a single, we got here by 'end'
+		here->handler = hnop;
+		here = tnext(here);
+	}
 	
 	printf(" End hparse", here->str);
 
@@ -2395,7 +2410,7 @@ tokenT* h_compile(exectxT* ex, tokenT* t) {
 			pc->parent = t->val.as.ptr.addr.parsectx;
 		}
 		
-		parse(pc, tsub(code));
+		parse(pc, tsub(code), ZFALSE);
 
 		if (getError(pc)) {
 			ram_free(s);
@@ -4277,7 +4292,7 @@ tokenT* quote(parsectxT* pc, tokenT* t, char* endString) {
 			pc->endable++;
 		
 
-			t = parse(pc, tnext(dollar)); //t is 'end' after this call
+			t = parse(pc, tnext(dollar), ZFALSE); //t is 'end' after this call
 
 			if (getError(pc)) {
 				return &invalidToken;
@@ -4301,8 +4316,11 @@ tokenT* quote(parsectxT* pc, tokenT* t, char* endString) {
 
 }
 
-tokenT*  parse(parsectxT* pc, tokenT* t) {
+//single will parse just 1 token (plus any recursion is causes)
+
+tokenT*  parse(parsectxT* pc, tokenT* t, zbool single) {
 	
+	int cnt = 0;
 	tokenT* ttop = t;
 	tokenT* ts=NULL;
 	symbolT* s= NULL;
@@ -4335,6 +4353,12 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 		if (t->tok==ENDFILE || t->tok== PASTENDFILE)
 			return t;
+
+		if (single && cnt)
+			return t;	//only parse 1
+
+		cnt++;
+
 
 		lastfile = t->sourcefile;
 		lastline = t->line;
@@ -4686,7 +4710,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			//parse in the immediate context
 			immediate_parse->endable++;
-			t = parse(immediate_parse, tnext(t));
+			t = parse(immediate_parse, tnext(t), ZFALSE);
 		//	immediate_parse->type = prev_imm_context_ty;
 
 			printf("after parse, ty is %s \n", immediate_parse->type ? immediate_parse->type->name : "none");
@@ -5106,7 +5130,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 				//	t->sym = s;
 				s->handler = hcall;  //need to set handler before parsing, in case of recursion
-				t = parse(s->subctx, t);
+				t = parse(s->subctx, t, ZFALSE);
 				if (getError(s->subctx)) {
 					moveError(pc, s->subctx);
 					return &invalidToken;
@@ -5300,7 +5324,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		case KCOVER:
 			ts = t;
 			pc->endable++;
-			t = parse(pc, tnext(t));
+			t = parse(pc, tnext(t), ZFALSE);
 
 			if (getError(pc)) {
 				return &invalidToken;
@@ -5324,14 +5348,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		continue;
 
 		case KLOOPSTEP:
-		
-			if (pc->endable)
+			//whatever the previous statement is made the loop's step (increment) statement
 
 
 		case KLOOP:
 			ts = t;
 			pc->endable++;
-			t = parse(pc, tnext(t));
+			t = parse(pc, tnext(t), ZFALSE);
 
 			if (getError(pc)) {
 				return &invalidToken;
@@ -5347,6 +5370,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			if (getError(pc)) {
 				return &invalidToken;
+			}
+
+			if (ts->tok == KLOOPSTEP) {
+				
+				ts->val.as.ptr.addr.token = tremove(tprev(ts));
+				ts->tyval = tCode;
+				ts->val_to_free = ZTRUE;
 			}
 
 			lfold(ts, t);
@@ -5388,7 +5418,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t = tnext(t);
 			pc->endable++;
 
-			t = parse(pc, t); //parse until end, else or elseif
+			t = parse(pc, t,ZFALSE); //parse until end, else or elseif
 
 			insert_after(ts, condition); //insert the condition to be the first child
 			lfold(ts, t); //move all the 'true' case code into the cond block
@@ -5439,7 +5469,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			while (t->tok == KELSEIF) {
 				tokenT* elsif = t;  
 				t = tnext(t);
-				t = parse(pc, t); //t is going to be elseif, else, or end
+				t = parse(pc, t, ZFALSE); //t is going to be elseif, else, or end
 				lfold(elsif, t); //fold the condition's iftrue code into the elseif tag
 			}
 
@@ -5447,7 +5477,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (t->tok == KELSE) {
 				t->handler = hnop; //
 				t = tnext(t);
-				t = parse(pc, t); //continue until 'end'
+				t = parse(pc, t, ZFALSE); //continue until 'end'
 			}
 
 			if (t->tok == KEND) {
@@ -7250,7 +7280,7 @@ int main(int argc, char** args){
 	SET_EXTENSIONS();
 #endif
 		
-	parse(global, tnext((tokenT*)zlist_head(tokens)));
+	parse(global, tnext((tokenT*)zlist_head(tokens)), ZFALSE);
 		
 	if (!getError(global))
 		checkUsage(global, zlist_head(tokens), zlist_tail(tokens));
