@@ -1,6 +1,6 @@
 #include "int.h"
 #include "signal.h"
-#define XDEBUG 0
+#define XDEBUG 1
 #define xprintf(a,...) (logfile?fprintf(logfile, a, __VA_ARGS__),fflush(logfile):0)
 FILE* logfile=NULL;
  
@@ -101,6 +101,7 @@ typedef struct parsectxS{
 	zbool no_global_vars;	//set to true to prevent compiling access to global variables (global functions ok)
 	tokenT* t; //where parser left of if calling into a Z program to parse
 	char* prefix;
+	char* debug_name;
 }parsectxT;
 
 /**** Tokenizer ****/
@@ -179,11 +180,13 @@ typedef struct parsectxS{
 #define KNULL		0x8024
 #define KDTYPEOF	0x8025
 #define KCOVER		0x8026
+#define KLOOPSTEP	0x8027
+
 
 char*  keywords[] = {	"var", "type", "end", "primitive", "proc","return", "if", "else", "elseif", "loop", "break", 
 						"new", "proto", "trash", "keep", "take", "include", "virtual", "selector", "cpointer", "new0",
 						"prefix", "like", "shader","opaque","immediate", "code", "stacked", "typeof", "constant",
-						 "per" , "alias", "skip", "noexec", "and", "or", "null", "dtypeof", "cover", NULL};
+						 "per" , "alias", "skip", "noexec", "and", "or", "null", "dtypeof", "cover",  "loopstep", NULL};
 
 zuint32 findKeyword(char* c){
 	if (c)
@@ -2314,14 +2317,43 @@ tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP i
 	return tnext(t);	
 }
 
+zbool parse_debugging = ZFALSE;
+
+tokenT* parse(parsectxT* pc, tokenT* t);
+//invoke the C parser from inside an immediate handler;
+
+tokenT* hparse(exectxT* ex, tokenT* t) {
+
+
+	parsectxT* pc = ex->in_immediate->parent;
+	tokenT* here = ex->in_immediate->t;
+
+	parse_debugging = ZTRUE;
+
+	printf(" Start hparse in %s", pc->debug_name);
+	
+
+	pc->endable++;
+	pc->type =NULL;
+	here = parse(pc, here);
+
+	here->handler = hnop;
+	here = tnext(here);
+	
+	printf(" End hparse", here->str);
+
+	ex->in_immediate->t = here;
+	return tnext(t);
+}
+
 
 //parses / compiles a list of tokens, if it hasn't been already
 //executes the list of tokene
 
 parsectxT* global = NULL;
 parsectxT* immediate_parse = NULL;
-parsectxT* mkcontext();
-tokenT* parse(parsectxT* pc, tokenT* t);
+parsectxT* mkcontext(char* debug_name);
+
 
 int debugtimes = 0;
 
@@ -2348,7 +2380,7 @@ tokenT* h_compile(exectxT* ex, tokenT* t) {
 			ERR("Compiling code that contains subtree from other context: not allowed\n");
 		}
 
-		parsectxT* pc = mkcontext();
+		parsectxT* pc = mkcontext("dynamic");
 		symbolT* s = mkSymbol(NULL, "nofile", code->ty, NULL);
 		pc->symfrom = s;
 		s->subctx = pc;
@@ -2633,6 +2665,8 @@ tokenT* hreturn (exectxT* ex, tokenT* t){
 	if (t->ty) {  
 
 		xprintf("Pushing return type (return from immediate)\n");
+
+		printf("Pushing return type (return from immediate)\n");
 
 		//if returning from an immediate block, put the return type on the stack too
 		//if the immediate block is not returning a value, t->ty should have been set to tImmediate anyway
@@ -3237,6 +3271,9 @@ void addhandlers(struct parsectxS* pctx) {
 	HANDLER(pctx, immvar);
 	HANDLER(pctx, global);
 
+	
+	HANDLER(pctx, parse);
+
 
 	//error handling
 	HANDLER(pctx, geterror);
@@ -3283,8 +3320,10 @@ tokenT* hDEBUG(exectxT* ex, tokenT* t) {  //push constant on stack
 }
 
 void start(parsectxT* pctx, tokenT* t, valueT* initial){
-
+	
 	if (!pctx->exec) {
+		printf(" Creating execution context for %s\n", pctx->debug_name);
+
 		pctx->exec = ram_alloc(sizeof(exectxT), exectx_cleanup);
 		pctx->exec->stack = ram_alloc(sizeof(valueT) * 100, NULL);
 	
@@ -3306,14 +3345,18 @@ void start(parsectxT* pctx, tokenT* t, valueT* initial){
 			pctx->exec->vars = ram_alloc(pctx->size, NULL);
 		}
 
+		
 		pctx->exec->sp = 0;
 	}
 	else  {
+		
 		//printf("resuming immediate context\n");
 		//pctx->exec->debugstack = 1;
 	}
 	//spsave = pctx->exec->sp;
 	
+	printf("Entering context %s sp %d\n", pctx->debug_name, pctx->exec->sp);
+
 	pctx->exec->stop = 0;
 
 	if (pctx == immediate_parse &&  pctx->exec->immediatevars) {
@@ -3372,6 +3415,7 @@ void start(parsectxT* pctx, tokenT* t, valueT* initial){
 		pctx->exec->sp = oldsp;
 	}
 
+	printf("stopping context %s at %d\n", pctx->debug_name, pctx->exec->sp);
 	//pctx->exec->sp = spsave;
 
 	//ram_free(exectx->stack);
@@ -3854,10 +3898,10 @@ zbool parsectx_cleanup(void* v){
 	return ZTRUE;
 }
 
-parsectxT* mkcontext()
+parsectxT* mkcontext(char* debug_name)
 {
 	parsectxT* c = ram_alloc(sizeof(parsectxT), parsectx_cleanup);
-	
+	c->debug_name = debug_name;
 	c->symbols = zvec_mk(NULL, 10);
 	return c;
 }
@@ -4282,6 +4326,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 	int matchApprox = MATCH_EXACT;
 	tokenT* matchApproxToken = NULL;
 
+	printf("Start parse in context %s\n", pc->debug_name);
+
 
 	while ( t) {
  		if (t->tok==ENDFILE)
@@ -4312,6 +4358,11 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 		int dataselector = 0;
 		int nopop = 0;
 		
+		if (parse_debugging) {
+			printf("{%s %s}", t->str, pc->debug_name);
+			printf("\n");
+		}
+				
 
 		switch (t->tok) {
 
@@ -4333,6 +4384,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			t = tnext(t);
 			ram_free(tremove(tprev(t)));
 			t->breakpoint = ZTRUE;
+			parse_debugging = ZTRUE;
 			dobreak = 1;
 			continue;
 
@@ -4444,10 +4496,14 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			break;
 
 		case KEND:
-
+			printf(" parsing KEND %p  line %d\n", t, t->line  );
 			if (pc->endable && pc->type == tImmediate) {
+				printf(" is immediate\n");
 				t->handler = hreturn;
 				t->ty = tImmediate;
+			}
+			else {
+				t->ty = NULL;
 			}
 
 
@@ -4468,6 +4524,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (pc->endable) {
 				pc->endable--;
 				//xprintf(" 'end' block \n");
+
+				printf("'end' in context %s\n", pc->debug_name);
 
 				return t;
 			}
@@ -4599,16 +4657,20 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 	 
 			ts = t;
 
+
 			if (!immediate_parse) {
 				//create parse context for immediate blocks
-				immediate_parse = mkcontext();
+				immediate_parse = mkcontext("immediate");
 				immediate_parse->type = tImmediate;
 			}
 
 			typeT* prev_imm_context_ty = immediate_parse->type;
 
-			//if (prev_imm_context_ty != immediate_parse->type)
-				//printf("pushing new immediate context type\n");
+			printf(" saving immediate type %s, starting at tImmediate \n", prev_imm_context_ty? prev_imm_context_ty->name:"none") ;
+			
+
+			if (parse_debugging)
+				printf("");
 
 			immediate_parse->type = tImmediate;
 
@@ -4617,17 +4679,23 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			else
 				immediate_parse->no_global_vars = ZFALSE; //enable global variables for immediate blocks that are created after program is running?
 
+			
+			parsectxT* oldparent = immediate_parse->parent;
+			immediate_parse->parent = pc; //where called from
+			printf(" set immediate parse parent to %s\n", pc->debug_name);
+
+			//parse in the immediate context
 			immediate_parse->endable++;
 			t = parse(immediate_parse, tnext(t));
-			immediate_parse->type = prev_imm_context_ty;
+		//	immediate_parse->type = prev_imm_context_ty;
+
+			printf("after parse, ty is %s \n", immediate_parse->type ? immediate_parse->type->name : "none");
+			printf(" after parse parent is  %s\n", immediate_parse->parent->debug_name);
 
 			if (getError(immediate_parse)) {
 				moveError(pc, immediate_parse);
 				return &invalidToken;
-				
-				
 			}
-
 
 			t = tnext(t);
 
@@ -4646,36 +4714,47 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			if (immediate_parse->exec) {
 				oldfp = immediate_parse->exec->fp;
-				immediate_parse->exec->sp = immediate_parse->exec->fp;
+				//immediate_parse->exec->sp = immediate_parse->exec->fp;
+				immediate_parse->exec->fp = immediate_parse->exec->sp;
 			}
 
-			parsectxT* oldparent = immediate_parse->parent;
-			immediate_parse->parent = pc;
-
 			tokenT* savet = immediate_parse->t;	//save if there was another one already being processed
-			immediate_parse->t = t;	//save our 't', because the code running may change it
 
+			immediate_parse->t = t;	//save our 't', because the code running may change it
+			
+			printf("starting immediate\n");
 			start(immediate_parse, sub, NULL);
 
+			if (immediate_parse->exec->stop != STOPERROR)
+				immediate_parse->exec->stop = 0;
+						
 			t = immediate_parse->t;  //get what might have been changed
-
 			immediate_parse->t = savet;  //restore the saved t value
-
 			immediate_parse->parent = oldparent;
+			
+			printf(" after running  %s  \n", immediate_parse->type ? immediate_parse->type->name : "none");
+
+
+			immediate_parse->type = prev_imm_context_ty; //moved to after execution
+
+			printf(" restoring  %s  \n", prev_imm_context_ty ? prev_imm_context_ty->name : "none");
+
 
 			int spdone = immediate_parse->exec->sp;
 			immediate_parse->exec->sp = immediate_parse->exec->fp;
 			immediate_parse->exec->fp = oldfp;
 
+			printf("Expecting return type from immediate\n");
 			typeT* rettype = immediate_parse->exec->stack[spdone - 1].as.ptr.addr.type;
 
 			if (rettype != tImmediate) {
 				ts->handler = hconstant;
 				ts->skipargs = ZTRUE;
-				ts->ty = rettype;
+			//	ts->ty = rettype;//moved down
 				ts->val = immediate_parse->exec->stack[spdone - 2];
 
 				if (t->tok == SHADERDATA) {
+					ts->ty = rettype;
 					//printf("To set shader data\n");
 
 					if (t->sym->isShader == 2)
@@ -4698,7 +4777,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 					setError(pc, t, "Cannot return a non-possessive pointer in immediate block");
 					return NULL;
 				}
-
+				ts->ty = rettype;
 				if (ts->ty->category == POINTERPOSSESSIVE) {
 					ts->val_to_free = ZTRUE;
 					ts->handler = hconstantaddref; //need to add ref when putting on the stack
@@ -5015,7 +5094,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 			if (ts->tok == KPROC) {
 				//procedures go into a body of statements
 	
-				s->subctx = mkcontext();
+				s->subctx = mkcontext(s->name );
 				s->subctx->symfrom = s;
 				s->subctx->parent = pc;
 
@@ -5157,7 +5236,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 
 			if (pc->type == tImmediate) {
 
-				//printf(" compiling return for immediate\n");
+				printf(" compiling return for immediate\n");
 				if (tprev(t)->ty) {
 					//	pc->type = tprev(t)->ty;
 					t->ty = tprev(t)->ty;
@@ -5243,6 +5322,10 @@ tokenT*  parse(parsectxT* pc, tokenT* t) {
 	
 
 		continue;
+
+		case KLOOPSTEP:
+		
+			if (pc->endable)
 
 
 		case KLOOP:
@@ -7135,7 +7218,7 @@ int main(int argc, char** args){
 	char* fname = args[1];
 	char* x = ram_loadstr(fname);
 
-	global = mkcontext();
+	global = mkcontext("global");
 	
 	//set up the invalid token to point to itelf, so tnext and tprev don't care
 	invalidToken.zlistnode.prev = &invalidToken.zlistnode;

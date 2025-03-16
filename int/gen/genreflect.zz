@@ -10,18 +10,11 @@ primitive C_findType findType:(category:Z32; ref:Type&; name:String&; size:Z32->
 primitive C_printTypeNoRedirect printTypeNoRedirect:(c_ty:Type&; c_line:Bit; c_skipmembers:Bit-> );
 primitive C_testComputeShader testComputeShader:(-> );
 primitive C_type_member []:(ty:Type&; n:N32 -> Type&);
-stacked CodeToken;
 opaque @vptrT CodeToken;
 stacked ExecToken;
 opaque @vptrT ExecToken;
 opaque @vptrT Symbol;
 stacked Symbol;
-primitive C_heretoken  here:(->CodeToken);
-primitive C_tokenclip  clip:(t:CodeToken->Code%);
-primitive C_codecat  ++:(c:Code&;d:Code%);  //appends d to c.  frees d
-primitive C_tokeninsert  insert:(c:Code%->);
-primitive C_tokennext  .next:(t:CodeToken->CodeToken);
-primitive C_tokenstring  .text:(t:CodeToken->String&);
 opaque @valueT TokenValue;
 stacked TokenValue;
 primitive C_hasfirsttoken  .hasSub:(c:ExecToken->Bit);
@@ -31,7 +24,20 @@ primitive C_tokenevaltype  .evaltype:(c:ExecToken->Type&);
 primitive C_tokenprim  .prim:(c:ExecToken->String&);
 primitive C_tokensymbol  .symbol:(c:ExecToken->Symbol);
 primitive C_symboltype  .type:(s:Symbol->Type&);
-primitive C_tokenstring	.text:(t:ExecToken->String&);primitive C_tokennext	.next:(t:ExecToken->ExecToken);primitive tokenval		.value:(t:ExecToken->TokenValue);primitive symtoken  	.tokens:(s:Symbol->ExecToken);1 constant SIMPLE
+primitive C_tokenstring  .text:(t:ExecToken->String&);
+primitive C_tokennext  .next:(t:ExecToken->ExecToken);
+primitive tokenval		.value:(t:ExecToken->TokenValue);
+primitive symtoken  	.tokens:(s:Symbol->ExecToken);
+opaque @vptrT SourceToken;
+primitive C_tokenforward  []:(t:SourceToken&; n:N32 -> SourceToken%); 
+primitive C_tokenforward 1 []:(t:SourceToken%; n:N32 -> SourceToken%);
+primitive C_heretokenP  sys_Here:(->SourceToken%);
+primitive C_tokenclip  clip:(t:SourceToken%->Code%);
+primitive C_tokenstringcopy  1  .text:(t:SourceToken%->String%);
+primitive C_tokenstringcopy	0  .text:(t:SourceToken&->String%);
+primitive C_codecat  ++:(c:Code&;d:Code%);  //appends d to c.  frees d
+primitive C_tokeninsert  insert:(c:Code%->);
+1 constant SIMPLE
 2 constant POINTERUSER
 3 constant STRUCT
 4 constant ARRAYSTATIC

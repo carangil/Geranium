@@ -160,7 +160,7 @@ proc    shader% testShader:	(
             
 		}
 	"
-	
+        
 	"
         in vec4 f_color;
 		in vec2 f_texcoord;
@@ -188,75 +188,95 @@ proc fcompileTest:()
     
 end
 
-virtual Exp;
-selector Exp.text:String%;
-selector Exp.type:Type&;
-selector Exp.args:[Exp%]%;
-selector ex Write:(ex:Exp&; top:Bit; ->String% );
 
-type GLSLAddressing //for struct members or array indexing
+true #expdebug?
+
+virtual Exp
     text:String%;
     type:Type&;
-    args:[Exp%]%;  //args that might have been used at compile time to generate this leaf node... not used at runtime
-    virtual exp:Exp;
+    args:[Exp%]%;
+end
+
+selector ex Write:(ex:Exp&; top:Bit; ->String% );
+
+
+
+type GLSLAddressing //for struct members
+    text:String%;
+    type:Type&;
+    args:[Exp%]%;  
 end
 
 
 proc Write:(exp:GLSLAddressing&;top:Bit ->String%)
-    
-    "Write for " exp typeof prints newline
-    
-    
-    "IN WRITE ---------------------------" print newline
- //   loop end
     
     exp.args not 
     exp.args.count 1 != or  if
         "Must access off something" print newline
         "" copy return
     end
-    
-    "to write args0" print newline
-    
-    exp.args 0[] false Write 
-    
+        
+    exp.args 0[] false Write     
     exp.text ++
-    
-    
+       
     return
 end
 
+
+
+type GLSLArrayIndexing //for array indexing
+    text:String%;
+    type:Type&;
+    args:[Exp%]%;  
+end
+
+
+proc Write:(exp:GLSLArrayIndexing&;top:Bit ->String%)
+    
+    exp.args not 
+    exp.args.count 2 != or  if
+        "Must access off something" print newline
+        "" copy return
+    end
+    
+    
+    exp.args 0[] false Write   
+    "[" ++
+    exp.args 1[] false Write    ++
+    "]" ++
+    
+   
+    return
+    
+end
 
 
 
 type GLSLTerm
     text:String%;
     type:Type&;
-    args:[Exp%]%; //are not printed 
-    nosemi:Bit; //no semicolon, even if at top level
-    virtual exp:Exp;
+    args:[Exp%]%;   //are not printed 
+    nosemi:Bit;     //no semicolon, even if at top level
 end
 
 proc Write:(exp:GLSLTerm&;top:Bit ->String%)
-    
-    "Write for " exp typeof prints newline
-    
+
     
     top 
     exp.nosemi not and if 
-        ";S" LF ++ #ending
+        ";" LF ++ #ending
     end
-    
-    
+        
 
-    exp.args.count 1 == if
+    exp.args:Bit
+    exp.args.count 1 == and if
+    
         exp.args 0[] false Write ending ++ return
     end
     
     
     exp.text copy ending ++ return
-    
-    
+        
 end
 
 type GLSLBinop
@@ -264,15 +284,12 @@ type GLSLBinop
     args:[Exp%]%;
     type:Type&;
     noParen:Bit;
-    
-    virtual exp:Exp;
-    
+   
 end
 
 proc Write:(exp:GLSLBinop&;top:Bit ->String%)
     
-    "Write for " exp typeof prints newline
-    
+   
     
     top if
         ";" copy #ending
@@ -304,20 +321,17 @@ type GLSLFuncOp
     text:String%;
     args:[Exp%]%;
     type:Type&;
-    virtual exp:Exp;
 end
 
 type GLSLBlock
     text:String%;
     args:[Exp%]%;   //if, else if, and else blocks  (maybe while too)
     type:Type&;
-    virtual exp:Exp;
 end
 
 proc Write:(exp:GLSLBlock&; top:Bit ->String%)
    
-    "Write for " exp typeof prints newline
-    
+       
     
     exp.text copy #s
     s take " (" ++ s=
@@ -344,12 +358,12 @@ type GLSLIfChain
     text:String%;
     args:[Exp%]%;   //list of statements
     type:Type&;
-    virtual exp:Exp;
+
 end
 
 proc Write:(exp:GLSLIfChain&;top:Bit ->String%)
     
-    "Write for " exp typeof prints newline
+
     
     
     "" copy #s
@@ -391,10 +405,7 @@ end
 
 proc Write:(exp:GLSLFuncOp& ;top:Bit->String%)
 
-    "Write for " exp typeof prints newline
-    
-
-
+  
     exp.text copy "(" ++ #s
     
     0#i loop i exp.args  .count < while
@@ -431,9 +442,7 @@ end
 var GLSLMapping:gmapping%;
 
 proc GLSLAddFunc : (s:Symbol; name:String&)
-    
     gmapping new #gm 
-    
     s gm.symbol=
     name copy gm.glsl=
     GLSLMapping take gm.next=
@@ -442,16 +451,12 @@ end
 
 
 proc GLSLAddType : (t:Type&; name:String&)
-    
     gmapping new #gm 
-    
     t gm.type=
     name copy gm.glsl=
     GLSLMapping take gm.next=
     gm take GLSLMapping=
 end
-
-
 
 
 proc LookupFunction:(s:Symbol->String%)
@@ -460,7 +465,6 @@ proc LookupFunction:(s:Symbol->String%)
     
 
         gm.symbol s == if
-           
             gm.glsl copy return
         end
     
@@ -486,8 +490,6 @@ end
 
 
 proto :Vec4:(v:Vec3;a:Real->Vec4);
-
-
                 Real    Real:Vec2 noexec "vec2" GLSLAddFunc
         Real    Real    Real:Vec3 noexec "vec3" GLSLAddFunc
                 Vec3    Real:Vec4 noexec "vec4" GLSLAddFunc
@@ -495,13 +497,15 @@ Real    Real    Real    Real:Vec4 noexec "vec4" GLSLAddFunc
     
 
     
+
+
 type GLSLDecompiler
-    //for printing
-	indentLevel:Z32;
+    
+
 		
 	curargs:[Exp%]%;
-		
-	virtual dc:Decompiler;
+    indentLevel:Z32;
+
 end
 
 
@@ -537,10 +541,6 @@ proc Dump:(t:ExecToken)
     end
 
 end
-
-
-
-
 
 
 proto End:(dc: GLSLDecompiler& ; t:ExecToken);
@@ -685,9 +685,23 @@ proc Begin:(dc: GLSLDecompiler& ; t:ExecToken; subcount:N32)
        // dc.curargs 0[].text copy t.text ++ exp.text=
        
         dc.curargs take exp.args=
-        
+     
+     
+     
+     t.prim "index" == elseif
+    
+    
+        GLSLArrayIndexing new:Exp% exp=
 
-        
+
+        dc:Decompiler&   t.sub decompile
+           
+
+     
+       
+        dc.curargs take exp.args=
+     
+     
     
     t.text "end" == 
     t.prim "nop" == or elseif
@@ -697,17 +711,13 @@ proc Begin:(dc: GLSLDecompiler& ; t:ExecToken; subcount:N32)
     
     
     t.text "_GLSLRAW" == elseif
-    
-    
+   
     
         GLSLTerm new ##term keep:Exp% exp=
         true term.nosemi=
         t.sub.value:String& copy exp.text=
     
     
-    
-    
-
     t.sub:Bit elseif  //treat as function call
             
         GLSLFuncOp new:Exp% exp=
@@ -740,7 +750,7 @@ proc Begin:(dc: GLSLDecompiler& ; t:ExecToken; subcount:N32)
     dc Indent "restore args" print newline
     saveArgs take dc.curargs=  //put args back
     
-    
+   
     
     exp:Bit if
         "adding arg" print newline
@@ -754,10 +764,7 @@ proc Begin:(dc: GLSLDecompiler& ; t:ExecToken; subcount:N32)
         exp take dc.curargs& push
     
     end
-  
-       
-    "end decomp" print newline
-       
+ 
 
 	
 end
@@ -765,28 +772,27 @@ end
 
 proc End:(dc: GLSLDecompiler& ; t:ExecToken)
     dc.indentLevel&--
-//    dc Indent "}" print 
-	//t Dump
+
 end
 
  
-   
-
 proc dsym:(s:Symbol)
     
     
-    
     s.tokens 1 Z32 Indent& disassemble
+
     
+    var decomp:GLSLDecompiler;
     
-    GLSLDecompiler new #decomp
     
     newline
     "symbol type: " print
     s.type print newline
-    
-    decomp:Decompiler&   s.tokens decompile //s.tokens decompile 
 
+    
+    decomp s.tokens decompile
+
+        
     newline newline
     
     decomp.curargs :Bit not if
@@ -794,13 +800,19 @@ proc dsym:(s:Symbol)
         return
     
     end
-        
+    
+    
+    
+    
     0#i loop i decomp.curargs.count < while
-    
-    
         decomp.curargs i [] true Write ##g prints newline
         i&++
     end
+    
+    
+    
+    
+    
     
     loop end
     
@@ -813,94 +825,39 @@ stacked sMatrix44;
 
 proto @:(a:Transform& -> sMatrix44);
 proto @:(a:Matrix44& -> sMatrix44);
-
-
-
 proto +:(a:Vec4; b:Vec4 ->Vec4);
-
-
 proto +:(a:sMatrix44; b:sMatrix44 ->sMatrix44);
 proto *:(a:sMatrix44; b:sMatrix44 ->sMatrix44);
 proto *:(a:sMatrix44; b:Vec4 ->Vec4);
-
 proto _GLSLRAW:(a:String&);
 
-
-
-
-
-
-
-
-
-
-
-
-
-proc foo:(a:Real;b:Real;c:Real -> Real)
-    a b + c * return
-end
-
-
-
-
-
-/*
-
-immediate
-    
-    
-    proc ff:(b:Vec3)
-    
-    
-        b print newline
-    
-        b.x print newline
-        b.y print newline
-    
-    end
-    
-    
-    var a:Vec3;
-    10.0 a.x =
-    11.0 a.y =
-
-    
-        a.x " " a.y prints newline
-        
-        
-        
-        
-        a ff
-        
-        
-        loop end
-    
-
-end
-*/
-
-
-proc immediate printType:(a:Type&)
-
-    a print newline
-end
-
-
+proto PSet:(c:Vec4);
 
 proc immediate rasterize:(code vv:Vec4)
 
     code \\   "gl_Position=" _GLSLRAW   'vv    \\ insert
 
-    
-    
 end 
 
-proc immediate dbl:(code a:Real)
 
-    code \\ 'a 'a - \\ insert return
+
+proc immediate PEEKTYPE:(code a:any; label:String&)
+
+
+//prints the type of an expression while compiling, but then removes itself from code leaving the expression
+        
+    code \
+    
+        immediate 
+            'a typeof print  
+            readline trash
+        end
+    
+    'a \ insert
+       
 
 end
+
 
 
 
@@ -914,143 +871,26 @@ proc   minShader:	(
 		diff: 		Texture&;
 		extra&: Vec4&;
 		per texcoord:	[Vec2]&;
-		
 		)
 
 		
 		
 		modelView   point 1.0:Vec4 *  #transformed
+		
 		projection transformed *  rasterize
 
+		color.r
+		testu 1[].a "TESTU" PEEKTYPE
 		
-		
-	    //out vec2 f_texcoord;
-		//out vec4 f_color;
-		//out vec4 f_extra;
-	    
-		//void main(){
-		
-	//	point//.x
-        //extra.a
-		
-        //point typeof printType
-        
-		
-		
-	
-		
-		/*
-		
-			vec4 transformed = modelView * vec4(point.x+offset, point.y, point.z +testu[3].y, 1.0);
-			//vec4 transformed = modelView * point;
-			gl_Position=  projection * transformed;
-			f_texcoord = texcoord;
-            
-            f_extra = extra;
-
-			
-			#if MASK_color && MASK_testu
-                f_color = color + testu[0];
-			#else
-                f_color = vec4(.5,1,.5,1.0);
-            #endif
-            
-		}
-	"
-	
-	"
-        in vec4 f_color;
-		in vec2 f_texcoord;
-		in vec4 f_extra;
-		out vec4 pset;
-		void main(){
-			pset = f_extra  +  f_color * texture( diff, f_texcoord);
-		}
-	" 
-
-		*/
+		testu 1[]
 		
 		
 		
+		color PSet
 		
 		
-
-    end
-		
-		
-/*		
-//proc minShader:(t&:Matrix44&; u&:Matrix44&; per a:[Vec3]&; per b:[Vec3]& ; c:Vec3 ; d&: Vec3&  ; e:Real  -> )
-
-		
-var x:Vec3;
-
-c b + x - x =
-
-
-//e 2.0 3.0 foo #y
-
-
-
-  "
-  
-  insert glsl source code here
-  
-  " _GLSLRAW 
-
-  
- 
- 2.0 sin 1.0+ cos #gh
- 
-1 2 + if
-
-    3 2 /
-    
-
-    6 6 * elseif
-
-
-
-    3 1 -
-    
-    else
-    
-    1 2 3
-    
 end
-
- 
- 1.0 e  3.0 + boo
- 
- 
- 
-/*
- a b + 
- a c +
- a d +
- 
-e 2.0 +
-    
-1.0 #k
-   
-  
-   
-    k 1.0 + k=
-
-   5.2  1.0 2.0 +  /   #g
-   
-   //a  b + #ff
-   
-   //a b Cross g=
-  
-    
-end
-*/
-
-"x" print newline
-
-
-
-//0:Matrix44&&& 0:Matrix44& [Vec3]& [Vec3]& Vec3 Vec3& Real minShader&:Symbol.tokens 1 Z32 Indent& disassemble
+		
 
 
 

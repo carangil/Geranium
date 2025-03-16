@@ -560,7 +560,7 @@ void process_zdef(char* zdef) {
 	*s = 0;
 
 	if (!strcmp(zdef, "code")) {
-		fprintf(outz, "%s", s + 1);
+		fprintf(outz, "%s\n", s + 1);
 		return;
 	}
 

@@ -3,7 +3,6 @@
 #include "glsl.h"
 #include "int.h"
 
-
 void store16(int val, zuint16* zp) {
 	*zp = val;
 }
@@ -12,14 +11,8 @@ zint32 load16(zuint16* z) {
 	return *z;
 }
 
-
-
-
-
 tokenT* h_vec3add(exectxT* ex, tokenT* t) {
 
-
-	
 	vec3add(    
 		*(vec3*)&(ex->stack[ex->sp - 2]),
 		*(vec3*)&(ex->stack[ex->sp - 1])
@@ -30,9 +23,7 @@ tokenT* h_vec3add(exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
-
 tokenT* h_vec3sub(exectxT* ex, tokenT* t) {
-
 	
 	vec3sub(
 		*(vec3*)&(ex->stack[ex->sp - 2]),
@@ -44,12 +35,9 @@ tokenT* h_vec3sub(exectxT* ex, tokenT* t) {
 	return tnext(t);
 }
 
-
 tokenT* h_vec3cross(exectxT* ex, tokenT* t) {
 
-	
 	vec3 tmp;
-
 	vec3cross(tmp,
 		*(vec3*)&(ex->stack[ex->sp - 2]),
 		*(vec3*)&(ex->stack[ex->sp - 1])
@@ -63,7 +51,6 @@ tokenT* h_vec3cross(exectxT* ex, tokenT* t) {
 }
 
 tokenT* h_vec3dot(exectxT* ex, tokenT* t) {
-
 
 	float tmp;
 
@@ -122,8 +109,6 @@ tokenT* h_glslprocbody(exectxT* ex, tokenT* t) {
 
 	typeT* m33 = (OFTYPE(TYPE("Matrix33"), ARRAYDYNAMIC));
 	typeT* m44 = (OFTYPE(TYPE("Matrix44"), ARRAYDYNAMIC));
-
-	
 	
 	char* vsource = (ex->stack[ex->sp - 3].as.ptr.addr.bytes + ex->stack[ex->sp - 3].as.ptr.offset);
 	char* fsource = (ex->stack[ex->sp - 2].as.ptr.addr.bytes + ex->stack[ex->sp - 2].as.ptr.offset);
@@ -132,9 +117,6 @@ tokenT* h_glslprocbody(exectxT* ex, tokenT* t) {
 	glsl_call_wrapperT* cw = ram_alloc(sizeof(glsl_call_wrapperT), freecw);
 	gx_shadergroupT* sg = gx_shader_source(vsource, fsource);
 	cw->sg = sg;
-
-
-	
 
 		//typeT* ftype = ex->in_immediate->parent->type;
 	typeT* ftype = sym->type;
@@ -199,15 +181,12 @@ tokenT* h_glslprocbody(exectxT* ex, tokenT* t) {
 
 	}
 
-	
-
 	ex->sp-=2;
 	
 	ex->stack[ex->sp - 1].as.ptr.addr.bytes =(void*) cw;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 	return tnext(t);
 }
-
 
 
 //compiles a shader, if necessary, and sets all the attributes and uniforms
@@ -239,7 +218,6 @@ tokenT* h_prepshader(exectxT* ex, tokenT* t) {
 			mask |= bit;					//set if the pointer to data is non-null OR we are using stack data (!indirect)
 		bit <<= 1;
 	}
-
 	
 	gx_shader_variantT* variant = gx_shader_variant2(sg, mask);
 		
@@ -258,8 +236,6 @@ tokenT* h_prepshader(exectxT* ex, tokenT* t) {
 		else
 			gfx_set_input(si, data);	//pointer to item is on stack (for vbo attributes, large uniforms, optional uniforms)
 
-		
-
 	/*	
 		if (si->uniform && (gfx_sizeof(si->type) <= 16) &&  ! (si->type&GFX_ARRAY) && si->type !=GFX_TEXTURE  )  //stack value directly, for small uniforms
 			gfx_set_input(si, (void*)(ex->stack + ex->sp - 1 - argcount + i));
@@ -270,7 +246,6 @@ tokenT* h_prepshader(exectxT* ex, tokenT* t) {
 	}
 	
 	//all inputs are set; ready to draw
-
 	
 	ex->sp -= zvec_count(sg->shader_inputs);
 
@@ -293,7 +268,6 @@ tokenT* h_execdraw(exectxT* ex, tokenT* t) {
 	glsl_call_wrapperT* cw = (void*)(ex->stack[ex->sp - 4].as.ptr.addr.bytes);
 
 	gx_shadergroupT* sg = cw->sg;
-
 	
 	zuint32 prim = ex->stack[ex->sp - 3].as.n32;
 	zuint32 start = ex->stack[ex->sp - 2].as.n32;
@@ -313,8 +287,7 @@ tokenT* h_execdraw(exectxT* ex, tokenT* t) {
 
 
 //when run in an immediate context, returns the token that follows the immediate block
-tokenT* h_heretoken(exectxT* ex, tokenT* t) {
-
+tokenT* h_heretokenP(exectxT* ex, tokenT* t) {
 
 	//this doesn't actually use the sg on the stack, it just takes it off that stack.
 	//an easy way to enforce that execdraw follows setting up a shader
@@ -324,9 +297,9 @@ tokenT* h_heretoken(exectxT* ex, tokenT* t) {
 
 	tokenT* here = ex->in_immediate->t;
 
-	ex->stack[ex->sp].as.ptr.addr.bytes = here;
+	ex->stack[ex->sp].as.ptr.addr.bytes = ram_addref(here);
 	ex->stack[ex->sp].as.ptr.offset = 0;
-
+	ex->stack[ex->sp].as.ptr.level = 0;
 	ex->sp++;
 			
 	return tnext(t);
@@ -406,13 +379,29 @@ tokenT* h_tokenstring(exectxT* ex, tokenT* t) {
 }
 
 
+tokenT* h_tokenstringcopy(exectxT* ex, tokenT* t) {
 
+	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.addr.bytes;
+	if (!ts)
+		ERR("no token\n");
+
+	tokenT* tsf = ts;
+
+	ts = followRedirect(ts);
+
+	ex->stack[ex->sp - 1].as.ptr.addr.bytes = ram_addref(ts->str);
+	ex->stack[ex->sp - 1].as.ptr.offset = 0;
+
+	if (t->val.as.n32 == 1)	//if pass possessive pointer, free it
+		ram_free(tsf);
+
+	return tnext(t);
+}
 
 
 
 typeT* tvaltype(tokenT* t){
 	
-
 	t = followRedirect(t);
 
 	if (t->handler == hconstant || t->handler == hconstantaddref){
@@ -422,8 +411,6 @@ typeT* tvaltype(tokenT* t){
 		
 	return t->tyval;
 }
-
-
 
 //returns the type embedded in a token (NOT the token's runtime type, but of ty->val)
 tokenT* h_tokenvaltype(exectxT* ex, tokenT* t) {
@@ -492,11 +479,40 @@ tokenT* h_tokennext(exectxT* ex, tokenT* t) {
 	if (ts)
 		ts = tnext(ts);
 	
-	ex->stack[ex->sp - 1].as.ptr.addr.bytes = ts;
+	ex->stack[ex->sp - 1].as.ptr.addr.token = ts;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
 
 	return tnext(t);
 }
+
+tokenT* h_tokenforward(exectxT* ex, tokenT* t) {
+
+	tokenT* ots = ex->stack[ex->sp - 2].as.ptr.addr.bytes;
+	int count = ex->stack[ex->sp - 1].as.ptr.addr.bytes;
+
+	tokenT* ts = ots;
+
+	while (count--) {
+
+		if (ts)
+			ts = tnext(ts);
+		else
+			ts = NULL;
+
+	}
+
+	if (t->val.as.n32 == 1)
+		ram_free(ots); //free possessive starting point
+
+	ex->stack[ex->sp - 2].as.ptr.addr.token = ram_addref(ts); //return as possessive
+	ex->stack[ex->sp - 2].as.ptr.offset = 0;
+	ex->stack[ex->sp - 2].as.ptr.level = 0;
+
+	ex->sp--;
+
+	return tnext(t);
+}
+
 
 tokenT* h_tokenclip(exectxT* ex, tokenT* t) {
 
@@ -517,12 +533,15 @@ tokenT* h_tokenclip(exectxT* ex, tokenT* t) {
 	insert_after(ts, tcode);
 	fold(here, tcode);
 
+	ram_free(ts); //don't need it, its owned by the code token
+
 	ex->in_immediate->t = tnext(tcode);
 
 	tremove(tcode);
 
 	ex->stack[ex->sp - 1].as.ptr.addr.bytes = tcode;
 	ex->stack[ex->sp - 1].as.ptr.offset = 0;
+	ex->stack[ex->sp - 1].as.ptr.level = 0;
 
 	return tnext(t);
 }
@@ -543,10 +562,18 @@ tokenT* h_tokeninsert(exectxT* ex, tokenT* t) {
 
 	tokenT* ts = NULL; 
 	tokenT* first = tsub(additional);
+	printf(" INSERTING ");
+
 	while (ts = tsub(additional)) {
+
+		printf(" %s ", ts->str);
+
 		tremove(ts); //remove from the additional
 		zlist_insert_node_before(here, ts);
 	}
+
+	printf("\n");
+
 	ram_free(additional);
 	ex->in_immediate->t = first;
 	return tnext(t);

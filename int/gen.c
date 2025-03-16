@@ -1421,12 +1421,6 @@ void set_handlers(){
 	addCSize("vptrT", sizeof(vptrT));
 	addCSize("vptrT", sizeof(vptrT));
 	addCSize("vptrT", sizeof(vptrT));
-	mkSymbol(global, "C_heretoken", tPrimitive, h_heretoken);
-	mkSymbol(global, "C_tokenclip", tPrimitive, h_tokenclip);
-	mkSymbol(global, "C_codecat", tPrimitive, h_codecat);
-	mkSymbol(global, "C_tokeninsert", tPrimitive, h_tokeninsert);
-	mkSymbol(global, "C_tokennext", tPrimitive, h_tokennext);
-	mkSymbol(global, "C_tokenstring", tPrimitive, h_tokenstring);
 	addCSize("valueT", sizeof(valueT));
 	mkSymbol(global, "C_hasfirsttoken", tPrimitive, h_hasfirsttoken);
 	mkSymbol(global, "C_firsttoken", tPrimitive, h_firsttoken);
@@ -1435,6 +1429,15 @@ void set_handlers(){
 	mkSymbol(global, "C_tokenprim", tPrimitive, h_tokenprim);
 	mkSymbol(global, "C_tokensymbol", tPrimitive, h_tokensymbol);
 	mkSymbol(global, "C_symboltype", tPrimitive, h_symboltype);
+	mkSymbol(global, "C_tokenstring", tPrimitive, h_tokenstring);
+	mkSymbol(global, "C_tokennext", tPrimitive, h_tokennext);
+	addCSize("vptrT", sizeof(vptrT));
+	mkSymbol(global, "C_tokenforward", tPrimitive, h_tokenforward);
+	mkSymbol(global, "C_heretokenP", tPrimitive, h_heretokenP);
+	mkSymbol(global, "C_tokenclip", tPrimitive, h_tokenclip);
+	mkSymbol(global, "C_tokenstringcopy", tPrimitive, h_tokenstringcopy);
+	mkSymbol(global, "C_codecat", tPrimitive, h_codecat);
+	mkSymbol(global, "C_tokeninsert", tPrimitive, h_tokeninsert);
 	addCSize("gfx_vertex_bufferT", sizeof(gfx_vertex_bufferT));
 	addCSize("vptrT", sizeof(vptrT));
 	mkSymbol(global, "C_glslprocbody", tPrimitive, h_glslprocbody);

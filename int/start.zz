@@ -1,7 +1,9 @@
 "base/base.zz" include
 "base/repl.zz" include
 
-sys_Repl& .tokens null disassemble
+//sys_Repl& .tokens null disassemble
+
+//"gfxgl.zz" include
 
 
 proc isPrime:(n:N32->Bit)
@@ -12,7 +14,7 @@ proc isPrime:(n:N32->Bit)
 
     2 #i loop
     
-      i n == until
+      i i *  n >= until
        
        n i mod:Bit not if
             false return
@@ -26,24 +28,79 @@ proc isPrime:(n:N32->Bit)
 end
 
 
+//isPrime&.tokens 0 null disassemble 
 
-0 #i loop
+primitive C_firsttoken .tokens:(c:Code%->SourceToken%);
+
+primitive parse sys_Parse:();
+
+
+//junky for loop to see what's possible
+
+proc immediate for:()
     
-    i isPrime if
-        i  " " prints
+    //get these tokens as text
+    sys_Here    .text #vary
+        
+    vary "#" == if
+        "create var" print newline
+        true #createVar
+        sys_Here clip trash
+        sys_Here .text vary=
     end
-    i&++
-    i 1000 >= until
+    
+    sys_Here 1[].text #start
+    sys_Here 2[].text #increment
+    sys_Here 3[].text #stop
+    sys_Here 4[].text #compare
+      
+    sys_Here 4[] clip trash //discard those tokens
+
+    
+    createVar if
+    
+        code \
+            'start # 'vary
+        \ #loopStart
+        
+    else
+    
+        code \
+            'start 'vary =
+        \ loopStart=
+        
+    end
+    
+   
+    code \ 
+       
+        'loopStart
+        
+        loop  'vary 'stop 'compare while
+    
+    
+        immediate   
+        
+            sys_Parse   
+        
+            code \\  "inc" print    'vary 'increment + 'vary =     end  \\ insert
+        
+        end
+
+    
+   \ insert
+   
+end
+
+
+for #i 20 5 100 <
+
+    i print newline
+
+
 end
 
 
 
-//4 isPrime print newline
-//7 isPrime print newline
-
-
-
-
 sys_Repl
-
 

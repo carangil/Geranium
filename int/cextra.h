@@ -88,7 +88,7 @@ typeT* type_member(typeT* t, zuint32 i);
 
 //manipulate tokens and stuff
 
-//Zdef stacked CodeToken
+
 //Zdef opaque vptrT CodeToken
 
 //Zdef stacked ExecToken
@@ -96,13 +96,21 @@ typeT* type_member(typeT* t, zuint32 i);
 //Zdef opaque vptrT Symbol
 //Zdef stacked Symbol
 
+/*
 //uncompiled code
-//Zdef handler heretoken		here:(->CodeToken);
-//Zdef handler tokenclip		clip:(t:CodeToken->Code%);
-//Zdef handler codecat			++:(c:Code&;d:Code%);  //appends d to c.  frees d
-//Zdef handler tokeninsert		insert:(c:Code%->);
-//Zdef handler tokennext		.next:(t:CodeToken->CodeToken);
+
+
+//
 //Zdef handler tokenstring		.text:(t:CodeToken->String&);
+*/
+
+
+//new safer way
+
+
+
+
+
 
 //compiled code
 
@@ -117,10 +125,27 @@ typeT* type_member(typeT* t, zuint32 i);
 //Zdef handler tokenprim		.prim:(c:ExecToken->String&);
 //Zdef handler tokensymbol		.symbol:(c:ExecToken->Symbol);
 //Zdef handler symboltype		.type:(s:Symbol->Type&);
-//Zdef code primitive C_tokenstring	.text:(t:ExecToken->String&);
-//Zdef code primitive C_tokennext	.next:(t:ExecToken->ExecToken);
+//Zdef handler tokenstring	.text:(t:ExecToken->String&);
+//Zdef handler tokennext	.next:(t:ExecToken->ExecToken);
 //Zdef code primitive tokenval		.value:(t:ExecToken->TokenValue);
 //Zdef code primitive symtoken  	.tokens:(s:Symbol->ExecToken);
+
+//uncompiled code:
+
+//Zdef opaque vptrT	SourceToken
+
+
+//Zdef handler		  tokenforward []:(t:SourceToken&; n:N32 -> SourceToken%); 
+//Zdef code primitive C_tokenforward 1 []:(t:SourceToken%; n:N32 -> SourceToken%);
+
+//Zdef handler heretokenP	sys_Here:(->SourceToken%);
+
+//Zdef handler tokenclip	clip:(t:SourceToken%->Code%);
+
+//Zdef handler tokenstringcopy	1  .text:(t:SourceToken%->String%);
+//Zdef code primitive C_tokenstringcopy	0  .text:(t:SourceToken&->String%);
+//Zdef handler codecat			++:(c:Code&;d:Code%);  //appends d to c.  frees d
+//Zdef handler tokeninsert		insert:(c:Code%->);
 
 
 
