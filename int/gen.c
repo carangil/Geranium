@@ -1438,6 +1438,8 @@ void set_handlers(){
 	mkSymbol(global, "C_tokenstringcopy", tPrimitive, h_tokenstringcopy);
 	mkSymbol(global, "C_codecat", tPrimitive, h_codecat);
 	mkSymbol(global, "C_tokeninsert", tPrimitive, h_tokeninsert);
+	mkSymbol(global, "C_string_append_number", tPrimitive, h_string_append_number);
+	mkSymbol(global, "C_string_to_number", tPrimitive, h_string_to_number);
 	addCSize("gfx_vertex_bufferT", sizeof(gfx_vertex_bufferT));
 	addCSize("vptrT", sizeof(vptrT));
 	mkSymbol(global, "C_glslprocbody", tPrimitive, h_glslprocbody);

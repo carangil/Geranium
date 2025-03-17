@@ -28,6 +28,10 @@ zuint32 zrand();
 zfloat32 zrandf(zfloat32 min, zfloat32 max);
 
 
+
+
+
+
 //try to make 16-bit integers as an 'extension' instead of the core language
 //the language still has 32-bit integers, but can now load/store 16-bit values
 //Zdef opaque zuint16 N16
@@ -146,6 +150,20 @@ typeT* type_member(typeT* t, zuint32 i);
 //Zdef code primitive C_tokenstringcopy	0  .text:(t:SourceToken&->String%);
 //Zdef handler codecat			++:(c:Code&;d:Code%);  //appends d to c.  frees d
 //Zdef handler tokeninsert		insert:(c:Code%->);
+
+
+//Zdef handler string_append_number ++:( s:String% ; n:Z32 ->String%);
+//Zdef code primitive C_string_append_number 1 ++:( s:String% ; n:N32 ->String%);
+//Zdef code primitive C_string_append_number 16 .appendhex:( s:String% ; n:N32 ->String%);
+//Zdef code primitive C_string_append_number 32 ++:( s:String% ; n:Real ->String%);
+
+
+
+//Zdef handler string_to_number				   	  :Z32:( s:String& -> n:Z32);
+//Zdef code primitive C_string_to_number 1		  :N32:( s:String& -> n:N32);
+//Zdef code primitive C_string_to_number 16 .readhex:( s:String& -> N32);
+//Zdef code primitive C_string_to_number 32       :Real:( s:String& -> n:Real);
+
 
 
 

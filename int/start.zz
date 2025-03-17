@@ -1,9 +1,9 @@
 "base/base.zz" include
 "base/repl.zz" include
 
-//sys_Repl& .tokens null disassemble
+sys_Repl& .tokens null disassemble
 
-//"gfxgl.zz" include
+"gfxgl.zz" include
 
 
 proc isPrime:(n:N32->Bit)

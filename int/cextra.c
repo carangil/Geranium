@@ -630,3 +630,63 @@ tokenT* h_tokenprim(exectxT* ex, tokenT* t) {
 }
 
 
+tokenT* h_string_append_number(exectxT* ex, tokenT* t) {
+
+	
+
+	switch (t->val.as.n32) {
+
+	case 0: //int
+		ex->stack[ex->sp - 2].as.ptr.addr.bytes =
+			zstrprintf(ex->stack[ex->sp - 2].as.ptr.addr.bytes, "%d", ex->stack[ex->sp - 1].as.z32 );
+		break;
+	case 1: //unsigned
+		ex->stack[ex->sp - 2].as.ptr.addr.bytes =
+			zstrprintf(ex->stack[ex->sp - 2].as.ptr.addr.bytes, "%u", ex->stack[ex->sp - 1].as.n32);
+		break;
+
+	case 16: //hex
+		ex->stack[ex->sp - 2].as.ptr.addr.bytes =
+			zstrprintf(ex->stack[ex->sp - 2].as.ptr.addr.bytes, "%x", ex->stack[ex->sp - 1].as.n32);
+		break;
+
+	case 32: //float
+		ex->stack[ex->sp - 2].as.ptr.addr.bytes =
+			zstrprintf(ex->stack[ex->sp - 2].as.ptr.addr.bytes, "%f", ex->stack[ex->sp - 1].as.f);
+		break;
+
+
+	}
+
+	ex->sp--;
+	
+	return tnext(t);
+}
+
+tokenT* h_string_to_number(exectxT* ex, tokenT* t) {
+
+	char* str = ex->stack[ex->sp - 1].as.ptr.addr.bytes;
+
+
+	switch (t->val.as.n32) {
+
+	case 0: //int
+		ex->stack[ex->sp - 1].as.z32 = atoi(str);
+		break;
+	case 1: //unsigned
+		ex->stack[ex->sp - 1].as.n32 = strtoul(str, NULL, 10);
+		break;
+
+	case 16: //hex
+		ex->stack[ex->sp - 1].as.n32 = strtoul(str, NULL, 16);
+		break;
+
+	case 32: //float
+		ex->stack[ex->sp - 1].as.f = atof(str);
+		break;
+
+
+	}
+
+	return tnext(t);
+}
