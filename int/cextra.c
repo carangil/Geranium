@@ -367,8 +367,11 @@ tokenT* h_hasfirsttoken(exectxT* ex, tokenT* t) {
 tokenT* h_tokenstring(exectxT* ex, tokenT* t) {
 	
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.addr.bytes;
-	if (!ts)
-		ERR("no token\n");
+	if (!ts) {
+		setError(ex, t, "no token");
+		ex->stop = STOPERROR;
+		return NULL;
+	}
 
 	ts = followRedirect(ts);
 	
@@ -382,8 +385,11 @@ tokenT* h_tokenstring(exectxT* ex, tokenT* t) {
 tokenT* h_tokenstringcopy(exectxT* ex, tokenT* t) {
 
 	tokenT* ts = ex->stack[ex->sp - 1].as.ptr.addr.bytes;
-	if (!ts)
-		ERR("no token\n");
+	if (!ts) {
+		setError(ex, t, "no token");
+		ex->stop = STOPERROR;
+		return NULL;
+	}
 
 	tokenT* tsf = ts;
 
@@ -566,8 +572,7 @@ tokenT* h_tokeninsert(exectxT* ex, tokenT* t) {
 
 	while (ts = tsub(additional)) {
 
-		printf(" %s ", ts->str);
-
+		
 		tremove(ts); //remove from the additional
 		zlist_insert_node_before(here, ts);
 	}

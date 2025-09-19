@@ -28,7 +28,7 @@ proc sys_Repl:()
                 end
                                 
                 error?  if
-                    error? " " errorMessage  prints newline
+                    "" copy error? .appendhex  errorMessage  prints newline
                     clearError
                 end
                             

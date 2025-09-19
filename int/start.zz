@@ -1,9 +1,9 @@
 "base/base.zz" include
 "base/repl.zz" include
 
-sys_Repl& .tokens null disassemble
+//sys_Repl& .tokens null disassemble
 
-"gfxgl.zz" include
+//"gfxgl.zz" include
 
 
 proc isPrime:(n:N32->Bit)
@@ -12,16 +12,14 @@ proc isPrime:(n:N32->Bit)
         false return
     end
 
-    2 #i loop
+    2 #i i&++ loopstep
     
-      i i *  n >= until
+      i i *  n > until
        
        n i mod:Bit not if
             false return
        end
         
-       i&++
-       
     end
 
     true return
@@ -35,22 +33,123 @@ primitive C_firsttoken .tokens:(c:Code%->SourceToken%);
 primitive parse sys_Parse:();
 primitive parse 1 sys_Parse1:();
 
+opaque  ParseMarker;
+primitive parsemarker sys_ParseMarker:(->ParseMarker%);
 
-0 #i
+1 #i
 
-i 3 + i= loopstep i 50 < while
-    i print newline
+
+
+i&++ loopstep i 1000 < while
     
-    i 15 == if
-        skip
+    i isPrime if
+        i " " prints
     end
-    
-    "aa"print newline
 
 
 end
 
 
+//SourceToken_C8 String_C2 Z32 Type_C2 Type_C2_C23
+
+primitive  fold  sys_TreeInstruction:(first: ParseMarker% ; b:String&; c:Z32; d:Type&; e:Type&);
+
+
+
+//sys_AssembleInstruction typeof print newline newline
+
+proc immediate sys_Instruction:(code first:ParseMarker% ;code primname:String&;code tokval:any; code rettype:Type& )
+    
+  code \
+   'first
+   'primname
+   'tokval
+   'tokval typeof
+   'rettype
+   
+    sys_TreeInstruction
+      
+      \ insert
+      
+end
+
+
+proc immediate addn:()
+
+        sys_ParseMarker #h
+        
+        h.text "<< start here" prints newline 
+        
+        sys_Parse 
+        
+        h take "add32" 0 Z32 N32 sys_TreeInstruction
+
+   //     h take "add32" 0  N32 sys_Instruction
+
+    
+end
+
+
+
+
+proc immediate LOOP:()
+        
+    sys_ParseMarker #h        
+    sys_Parse  
+        
+    h take "loop" 0 null null sys_TreeInstruction
+     
+end
+
+
+proc F1:()
+
+       
+    LOOP
+
+        "boo " 123 " " 123.4 printsln
+
+    end
+
+    
+end
+
+//F1
+
+
+
+
+F1& .tokens null disassemble
+
+
+addn 555 111 end print newline
+
+
+//print newline
+
+newline newline
+//addn 300
+//addn 10  2000 end end print newline
+
+/*
+proc immediate ad:(code a:Z32; code b:Z32)
+
+    code \   addn 'a  'b end \ insert
+
+end
+
+
+3000 33 ad print newline
+*/
+
 
 sys_Repl
+
+
+
+
+
+
+
+
 

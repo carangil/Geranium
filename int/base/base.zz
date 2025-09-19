@@ -18,7 +18,7 @@ primitive arrayop 4 push:(a:any; array:[like a]%& );
 
 
 primitive geterror 0 error?:(->N32);
-primitive geterror 1 errorMessage:(->String&);
+primitive geterror 1 errorMessage:(->String%);
 primitive seterror error:(message: String%; ecode:N32);
 
 proc clearError:(->)
@@ -55,6 +55,8 @@ end
 
 proto print:(s:String&->);
 proto newline:(->);
+
+
 
 "
 " constant LF
@@ -135,6 +137,13 @@ proc immediate prints:(code a:any->Code%)
 		prints 'a print 
 	\ return	
 end
+
+proc immediate printsln:(code a:any->Code%)
+	code \
+		prints 'a print newline
+	\ return	
+end
+
 
 proc ++:(a:Z32&->)
 	a@ 1+ a@=
@@ -285,9 +294,6 @@ proc error:(msg:String&)
     msg copy 1 error
 end
 
-
-//print a string from possessive pointer (frees the string)
-proc print:(s:String%)
-    s  print
-
+proc print:(s:String%)      //free the pointer when it prints
+    s print
 end

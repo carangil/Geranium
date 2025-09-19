@@ -337,7 +337,7 @@ proc []:(h:HashMap&; key:String& ->any%)
     bucket.next keep bucket=
  end
 
- 0:any% return
+ 0:any% return  
  
 end
 

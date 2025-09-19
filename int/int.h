@@ -85,7 +85,7 @@ typedef struct {
 #define setErrorFlags(pobj, FLAGS, ptoken, MSG)		fsetError(&(pobj)->error, zstrdup(MSG), ptoken, FLAGS)
 #define setErrorFlagsf(pobj,FLAGS, ptoken, ...)		fsetError(&(pobj)->error, zstrprintf(NULL, __VA_ARGS__), ptoken, FLAGS)
 #define getError(pobj)								fgetError(&(pobj)->error)
-#define moveError(DST,SRC)							fmoveError( &(DST)->error, &(SRC)->error)
+#define moveError(DST,SRC, T)							fmoveError( &(DST)->error, &(SRC)->error,T)
 void fsetError(errorT* error, char* message, struct tokenS* t, int flags);
 
 /**** Execution Context ****/
@@ -110,9 +110,11 @@ typedef struct exectxS {
 
 //tokens for interpreter
 //custom handlers should restrict to using a few macros
+struct tokenS* insert_tokenf(struct tokenS* A, struct tokenS* B, zbool before);
 
 //get next instruction
 #define tnext(ITEM)		((tokenT*)zlist_next(ITEM))
+#define tprev(ITEM)    ((tokenT*)zlist_prev(ITEM))
 
 //get instructions for args
 #define tsub(TTT)		((tokenT*)zlist_head(&(TTT)->subs))

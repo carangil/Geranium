@@ -37,6 +37,14 @@ primitive C_tokenstringcopy  1  .text:(t:SourceToken%->String%);
 primitive C_tokenstringcopy	0  .text:(t:SourceToken&->String%);
 primitive C_codecat  ++:(c:Code&;d:Code%);  //appends d to c.  frees d
 primitive C_tokeninsert  insert:(c:Code%->);
+primitive C_string_append_number  ++:( s:String% ; n:Z32 ->String%);
+primitive C_string_append_number 1 ++:( s:String% ; n:N32 ->String%);
+primitive C_string_append_number 16 .appendhex:( s:String% ; n:N32 ->String%);
+primitive C_string_append_number 32 ++:( s:String% ; n:Real ->String%);
+primitive C_string_to_number  :Z32:( s:String& -> n:Z32);
+primitive C_string_to_number 1		  :N32:( s:String& -> n:N32);
+primitive C_string_to_number 16 .readhex:( s:String& -> N32);
+primitive C_string_to_number 32       :Real:( s:String& -> n:Real);
 1 constant SIMPLE
 2 constant POINTERUSER
 3 constant STRUCT

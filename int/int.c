@@ -33,10 +33,28 @@ void fsetError(errorT* error, char* message, tokenT* t, int flags) {
 	if (!error)
 		error = &globalError;
 
+	tokenT* s = t;
+
+	while (s && !s->line && tnext(s))
+		s = tnext(s);
+
+	if (s && !s->line) { //try subs
+		s = tsub(t);
+
+		while (!s->line && tnext(s))
+			s = tsub(s);
+
+	}
+
+	
+
+
+
+
 	if (flags & ZERROR_QUIT) {
 		fprintf(stderr, "\n\n%s\n", message);
-		if (t)
-			fprintf(stderr, "%s:%d\n\n", t->sourcefile, t->line);
+		if (s)
+			fprintf(stderr, "%s:%d\n\n", s->sourcefile, s->line);
 
 		exit(1);
 	}
@@ -71,10 +89,18 @@ void fsetError(errorT* error, char* message, tokenT* t, int flags) {
 
 
 
-void fmoveError(errorT* a, errorT* b) {
+void fmoveError(errorT* a, errorT* b, tokenT* t) {
+
+	
 
 	*a = *b;
 	memset(b, 0, sizeof(*b));
+	
+	if (t && t->line && !a->line) {
+		a->line = t->line;
+		a->file =t->sourcefile;
+
+	}
 }
 
 //split ERR into two types
@@ -116,8 +142,22 @@ typedef struct parsectxS{
 #define tremove(ITEM)    zlist_remove_mid(  &(ITEM)->zlistnode)
 //next is moved to int.h
 //#define tnext(ITEM) ((tokenT*)(ITEM)->zlistnode.next)
-#define tprev(ITEM)    ((tokenT*)zlist_prev(ITEM))
-#define insert_after(AFTER,NEW)    zlist_insert_node_after(  &(AFTER)->zlistnode,  &(NEW)->zlistnode)
+//#define tprev(ITEM)    ((tokenT*)zlist_prev(ITEM))
+
+tokenT* insert_tokenf(tokenT* A, tokenT* B, zbool before) {
+
+
+	if (before)
+		return zlist_insert_node_before(&A->zlistnode, &B->zlistnode);
+	else
+		zlist_insert_node_after(&A->zlistnode, &B->zlistnode);
+
+}
+
+#define insert_after(AFTER,NEW)    insert_tokenf(  &(AFTER)->zlistnode,  &(NEW)->zlistnode, ZFALSE)
+#define insert_before(PREV,NEW)    insert_tokenf(  &(PREV)->zlistnode,  &(NEW)->zlistnode, ZTRUE)
+
+
 
 //tokenT->tok values:
 //any character symbol itself is just its int value
@@ -1532,6 +1572,10 @@ void exe(exectxT* c, struct tokenS* t){
 		if (!t->skipargs)
 			t = evalsubs(c, t);
 		
+		if (c->stop)
+			return NULL;
+
+
 #ifdef EXEDEBUG
 		printf(" RUN %s\n", findSymbolByHandler(handler));
 #endif
@@ -1559,6 +1603,10 @@ void exe(exectxT* c, struct tokenS* t){
 			xprintf("\n\n");
 		}
 	}
+
+
+	
+
 }
 
 //Individual handlers
@@ -1597,6 +1645,9 @@ tokenT* hgeterror(exectxT* ex, tokenT* t) {
 	//clears after gotten
 	ex->sp++;
 
+	if (ex->error.message)
+		printf("checkerr %d\n", ram_numrefs(ex->error.message));
+
 	if (t->val.as.n32 == 1) {	//get error string
 		ex->stack[ex->sp - 1].as.ptr.addr.bytes = ex->error.message;
 		ex->error.message = NULL;
@@ -1614,6 +1665,10 @@ tokenT* hgeterror(exectxT* ex, tokenT* t) {
 tokenT* hseterror(exectxT* ex, tokenT* t) {
 	
 	//sets error message and code
+
+	if (ex->error.message)
+		ram_free(ex->error.message);
+
 	ex->error.message = ex->stack[ex->sp - 2].as.ptr.addr.bytes;
 	ex->error.code = ex->stack[ex->sp - 1].as.n32;
 	ex->stack[(ex->sp) - 1].typeselector = NULL;
@@ -2324,6 +2379,9 @@ tokenT* hloop (exectxT* ex, tokenT* t) { //run subs continously until STOPLOOP i
 
 zbool parse_debugging = ZFALSE;
 
+
+
+
 tokenT* parse(parsectxT* pc, tokenT* t, zbool single); 
 //if set to single, only iterates a single  token
 //note: if that token is 'loop' or 'if' or some recursive stuff, it will finish that before returning
@@ -2331,10 +2389,27 @@ tokenT* parse(parsectxT* pc, tokenT* t, zbool single);
 
 //invoke the C parser from inside an immediate handler;
 
+tokenT* hparsemarker(exectxT* ex, tokenT* t) {
+	tokenT* here = ex->in_immediate->t;
+
+
+	tokenT* tcode = mkToken(KCODE, "parsestart", 4);
+	insert_before(here, tcode);
+
+	ex->stack[ex->sp].as.ptr.addr.token = tcode;
+
+	ex->sp++;
+	return tnext(t);
+}
+
 tokenT* hparse(exectxT* ex, tokenT* t) {
 
 	parsectxT* pc = ex->in_immediate->parent;
 	tokenT* here = ex->in_immediate->t;
+
+	
+
+
 
 	parse_debugging = ZTRUE;
 
@@ -2348,12 +2423,17 @@ tokenT* hparse(exectxT* ex, tokenT* t) {
 	}
 	pc->endable++;
 	pc->type =NULL;
+	
+	
 	here = parse(pc, here, single);
 
-	if (!single) { //if not a single, we got here by 'end'
-		here->handler = hnop;
-		here = tnext(here);
-	}
+	if (getError(pc))
+		moveError(ex,pc,t);
+
+	//if (!single) { //if not a single, we got here by 'end'
+		//here->handler = hnop;
+	//	here = tnext(here);
+	//}
 	
 	printf(" End hparse", here->str);
 
@@ -2413,13 +2493,16 @@ tokenT* h_compile(exectxT* ex, tokenT* t) {
 		parse(pc, tsub(code), ZFALSE);
 
 		if (getError(pc)) {
+			moveError(ex, pc, t);
+
+
 			ram_free(s);
 			
 			ex->stack[ex->sp - 1].as.ptr.addr.bytes = NULL;  //track sym instead
 			ex->stack[ex->sp - 1].as.ptr.offset = 0;
 			ex->stack[ex->sp - 1].typeselector = NULL;
 
-			moveError(ex, pc);
+			
 
 			return tnext(t);
 		}
@@ -2681,7 +2764,7 @@ tokenT* hreturn (exectxT* ex, tokenT* t){
 
 		xprintf("Pushing return type (return from immediate)\n");
 
-		printf("Pushing return type (return from immediate)\n");
+		
 
 		//if returning from an immediate block, put the return type on the stack too
 		//if the immediate block is not returning a value, t->ty should have been set to tImmediate anyway
@@ -3139,6 +3222,9 @@ tokenT* haddref(exectxT* ex, tokenT* t) {
 }
 
 #define HANDLER(CONTEXT, NAME)	mkSymbol( CONTEXT,  #NAME, tPrimitive, h ## NAME)
+#define HANDLERSKIPSUB(CONTEXT, NAME)	mkSymbol( CONTEXT,  #NAME, tPrimitive, h ## NAME)->skipargs=1
+
+tokenT* hfold(exectxT* ex, tokenT* t);
 
 void addhandlers(struct parsectxS* pctx) {
 
@@ -3231,7 +3317,8 @@ void addhandlers(struct parsectxS* pctx) {
 	HANDLER(pctx, ifchain);  //a chain if COND statements
 	HANDLER(pctx, condblock);  //conditional execution (IF)
 	HANDLER(pctx, breakblock);
-	HANDLER(pctx, loop);
+	HANDLERSKIPSUB(pctx, loop);
+
 	HANDLER(pctx, breakcontinueloop);
 	
 	//reflection 
@@ -3288,8 +3375,10 @@ void addhandlers(struct parsectxS* pctx) {
 
 	
 	HANDLER(pctx, parse);
+	HANDLER(pctx, parsemarker);
 
 
+	HANDLER(pctx, fold);
 	//error handling
 	HANDLER(pctx, geterror);
 	HANDLER(pctx, seterror);
@@ -3300,7 +3389,7 @@ void addhandlers(struct parsectxS* pctx) {
 
 zbool exectx_cleanup(void* v) {
 	exectxT* e = v;
-	
+//	ram_free(e->error.message);
 	ram_free(e->immediatevars);
 	ram_free(e->globalvars);
 	ram_free(e->vars);
@@ -3370,7 +3459,7 @@ void start(parsectxT* pctx, tokenT* t, valueT* initial){
 	}
 	//spsave = pctx->exec->sp;
 	
-	printf("Entering context %s sp %d\n", pctx->debug_name, pctx->exec->sp);
+	//printf("Entering context %s sp %d\n", pctx->debug_name, pctx->exec->sp);
 
 	pctx->exec->stop = 0;
 
@@ -3430,7 +3519,7 @@ void start(parsectxT* pctx, tokenT* t, valueT* initial){
 		pctx->exec->sp = oldsp;
 	}
 
-	printf("stopping context %s at %d\n", pctx->debug_name, pctx->exec->sp);
+	//	printf("stopping context %s at %d\n", pctx->debug_name, pctx->exec->sp);
 	//pctx->exec->sp = spsave;
 
 	//ram_free(exectx->stack);
@@ -3496,6 +3585,57 @@ void lfold(tokenT* under, tokenT* end){
 	}
 }
 
+
+// [start , stop) , primitive name, primitive value
+  
+
+tokenT* hfold(exectxT* ex, tokenT* t) {
+
+	//only makes sense as immediate
+	tokenT* start = ex->stack[(ex->sp) - 5].as.ptr.addr.token;
+	char* primname = ex->stack[(ex->sp) - 4].as.ptr.addr.bytes;
+	//sp-3 is primvalue
+	typeT* primitivevaltype = ex->stack[(ex->sp) - 2].as.ptr.addr.bytes;
+	typeT* rettype = ex->stack[(ex->sp) - 1].as.ptr.addr.bytes;
+
+	if (start && start->tok == KCODE) {
+
+		//should be the parse marker.
+
+		start = tnext(start);
+		ram_free(tremove(tprev(start)));
+
+	}
+
+	if (!ex->in_immediate) {
+		ERR("Cannot 'here' unless running in an immediate context\n");
+	} 
+		
+	tokenT* here = ex->in_immediate->t;
+	
+	
+	fold(start, here);
+	here->ty = rettype;
+
+	symbolT* s = findSymbol(primitives, primname, NULL);
+	if (s) {
+		here->handler = s->handler;
+		here->skipargs = s->skipargs;
+	}
+
+	here->val = ex->stack[(ex->sp) - 2];
+	here->tyval = primitivevaltype;
+
+	if (primitivevaltype && primitivevaltype->category == POINTERPOSSESSIVE)
+		here->val_to_free = ZTRUE;
+
+	
+	ex->in_immediate->t = tnext(here);
+
+	return tnext(t);
+
+	return NULL;//stop running this block of instructions
+}
 
 
 /* Parses a datatype such as:
@@ -3909,6 +4049,8 @@ zbool parsectx_cleanup(void* v){
 	ram_free(pc->symbols);
 	ram_free(pc->exec);
 	ram_free(pc->prefix);
+	if (pc->error.message)
+		printf("eee\n");
 	ram_free(pc->error.message);
 	return ZTRUE;
 }
@@ -4344,7 +4486,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t, zbool single) {
 	int matchApprox = MATCH_EXACT;
 	tokenT* matchApproxToken = NULL;
 
-	printf("Start parse in context %s\n", pc->debug_name);
+	xprintf("Start parse in context %s\n", pc->debug_name);
 
 
 	while ( t) {
@@ -4520,9 +4662,9 @@ tokenT*  parse(parsectxT* pc, tokenT* t, zbool single) {
 			break;
 
 		case KEND:
-			printf(" parsing KEND %p  line %d\n", t, t->line  );
+			xprintf(" parsing KEND %p  line %d\n", t, t->line  );
 			if (pc->endable && pc->type == tImmediate) {
-				printf(" is immediate\n");
+			//	printf(" is immediate\n");
 				t->handler = hreturn;
 				t->ty = tImmediate;
 			}
@@ -4549,7 +4691,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t, zbool single) {
 				pc->endable--;
 				//xprintf(" 'end' block \n");
 
-				printf("'end' in context %s\n", pc->debug_name);
+				xprintf("'end' in context %s\n", pc->debug_name);
 
 				return t;
 			}
@@ -4690,7 +4832,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t, zbool single) {
 
 			typeT* prev_imm_context_ty = immediate_parse->type;
 
-			printf(" saving immediate type %s, starting at tImmediate \n", prev_imm_context_ty? prev_imm_context_ty->name:"none") ;
+			//printf(" saving immediate type %s, starting at tImmediate \n", prev_imm_context_ty? prev_imm_context_ty->name:"none") ;
 			
 
 			if (parse_debugging)
@@ -4706,18 +4848,18 @@ tokenT*  parse(parsectxT* pc, tokenT* t, zbool single) {
 			
 			parsectxT* oldparent = immediate_parse->parent;
 			immediate_parse->parent = pc; //where called from
-			printf(" set immediate parse parent to %s\n", pc->debug_name);
+			
 
 			//parse in the immediate context
 			immediate_parse->endable++;
 			t = parse(immediate_parse, tnext(t), ZFALSE);
 		//	immediate_parse->type = prev_imm_context_ty;
 
-			printf("after parse, ty is %s \n", immediate_parse->type ? immediate_parse->type->name : "none");
-			printf(" after parse parent is  %s\n", immediate_parse->parent->debug_name);
+		//	printf("after parse, ty is %s \n", immediate_parse->type ? immediate_parse->type->name : "none");
+		//	printf(" after parse parent is  %s\n", immediate_parse->parent->debug_name);
 
 			if (getError(immediate_parse)) {
-				moveError(pc, immediate_parse);
+				moveError(pc, immediate_parse, t);
 				return &invalidToken;
 			}
 
@@ -4746,8 +4888,13 @@ tokenT*  parse(parsectxT* pc, tokenT* t, zbool single) {
 
 			immediate_parse->t = t;	//save our 't', because the code running may change it
 			
-			printf("starting immediate\n");
+		//	printf("starting immediate\n");
 			start(immediate_parse, sub, NULL);
+
+			if (getError(immediate_parse->exec)) {
+				moveError(pc, immediate_parse->exec,t);
+				return &invalidToken;
+			}
 
 			if (immediate_parse->exec->stop != STOPERROR)
 				immediate_parse->exec->stop = 0;
@@ -4756,19 +4903,19 @@ tokenT*  parse(parsectxT* pc, tokenT* t, zbool single) {
 			immediate_parse->t = savet;  //restore the saved t value
 			immediate_parse->parent = oldparent;
 			
-			printf(" after running  %s  \n", immediate_parse->type ? immediate_parse->type->name : "none");
+		//	printf(" after running  %s  \n", immediate_parse->type ? immediate_parse->type->name : "none");
 
 
 			immediate_parse->type = prev_imm_context_ty; //moved to after execution
 
-			printf(" restoring  %s  \n", prev_imm_context_ty ? prev_imm_context_ty->name : "none");
+			//printf(" restoring  %s  \n", prev_imm_context_ty ? prev_imm_context_ty->name : "none");
 
 
 			int spdone = immediate_parse->exec->sp;
 			immediate_parse->exec->sp = immediate_parse->exec->fp;
 			immediate_parse->exec->fp = oldfp;
 
-			printf("Expecting return type from immediate\n");
+			//printf("Expecting return type from immediate\n");
 			typeT* rettype = immediate_parse->exec->stack[spdone - 1].as.ptr.addr.type;
 
 			if (rettype != tImmediate) {
@@ -5132,14 +5279,14 @@ tokenT*  parse(parsectxT* pc, tokenT* t, zbool single) {
 				s->handler = hcall;  //need to set handler before parsing, in case of recursion
 				t = parse(s->subctx, t, ZFALSE);
 				if (getError(s->subctx)) {
-					moveError(pc, s->subctx);
+					moveError(pc, s->subctx,t);
 					return &invalidToken;
 				}
 
 
 				checkUsage(s->subctx, ts, t);//check all values are used up
 				if (getError(s->subctx)) {
-					moveError(pc, s->subctx);
+					moveError(pc, s->subctx,t);
 					return &invalidToken;
 				}
 
@@ -5260,7 +5407,7 @@ tokenT*  parse(parsectxT* pc, tokenT* t, zbool single) {
 
 			if (pc->type == tImmediate) {
 
-				printf(" compiling return for immediate\n");
+				
 				if (tprev(t)->ty) {
 					//	pc->type = tprev(t)->ty;
 					t->ty = tprev(t)->ty;
@@ -6867,7 +7014,8 @@ tokenT*  parse(parsectxT* pc, tokenT* t, zbool single) {
 								timm->val_to_free = ZTRUE;
 
 							//insert_after(tprev(ts), timm);
-							zlist_insert_node_before(ZLISTNODE(ts), ZLISTNODE(timm));
+							insert_before(ts, timm);
+							
 
 							insert_after(t, ret);
 							insert_after(ret, en);
@@ -7201,9 +7349,13 @@ extern scanmain(int argc, char** args);
 
 void ctrlc(int s) {
 
-	printf("ctrl c pressed\n");
 
+	printf("ctrl c pressed\n");
+	
 	signal(SIGINT, ctrlc);  //set up for another
+	
+	setErrorFlags(global->exec, ZERROR_BRK, NULL, "Ctrl-C Break\n");
+	global->exec->stop = STOPERROR;
 
 }
 

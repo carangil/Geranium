@@ -4,7 +4,7 @@
 
 #define RAM_C
 
-//#define RAM_FAKE_FREE
+#define RAM_FAKE_FREE
 
 #include <malloc.h>
 #include <string.h>
@@ -51,6 +51,10 @@ typedef struct mem_header_s
 #ifdef RAM_DEBUG
 	char* file;
 	int   line;
+	#ifdef RAM_FAKE_FREE
+		char* freefile;
+		char* freeline;
+	#endif
 #endif
 	int refcount;
 	int shadow_size; //allow alloced buffers to have a shadow buffer of out-of-band data (lets zstrings be passed or ram_free'd like regular c strings, but allows additional metadata
@@ -71,7 +75,7 @@ void ram_init() {
 	z_global_ram_header_size = sizeof(mem_headerT);
 	
 #ifdef RAM_DEBUG
-        fprintf(stderr,"Creating ram debug lock\n");
+     //   fprintf(stderr,"Creating ram debug lock\n");
 	zlist_init(&_ram_debuglist);
         /* This creates the lock that memory shares when */
         zlock_init(&ram_debug_lock); 
@@ -134,7 +138,7 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_siz
 #endif
 
 	if (!zmem_inited) {
-		fprintf(stderr, "(warning)Auto-initing ram module.\n");
+	//	fprintf(stderr, "(warning)Auto-initing ram module.\n");
 		ram_init();
 	}
 		
@@ -145,7 +149,7 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_siz
        
         
         //printf(" %d shadow bytes allocated\n", shadow_size); 
-		shadow_size = ram_align_ptr_size(shadow_size);
+		shadow_size = (zuint32) ram_align_ptr_size(shadow_size);
 	}
 		
 	xbuffer = malloc( sizeof(mem_headerT)  + size + shadow_size); //allocate header + some size
@@ -165,7 +169,7 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_siz
                 
 
 #ifdef RAM_DEBUG
-		x->debug_size = size ;
+		x->debug_size = (zuint32) size ;
 
         int aa=zlock_inc(&ram_allocs_cnt);
 				
@@ -266,6 +270,12 @@ void ram_free(void* thing)
 
 			fprintf(stderr, "%p alloced at %s:%d (%d refs)  %s\n",
 				header + 1, header->file, header->line, header->refcount, header + 1);
+
+#ifdef RAM_FAKE_FREE
+			fprintf(stderr, "free to 0 refcount at %s:%d \n",
+				header->freefile, header->freeline);
+#endif
+
  			fprintf(stderr, "free at %s %d\n", file, line);
 
 			if (abyss)
@@ -282,7 +292,8 @@ void ram_free(void* thing)
 				//if the destructor returns true, free it
 				do_free = header->destructor(thing); 
 			}
-			
+	
+
 			if (do_free)
 			{
 							  
@@ -306,6 +317,9 @@ void ram_free(void* thing)
 				}
 #ifdef RAM_FAKE_FREE
 				header->magic = FREEMAGIC;
+
+				header->freefile = file;
+				header->freeline = line;
 				
 #else
 				free(buffer);
@@ -540,7 +554,7 @@ char* ram_loadstr(char* filename) {
 		len = ftell(f);
 		fseek(f, 0, SEEK_SET);
 #ifdef RAM_DEBUG
-		fprintf(stderr, "ram.c load file %s : %d bytes\n", filename, len);	
+//		fprintf(stderr, "ram.c load file %s : %d bytes\n", filename, len);	
 #endif
 		str = ram_alloc(len+1, NULL);
 

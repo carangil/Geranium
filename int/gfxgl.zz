@@ -814,7 +814,7 @@ proc dsym:(s:Symbol)
     
     
     
-    loop end
+   // loop end
     
     return
     
@@ -880,7 +880,7 @@ proc   minShader:	(
 		projection transformed *  rasterize
 
 		color.r
-		testu 1[].a "TESTU" PEEKTYPE
+		testu 1[].a  //"TESTU" PEEKTYPE
 		
 		testu 1[]
 		
