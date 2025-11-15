@@ -26,7 +26,7 @@ void gx_set_basic_shader(char* vsource, char* fsource);
 
 
 
-typedef struct gx_shader_s {
+typedef struct gx_shader_variant_s {
 	zlistnodeT zlistnode;
 	
 	zuint64 mask; //which inputs are in use.  0 is all, otherwise 1<<n is for nth input

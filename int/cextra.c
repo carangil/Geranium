@@ -3,7 +3,7 @@
 #include "glsl.h"
 #include "int.h"
 
-void store16(int val, zuint16* zp) {
+void store16(zuint16 val, zuint16* zp) {
 	*zp = val;
 }
 

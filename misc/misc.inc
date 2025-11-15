@@ -1,4 +1,5 @@
-Hmisc=$(INCDIR)/ztime.h $(INCDIR)/zrand.h $(INCDIR)/zbitmap.h
+Hmisc=$(INCDIR)/ztime.h $(INCDIR)/zrand.h $(INCDIR)/zbitmap.h $(INCDIR)/zwindow.h
+
 Hmiscdeps+=
 
 #List all o files here
@@ -9,11 +10,12 @@ misc/%.o: misc/%.c  $(Hmisc) $(Hmiscdeps)
 	$(CC) $(CFLAGS) -c -o $@ $< 
 
 $(INCDIR)/%.h: misc/%.h
+	echo doing copy $< $(INCDIR)
 	$(COPY) $< $(INCDIR)
 
 
-$(INCDIR)/%.h: misc/%.h
-	$(COPY) $< $(INCDIR)
+#$(INCDIR)/%.h: misc/%.h
+#	$(COPY) $< $(INCDIR)
 
 
 clean-misc:

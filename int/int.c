@@ -1,7 +1,8 @@
 #include "int.h"
 #include "signal.h"
 #define XDEBUG 1
-#define xprintf(a,...) (logfile?fprintf(logfile, a, __VA_ARGS__),fflush(logfile):0)
+//#define xprintf(a,...) (logfile?fprintf(logfile, a, __VA_ARGS__),fflush(logfile):0)
+#define xprintf(...) (logfile?fprintf(logfile,  __VA_ARGS__),fflush(logfile):0)
 FILE* logfile=NULL;
  
 #ifdef FLOAT 

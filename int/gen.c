@@ -805,7 +805,7 @@ tokenT* hc_gfx_scale3 (exectxT* ex, tokenT* t) {
 
 	return tnext(t); 
 }
-void gxi_refresh_matrix( struct gx_shader_variant_s* shader);
+//void gxi_refresh_matrix( struct gx_shader_variant_s* shader);
 tokenT* hc_gxi_refresh_matrix (exectxT* ex, tokenT* t) {	
 	void* firstArg = ex->stack[ex->sp-1].as.ptr.addr.bytes;
 		gxi_refresh_matrix(

@@ -12,7 +12,7 @@
 #include "math.h"
 
 #ifdef GFXINTERNAL
-#include <glad/glad.h>
+//##include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #define checkGL()   checkGLfunc(__FILE__, __LINE__, "", ZFALSE);

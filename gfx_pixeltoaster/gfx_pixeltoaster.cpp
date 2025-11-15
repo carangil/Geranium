@@ -7,6 +7,7 @@
 #include "ztypes.h"
 #define INCPPSOURCE
 #include "gfx_pixeltoaster.h"
+#include "string.h"
 
 using namespace PixelToaster;
 

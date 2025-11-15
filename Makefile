@@ -12,7 +12,7 @@ MAKEFLAGS += --no-builtin-rules
 
 CFLAGS += -I. -Iincludes -I$(INCDIR) $(ZFLAGS)
 
-objs: $(OBJDIR) $(INCDIR) .includes $(OBJDIR)/libzmemory.a $(OBJDIR)/libzthread.a $(OBJDIR)/libzstructures.a $(OBJDIR)/libzmisc.a $(OBJDIR)/libzvmath.a  $(OBJDIR)/libzblank.a $(OBJDIR)/libzgfx_pixeltoaster.a #  $(OBJDIR)/libgraphics.a
+objs: $(OBJDIR) $(INCDIR) .includes $(OBJDIR)/libzmemory.a $(OBJDIR)/libzthread.a $(OBJDIR)/libzstructures.a $(OBJDIR)/libzmisc.a $(OBJDIR)/libzvmath.a  $(OBJDIR)/libzblank.a $(OBJDIR)/libzgfx_pixeltoaster.a   $(OBJDIR)/libzgfx_gl.a
 #$(OBJDIR)/libzblank.a	  Sample extra dir
 
 
@@ -53,10 +53,11 @@ include structures/structures.inc
 include misc/misc.inc
 include vmath/vmath.inc
 include gfx_pixeltoaster/gfx_pixeltoaster.inc
+include gfx_gl/gfx_gl.inc
 #include graphics/graphics.inc
 #include sound/sound.inc
 
-clean:	clean-memory clean-thread clean-structures clean-misc clean-vmath clean-blank clean-gfx_pixeltoaster
+clean:	clean-memory clean-thread clean-structures clean-misc clean-vmath clean-blank clean-gfx_pixeltoaster clean-gfx_gl
 	-rm $(OBJDIR)/*
 	-rm $(INCDIR)/*
 

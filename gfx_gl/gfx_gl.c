@@ -684,7 +684,7 @@ zbool ff_buffers_in_use = ZFALSE;
 zuint32 last_aloc_use[MAX_ALOC] = { 0 };
 zuint32 aloc_use_counter = 1;
 
-void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, int start, int end, zbool indexed) {
+void gfx_vertex_buffer_draw(gfx_vertex_bufferT* vb, int prim, zuint32 start, zuint32 end, zbool indexed) {
 
 	zbool setup_arrays = ZFALSE;
 

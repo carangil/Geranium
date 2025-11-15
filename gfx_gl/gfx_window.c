@@ -361,10 +361,11 @@ struct zwindow_s* gfx_mkwindow(char* title, zuint32 w, zuint32 h, zuint32 flags)
 	
 	
 	gxi_current_window = win;
-		
+	#ifdef USEGLAD	
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
 		printf("Can't init glad\n");
 	}
+	#endif
 
 	glEnable(GL_MULTISAMPLE); //enable antialiasing
 

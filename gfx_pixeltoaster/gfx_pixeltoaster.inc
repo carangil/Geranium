@@ -12,10 +12,12 @@ PIXELTOASTER_CFLAGS = -O3 -Wall -DPLATFORM_UNIX -I$(PIXELTOASTER) -I$(INCDIR) $(
 
 #build our source files from our dir
 gfx_pixeltoaster/%.o: gfx_pixeltoaster/%.cpp  $(Hgfx_pixeltoaster) $(Hgfx_pixeltoasterdeps)
+	echo inddir is $(INCDIR)
 	$(CXX) $(PIXELTOASTER_CFLAGS) $(PIXELTOASTER_LDFLAGS) -c -o $@ $< 
 
 #build pixeltoaster source files from its dir
 gfx_pixeltoaster/%.o: $(PIXELTOASTER)/%.cpp  $(Hgfx_pixeltoaster) $(Hgfx_pixeltoasterdeps)
+	echo inddir is $INCDIR
 	$(CXX) $(PIXELTOASTER_CFLAGS) $(PIXELTOASTER_LDFLAGS) -c -o $@ $< 
 
 

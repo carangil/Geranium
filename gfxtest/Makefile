@@ -7,4 +7,4 @@ LIBS=-lpthread  -L/usr/X11R6/lib -lX11 -lrt -lstdc++ -lm
 CC=gcc
 
 .PHONY test:	test.c 
-	$(CC) -g -o test test.c  $(INCLUDES) -L$(OBJDIR) $(ZLIBS) $(LIBS)
+	$(CC) -g -o test gltest.c  $(INCLUDES) -L$(OBJDIR) $(ZLIBS) $(LIBS)
