@@ -1,65 +1,43 @@
-CC=gcc
-COPY=ln -rsf 
-CONFIG?=debugconfig.inc
-
-include $(CONFIG)
-
-#OBJDIR and INCDIR are populated during the build
-OBJDIR?=build/objs
-INCDIR?=build/includes
-MAKEFLAGS += --no-builtin-rules
+ZHOME=.
+include $(ZHOME)/includes/zmake.inc
 
 
-CFLAGS += -I. -Iincludes -I$(INCDIR) $(ZFLAGS)
+SUBDIRS=memory
 
-objs: $(OBJDIR) $(INCDIR) .includes $(OBJDIR)/libzmemory.a $(OBJDIR)/libzthread.a $(OBJDIR)/libzstructures.a $(OBJDIR)/libzmisc.a $(OBJDIR)/libzvmath.a  $(OBJDIR)/libzblank.a $(OBJDIR)/libzgfx_pixeltoaster.a   $(OBJDIR)/libzgfx_gl.a
-#$(OBJDIR)/libzblank.a	  Sample extra dir
+.PHONY: default remake
 
+default: build/includes/.made build/objs
+	#make all the subdirectories
+	make -C memory 
+	make -C thread
+	make -C structures
+	make -C misc
+	make -C vectormath
+	make -C gfx_pixeltoaster
+	touch build/objs/.made #keeps track of when the objs were updated
+	@echo done
 
-vars:
-	@echo CFLAGS = $(CFLAGS)
-	@echo CONFIG = $(CONFIG)
-	@echo OBJDIR = $(OBJDIR)
-	@echo INCDIR = $(INCDIR)
-	@echo Type make objs to make build/objs/* and build/includes/*
-
-
-.includes: $(INCDIR)/ztypes.h	#list headers in includes that should be copied to build/includes
-	touch .includes
-	
-$(OBJDIR):
-	mkdir -p $(OBJDIR)
-
-$(INCDIR):
-	mkdir -p $(INCDIR)
-
-$(INCDIR)/%.h: includes/%.h
-	$(COPY) $< $@
-
-.PRECIOUS: $(INCDIR)/%.h
-
-#make .a from .o's
-$(OBJDIR)/libz%.a: .%-objs
-	ar rvcs $@ $*/*.o
-	touch .achange
-
-#blank is the 'example' template to copy from for new libs
-include blank/blank.inc
+remake: clean default
 
 
-include thread/thread.inc
-include memory/memory.inc
-include structures/structures.inc
-include misc/misc.inc
-include vmath/vmath.inc
-include gfx_pixeltoaster/gfx_pixeltoaster.inc
-include gfx_gl/gfx_gl.inc
-#include graphics/graphics.inc
-#include sound/sound.inc
-
-clean:	clean-memory clean-thread clean-structures clean-misc clean-vmath clean-blank clean-gfx_pixeltoaster clean-gfx_gl
-	-rm $(OBJDIR)/*
-	-rm $(INCDIR)/*
 
 
+#When creating the build/includes folder, copy all that's in includes to it.  This for now is just ztypes.h
+#Also copy in EARLYH files.  These are header files that need to be copied before building any modules.
+#zlist.h and zthread.h are included because they are required to build zmemory, and zmemory is required to build anything
+EARLYH=thread/zthread.h structures/zlist.h
+build/includes/.made: includes/ztypes.h $(EARLYH)
+	#the .made file just keeps track of when the last time these files were copied
+	mkdir -p build/includes
+	$(COPY) includes/*.h build/includes
+	$(COPY) $(EARLYH) build/includes
+	touch build/includes/.made
+
+
+build/objs:
+	mkdir -p build/objs
+
+
+clean:
+	rm -rf build
 

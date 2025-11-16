@@ -4,7 +4,13 @@
 
 #include <cstdio>
 #include "PixelToaster.h"
+
+extern "C"{
 #include "ztypes.h"
+#include "zwindow.h"
+
+}
+
 #define INCPPSOURCE
 #include "gfx_pixeltoaster.h"
 #include "string.h"
@@ -304,7 +310,7 @@ typedef struct ptWindow_s{
 extern "C" zbool pt_event(zwindowT* zw, zeventT* ev){
 
 	//read from queue first
-	if (zw_event(zw, ev)) {
+	if (zw_queued(zw, ev)) {
 		return ZTRUE;
 	}
 

@@ -87,7 +87,7 @@ void* zarray_allocf( zsize elemsize, zuint32 elemnum, ram_destructor custom_dest
 			//need to set the shortcut offset
 
 			zarray_global_shadow_offset = ram_shadow_offset(sizeof(array_shadowT));
-			char* vsh = sh;
+			char* vsh = (char*)sh;
 			char* vsh_fast = zarray_global_shadow_offset + (char*)array;
 			if (vsh != vsh_fast) {
 				printf("Big error:  ram_shadow and substracting zarray_global_shadow_offset are not equivalent!  They should be.\n");

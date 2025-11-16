@@ -207,7 +207,13 @@ void zdrawtext4(zbitmapT* dest, zbitmapT* font, char* text, int px, int py, zuin
     }
 }
 
+void zfread(void*v, size_t s, int n, FILE* f){
+		int nr = fread(v,s,n,f);
+		if (nr != n){
+			fprintf(stderr, "fread did not read enough\n");
+		}
 
+}
 
 
 //taken from gx_image_load_tga
@@ -232,7 +238,7 @@ zbitmapT* zbitmap_load_tga( zchar* f, zuint32 flags)
 
 	printf(" opened {%s}\n", f);
 
-	fread( buf  ,4, 1 , fi);
+	zfread( buf  ,4, 1 , fi);
 	printf(" IMAGE TYPE %d\n", buf[2]);
 	
 	if ((buf[2] == 10) || (buf[2]==11))
@@ -240,8 +246,8 @@ zbitmapT* zbitmap_load_tga( zchar* f, zuint32 flags)
 	
 	fseek(fi, 12, SEEK_SET);
 
-	fread( buf  ,6, 1 , fi);
-		
+	zfread( buf  ,6, 1 , fi);
+
 	int width = buf[0] | (buf[1]<<8);
 	int height = buf[2] | ( buf[3]<<8);
 	int bpp = buf[4] / 8 ;    //we want bytes per pixel, not bits
@@ -286,7 +292,7 @@ zbitmapT* zbitmap_load_tga( zchar* f, zuint32 flags)
 
 			//		printf(" rle for %d  %p %p\n",header, image->data, dptr);
 
-					fread(dptr, bpp, 1, fi); //read 1 pixel
+					zfread(dptr, bpp, 1, fi); //read 1 pixel
 
 					for (i=0;i<header*bpp;i++) {  //repeat it i times
 						dptr[i+bpp] = dptr[i];
@@ -303,7 +309,7 @@ zbitmapT* zbitmap_load_tga( zchar* f, zuint32 flags)
 					header++;
 					// raw section
 //					printf(" raw for %d  %p %p\n",header, image->data, dptr);
-						fread(dptr, bpp, header, fi);  //read pixel
+					zfread(dptr, bpp, header, fi);  //read pixel
 					dptr += bpp*header;
 					dcount += header;
 					
@@ -314,7 +320,7 @@ zbitmapT* zbitmap_load_tga( zchar* f, zuint32 flags)
 		}
 		else {
 			/*read in all data*/
-			fread( temp? temp : image->data, 1,height * width * bpp , fi);
+			zfread( temp? temp : image->data, 1,height * width * bpp , fi);
 		}
 
 		

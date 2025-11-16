@@ -53,7 +53,7 @@ typedef struct mem_header_s
 	int   line;
 	#ifdef RAM_FAKE_FREE
 		char* freefile;
-		char* freeline;
+		int freeline;
 	#endif
 #endif
 	int refcount;
@@ -266,10 +266,10 @@ void ram_free(void* thing)
 
 		if (header->refcount<0)
 		{
-			fprintf(stderr,"ERROR: negative refcount on %p %s\n", thing, thing);
+			fprintf(stderr,"ERROR: negative refcount on %p %s\n", thing, (char*)thing);
 
 			fprintf(stderr, "%p alloced at %s:%d (%d refs)  %s\n",
-				header + 1, header->file, header->line, header->refcount, header + 1);
+				header + 1, header->file, header->line, header->refcount, (char*) (header + 1));
 
 #ifdef RAM_FAKE_FREE
 			fprintf(stderr, "free to 0 refcount at %s:%d \n",
@@ -514,7 +514,7 @@ zuint32 ram_allocs()
 			fprintf(stderr, " %d bytes ", node->debug_size);
 
 			fprintf(stderr, "%p alloced at %s:%d (%d refs)  %.40s\n",
-				node + 1, node->file, node->line, node->refcount, node + 1);
+				node + 1, node->file, node->line, node->refcount, (char*)( node + 1));
 
 			count++;
 		}
@@ -560,7 +560,12 @@ char* ram_loadstr(char* filename) {
 
 		if (str) {
 
-			fread(str, len, 1, f);
+			int a = fread(str, len, 1, f);
+
+			if (a != len){
+					fprintf(stderr, "ram_loadstr read wrong number of bytes?");
+			}
+
 			str[len]= '\0';
 		}
 		fclose(f);

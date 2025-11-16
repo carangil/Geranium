@@ -1,4 +1,4 @@
-Hgfx_pixeltoaster=$(INCDIR)/gfx_pixeltoaster.h
+::qHgfx_pixeltoaster=$(INCDIR)/gfx_pixeltoaster.h
 Hgfx_pixeltoasterdeps+=$(INCDIR)/ztypes.h
 
 # from pixeltoaster makefile.linux:

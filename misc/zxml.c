@@ -180,7 +180,7 @@ int zparsexml(yxml_t* parser, void* rs, int (*reader)(void*), zxmlhandlerT* hand
 				void* obj = ram_alloc(handlers[fhandler].allocate, handlers[fhandler].destructor); //TODO add destructor
 				zparsexml(parser, rs, reader, handlers[fhandler].subhandler, obj);
 				//then add to vector
-				zvecT* vec = handlers[fhandler].offset + (char*)userdata;
+				zvecT* vec = (void*)(handlers[fhandler].offset + (char*)userdata);
 				zvec_add(vec, obj);
 			}
 
@@ -216,7 +216,7 @@ yxml_t* zxml_mk(size_t stacksizeK) {
 
 	buffer += sizeof(yxml_t); //after the parser is the buffer the parser will use
 		
-	printf("  parser: %p    buffer: %p  difference: %d, %d\n", parser, buffer, (int)(buffer - parser), sizeof(yxml_t));
+	printf("  parser: %p    buffer: %p  difference: %d, %d\n", parser, buffer, (int)(  (char*)buffer - (char*) parser), (int)sizeof(yxml_t));
 
 	yxml_init(parser, buffer, stacksize);
 

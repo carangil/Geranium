@@ -75,7 +75,7 @@ void* zlist_remove_mid( zlistnodeT* node){
 void* zlist_insert_node_after( zlistnodeT* node, zlistnodeT* newnode){
 	
 	if (!node || !node->next){
-	    fprintf(stdout, "Node %p: null or has null next.  To insert at end of list use addtail\n");
+	    fprintf(stdout, "Node %p: null or has null next.  To insert at end of list use addtail\n", node);
 	    exit(1);
 	}
 
@@ -97,7 +97,7 @@ void* zlist_insert_node_after( zlistnodeT* node, zlistnodeT* newnode){
 void* zlist_insert_node_before(zlistnodeT* node, zlistnodeT* newnode) {
 
 	if (!node || !node->prev) {
-		fprintf(stdout, "Node %p: null or has null prev.\n");
+		fprintf(stdout, "Node %p: null or has null prev.\n", node);
 		exit(1);
 	}
 //	if (node->prev->prev == NULL) {

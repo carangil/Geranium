@@ -1,6 +1,7 @@
 #pragma once
 
 //General window interface struct
+//
 
 
 //Zdef struct zeventT ZEvent:type=eventType:Z32;a=A:Z32;b= B:Z32;
@@ -145,7 +146,6 @@ zbool zw_event(zwindowT* zw, zeventT* ev);
 
 //Zdef proc zw_close Close:(w:ZWindow%->);
 void zw_close(zwindowT* zw);
-
 
 
 void zprintevent(zeventT* ev);  //debug function

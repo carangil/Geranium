@@ -1,0 +1,9 @@
+This module displays graphics and does keyboard/mouse input using PixelToaster
+
+I have a fork of PixelToaster here where I fixed a bug: https://github.com/carangil/pixeltoaster
+
+I don't have a Mac, so I don't maintain the Apple version, but I don't think I've done anything in particular to break it.
+
+If you are reading this, and it doesn't work on a Mac, please look for another fork of PixelToaster
+
+The Makefile in this directory (at least for Linux) supercedes any build system in the pixeltoaster directory.  'make' should do it all

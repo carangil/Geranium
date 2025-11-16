@@ -1,20 +1,17 @@
-ZCORE?=../
-RELEASEDIR=$(ZCORE)/build#debug 
-#RELEASEDIR=$(ZCORE)/release#release
-INCLUDES=-I$(RELEASEDIR)/includes  -DRAM_DEBUG
-OBJDIR=$(RELEASEDIR)/objs
-ZLIBS=-lzstructures -lzmemory -lzstructures -lzthread -lzmisc -lzblank
-LIBS=-lpthread
-CC=gcc
+ZHOME?=..
+
+include $(ZHOME)/includes/zmake.inc
 
 
-.PHONY: ex
-ex:
-	#nothing
+SRCtest=*.c
+ZLIBS=-lzmem -lzstructures -lzthread
+LIBS=
 
-%:	%.c  ../.achange
-	$(CC) -g -o $@ $<  $(INCLUDES) -L$(OBJDIR)  $(LIBS) $(ZLIBS)
+test: $(SRCtest) *.h $(INCDIR)/*.h $(OBJDIR)/*.a
+	$(CC) $(CFLAGS) -o $@ $(SRCtest) -L$(OBJDIR) $(ZLIBS) $(LIBS)
 
+clean: 
+	-rm test
 
-int:	int.c  example.h example.c gen_extension.h ../.achange
-	$(CC) -g -o $@ $<  $(INCLUDES) -L$(OBJDIR)  $(LIBS) $(ZLIBS) -DEXTENSION_H example.c
+run: test
+	./test
