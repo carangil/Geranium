@@ -14,6 +14,7 @@ default: build/includes/.made build/objs
 	make -C misc
 	make -C vectormath
 	make -C gfx_pixeltoaster
+	make -C interpreter
 	touch build/objs/.made #keeps track of when the objs were updated
 	@echo done
 
