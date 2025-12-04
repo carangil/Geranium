@@ -248,3 +248,15 @@ char* zstrprintf(char* initial, char* format, ...) {
 	return str;
 }
 
+
+//a very common string hash function
+zuint32 zstr_hash(char* s){
+
+	unsigned int hash=0;
+	while (*s){
+			hash=hash*31 + (((unsigned int)(*s)) & 0xFF);
+			s++;
+	}
+
+	return hash;
+}

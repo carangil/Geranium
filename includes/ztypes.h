@@ -2,6 +2,8 @@
 // ProjectZ is (C) 2018 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
+#define debugf printf
+#define errorf(...) fprintf(stderr, __VA_ARGS__)
 
 /* Basic datatypes for my projects**/
 

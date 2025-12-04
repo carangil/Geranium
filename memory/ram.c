@@ -562,8 +562,8 @@ char* ram_loadstr(char* filename) {
 
 			int a = fread(str, len, 1, f);
 
-			if (a != len){
-					fprintf(stderr, "ram_loadstr read wrong number of bytes?");
+			if (a != 1){
+					fprintf(stderr, "ram_loadstr read wrong number of bytes?\n");
 			}
 
 			str[len]= '\0';

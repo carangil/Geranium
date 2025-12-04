@@ -47,3 +47,6 @@ char* zstrcombine(char* left, char* right);
 char* zstrdup2(char* left, char* right);
 
 char* zstrprintf(char* initial, char* format, ...);
+
+zuint32 zstr_hash(char* s);
+
