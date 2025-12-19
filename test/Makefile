@@ -16,4 +16,5 @@ clean:
 
 
 run: test
-	gdb -ex run ./test
+	./test
+	#gdb -ex run ./test

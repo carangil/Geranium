@@ -109,7 +109,7 @@ void* zlist_insert_node_before(zlistnodeT* node, zlistnodeT* newnode) {
 }
 
 //returns end of list OR sentinal for an empty list.  This can be used to append to any list, even empty list.
-void* zlist_tail_for_insert(zlistT* list) {
+void* zlist_head_for_insert(zlistT* list) {
 	if (!list)
 		return NULL;
 	zlist_check_init(list);

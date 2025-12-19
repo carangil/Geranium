@@ -4,6 +4,8 @@
 #include "ztypes.h"
 #include "zmem.h"
 
+
+#include "zarray.h"
 #include "zstring.h"
 #include "zstringmap.h"
 
@@ -76,6 +78,27 @@ int main(int argc, char** args){
 
 
 	ram_free(map);
+
+
+	//test some appends
+
+	int* y = zarray_alloc(int, 3);
+
+	zarray_append(y, 1);
+	zarray_append(y, 2);
+
+	zarray_append(y, 3);
+	y=zarray_more(y,2,NULL);
+
+	zarray_append(y,4);
+
+	printf(" %d/%d\n", zarray_count(y), zarray_size(y));
+	for (int i=0;i< zarray_count(y); i++){
+			printf("%d\n", y[i]);
+	}
+
+
+
 
 
 

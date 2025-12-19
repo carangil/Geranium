@@ -46,6 +46,7 @@ typedef struct zlist_s
 void* zlist_head(zlistT*);
 
 void* zlist_tail(zlistT*);
+void* zlist_tail_for_insert(zlistT* list);
 
 //(ZLIST)->sentinal_head != &(ZLIST)->sentinal
 

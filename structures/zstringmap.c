@@ -11,14 +11,6 @@ typedef struct stringmapentryS{
     void* item;
 }mapentryT;
 
-zbool mapentryclean(void* v){
-    mapentryT* entry = v;
-
-    ram_free(entry->item);
-    ram_free(entry->key);
-
-    return ZTRUE;
-}
 
 zbool mapclean(void* v){
     zstringmapT* map = v;
@@ -30,7 +22,10 @@ zbool mapclean(void* v){
         if (map->buckets[b]){
             for (int i=0;i<zarray_count(map->buckets[b]); i++){
                 ram_free(map->buckets[b][i].key);
-                ram_free(map->buckets[b][i].item);
+
+				if (map->own_elements)
+	                ram_free(map->buckets[b][i].item);
+
             }
             ram_free(map->buckets[b]);
         }
@@ -52,10 +47,15 @@ zstringmapT* zstringmap_mk(int nb){
 
     zlist_init(&map->ordered); //keep a linked list of elements in order
 
+	map->own_elements = ZTRUE; //free elements when map freed
+
     return map;
 
 }
 
+zstringmapT* zstringmap_disown(zstringmapT* map){
+	map->own_elements = ZFALSE;
+}
 
 mapentryT* zstringmap_find(zstringmapT* map, char* key, zbool create) {
 
@@ -100,7 +100,7 @@ mapentryT* zstringmap_find(zstringmapT* map, char* key, zbool create) {
 
     int len = zarray_count(map->buckets[bn]);
     debugf("creating new entry for %s at position %d\n", key, len);
-    map->buckets[bn] = zarray_sizecheck( map->buckets[bn], 1); //make sure there's space for 1 more
+    map->buckets[bn] = zarray_more( map->buckets[bn], 1, NULL); //make sure there's space for 1 more
     zarray_use(map->buckets[bn], len+1); //reset the sizeof
     zlist_addtail(&map->ordered, &(map->buckets[bn][len].zlistnode)); //add to end of list
 
@@ -127,7 +127,9 @@ debugf("put start %s\n", key);
 
     if (e->key){ //if replacing item
             ram_free(e->key);
-            ram_free(e->item);
+
+			if (map->own_elements)
+	            ram_free(e->item);
     }
 
 	debugf("copying key\n");
@@ -149,7 +151,7 @@ void*  zstringmap_get(zstringmapT* map, char* key){
 
     mapentryT* e = zstringmap_find(map, key, ZFALSE);
     if (!e){
-        errorf("not found %s\n", key);
+        debugf("not found %s\n", key);
         return NULL;
     }
 
@@ -168,8 +170,9 @@ void zstringmap_delete(zstringmapT* map, char* key){
 
    zlist_remove_mid(&e->zlistnode); //remove from the list
 
+	if (map->own_elements)
+	    ram_free(e->item);
 
-    ram_free(e->item);
     ram_free(e->key);
     e->key=ram_strdup("DELETED");
     e->item=NULL;
@@ -185,7 +188,9 @@ void zstringmap_delete(zstringmapT* map, char* key){
 //Result is undefined if there are additions or deletions to the map while iterating.
 //ex:   void* cursor = NULL;
 //      while( zstringmap_nextkey(map, &key, &value, &cursor)){ ... }
-zbool zstringmap_nextkey( zstringmapT* map, char** key, char** item, void** cursor){
+zbool zstringmap_nextkey( zstringmapT* map, char** key, void* vitem, void** cursor){
+
+	void** item = vitem;
 
     mapentryT* e = NULL;
 

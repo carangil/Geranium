@@ -160,7 +160,23 @@ void* zvec_remove_ordered(zvecT* v, zuint32 index)
 	return x; //return the item
 }
 
+//removes and returns the last item.  NULL is vector is empty
+void* zvec_remove_last(zvecT* v)
+{
 
+	if (!v)
+		return NULL;
+
+	if (v->count==0){
+		fprintf(stdout, "Empty vector\n");
+		exit(1);
+		return NULL; //out of range
+	}
+
+
+	return v->elements[--(v->count)]; //return last item, decrementing count
+
+}
 
 
 int zvec_find_idx(zvecT* v, void* item)
@@ -183,4 +199,17 @@ zvecT*  zvec_disown(zvecT* v) {
 		v->own_elements = 0;
 	}
 	return v;
+}
+
+
+//returns vector as an array with optional count return value
+void* zvec_detach(zvecT* v, int* n){
+	void* array = v->elements;
+	if (n)
+		*n = v->count;
+
+	v->count = 0;
+	v->_size = 0;
+	v->elements=NULL;
+	return array;
 }

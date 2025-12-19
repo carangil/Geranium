@@ -105,6 +105,23 @@ void* zarray_allocf( zsize elemsize, zuint32 elemnum, ram_destructor custom_dest
 	return array;
 }
 
+
+void* zarray_moref(void* array, size_t itemsize, int n, zbool* ok){
+
+	if ( zarray_space(array, n))
+		return array;	//enough space, do not resize`
+
+	int newsize = zarray_size(array)+n;
+	int newsize2x = zarray_size(array) *2;
+
+	if (newsize2x > newsize)
+		newsize = newsize2x;
+
+	debugf("resize to %d\n", newsize);
+
+	return zarray_resizef(array, itemsize, newsize, ok);
+}
+
 void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok){
 	size_t newsize = elemsize * elemnum;
 
@@ -187,7 +204,7 @@ void zarray_use(void* array, zuint32 num){
 }
 
 
-void* zarray_appendf(void* dest, void* src, zbool grow2x, zbool* ok, zsize elemsize1, zsize elemsize2){
+void* zarray_append_arrayf(void* dest, void* src, zbool grow2x, zbool* ok, zsize elemsize1, zsize elemsize2){
 	if  ( (dest == NULL) || (src==NULL) || (elemsize1 != elemsize2)   ) {
 		fprintf(stderr, "ERROR: array copy bad parms %p by %d=  %p  by %d\n", 
 			dest, (int)elemsize1, src, (int)elemsize2);
@@ -252,3 +269,12 @@ void zarray_debug(void* array){
 	    printf("zarray is null\n");
     
 }
+
+void* zarray_spaceerr(){
+		errorf("Array does not have space\n");
+		exit(1);
+		return NULL;
+}
+
+
+

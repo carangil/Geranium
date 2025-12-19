@@ -16,7 +16,7 @@ typedef struct zvec_s {
 
 
 //fast and safe read/write into the vector
-#define zvec_count(vec)			   ((vec)->count)
+#define zvec_count(vec)			   ((vec)?((vec)->count):0)
 #define zvec_get_at(vec,pos)        ( ((unsigned int)(pos)) < (vec)->count ?  (vec)->elements[(pos)] : NULL )
 #define zvec_set_at(vec,pos,value)  ( ((unsigned int)(pos)) < (vec)->count ?  (vec)->elements[(pos)] = value : NULL )
 #define zvec_get_x_at(vec, type, pos)  ((type)( ((unsigned int)(pos)) < (vec)->count ?  (vec)->elements[(pos)] : NULL ))
@@ -24,6 +24,11 @@ typedef struct zvec_s {
 #define zvec_elements_as(type, vec)   ((type*)((vec)->elements))
 #define zvec_setcount(vec,value) ((vec)->count=(value))
 
+//returns the array of items in a vector as a void*
+//usage:   sometype* myItems[] = zvec_detach(v, &n);
+//n is optional return count
+//the vector will be reset to zero and still needs to be freed
+void* zvec_detach(zvecT* v, int* n);
 
 //call this to cleanup the contents of a zvecT, without freeing the zvecT itself
 void zvec_cleanup(zvecT* x);
@@ -65,6 +70,8 @@ void* zvec_remove_unordered(zvecT* v, zuint32 index);
 //remove item from vector, O(n) time order of the items is preserved
 void* zvec_remove_ordered(zvecT* v, zuint32 index);
 
+//remove last item
+void* zvec_remove_last(zvecT* v);
 
 //disowns vectors contents (User will have to free things that were put in the vector)
 zvecT* zvec_disown(zvecT* v);
