@@ -58,11 +58,10 @@ typedef struct tokenS{
 tokenT* int_insert_tokenf(tokenT* A, tokenT* B, zbool before);
 
 #define tinsert_after(AFTER,NEW)    int_insert_tokenf(  AFTER, NEW, ZFALSE)
-//#define tinsert_before(PREV,NEW)    int_insert_tokenf(  PREV, NEW, ZTRUE)
-#define tremove(ITEM)    zlist_remove_mid(  &(ITEM)->zlistnode)
+
 #define tnext(ITEM)		((tokenT*)zlist_next(ITEM))
 #define tprev(ITEM)    ((tokenT*)zlist_prev(ITEM))
-#define tsub(ITEM)     zlist_head( &(ITEM)->subs)
+
 
 
 //types/symbols etc
@@ -84,7 +83,10 @@ typedef enum {
 	PROC,
 	SIMPLE, //ints, etc
 	REFERENCE,
-	FRAME	//struct or proc frame
+	FRAME,	//struct or proc frame
+	VARIABLE, //not a pointer, but refers to the variable itself
+	LOADED,  //refers to a value loaded from a variable.
+	LIKE
 }categoryE;
 
 struct exectxS;
@@ -125,9 +127,18 @@ typedef struct typeS{
 
 	struct parsectxS* pctx;//if the type is a frame, it has a context
 
+	char** opt_argnames;  //holds name of args for a proc, optional
+
     categoryE category;
     int size; 
 } typeT;
+
+//means it has an
+
+//
+#define INST_FREE_VALUE 1
+
+//#define INST_ NEW VALUE  2
 
 typedef struct instructionS{
 	int opcode;
@@ -135,18 +146,22 @@ typedef struct instructionS{
 	typeT* val_type;
 	struct instructionS** args;
 	typeT* result_type;
+	int    flags;
 	char* comment;
 }instructionT;
 
+#define MAXRUNNERS		2
+#define SWITCHRUNNER	0
 
+struct runnerS;
 
-		
 typedef struct parsectxS{
 	struct parsectxS* parent; //where to get things not found here
     zstringmapT* dictionary; //wordT*
     zstringmapT* types;      //typeT*
 	int id;//for debugging
 	zvecT* codestack;
+	struct runnerS *runners[MAXRUNNERS];
 }parsectxT;
 
 #define ERROR_PARSE		1
@@ -157,6 +172,7 @@ typedef struct exectxS{
 
 	//todo typeinfo for selectors?
 	int sp;
+	int bp;//bp=-1 is last arg, bp=-2 is one before that...
 
 	char* error_string;
 	int error_code;

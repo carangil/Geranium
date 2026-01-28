@@ -1,7 +1,86 @@
+
+
+
+(Z32:a Z32:b -> Z32) proc testa
+
+    55 print
+    66 1 +  65 return
+end
+
+33 44 testa
+
+77
+
+/*
 5
 10 + print
 
+
 Z32 var x
 
+x 1 +
 
-15 x =
+x&
+
+4 x =
+
+
+x&
+*/
+
+
+type foo
+    Z32 var a
+    Z32 var b
+end
+
+type foocontainer
+
+    foo var f3
+end
+
+foo var ff
+
+foocontainer var fc
+
+
+fc
+fc.f3
+
+10
+/*
+fc.f3
+
+fc.f3.b
+fc.f3.b&
+*/
+
+
+/*
+10 fc.f3.a =
+
+128 x =
+//10 fc.f3.b =
+x  x =
+
+//(Z32.var:a->Z32)
+
+//x
+
+
+
+
+x print
+x 11 + print
+
+6 x =
+
+x print
+
+
+5 x =
+
+x&
+
+(Z32:A Z32:B) var s
+*/

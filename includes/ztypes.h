@@ -3,7 +3,9 @@
 // Commercial use prohibited.
 
 #define debugf printf
+#define tracef printf
 #define errorf(...) fprintf(stderr, __VA_ARGS__)
+
 
 /* Basic datatypes for my projects**/
 
