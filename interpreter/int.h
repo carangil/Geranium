@@ -21,6 +21,7 @@ typedef struct ptrS{
 		char* bytes;
 		struct typeS* type;
 		struct wordS* word;
+		struct valueT* value;
 	} address;
 	int offset;
 }ptrT;
@@ -82,11 +83,12 @@ typedef enum {
 	PENDING, //type details aren't defined yet.  But you could have pointers to them, etc
 	PROC,
 	SIMPLE, //ints, etc
-	REFERENCE,
 	FRAME,	//struct or proc frame
+	REFERENCE,
 	VARIABLE, //not a pointer, but refers to the variable itself
-	LOADED,  //refers to a value loaded from a variable.
-	LIKE
+	ARG,
+	LIKE,
+	DEREFERENCE// usually deref just strips off the pointer wrapper, but this is for 'like' types where we have to delay doing that.  This is dereference the like type when resolving
 }categoryE;
 
 struct exectxS;
@@ -99,7 +101,7 @@ typedef struct wordS{
 
 //	valueT data;
 	//broken out seperate instead of a union so that I fault on a null pointer instead of accidently reading garbage
-	struct typeS* target_type;// if word represents a type, this points to it
+
     struct parsectxS* target_pctx;// if word represents a proc or struct, these are the variables/fields
 //	struct tokenS* target_tokens; //if word represents a proc, this is the code
 
@@ -110,6 +112,8 @@ typedef struct wordS{
 	valueT val;
 	struct typeS* val_type;
 	char* comment;
+	struct wordS * aliases; //find all the aliases for freeing
+	int offset;
 } wordT;
 
 
@@ -119,7 +123,8 @@ typedef struct typeS{
     char* name;
     struct typeS* ref;
 	//    zstringmapT* membermap; //members are args to functions, parts of a struct etc   name is key, value is typeT*
-	int argc;//number of args
+	int argc;//number of args for procs.  argn for 'like' types
+	//int argleave; //number of input args that are left behind on stack
 
 	struct typeS** argtypes; //if has args (PROCs)
 
@@ -131,6 +136,7 @@ typedef struct typeS{
 
     categoryE category;
     int size; 
+	zbool is_wild; //true if has any wildcards
 } typeT;
 
 //means it has an
@@ -159,16 +165,19 @@ typedef struct parsectxS{
 	struct parsectxS* parent; //where to get things not found here
     zstringmapT* dictionary; //wordT*
     zstringmapT* types;      //typeT*
-	int id;//for debugging
 	zvecT* codestack;
 	struct runnerS *runners[MAXRUNNERS];
+	int id;//for debugging
+	int size;
 }parsectxT;
 
 #define ERROR_PARSE		1
 #define ERROR_RUNTIME	2
 
 typedef struct exectxS{
-	valueT*		stack;
+	valueT*	stack;
+	valueT*	globals;
+	valueT*	locals;
 
 	//todo typeinfo for selectors?
 	int sp;
@@ -223,7 +232,8 @@ typedef enum {
 	op_typeof,	//static compile-time
 	op_dynamic_typeof,
 	op_change_selector,
-	op_FIRST_EXT  //first instruction that isn't part of this enum
+	op_FIRST_EXT,  //first instruction that isn't part of this enum
+	op_LAST
 }opcodeE;
 
 //runtime
