@@ -5,108 +5,45 @@ type pair
     Z32 var b
 end
 
-
 type foo
     pair var p
     Z32 var c
 end
 
+1 if
 
+    100
+    200
+    300
 
-foo var f
+2 elseif
 
-pair var pa
+    400 500 600
+3 elseif
 
-Z32 var a
+    700 800 900
 
+else
+    1000
+    2000
 
-
-a print
-Z32 var b
-
-
-5 b&=
-600 a&=
-
-a print
-b print
-
-a b + a&=
-
-a print
-b print
-
-
-
-//f
-//pa
-//a
-
-
-/*
-pa
-pa.a&
-pa.b
-f.p
-f.p.b&
-f.p.a print
-
-a&
-a print
-
-f
-f&
-
-//f
-//f.p
-//f.p&
-*/
-/*
-(Z32:a Z32:b -> Z32) proc testa
-
-    b print
-    a b + return
-end
-
-
-(Z32:a ) proc testb
-    a a + print
-end
-
-6 testb
-
-(->Z32) proc testc
-    99 return
 
 end
 
-testc print
-100
-
-33 44 testa 1000 + print
-
-77
-
-type bar
-    Z32 var a
-    Z32 var b
-end
 
 Z32 var x
-bar var bb
-Z32 var y
+0 x& =
+loop
+    x print
 
-Z32& var zpp
-
-x print
-
-10 x& =
-*/
-//10 x& zpp& add
+step
+    x 1 + x& =
+end
 
 
+sys_ENDFILE
 
 
 
 
-
+sys_ENDFILE

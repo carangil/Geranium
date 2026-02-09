@@ -6,6 +6,7 @@
 
 
 
+
 //error reporting
 void set_error(exectxT* exectx, int code, char* string){
 	if (!exectx){
@@ -266,6 +267,10 @@ void  tokenize(tokenT* insert, char* in, char* filename, int line){
 			digits=0; //accept name if it is longer
 
 		if (digits || name){
+
+			if (!strncmp(in, "sys_ENDFILE", 11))
+				break;
+
 			t = token_mk( digits? TOKEN_NUMBER : TOKEN_NAME, in ,   digits|name);
 			t->line = line;
 			t->sourcefile = ram_addref(fnamecopy);
@@ -589,7 +594,7 @@ void instruction_print(instructionT* inst, int level, zbool recurse){
 
 	indent(level);
 	char* name = NULL;
-	if (inst->opcode < op_LAST)
+	if (inst->opcode < op_MAX)
 		name = instruction_names[inst->opcode];
 
 	if (name)
@@ -620,12 +625,28 @@ void instruction_print(instructionT* inst, int level, zbool recurse){
 
 }
 
-void codestack_print(zvecT* cs,  zbool recurse){
+void instructions_print(instructionT** insts, int level, zbool recurse){
+
+	if (!insts)
+		return ;
+
+	for (int i=0; i < zarray_count(insts); i++){
+		instructionT* inst = insts[i];
+
+		if (!inst)
+			printf("(null code)\n");
+		else
+			instruction_print(inst, 0, recurse);
+	}
+
+}
+
+void codestack_print(zvecT* cs,  int start, zbool recurse){
 
 	if (!cs)
 		return ;
 
-	for (int i=0; i < zvec_count(cs); i++){
+	for (int i=start; i < zvec_count(cs); i++){
 		instructionT* inst = zvec_get_at(cs,i);
 
 		if (!inst)
@@ -729,7 +750,7 @@ zbool clean_inst(void* v){
 	ram_free(inst->comment);
 
 	if (inst->flags & INST_FREE_VALUE){
-		//printf(" FREE INST VAL  %p on inst %p\n", inst->val.as.ptr.address.bytes, inst);
+		printf(" FREE INST VAL  %p on inst %p\n", inst->val.as.ptr.address.bytes, inst);
 
 		ram_free(inst->val.as.ptr.address.bytes);
 	}
@@ -738,7 +759,7 @@ zbool clean_inst(void* v){
 }
 
 //returns an array item representing one instruction.
-instructionT* push_assembly(parsectxT* pctx, int opcode, int flags, valueT val, typeT* val_type,  instructionT** args , typeT* ret){
+instructionT* push_assembly(parsectxT* pctx, int opcode, int flags, valueT* pval, typeT* val_type,  instructionT** args , typeT* ret){
 
 	if (!pctx->codestack){
 		pctx->codestack = zvec_mk(NULL, 8);
@@ -749,9 +770,13 @@ instructionT* push_assembly(parsectxT* pctx, int opcode, int flags, valueT val, 
 
 	inst->opcode=opcode;
 	inst->result_type =ret;
-	inst->val_type = val_type;
-	inst->val= val;
 	inst->flags = flags;
+
+	if (pval){
+		inst->val= *pval;
+		inst->val_type = val_type;
+	}
+
 
 	///printf(" args have %d\n", args?zarray_count(args):-9999);
 	inst->args = args;
@@ -940,7 +965,7 @@ switchopT* compile_switch_subtree(exectxT* exe, switchopT* prog, instructionT* i
 void print_switch_listing(switchopT* prog){
 		for (int i=0;i<zarray_count(prog);i++){
 
-		char* name = instruction_names[ prog[i].opcode < op_LAST? prog[i].opcode:0];
+		char* name = instruction_names[ prog[i].opcode < op_MAX? prog[i].opcode:0];
 
 		if (name)
 			printf("%s\t", name);
@@ -1019,7 +1044,16 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				pc++;
 				continue;
 
+			case op_switch_jumpfalse:
+				exe->sp--;
+				if (exe->stack[exe->sp].as.z32){
+					pc++;
+					continue;
+				}
 
+			case op_switch_jump:
+				pc = pc + pc->imm.as.z32;
+				continue;
 
 			case op_globalvar:
 				exe->stack[exe->sp].as.ptr.address.block = exe->globals;
@@ -1218,13 +1252,13 @@ tokenT* parse_number(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int arg
 
 	if (strchr(t->str, '.')){
 		val.as.f = atof(t->str);
-		push_assembly(pctx, op_constant, 0, val, tReal, NULL, tReal);
+		push_assembly(pctx, op_constant, 0, &val, tReal, NULL, tReal);
 	} else if (strchr(t->str, 'x') == (t->str +1 ) ){
 		val.as.u32 = strtol(t->str, NULL, 16);
-		push_assembly(pctx, op_constant, 0, val, tZ32, NULL, tZ32);
+		push_assembly(pctx, op_constant, 0, &val, tZ32, NULL, tZ32);
 	} else {
 		val.as.u32 = atoi(t->str);
-		push_assembly(pctx, op_constant, 0, val, tZ32, NULL, tZ32);
+		push_assembly(pctx, op_constant, 0, &val, tZ32, NULL, tZ32);
 	}
 
 	return t;
@@ -1238,11 +1272,11 @@ void dereference_assembly(parsectxT* pctx){
 		wordT* wloader = match_word(pctx, pctx, "@", MATCH_RECURSE_PCTX| MATCH_ALLOW_LIKE , NULL);  //find a loader for it
 
 		if (wloader){
-			valueT zero = {0};
+
 			printf(" Found loader OPCODE IS %d\n", wloader->opcode);
 			//pop it off
 			instructionT** insts = pop_args(pctx, 1); //get the instruction
-			instructionT* loadinst = push_assembly(pctx, wloader->opcode,0, zero, NULL, insts, wloader->type->ref);
+			instructionT* loadinst = push_assembly(pctx, wloader->opcode,0, NULL, NULL, insts, wloader->type->ref);
 		}else {
 			printf(" @ undefined for type\n");
 			exit(1);
@@ -1259,7 +1293,7 @@ tokenT* parse_default(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int ar
 
 	//if word is a PROC, assemble it using the word's opcode and value
 	if (w->type->category == PROC) {
-		instructionT* inst = push_assembly(pctx, w->opcode, 0, w->val, w->val_type, args, w->type->ref);
+		instructionT* inst = push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, args, w->type->ref);
 		inst->comment = zstrdup(w->comment);
 		return t;
 	}
@@ -1272,7 +1306,7 @@ tokenT* parse_default(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int ar
 
 			printf("%s arg  at bp %d\n", w->name, w->val.as.z32);
 
-			push_assembly(pctx, w->opcode, 0, w->val, w->val_type, NULL, w->type->ref );
+			push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, NULL, w->type->ref );
 			return t;
 	}
 
@@ -1289,9 +1323,9 @@ tokenT* parse_default(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int ar
 			isReference = ZTRUE;
 		}
 
-		valueT novalue={0};
 
-		push_assembly(pctx, w->opcode, 0, w->val, w->val_type, NULL, OF(pctx, REFERENCE, w->type->ref) );
+
+		push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, NULL, OF(pctx, REFERENCE, w->type->ref) );
 
 		//if not meant to be reference, then de-reference the variable
 		if (!isReference){
@@ -1393,7 +1427,7 @@ tokenT* parse_type_list(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int 
 				if (is_like != -1) {
 					v.as.ptr.address.type = type_mk(exe, NULL, t->str, NULL, LIKE, 0, NULL);
 					v.as.ptr.address.type->argc = is_like;
-					push_assembly(pctx, op_constant, INST_FREE_VALUE, v, tType, NULL, tType);
+					push_assembly(pctx, op_constant, INST_FREE_VALUE, &v, tType, NULL, tType);
 				} else {
 						errorf("like no named arg %s\n", t->str);
 						exit(1);
@@ -1459,7 +1493,7 @@ printf("parsed proto:\n");
 	valueT v = {0};
 	v.as.ptr.address.type= ptype;
 
-	push_assembly(pctx, op_constant, INST_FREE_VALUE, v, tType, args, tType);
+	push_assembly(pctx, op_constant, INST_FREE_VALUE, &v, tType, args, tType);
 
 	ram_free(argnames);
 	ram_free(ret_arg);  //discard return address arg (if exist)
@@ -1663,7 +1697,7 @@ tokenT* parse_type_name(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int 
 
 			printf("pushing %s\n",  w->val.as.ptr.address.type->key );
 		
-			push_assembly(pctx, op_constant, 0, v, tType, NULL, tType);
+			push_assembly(pctx, op_constant, 0, &v, tType, NULL, tType);
 			//typestack_push_value(pctx, tType, &v);  //and that value we just pushed, is a type
 			//t->type = tType;
 			return t;
@@ -1701,14 +1735,120 @@ tokenT* parse_related_type(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, i
 	v.as.ptr.address.type = type;
 	//arg is the 'arglist' but op_constnat does not run its args.
 	//the arglist is just to keep track of where the constant came from
-	push_assembly(pctx, op_constant, instflags, v, tType, assembly_args_mk(1, arg0) , tType);
+	push_assembly(pctx, op_constant, instflags, &v, tType, assembly_args_mk(1, arg0) , tType);
 
 
 	return t;
 }
 
+//parse_flow
+tokenT* parse_flow(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 
+	valueT vtrue = {0};
+	vtrue.as.z32 = 1;
+
+	if(!strcmp(t->str, "if")){
+
+		char* ifstops[]={ "else", "end", "elseif", NULL};
+		char* elsestops[]={ "end", NULL};
+
+
+		int parts = 1; //the condition
+
+		//first condition on stack
+
+		instructionT* cond = NULL;
+
+		do {
+
+				cond = NULL;
+
+				int depth = codestack_depth(pctx);
+				t = tnext(t);  //skip over if/elseif
+				t = parse(exe, pctx, t, ifstops); //parse until end/if/elseif
+
+				//true side instructions are on codestack
+
+
+
+				if (!strcmp(t->str, "elseif")){
+					//if got elseif pop the condition out
+					cond = pop_arg(pctx);
+
+				} else if (!strcmp(t->str, "else")){
+					//else if just  elseif with constant true
+					push_assembly(pctx,op_constant,0,&vtrue,tZ32, NULL, NULL);
+					cond = pop_arg(pctx);
+				}
+
+				instructionT** trues = pop_args(pctx, codestack_depth(pctx) - depth); //code plus condition
+
+				push_assembly(pctx, op_block, 0, NULL , NULL, trues, NULL);
+				parts++;
+
+				if (cond){
+					push_subtree(pctx, cond);
+					parts++;
+				}
+
+
+		} while(cond);
+
+
+		instructionT** a = pop_args(pctx, parts);
+		push_assembly(pctx, op_if,0,NULL, NULL, a, NULL);
+
+			printf("HERE\n\n");
+		codestack_print(pctx->codestack,0, ZTRUE);
+
+		//exit(1);
+
+		return t;
+
+
+
+	} else if(!strcmp(t->str, "loop")){
+
+		instructionT** body = NULL;
+		instructionT** step = NULL;
+
+
+		char* loopstops[]= { "end", "step", NULL};
+
+		int depth = codestack_depth(pctx);
+		t=tnext(t);
+		t = parse(exe, pctx,t, loopstops);
+		body = pop_args(pctx, codestack_depth(pctx) - depth);
+
+		push_assembly(pctx, op_block, 0,NULL, NULL, body,NULL);
+
+
+
+
+		if (!strcmp(t->str, "step")){
+			depth = codestack_depth(pctx);
+			t = tnext(t);
+			t = parse(exe, pctx,t, loopstops);
+			step = pop_args(pctx, codestack_depth(pctx) - depth);
+			push_assembly(pctx, op_block, 0, NULL, NULL, step, NULL);
+		}
+
+		instructionT* parts = NULL;
+
+		if (step)
+			parts = pop_args(pctx, 2);
+		else
+			parts = pop_args(pctx, 1);
+
+
+		push_assembly(pctx, op_loop, 0,NULL, NULL, parts ,NULL);
+
+		return t;
+	}
+
+	return NULL;
+}
 
 //parse until either end of input or any stop_tokens
 //topparse
@@ -1721,7 +1861,7 @@ tokenT* parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens){
 	while(t){
 		//print type stack
 		printf(" Code Stack:\n");
-		codestack_print(pctx->codestack, ZTRUE);
+		codestack_print(pctx->codestack,0, ZTRUE);
 		printf("--\n");
 
 		if (stop_tokens){
@@ -1799,7 +1939,7 @@ tokenT* parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens){
 				valueT v = {0};
 				v.as.ptr.address.word = w;
 
-				push_assembly(pctx, op_subvar, 0, v, tWord, assembly_args_mk(1, pop_arg(pctx)), OF(pctx, REFERENCE, w->type->ref));
+				push_assembly(pctx, op_subvar, 0, &v, tWord, assembly_args_mk(1, pop_arg(pctx)), OF(pctx, REFERENCE, w->type->ref));
 
 				zbool isReference= ZFALSE;
 				if (w->type->ref->category == FRAME)
@@ -1914,12 +2054,14 @@ char* type_key(char* name, typeT* ref, categoryE category, int size, typeT** arg
 
 }
 
+int type_mk_line=0;
+
 wordT* proc_parser_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* proctype, void* parsefunc);
 
 //create a type.  takes ownership of 'args' if passed
 typeT* type_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* ref, categoryE category, int size, typeT** args ){
 									
-	typeT* type = ram_alloc(sizeof(typeT), typecleanup);
+	typeT* type = ram_alloc(sizeof(typeT), typecleanup); type_mk_line = __LINE__;
 
 	type->name = zstrdup(name);
 
@@ -2068,6 +2210,7 @@ wordT* proc_opcode_mk(exectxT* exe, parsectxT* pctx,  int opcode, char* name, ty
 		return w;
 }
 
+
 typeT* type_from_str(exectxT* exe, parsectxT* pctx, char* str);
 
 wordT* proc_opcode_mk2(exectxT* exe, parsectxT* pctx,  int opcode, char* name, char* typestr){
@@ -2140,6 +2283,13 @@ typeT* type_from_str(exectxT* exe, parsectxT* pctx, char* str){
 //adds an instruction to the name table.  This just makes debugging easier
 #define ADD_INST(NAME)	instruction_names[ op_ ## NAME ] = #NAME;
 
+void leak_viewer(void* item, char* file, int line){
+
+		if (line == type_mk_line){	//this is
+			printf("\t\tLeaked type: %s\n", ((typeT*)item)->key);
+		}
+
+}
 
 //tokenize and parse (evnetually... run)
 void int_run_str(char* src, char* filename){
@@ -2149,14 +2299,16 @@ void int_run_str(char* src, char* filename){
 	ADD_INST(load);
 	ADD_INST(subvar);
 	ADD_INST(store);
-	ADD_INST(reference);
-	ADD_INST(handler);
 	ADD_INST(print32);
 	ADD_INST(add32);
 	ADD_INST(call);
 	ADD_INST(return);
 	ADD_INST(returnval);
 	ADD_INST(argpick);
+	ADD_INST(if);
+	ADD_INST(loop);
+	ADD_INST(block);
+
 	parsectxT* pctx= parsectx_mk(NULL);
 	exectxT* exe = exectx_mk();
 
@@ -2172,6 +2324,10 @@ void int_run_str(char* src, char* filename){
 	proc_parser_mk(exe,pctx, "(", NULL, parse_type_list); //handle argument lists for functions
 	proc_parser_mk(exe,pctx, "&", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into its reference type
 	proc_parser_mk(exe,pctx, "@", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into its dereferenced type
+
+	//create control structures
+	proc_parser_mk(exe,pctx, "if", type_proc_mk(NULL, 1, tZ32), parse_flow); //parse flow structures
+	proc_parser_mk(exe,pctx, "loop", NULL, parse_flow); //parse flow structures
 
 	//define parser words for variables, types and procs
 	proc_parser_mk(exe,pctx, "var",  type_proc_mk(NULL, 1, tType), parse_var); //makes a variable in current context
@@ -2210,7 +2366,7 @@ void int_run_str(char* src, char* filename){
 
     parse(exe, pctx, zlist_head(&tokens), NULL);
 
-	codestack_print(pctx->codestack, ZTRUE);
+	codestack_print(pctx->codestack,0, ZTRUE);
 
 	iferr(exe){
 		fprintf(stderr, "Error(%d): %s\n", exe->error_code, exe->error_string);
@@ -2237,4 +2393,5 @@ void int_run_str(char* src, char* filename){
 	ram_free(pctx);
 	ram_free(exe);
 	ram_free(instruction_names);
+	abyss = leak_viewer;
 }

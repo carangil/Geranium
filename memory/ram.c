@@ -238,7 +238,7 @@ void* ram_alloc(zsize size, ram_destructor destructor) {
 }
 #endif
 
-void (*abyss)(void* unknown);
+void (*abyss)(void* unknown, char* file, int line);
 void* flagged = NULL;
 
 //executes a block's destructor
@@ -255,13 +255,16 @@ void ram_free(void* thing)
 	if (! thing)
 		return;
 
-	if (thing == flagged &&  abyss)
-		abyss(thing);
+	if (header)
+		header--;
+
+
+//	if (thing == flagged &&  abyss)
+//		abyss(thing);
 
 	if (header) 
 	{
-		header--; //decrement pointer to header struct
-	
+
 		header->refcount --;
 
 		if (header->refcount<0)
@@ -279,8 +282,8 @@ void ram_free(void* thing)
  			fprintf(stderr, "free at %s %d\n", file, line);
 
 			if (abyss)
-				abyss(thing);
-
+				abyss(thing, header->file, header->line);
+			exit(1);
 		
 		}
 
@@ -338,13 +341,16 @@ void* ram_addref(void* thing)
 	if (!thing)
 		return NULL;
 
-	if (thing == flagged && thing && abyss)
-		abyss(thing);
+//	if (thing == flagged && thing && abyss)
+//		abyss(thing);
 
 
 	if (header)
 	{
 		header --;
+		if (header->refcount == 0){
+			fprintf(stderr, "Resurrecting dead object!\n");
+		}
 		header->refcount++;
 	}
 	return thing;
@@ -515,6 +521,9 @@ zuint32 ram_allocs()
 
 			fprintf(stderr, "%p alloced at %s:%d (%d refs)  %.40s\n",
 				node + 1, node->file, node->line, node->refcount, (char*)( node + 1));
+
+			if (abyss)
+				abyss((void*)(node+1), node->file, node->line);
 
 			count++;
 		}

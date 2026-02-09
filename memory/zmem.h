@@ -68,7 +68,7 @@ zuint32 ram_allocs();
 
 void* ram_shadow(void* thing);
 
-extern void (*abyss)(void* unknown);
+extern void (*abyss)(void* unknown, char* file, int line);
 //'abyss' is global and can be assigned to any function that takes a void*.  It is called on pointers that get a negative refcount
 //These are double-free type crashes.  the object might not even be valid.  this can be used for debugging if the same object keeps
 //crashing and you need to examine that object

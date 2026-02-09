@@ -195,45 +195,54 @@ typedef struct exectxS{
 
 #define op_MAX 255
 
+//opcodes are
+
 typedef enum {
     op_nop=0,
 	op_constant,
 	op_print32,
 	op_add32,
 	op_stop,
-
+	op_block,  //runs the instructions inside
+	op_if,
 	//get pointer to 'static' struct OR get value of variable
 	op_globalvar,
 	op_localvar,
 	op_subvar,
-	op_reference,
-
-
+//	op_reference,
 	op_load,
-	op_loadaddref,
-	op_take,
+//	op_loadaddref,
+//	op_take,
 	op_store,
 
-	op_follow,
+//	op_follow,
 
-	op_trash,
-	op_alloc,
-	op_allocarray,
+//	op_trash,
+//	op_alloc,
+//	op_allocarray,
 	op_call,
-	op_callp,
-	op_handler,	//call a handler func (instead of being builtin opcode)
+//	op_callp,
+//	op_handler,	//call a handler func (instead of being builtin opcode)
 	op_argpick,
 	op_return,
 	op_returnval,
 	op_loop,
 	op_breakcontinue,
 	op_cond,
+
 	//op_condblock,	// condblock(  ( bool ...) (bool ...) (bool ...) ( 'true' ...  ) ),
-	op_typeof,	//static compile-time
-	op_dynamic_typeof,
-	op_change_selector,
+	//op_typeof,	//static compile-time
+	//op_dynamic_typeof,
+	//op_change_selector,
+
+
+	//these ones are implementation specific:
+	op_switch_jump,
+	op_switch_jumpfalse,
+
+
 	op_FIRST_EXT,  //first instruction that isn't part of this enum
-	op_LAST
+
 }opcodeE;
 
 //runtime
