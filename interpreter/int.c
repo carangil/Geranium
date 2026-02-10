@@ -1064,6 +1064,11 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				pc++;
 				continue;
 
+			case op_subvar:
+				exe->stack[exe->sp-1].as.ptr.offset += pc->imm.as.z32;
+				pc++;
+				continue;
+
 
 			case op_call:
 				if (pc->immtype != tWord){
@@ -1360,6 +1365,38 @@ parsectxT* parsectx_mk(parsectxT* parent);
 
 typeT* type_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* ref, categoryE category, int size, typeT** args );
 
+
+tokenT* parse_array(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+
+		int depth = codestack_depth(pctx);
+		char* stops[] = {"]", NULL};
+		t = tnext(t);
+		t = parse(exe,pctx, t, stops);
+
+		//should be a datatype on the stack now
+
+		depth = codestack_depth(pctx) - depth;
+
+		if (depth == 1 ){
+			instructionT* typearg = pop_arg(pctx);
+
+			if (typearg->result_type == tType){
+
+
+				typeT* type = type_find(pctx, NULL, typearg->val.as.ptr.address.type, ARRAY, 0, NULL);
+				valueT v = {0};
+				v.as.ptr.address.type = type;
+
+				push_assembly(pctx, op_constant, 0, &v, tType, assembly_args_mk(1, typearg) , tType);
+
+
+				return t;
+			}
+		}
+
+		seterrorf(exe, ERROR_PARSE, "expected type\n");
+		return t;
+}
 
 
 tokenT* parse_type_list(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
@@ -1717,6 +1754,8 @@ tokenT* parse_related_type(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, i
 	int instflags=0;
 
 	if (type){		//if the type is a constant, get it
+
+
 		if (!strcmp(t->str, "&"))
 			type = type_find(pctx, NULL, type, REFERENCE, 0, NULL);
 		if (!strcmp(t->str, "@"))
@@ -1822,8 +1861,6 @@ tokenT* parse_flow(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc)
 		body = pop_args(pctx, codestack_depth(pctx) - depth);
 
 		push_assembly(pctx, op_block, 0,NULL, NULL, body,NULL);
-
-
 
 
 		if (!strcmp(t->str, "step")){
@@ -2038,6 +2075,8 @@ char* type_key(char* name, typeT* ref, categoryE category, int size, typeT** arg
 			case ARG:
 				return zstrprintf(NULL, "(%s)arg", ref->key);
 
+			case ARRAY:
+				return zstrprintf(NULL, "[%s]", ref->key);
 
 		}
 
@@ -2142,7 +2181,7 @@ typeT* type_find(parsectxT* pctx, char* name, typeT* ref, categoryE category, in
 
 
 	//create a new type if we have to
-	if (category == REFERENCE || category == PROC || category == VARIABLE || category == ARG ){
+	if (category == REFERENCE || category == PROC || category == VARIABLE || category == ARG || category == ARRAY){
 		type = type_mk(NULL, pctx, NULL, ref, category, size, args);
 	} else if (category == NAMED){
 		//wanted a type by name (like a struct), but the type is not yet
@@ -2324,6 +2363,7 @@ void int_run_str(char* src, char* filename){
 	proc_parser_mk(exe,pctx, "(", NULL, parse_type_list); //handle argument lists for functions
 	proc_parser_mk(exe,pctx, "&", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into its reference type
 	proc_parser_mk(exe,pctx, "@", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into its dereferenced type
+	proc_parser_mk(exe,pctx, "[", NULL, parse_array); //create array type
 
 	//create control structures
 	proc_parser_mk(exe,pctx, "if", type_proc_mk(NULL, 1, tZ32), parse_flow); //parse flow structures
@@ -2333,6 +2373,9 @@ void int_run_str(char* src, char* filename){
 	proc_parser_mk(exe,pctx, "var",  type_proc_mk(NULL, 1, tType), parse_var); //makes a variable in current context
 	proc_parser_mk(exe,pctx, "type", type_proc_mk(NULL, 0), parse_frame);
 	proc_parser_mk(exe,pctx, "proc", type_proc_mk(NULL, 1, tType), parse_proc);
+
+	//create arrays
+	proc_opcode_mk2(exe,pctx, 111, "dim", "([Any]:array Z32:len)");
 
 	//create primitives. minimal at the moment
 	//thse use the above specified parser

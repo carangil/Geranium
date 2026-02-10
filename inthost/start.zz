@@ -9,7 +9,7 @@ type foo
     pair var p
     Z32 var c
 end
-
+/*
 1 if
 
     100
@@ -29,16 +29,42 @@ else
 
 
 end
-
+*/
 
 Z32 var x
 0 x& =
+/*
 loop
     x print
 
 step
     x 1 + x& =
 end
+*/
+
+
+foo var f1
+foo var f2
+
+10 f1.c &=
+20 f2.c &=
+
+11 f1.p.a &=
+12 f1.p.b &=
+
+
+21 f2.p.a &=
+22 f2.p.b &=
+
+
+f1.p.a print
+f1.p.b print
+f1.c print
+
+f2.p.a print
+f2.p.b print
+f2.c print
+
 
 
 sys_ENDFILE

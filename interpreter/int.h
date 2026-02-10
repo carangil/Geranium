@@ -85,6 +85,8 @@ typedef enum {
 	SIMPLE, //ints, etc
 	FRAME,	//struct or proc frame
 	REFERENCE,
+	ARRAY,
+	INDEX, //element of an array
 	VARIABLE, //not a pointer, but refers to the variable itself
 	ARG,
 	LIKE,
@@ -133,6 +135,7 @@ typedef struct typeS{
 	struct parsectxS* pctx;//if the type is a frame, it has a context
 
 	char** opt_argnames;  //holds name of args for a proc, optional
+	int		arena_index; //which arena (0 is global heap)
 
     categoryE category;
     int size; 
