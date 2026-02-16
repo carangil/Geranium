@@ -4,7 +4,7 @@
 
 
 void* zarray_allocf( zsize elemsize, zuint32 elemnum, ram_destructor custom_destructor, char* file, int line);
-
+#define zarray_alloc_size(ELEMSIZE, ELEMNUM, DESTRUCT)  zarray_allocf( ELEMSIZE, ELEMNUM, DESTRUCT, __FILE__, __LINE__)
 
 void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok);
 
@@ -54,7 +54,7 @@ int zarray_countf(void* array) ;
 int zarray_sizef(void* array) ;
 
 
-
+#define ZARRAY_LINE , __FILE__, __LINE__
 
 
 //experimental macro versions of the above functions.  They seem to work fine...

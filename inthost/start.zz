@@ -1,5 +1,4 @@
 
-
 type pair
     Z32 var a
     Z32 var b
@@ -8,7 +7,120 @@ end
 type foo
     pair var p
     Z32 var c
+    Z32 var d
 end
+
+/*
+0 if
+    100 print
+1 elseif
+    200 print
+    11 if
+        500 print
+    end
+
+else
+    300 print
+
+end
+*/
+
+Z32 var x
+Z32 var y
+
+loop
+
+    x -3 + if
+    else
+        continue
+    end
+
+    x -10 + if
+
+
+        x print
+
+        0 y&=
+        loop
+            y 100+ print
+
+            y -5 + if
+                else
+                break
+                end
+
+        step
+            y 1+ y&=
+        end
+
+    else
+        999 print
+        break
+
+    end
+
+
+step
+
+    x 1 + x&=
+
+
+end
+
+10000 print
+
+Z32 var zzz
+[foo] var za //dynamically allocated
+
+([foo]&:zap ) proc dimmer
+    zap 200 dim
+end
+
+za& dimmer
+/*
+za& printptr
+za printptr
+*/
+
+za 2[].d&
+
+//za& 100 dim //allocate
+
+
+//TODO: make if/else and loop 'work'
+
+sys_ENDFILE
+
+
+
+/*
+za& printptr
+za printptr
+
+101 za 1  []&=
+120 za 2  []&=
+
+
+za 1 [] print
+za 2 [] print
+
+sys_ENDFILE
+
+/*
+za      //gives the array pointer
+za&     //gives reference to the array pointer
+//za$     //takes ownership of the array pointer
+//za$$    //share (increase refcount) of the array pointer
+
+
+//za 100 dim
+/*
+za 3[]&=
+za 3[] print
+*/
+
+sys_ENDFILE
+
 /*
 1 if
 
@@ -32,7 +144,9 @@ end
 */
 
 Z32 var x
-0 x& =
+
+7777 x& =
+x print
 /*
 loop
     x print
@@ -41,6 +155,7 @@ step
     x 1 + x& =
 end
 */
+
 
 
 foo var f1
@@ -72,4 +187,4 @@ sys_ENDFILE
 
 
 
-sys_ENDFILE
+

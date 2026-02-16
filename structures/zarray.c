@@ -3,6 +3,8 @@
 #include "zarray.h"
 #include <stdio.h>
 
+#define debugf(...)
+
 int zarray_global_shadow_offset = 0;	
 
 //return number of items array can hold

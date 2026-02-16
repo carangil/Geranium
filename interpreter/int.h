@@ -105,7 +105,7 @@ typedef struct wordS{
 	//broken out seperate instead of a union so that I fault on a null pointer instead of accidently reading garbage
 
     struct parsectxS* target_pctx;// if word represents a proc or struct, these are the variables/fields
-//	struct tokenS* target_tokens; //if word represents a proc, this is the code
+//	struct tokenSf* target_tokens; //if word represents a proc, this is the code
 
     //special handler during parse phase
     tokenT* (*parse) (struct exectxS* exe, struct parsectxS* pctx, struct wordS* word, tokenT* t, int argc);
@@ -116,6 +116,7 @@ typedef struct wordS{
 	char* comment;
 	struct wordS * aliases; //find all the aliases for freeing
 	int offset;
+	zbool autoload; //if true, word will compile an '@' after it, unless & is used or there is more pointer manipulation
 } wordT;
 
 
@@ -144,8 +145,9 @@ typedef struct typeS{
 
 //means it has an
 
-//
+//f
 #define INST_FREE_VALUE 1
+
 
 //#define INST_ NEW VALUE  2
 
@@ -191,6 +193,8 @@ typedef struct exectxS{
 
 }exectxT;
 
+
+
 #define iferr(EXECTX)  if((EXECTX)->error_code)
 #define ifok(EXECTX)  if(!(EXECTX)->error_code)
 
@@ -204,6 +208,7 @@ typedef enum {
     op_nop=0,
 	op_constant,
 	op_print32,
+	op_printptr,
 	op_add32,
 	op_stop,
 	op_block,  //runs the instructions inside
@@ -212,12 +217,13 @@ typedef enum {
 	op_globalvar,
 	op_localvar,
 	op_subvar,
+	op_arrayindex,
 //	op_reference,
 	op_load,
 //	op_loadaddref,
 //	op_take,
 	op_store,
-
+	op_dim,
 //	op_follow,
 
 //	op_trash,
@@ -230,7 +236,8 @@ typedef enum {
 	op_return,
 	op_returnval,
 	op_loop,
-	op_breakcontinue,
+	op_break,
+	op_continue,
 	op_cond,
 
 	//op_condblock,	// condblock(  ( bool ...) (bool ...) (bool ...) ( 'true' ...  ) ),
