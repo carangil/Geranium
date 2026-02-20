@@ -8,81 +8,146 @@ type foo
     pair var p
     Z32 var c
     Z32 var d
+    [foo]$ var fa
 end
 
-/*
-0 if
-    100 print
-1 elseif
-    200 print
-    11 if
-        500 print
-    end
+[pair]$ var za //dynamically allocated
 
-else
-    300 print
+[pair]$ var zb //dynamically allocated
 
-end
-*/
+
+za& 5 dim
+
+foo var f
 
 Z32 var x
-Z32 var y
 
-loop
+x&
+x
+f
+za
+za&
+za 1[]
+za 2[]&
+za 1[].b
+za 1[].b&
 
-    x -3 + if
-    else
-        continue
-    end
+f.c
+f.d&
+f.fa& 10 dim
+f.fa
+f.fa 2[].c&
+f.fa 2[].c
 
-    x -10 + if
+za$
+za$$
 
+za$$ zb& =
 
-        x print
+za$$ trash
 
-        0 y&=
-        loop
-            y 100+ print
+([pair]$:pp Z32:b  Z32&:c [pair]$&:d ) proc ffff
 
-            y -5 + if
-                else
-                break
-                end
+    //TODO:
 
-        step
-            y 1+ y&=
-        end
+    b   //normal pick
+    //b& //shoould error
 
-    else
-        999 print
-        break
+    c   //dereference
+    c&  //the original pointer
 
-    end
+    pp$
+    pp$$
 
-
-step
-
-    x 1 + x&=
-
-
+    pp
+    pp 3[]
+    pp 4[].a
+    pp 5[].a&
+    //pp& //should error
 end
 
-10000 print
+
+
+za$$ 13 x& za& ffff
+
+
+
+//za printptr
+
+
+sys_ENDFILE
+
+
+Z32 var y
+
+
 
 Z32 var zzz
 [foo] var za //dynamically allocated
 
-([foo]&:zap ) proc dimmer
-    zap 200 dim
+([foo]$&:zap ) proc dimmer
+
+    Z32 var zi
+    [foo] var zap2
+   // zap zap2&=
+    50 print
+    zap2& 200 dim
+    zap2 printptr
+   // zap2 zap =
 end
 
 za& dimmer
-/*
-za& printptr
+100 print
 za printptr
+
+"boo" print
+
+
+
+//za& 300 dim
+
+loop x -10 + if else break end
+
+
+    x 100 + za x[].p.a&=
+    x 200 + za x[].p.b&=
+
+
+    x   za x[].c&=
+
+    x x + za x[].d&=
+
+    za x[].pa& 10 dim
+
+step x 1 + x&= end
+
+
+0 x&=
+
+
+
+
+loop x -10 + if else break end
+
+
+    za x[].pa &printptr // 2[].a print
+
+    za x[].pa 2[].b print
+
+/*
+    za x[].c print
+    za x[].d print
+    za x[].p.a print
+    za x[].p.b print
+    za x[].d print
 */
 
-za 2[].d&
+
+
+step x 1 + x&= end
+
+
+sys_ENDFILE
 
 //za& 100 dim //allocate
 

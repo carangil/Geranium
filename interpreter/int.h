@@ -85,8 +85,9 @@ typedef enum {
 	SIMPLE, //ints, etc
 	FRAME,	//struct or proc frame
 	REFERENCE,
-	ARRAY,
-	INDEX, //element of an array
+	STEWARD,  //owns the pointer to an object
+	ARRAY,	//pointer to array
+	//INDEX, //element of an array
 	VARIABLE, //not a pointer, but refers to the variable itself
 	ARG,
 	LIKE,
@@ -133,7 +134,7 @@ typedef struct typeS{
 
 	struct wordS* word; //word that represents this type
 
-	struct parsectxS* pctx;//if the type is a frame, it has a context
+//	struct parsectxS* pctx;//if the type is a frame, it has a context
 
 	char** opt_argnames;  //holds name of args for a proc, optional
 	int		arena_index; //which arena (0 is global heap)
@@ -171,6 +172,7 @@ typedef struct parsectxS{
     zstringmapT* dictionary; //wordT*
     zstringmapT* types;      //typeT*
 	zvecT* codestack;
+	zvecT* cleanlist;  //list of pointers that need to be freed
 	struct runnerS *runners[MAXRUNNERS];
 	int id;//for debugging
 	int size;
@@ -209,6 +211,7 @@ typedef enum {
 	op_constant,
 	op_print32,
 	op_printptr,
+	op_printstr,
 	op_add32,
 	op_stop,
 	op_block,  //runs the instructions inside
@@ -220,19 +223,22 @@ typedef enum {
 	op_arrayindex,
 //	op_reference,
 	op_load,
-//	op_loadaddref,
-//	op_take,
+	op_loadaddref,
+	op_take,
+	op_trash,
 	op_store,
+	op_trashstore,
 	op_dim,
-//	op_follow,
 
-//	op_trash,
+
 //	op_alloc,
 //	op_allocarray,
 	op_call,
 //	op_callp,
 //	op_handler,	//call a handler func (instead of being builtin opcode)
 	op_argpick,
+	op_argtake,
+	op_argaddref,
 	op_return,
 	op_returnval,
 	op_loop,
