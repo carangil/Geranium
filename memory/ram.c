@@ -388,17 +388,7 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 	{
 		header --; //decrement to header
 
-		//cannot resize if more than one reference
-		if (header->refcount !=1 )
-		{
-			fprintf(stderr, " can't resize if refcount !=1\n");
-			
-			if (okptr)
-			    *okptr = ZFALSE;
 
-		
-			return NULL;
-		}
 #ifdef RAM_DEBUG
                 zlock(&ram_debug_lock);
 		zlist_remove_mid(&header->zlistnode);
@@ -422,13 +412,33 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 			buffer = NULL;
 		} else
 #endif
-		buffer = realloc(buffer, sizeof(mem_headerT) + size + header->shadow_size);  //attempt resize to new size;
 
+		if (header->refcount > 1){
+			//multiple references to buffer means the resized version needs to be a copy
+			fprintf(stdout, "resize multi-rc array makes copy\n");
+			char * newbuffer = malloc(sizeof(mem_headerT) + size + header->shadow_size);
+			if (newbuffer){
+				memcpy(newbuffer, buffer, sizeof(mem_headerT) + size + header->shadow_size);
+				header->refcount--;
+				//adjust the header of new buffer to have 1 reference
+				header = (mem_headerT*)(newbuffer + shadow_size);
+				header->refcount=1;
+
+				//put old header back on list since it still exists
+				zlist_addhead_nocheck(&_ram_debuglist, &oldheader->zlistnode);
+				ram_allocs_cnt++; //we have an extra allocation
+			}
+			buffer = newbuffer;
+
+		} else {
+			//single reference case
+			buffer = realloc(buffer, sizeof(mem_headerT) + size + header->shadow_size);  //attempt resize to new size;
+			if (buffer)
+				header = (mem_headerT*)(buffer + shadow_size);
+		}
 		
 
-		if (buffer)
-			header = (mem_headerT*)(buffer + shadow_size);
-		else 
+		if (!buffer)
 			header = NULL;
 		
 	//	if (shadow_size) {
@@ -497,7 +507,8 @@ char* ram_strdup_cat(char* in1, char* in2)
 zuint32 ram_allocs()
 {
 
-#ifdef RAM_DEBUG
+//#ifdef RAM_DEBUG
+#if 1
 	int count=0;
 
 	mem_headerT* node = zlist_head(&_ram_debuglist);

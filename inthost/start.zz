@@ -11,12 +11,114 @@ type foo
     [foo]$ var fa
 end
 
+Z32 var zz
+
 [pair]$ var za //dynamically allocated
 
 [pair]$ var zb //dynamically allocated
+[pair]$ var zc //dynamically allocated
+
+za& 1 dim
+za $$ zb &=
+
+za& 1 dim
+
+za $$ zb&=
+
+zb$ zc&=
+zb& 1 dim
+zb& 1 dim
+
+  //getchar printchar
+
+Z32 var x
+
+0 x&=
 
 
-za& 5 dim
+
+
+() proc newline
+    10 printchar
+end
+
+
+(->[Z32]$) proc retf
+
+    [Z32]$ var a
+    a& 10 dim
+    a$$ return
+end
+
+[Z32]$ var r
+
+retf r&=
+
+44 r 0[]&
+
+
+[[Z32]$]$ var ee
+
+[[Z32]$]$ var dd
+
+dd& 3 dim
+dd printptr
+
+dd 0[]& 6 dim
+dd 1[]& 6 dim
+dd 2[]& 6 dim
+
+Z32 var i
+Z32 var j
+
+0j&=loop j -3 + if else break end
+
+    0i&=loop i -6 + if else break end
+        i i+ j+j+j+j+j+   dd j[] i[] &=
+    step
+        i 1+i&=
+    end
+step
+    j 1+j&=
+end
+
+
+0j&=loop j -3 + if else break end
+
+    0i&=loop i -6 + if else break end
+
+
+        j i -3 + + if else
+            64 printchar 32 printchar
+            continue
+        end
+
+        i i+    dd j[] i[] print  32 printchar
+
+    step
+        i 1+i&=
+    end
+step
+    j 1+j&=
+    10 printchar
+end
+
+"boo" print newline newline
+
+loop
+
+    x -10000000 + if else break end
+    step
+    x 1+x&=
+
+end
+
+"done" print
+
+/*
+
+
+
 
 foo var f
 
@@ -45,6 +147,9 @@ za$$
 za$$ zb& =
 
 za$$ trash
+*/
+
+/*
 
 ([pair]$:pp Z32:b  Z32&:c [pair]$&:d ) proc ffff
 
@@ -65,12 +170,37 @@ za$$ trash
     pp 5[].a&
     //pp& //should error
 end
+*/
+
+
+//za$$ 13 x& za& ffff
 
 
 
-za$$ 13 x& za& ffff
+type ff
+
+    Z32 var c
+    Z32 var d
+
+    type fg
+        Z32 var e
+        Z32 var f
+    end
+
+    (Z32: j) proc jj
+
+    end
+
+    fg var aa
+
+end
+
+ff var aff
+aff.c print
 
 
+
+//aff.fg var outer
 
 //za printptr
 

@@ -4,6 +4,15 @@
 #include "zmem.h"
 #include "zarray.h"
 
+//disable some stuff
+
+#undef tracef
+#define tracef(...)
+
+#undef debugf
+#define debugf(...)
+
+
 //error reporting
 void set_error(exectxT* exectx, int code, char* string){
 	if (!exectx){
@@ -364,9 +373,9 @@ wordT* word_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* type){
 			pctx->size += type->ref->size;
 
 			if (type->ref->category == STEWARD){  //todo finish this
-				printf(" Adding CLEAN for word %s at offset %d\n", w->name, w->offset);
+				tracef(" Adding CLEAN for word %s at offset %d\n", w->name, w->offset);
 				//getc(stdin);
-				zvec_add(pctx->cleanlist, w);
+				//zvec_add(pctx->cleanlist, w);
 			}
 
 			//exit(1);
@@ -819,7 +828,7 @@ instructionT* push_subtree(parsectxT* pctx, instructionT* inst){
 //tprev(t) is the last arg to it, if there are any
 
 
-int DEBUG_MATCH=1;
+#define DEBUG_MATCH 0
 //tests of a word matches the current typestack of pctx
 
 zbool test_word(parsectxT* pctx, typeT** stacktypes, wordT* word, int flags, int argc){
@@ -1047,11 +1056,11 @@ switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* pr
 		}
 	}
 
-	if (inst->opcode == op_block) {
+	if (inst->opcode == op_block) { //blocks in the tree just organize code; that code has already been assembed
 		return prog;
 	}
 
-	if (inst->opcode== op_dim){
+	if (inst->opcode== op_dim){ //allocate an array, given  pointer to array var and count
 		valueT v={0};
 		v.as.ptr.address.type=inst->args[0]->result_type->ref;
 		tracef(" compiling DIM for %s\b", v.as.ptr.address.type->key);
@@ -1072,13 +1081,13 @@ switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* pr
 		return prog;
 	}
 
-	if ((inst->opcode==op_load)){
-		tracef("compile load %d bytes from %s\n", inst->result_type->size,inst->result_type->key );
+	if ((inst->opcode==op_load)||(inst->opcode==op_loadaddref)||(inst->opcode==op_take)){
+		tracef("compile special load %d bytes from %s\n", inst->result_type->size,inst->result_type->key );
 		prog = switch_asmi(prog, inst->opcode, inst->result_type->size, inst);
 		return prog;
 	}
 
-	if (inst->opcode==op_store){
+	if (inst->opcode==op_store || inst->opcode == op_trashstore){
 		tracef("compile store %d bytes\n", inst->args[0]->result_type->size);
 		prog = switch_asmi(prog, inst->opcode, inst->args[0]->result_type->size, inst);
 		return prog;
@@ -1144,26 +1153,55 @@ void print_switch_listing(switchopT* prog){
 //void exec_func(exectxT* exe, switchrunnerT* sw
 
 
-void clean_by_list(void* v, parsectxT* pc){
+
+void clean_by_list(void* v, parsectxT* pctx){
+	tracef(" clean by list for %s\n", pctx->comment);
 
 
-	for (int i=0;i<zvec_count(pc->cleanlist);i++){
-		wordT* w = zvec_get_at(pc->cleanlist, i);
-		debugf(" To clean %s, a %s.\n", w->name, w->type->key);
-		//get the pointer to here
+	char* bytes = v;
 
-		void** p =(void*)( ((char*)v) + w->offset);
-		if (p)
-			ram_free( *p);
+	char*	name=NULL;
+	zvecT* 	words = NULL;
+	void*	cursor=NULL;
+	int i;
+
+	while (zstringmap_nextkey(pctx->dictionary, &name, &words, &cursor)) {
+		for (i=0;i<zvec_count(words); i++){
+			wordT* word = zvec_get_at(words,i);
+			if (word->type->category  == VARIABLE){
+
+				//free possessive pointers held by this struct
+				if (word->type->ref->category == STEWARD){
+					tracef("TO CLEAN$ \t%s\t%s\n", word->name, word->type?word->type->key:"notype");
+					ptrT* p = bytes + word->offset;
+					ram_free(p->address.bytes);
+				}
+
+				if (word->type->ref->category == FRAME){
+					//substruct
+					tracef("TO CLEAN subvars \t%s\t%s\n", word->name, word->type?word->type->key:"notype");
+					tracef(" starts at offset %d\n", word->offset);
+
+					clean_by_list(bytes + word->offset, word->type->ref->word->target_pctx);
+				}
+
+
+			}
+		}
 	}
+
+
 
 
 }
 
-zbool clean_struct(void* v){
-	printf(" clean struct %p\n", v);
-	parsectxT** pcs = ram_shadow(v);
 
+//called by ram_free
+zbool clean_struct(void* v){
+	tracef(" clean struct %p\n", v);
+	//getc(stdin);
+
+	parsectxT** pcs = ram_shadow(v);
 	parsectxT* pc = *pcs;
 	clean_by_list(v, pc);
 
@@ -1175,15 +1213,23 @@ zbool clean_array(void* v){
 
 	t=t->ref;  //[innertype]
 
-	debugf(" CLEAN ARRAY %p %s\n", v, t? t->key: "none");
+	printf(" CLEAN ARRAY %p %s\n", v, t? t->key: "none");
 
+	if (t->ref->category == FRAME){
+		//iterate on all spaces, cleaning
+		for (int i=0;i<zarray_count(v);i++){
+			printf(" item %d  size %d\n", i, t->ref->size);
+			void* item = ((char*)v) + i* t->ref->size;
+			//clean_by_list(item, t->ref->word->target_pctx);
+		}
+	} else if  (t->ref->category == STEWARD){
 
-	for (int i=0;i<zarray_count(v);i++){
-		printf(" item %d  size %d\n", i, t->ref->size);
-		void* item = ((char*)v) + i* t->ref->size;
+		for (int i=0;i<zarray_count(v);i++){
+			printf(" to free %d\n", i);
+			ptrT* item = ((ptrT*)v) + i;
+			ram_free(item->address.block);
 
-		clean_by_list(item, t->ref->word->target_pctx);
-
+		}
 	}
 
 	return ZTRUE;
@@ -1197,7 +1243,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 	switchopT* pc = sw->prog + start;
 	void* old_locals = exe->locals;
 
-	printf(" Allocating %d for local\n", sw->local_size);
+	tracef(" Allocating %d for local\n", sw->local_size);
 	exe->locals = ram_alloc_shadow(sw->local_size, clean_struct, sizeof(parsectxT*));
 	parsectxT** pctx = ram_shadow(exe->locals);
 	if (pctx)
@@ -1205,7 +1251,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 	//if global frame doesn't exist, this is th
 	if (!exe->globals){
-		printf("take locals as global\n");
+		debugf("take locals as global\n");
 		exe->globals = ram_addref(exe->locals);
 	}
 
@@ -1224,7 +1270,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 		switch (pc->opcode) {
 
 			case op_constant:  exe->stack[exe->sp++] = pc->imm;  pc++; continue;
-			case op_print32:   printf("---print32: %d\n", exe->stack[--exe->sp].as.z32); pc++;
+			case op_print32:   printf("%d", exe->stack[--exe->sp].as.z32); pc++;
 			//getc(stdin);
 			continue;
 
@@ -1233,13 +1279,48 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 			//getc(stdin);
 			continue;
 
-			case op_printstr:   printf("---printstr:%s\n", exe->stack[exe->sp-1].as.ptr.address.bytes); pc++; exe->sp--;
+			case op_printstr:   printf("%s", exe->stack[exe->sp-1].as.ptr.address.bytes); pc++; exe->sp--;continue;
+
+			case op_printchar:   putc( exe->stack[exe->sp-1].as.z32 , stdout); pc++;exe->sp--;continue;
+
+			case op_getchar:  exe->stack[exe->sp].as.z32=getc(stdin) ; pc++;exe->sp++;continue;
+
 
 			//getc(stdin);
 			continue;
 
 			case op_add32:     exe->stack[exe->sp-2].as.u32 += exe->stack[exe->sp-1].as.u32; exe->sp--; pc++; continue;
 			case op_argpick:   exe->stack[exe->sp++] = exe->stack[exe->bp+pc->imm.as.z32];  pc++; continue;
+
+			case op_take:  //takes a pointer from memory, leaving the old one as zero
+				ptrT* var = exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset;
+				exe->stack[exe->sp-1].as.ptr =*var;
+				var->address.bytes = NULL;
+				pc++;
+				continue;
+
+			case op_loadaddref:  //takes a pointer from memory, increasing refcount
+				 var = exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset;
+				exe->stack[exe->sp-1].as.ptr =*var;
+
+				ram_addref(var->address.bytes);
+
+				pc++;
+				continue;
+
+			case op_trashstore:  //stores a pointer in memory.  if there is already a value there, it is freed
+				var = exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset;
+
+				if (var->address.bytes)
+					ram_free(var->address.bytes);
+
+				*var = exe->stack[exe->sp-2].as.ptr;
+
+				exe->sp-=2;
+
+				pc++;
+				continue;
+
 
 			case op_load: //TODO check this and also make sure the imm value is set (its not, fix it on switch compiler)
 
@@ -1248,7 +1329,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 					exit(1);
 				}
 
-				printf(" load from %p:%d (%p)\n", exe->stack[exe->sp-1].as.ptr.address.bytes,exe->stack[exe->sp-1].as.ptr.offset, exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset);
+				tracef(" load from %p:%d (%p)\n", exe->stack[exe->sp-1].as.ptr.address.bytes,exe->stack[exe->sp-1].as.ptr.offset, exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset);
 
 				memcpy( &exe->stack[exe->sp-1] ,
 						exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset,
@@ -1264,7 +1345,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 					exit(1);
 				}
 
-				printf(" store to %p:%d (%p)\n", exe->stack[exe->sp-1].as.ptr.address.bytes,exe->stack[exe->sp-1].as.ptr.offset, exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset);
+				tracef(" store to %p:%d (%p)\n", exe->stack[exe->sp-1].as.ptr.address.bytes,exe->stack[exe->sp-1].as.ptr.offset, exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset);
 
 				memcpy( (exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset) ,
 						&exe->stack[exe->sp-2] ,
@@ -1289,7 +1370,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 			case op_localvar:
 				exe->stack[exe->sp].as.ptr.address.block = exe->locals;
 				exe->stack[exe->sp].as.ptr.offset = pc->imm.as.z32;
-				printf(" ADDRESS FROM local+%d   %p\n", pc->imm.as.z32, exe->locals);
+				tracef(" ADDRESS FROM local+%d   %p\n", pc->imm.as.z32, exe->locals);
 
 				exe->sp++;
 				pc++;
@@ -1298,7 +1379,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 			case op_globalvar:
 				exe->stack[exe->sp].as.ptr.address.block = exe->globals;
 				exe->stack[exe->sp].as.ptr.offset = pc->imm.as.z32;
-				printf(" ADDRESS FROM global+%d   %p\n", pc->imm.as.z32, exe->globals);
+				tracef(" ADDRESS FROM global+%d   %p\n", pc->imm.as.z32, exe->globals);
 
 				exe->sp++;
 				pc++;
@@ -1312,7 +1393,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 			case op_arrayindex:
 				//sp-2 is array
 				//sp-1 is the array
-				printf(" --offset is %d , size is %d\n", exe->stack[exe->sp-1].as.z32, pc->imm.as.z32);
+				tracef(" --offset is %d , size is %d\n", exe->stack[exe->sp-1].as.z32, pc->imm.as.z32);
 				//getc(stdin);
 
 				exe->stack[ exe->sp-2].as.ptr.offset += (exe->stack[exe->sp-1].as.z32 * pc->imm.as.z32);
@@ -1327,11 +1408,17 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				int count = exe->stack[exe->sp-1].as.z32;
 
 				typeT* arraytype = pc->imm.as.ptr.address.type;
-				debugf(" DIMing array %s for elem size %d\n", arraytype->key, arraytype->ref->size);
+				tracef(" DIMing array %s for elem size %d\n", arraytype->key, arraytype->ref->size);
 
-				arrayvar->address.block = zarray_alloc_size(arraytype->ref->size, count, clean_array);
-				arrayvar->offset = 0;
+				if (arrayvar->address.block){
+					//array already exists... resize
+					arrayvar->address.block = zarray_resizef(arrayvar->address.block, arraytype->ref->size, count, NULL);
 
+				} else{
+
+					arrayvar->address.block = zarray_alloc_size(arraytype->ref->size, count, clean_array);
+					arrayvar->offset = 0;
+				}
 				zarray_use(arrayvar->address.block, count);
 				zarray_set_meta( arrayvar->address.block, arraytype );
 
@@ -1347,7 +1434,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				wordT* word = pc->imm.as.ptr.address.word;
 				int argc = word->type->argc;
 
-				printf(" to exec %s %s with %d args\n", word->name, word->type->key, argc);
+				tracef(" to exec %s %s with %d args\n", word->name, word->type->key, argc);
 				switchrunnerT* callee = (switchrunnerT*) word->target_pctx->runners[SWITCHRUNNER];
 			//	print_switch_listing(callee->prog);
 
@@ -1358,7 +1445,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				callee->runner.execute(exe, &callee->runner, 0);
 
 				if (word->type->ref){ //returns value
-					printf(" returns value\n");
+					tracef(" returns value\n");
 					exe->stack[exe->bp-argc] = exe->stack[exe->sp-1];  //last value on stack is copied to bp position
 					exe->sp = exe->bp-argc+1;
 				} else {
@@ -1378,7 +1465,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				return;
 
 			default:
-				printf(" unhandled %d %s\n", pc->opcode, instruction_names[pc->opcode]?instruction_names[pc->opcode]:"noname");
+				errorf(" unhandled %d %s\n", pc->opcode, instruction_names[pc->opcode]?instruction_names[pc->opcode]:"noname");
 				return;
 
 		}
@@ -1389,7 +1476,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 zbool cleansw(void* v){
 	switchrunnerT* sw = v;
-	printf(" free prog\n");
+	debugf(" free prog\n");
 	ram_free(sw->prog);
 }
 
@@ -1743,7 +1830,7 @@ tokenT* parse_default(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int ar
 }
 
 
-parsectxT* parsectx_mk(parsectxT* parent);
+parsectxT* parsectx_mk(parsectxT* parent, char* name);
 
 typeT* type_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* ref, categoryE category, int size, typeT** args );
 
@@ -2050,7 +2137,8 @@ tokenT* parse_proc(exectxT* exe, parsectxT* pctx, wordT* wi, tokenT* t, int argc
 	if	(w){
 
 		//create parse context
-		parsectxT* innerpctx = parsectx_mk(pctx);
+		parsectxT* innerpctx = parsectx_mk(pctx, zstrprintf(NULL, "proc %s %s", w->name, w->type->key));
+
 
 		w->target_pctx = innerpctx;
 
@@ -2064,10 +2152,15 @@ tokenT* parse_proc(exectxT* exe, parsectxT* pctx, wordT* wi, tokenT* t, int argc
 		}
 
 		//create the 'return' keyword for this context, using the return value
+		if (w->type->ref && w->type->ref->category == REFERENCE){
+			errorf(" Cannot return a reference\n");
+			exit(1);
+		}
+
+
 		if (w->type->ref)
-			//proc_opcode_mk(exe, innerpctx, op_returnval, "return", NULL, type_args_mk(1,w->type->ref));
 			proc_opcode_mk(exe, innerpctx, op_returnval, "return", type_proc_mk(NULL, 1, w->type->ref));
-		 else //no return value
+		else //no return value
 			proc_opcode_mk(exe, innerpctx, op_return, "return", type_proc_mk(NULL, 0));
 
 		char* stops[]={"end", NULL};
@@ -2108,7 +2201,8 @@ tokenT* parse_frame(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc
 
 
 	//create parse context
-	parsectxT* innerpctx = parsectx_mk(pctx);
+	parsectxT* innerpctx = parsectx_mk(pctx, zstrprintf(NULL, "frame %s ", type->name));
+
 
 	type->word->target_pctx = innerpctx;
 
@@ -2400,7 +2494,7 @@ tokenT* parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens){
 
 
 
-				DEBUG_MATCH=1;
+
 /*
 				if (t&& tnext(t) && !strcmp(tnext(t)->str , "&")){
 					valueT nv={0};
@@ -2629,12 +2723,14 @@ zbool cleanparsectx(void* v){
 	for (int i=0;i<MAXRUNNERS;i++)
 		ram_free(pctx->runners[i]);
 
-	ram_free(pctx->cleanlist);
+	ram_free(pctx->comment);
+
+	//ram_free(pctx->cleanlist);
 
 	return ZTRUE;
 }
 
-parsectxT* parsectx_mk(parsectxT* parent){
+parsectxT* parsectx_mk(parsectxT* parent, char* name){
 	static int debugid=0;
 
 	parsectxT* pctx	= ram_alloc(sizeof(parsectxT), cleanparsectx);
@@ -2642,9 +2738,9 @@ parsectxT* parsectx_mk(parsectxT* parent){
 	pctx->types = zstringmap_mk(64);
 	pctx->parent = parent;
 	pctx->id = ++debugid;
-	pctx->cleanlist =zvec_mk(NULL, 8);
-	zvec_disown(pctx->cleanlist);
-
+	//pctx->cleanlist =zvec_mk(NULL, 8);
+	//zvec_disown(pctx->cleanlist);
+	pctx->comment = name? name: zstrdup("noname");
 
 	printf("creating pctx %d\n", debugid);
 	return pctx;
@@ -2784,7 +2880,7 @@ void int_run_str(char* src, char* filename){
 	ADD_INST(switch_jumpfalse);
 	ADD_INST(arrayindex);
 
-	parsectxT* pctx= parsectx_mk(NULL);
+	parsectxT* pctx= parsectx_mk(NULL, zstrdup("global"));
 	exectxT* exe = exectx_mk();
 
 	//create basic types
@@ -2823,11 +2919,18 @@ void int_run_str(char* src, char* filename){
 
 	//create primitives. minimal at the moment
 	//thse use the above specified parser
+
+	proc_opcode_mk2(exe,pctx, op_printchar, "printchar", "(Z32)");
+	proc_opcode_mk2(exe,pctx, op_getchar, "getchar", "(->Z32)");
+
 	proc_opcode_mk2(exe,pctx, op_print32, "print", "(Z32)");
+
 	proc_opcode_mk2(exe,pctx, op_add32, "+", "(Z32:a Z32:b -> Z32)");
 	proc_opcode_mk2(exe,pctx, op_printptr, "printptr", "(Any)");
 
 	proc_opcode_mk2(exe,pctx, op_load, "@",  "(Z32&:a  -> like a@ )" );
+	proc_opcode_mk2(exe,pctx, op_store, "=",  "(Z32:value  like value&:dst)" );
+
 	//proc_opcode_mk2(exe,pctx, op_store, "=",  "(Any:value  like value&:dst)" );
 
 
@@ -2879,11 +2982,12 @@ void int_run_str(char* src, char* filename){
 
 	ifok(exe){
 		runnerI* runme = compile_for_switch(exe, pctx);
-		getc(stdin);
+		//getc(stdin);
 
 		printf(" to Alloc %d global space\n", pctx->size);
 		runme->execute(exe, runme, 0);
 
+		printf(" free globals\n");
 		ram_free(exe->globals);
 
 		//ram_free(runme); //runner is part of the pctx, and is freed there
@@ -2896,4 +3000,5 @@ void int_run_str(char* src, char* filename){
 	ram_free(exe);
 	ram_free(instruction_names);
 	abyss = leak_viewer;
+
 }

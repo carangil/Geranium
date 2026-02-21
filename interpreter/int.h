@@ -172,7 +172,8 @@ typedef struct parsectxS{
     zstringmapT* dictionary; //wordT*
     zstringmapT* types;      //typeT*
 	zvecT* codestack;
-	zvecT* cleanlist;  //list of pointers that need to be freed
+	char* comment;  //debugging name for this
+//	zvecT* cleanlist;  //list of pointers that need to be freed
 	struct runnerS *runners[MAXRUNNERS];
 	int id;//for debugging
 	int size;
@@ -212,6 +213,10 @@ typedef enum {
 	op_print32,
 	op_printptr,
 	op_printstr,
+
+	op_getchar,
+	op_printchar,
+
 	op_add32,
 	op_stop,
 	op_block,  //runs the instructions inside

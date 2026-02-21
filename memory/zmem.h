@@ -14,6 +14,8 @@ typedef zbool (*ram_destructor)(void* block);
 
 #ifdef RAM_DEBUG
 
+#define ram_free_internal(TTT)  ram_free_debug(TTT, __FILE__, __LINE__)
+
 #ifndef RAM_C
 //If debugging memory, all source files that are not ram.c, all calls to allocate have line numbers passed thru automatically
 //Calls to ram_alloc_debug and ram_alloc_shadow_debug can specify alternate file/line info (like zstring might wanna pass thru where zstring was called from... knowing it was zstring that did the allocation isn't too useful)
