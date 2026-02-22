@@ -2,9 +2,9 @@
 // ProjectZ is (C) 2018 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
 
-#define debugf printf
-#define tracef printf
-#define errorf(...) fprintf(stderr, __VA_ARGS__)
+#define debugf(...) fprintf(stdout, "DEBUG:"__VA_ARGS__)
+#define tracef(...) fprintf(stdout, "TRACE:"__VA_ARGS__)
+#define errorf(...) fprintf(stderr, "ERROR:"__VA_ARGS__)
 
 
 /* Basic datatypes for my projects**/
