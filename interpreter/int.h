@@ -8,6 +8,9 @@
 #include "zstringmap.h"
 #include "zarray.h"
 
+#include <ffi.h>
+#include <dlfcn.h>
+
 //default float precision
 #define FLOAT float
 
@@ -56,7 +59,7 @@ typedef struct tokenS{
 
 }tokenT;
 
-tokenT* int_insert_tokenf(tokenT* A, tokenT* B, zbool before);
+void int_insert_tokenf(tokenT* A, tokenT* B, zbool before);
 
 #define tinsert_after(AFTER,NEW)    int_insert_tokenf(  AFTER, NEW, ZFALSE)
 
@@ -87,6 +90,7 @@ typedef enum {
 	REFERENCE,
 	STEWARD,  //owns the pointer to an object
 	ARRAY,	//pointer to array
+	CPOINTER, //for C interop
 	//INDEX, //element of an array
 	VARIABLE, //not a pointer, but refers to the variable itself
 	ARG,
@@ -116,6 +120,7 @@ typedef struct wordS{
 	struct typeS* val_type;
 	char* comment;
 	struct wordS * aliases; //find all the aliases for freeing
+	struct callerS* ffi_caller; //for FFI (c functions)
 	int offset;
 	zbool autoload; //if true, word will compile an '@' after it, unless & is used or there is more pointer manipulation
 } wordT;
@@ -144,13 +149,10 @@ typedef struct typeS{
 	zbool is_wild; //true if has any wildcards
 } typeT;
 
-//means it has an
-
-//f
+//'val' contains a pointer that must be freed when instriction is freed:
 #define INST_FREE_VALUE 1
 
 
-//#define INST_ NEW VALUE  2
 
 typedef struct instructionS{
 	int opcode;
@@ -209,64 +211,101 @@ typedef struct exectxS{
 
 typedef enum {
     op_nop=0,
-	op_constant,
-	op_print32,
-	op_printptr,
-	op_printstr,
+	op_constant,	//load any constant value into a stack slot
+	op_print32,		//prints integer on stdout
+	op_printptr,	//points pointer (for debugging mostly)
+	op_printstr,	//prints a null-terminated string
 
-	op_getchar,
-	op_printchar,
+	op_getchar,		//read 1 character from stdin
+	op_printchar,	//print 1 character to stdout
 
+	//integer arithmetic:
 	op_add32,
-	op_stop,
-	op_block,  //runs the instructions inside
-	op_if,
-	//get pointer to 'static' struct OR get value of variable
+	op_sub32,
+	op_mul32,
+	op_div32,
+	//comparison	NOT of comparison (no op defined, composite them)
+	op_equal32,		//bnot -> not equal
+	op_less32,		//bnot -> greater or equal
+	op_greater32,	//bnot -> less or equal
+
+
+	//unary:
+	op_neg32,	//negative integer  (-3 -> 3)
+	op_inv32,	//invert bits  FFFE to 0001
+	op_bnot,	//true<->false
+
+
+	//get pointer to variable, struct member, or array element
 	op_globalvar,
 	op_localvar,
 	op_subvar,
 	op_arrayindex,
-//	op_reference,
+
+	//load
 	op_load,
 	op_loadaddref,
 	op_take,
-	op_trash,
+
+	//store
 	op_store,
 	op_trashstore,
+
+	//allocate
 	op_dim,
+	op_trash,
 
-
-//	op_alloc,
-//	op_allocarray,
-	op_call,
-//	op_callp,
-//	op_handler,	//call a handler func (instead of being builtin opcode)
 	op_argpick,
 	op_argtake,
 	op_argaddref,
+
+	//control
+	op_stop,
+	op_block,  //runs the instructions inside
+	op_if,
 	op_return,
 	op_returnval,
+	op_call,
+	op_sys,
 	op_loop,
 	op_break,
 	op_continue,
-	op_cond,
 
-	//op_condblock,	// condblock(  ( bool ...) (bool ...) (bool ...) ( 'true' ...  ) ),
-	//op_typeof,	//static compile-time
-	//op_dynamic_typeof,
-	//op_change_selector,
 
+	op_LASTCORE,	//all instructions before this are part of the AST
 
 	//these ones are implementation specific:
 	op_switch_jump,
 	op_switch_jumpfalse,
-
-
-	op_FIRST_EXT,  //first instruction that isn't part of this enum
+	op_FIRST_EXT,  //first instruction that isn't part of this enum (user-defined)
 
 }opcodeE;
 
 //runtime
+
+//FFI
+typedef struct parm{
+
+
+}cparametersT;
+
+typedef struct callerS{
+	char* name;
+
+	void* dlhandle;//if ldopen'ed
+	void* funcptr; //c function to call
+
+	void* ffi_closure;
+	void* ffi_closure_code; //for c to call back into interpreter
+	exectxT* exe;//context to run in (set at time callback is passed as an arg
+
+	int argc;
+	ffi_cif cif;
+	ffi_type* rettype;
+	ffi_type* types[0];
+}callerT;
+
+
 
 void int_run_str(char* src, char* filename);
 

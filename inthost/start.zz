@@ -1,385 +1,155 @@
 
-type pair
-    Z32 var a
-    Z32 var b
-end
-
-type foo
-    pair var p
-    Z32 var c
-    Z32 var d
-    [foo]$ var fa
-end
-
-Z32 var zz
-
-[pair]$ var za //dynamically allocated
-
-[pair]$ var zb //dynamically allocated
-[pair]$ var zc //dynamically allocated
-
-za& 1 dim
-za $$ zb &=
-
-za& 1 dim
-
-za $$ zb&=
-
-zb$ zc&=
-zb& 1 dim
-zb& 1 dim
-
-  //getchar printchar
-
-Z32 var x
-
-0 x&=
 
 
 
 
-() proc newline
-    10 printchar
-end
+[Z32]$ var a
 
-
-(->[Z32]$) proc retf
-
-    [Z32]$ var a
-    a& 10 dim
-    a$$ return
-end
-
-[Z32]$ var r
-
-retf r&=
-
-44 r 0[]&
-
-
-[[Z32]$]$ var ee
-
-[[Z32]$]$ var dd
-
-dd& 3 dim
-dd printptr
-
-dd 0[]& 6 dim
-dd 1[]& 6 dim
-dd 2[]& 6 dim
+a& 10 dim
 
 Z32 var i
-Z32 var j
+loop i 10 < if else break end
 
-0j&=loop j -3 + if else break end
+    i i + i+ a i[]& =
 
-    0i&=loop i -6 + if else break end
-        i i+ j+j+j+j+j+   dd j[] i[] &=
-    step
-        i 1+i&=
-    end
 step
-    j 1+j&=
+
+    i 1 + i&=
+
+end
+
+0i&=loop i 10 < if else break end
+
+     a i[] print  10 printchar
+
+step
+
+    i 1 + i&=
+
 end
 
 
-0j&=loop j -3 + if else break end
+type FILE
+end
 
-    0i&=loop i -6 + if else break end
+FILE* var af
+
+(CString:filename CString:mode -> FILE* ) "$LIBC" "fopen" proc C_fopen
+//(Any&:item Z32:size Z32:count  FILE*:file ->Z32 ) "$LIBC" "fwrite" proc C_fwrite
 
 
-        j i -3 + + if else
-            64 printchar 32 printchar
-            continue
-        end
+(CString:str Z32:size Z32:count  FILE*:file ->Z32 ) "$LIBC" "fwrite" proc C_fwrite
+//(CString:item Z32:size Z32:count  FILE*:file ->Z32 ) "$LIBC" "fread" proc C_fread
 
-        i i+    dd j[] i[] print  32 printchar
 
-    step
-        i 1+i&=
-    end
-step
-    j 1+j&=
+"test1.txt" "wb" C_fopen af&=
+
+
+
+"BananA!" 7 1 af C_fwrite print " items written" print 10 printchar
+
+
+
+
+(->Z32) "libglfw.so.3" "glfwInit" proc glfwInit
+
+
+
+type GLFWwindow end
+type void end
+
+void* var v
+GLFWwindow* var w
+
+
+(Z32:w Z32:h CString:title void*:v1 void*:v2 ->GLFWwindow*)
+    "libglfw.so.3" "glfwCreateWindow" proc glfwCreateWindow
+
+(->Z32) "libglfw.so.3" "glfwPollEvents" proc glfwPollEvents
+
+(GLFWwindow*) "libglfw.so.3" "glfwSwapBuffers" proc glfwSwapBuffers
+
+(GLFWwindow*) "libglfw.so.3" "glfwMakeContextCurrent" proc glfwMakeContextCurrent
+
+(Z32) "libGL.so.1" "glClear" proc glClear
+(Real Real Real Real) "libGL.so.1" "glClearColor" proc glClearColor
+
+
+(Real Real Real Real) "libGL.so.1" "glColor4f" proc glColor4f
+(Real Real Real) "libGL.so.1" "glVertex3f" proc glVertex3f
+(Z32) "libGL.so.1" "glBegin" proc glBegin
+() "libGL.so.1" "glEnd" proc glEnd
+
+
+(GLFWwindow*:w (GLFWwindow*:w Z32:key Z32:scancode Z32:action Z32:mods) :callback) "libglfw.so.3" "glfwSetKeyCallback" proc glfwSetKeyCallback
+
+
+
+
+(GLFWwindow*:w Z32:key Z32:scancode Z32:action Z32:mods) & proc keycallback
+    "in callback" print 10 printchar
+
+
     10 printchar
+    //w printptr
+
 end
 
-"boo" print newline newline
+
+
+
+(GLFWwindow*:w Z32:key Z32:scancode Z32:action Z32:mods)  proc keycallback2
+    "in callback" print 10 printchar
+
+    key printchar
+    10 printchar
+    //w printptr
+
+end
+
+
+glfwInit print 10 printchar
+
+600 400 "TEST" v v glfwCreateWindow w&=
+w glfwMakeContextCurrent
+
+1.0 0.5 0.0 1.0 glClearColor
+
+keycallback printptr
+w printptr
+
+
+w keycallback glfwSetKeyCallback
+
+
+"window " print
+w printptr
 
 loop
 
-    x -10000000 + if else break end
-    step
-    x 1+x&=
+    glfwPollEvents
 
+    16384 glClear
+
+    4 glBegin
+        1.0 0.0 0.0 1.0 glColor4f
+
+        1.0 0.0 -1.0  glVertex3f
+
+        0.0 1.0 0.0 1.0 glColor4f
+        0.0 0.5 -1.0  glVertex3f
+
+
+        0.0 0.0 1.0 1.0 glColor4f
+        0.5 0.5 -1.0  glVertex3f
+
+
+    glEnd
+
+
+    w glfwSwapBuffers
+   // "frame" print 10 printchar
+  // break
 end
-
-"done" print
-
-/*
-
-
-
-
-foo var f
-
-Z32 var x
-
-x&
-x
-f
-za
-za&
-za 1[]
-za 2[]&
-za 1[].b
-za 1[].b&
-
-f.c
-f.d&
-f.fa& 10 dim
-f.fa
-f.fa 2[].c&
-f.fa 2[].c
-
-za$
-za$$
-
-za$$ zb& =
-
-za$$ trash
-*/
-
-/*
-
-([pair]$:pp Z32:b  Z32&:c [pair]$&:d ) proc ffff
-
-    //TODO:
-
-    b   //normal pick
-    //b& //shoould error
-
-    c   //dereference
-    c&  //the original pointer
-
-    pp$
-    pp$$
-
-    pp
-    pp 3[]
-    pp 4[].a
-    pp 5[].a&
-    //pp& //should error
-end
-*/
-
-
-//za$$ 13 x& za& ffff
-
-
-
-type ff
-
-    Z32 var c
-    Z32 var d
-
-    type fg
-        Z32 var e
-        Z32 var f
-    end
-
-    (Z32: j) proc jj
-
-    end
-
-    fg var aa
-
-end
-
-ff var aff
-aff.c print
-
-
-
-//aff.fg var outer
-
-//za printptr
-
-
-sys_ENDFILE
-
-
-Z32 var y
-
-
-
-Z32 var zzz
-[foo] var za //dynamically allocated
-
-([foo]$&:zap ) proc dimmer
-
-    Z32 var zi
-    [foo] var zap2
-   // zap zap2&=
-    50 print
-    zap2& 200 dim
-    zap2 printptr
-   // zap2 zap =
-end
-
-za& dimmer
-100 print
-za printptr
-
-"boo" print
-
-
-
-//za& 300 dim
-
-loop x -10 + if else break end
-
-
-    x 100 + za x[].p.a&=
-    x 200 + za x[].p.b&=
-
-
-    x   za x[].c&=
-
-    x x + za x[].d&=
-
-    za x[].pa& 10 dim
-
-step x 1 + x&= end
-
-
-0 x&=
-
-
-
-
-loop x -10 + if else break end
-
-
-    za x[].pa &printptr // 2[].a print
-
-    za x[].pa 2[].b print
-
-/*
-    za x[].c print
-    za x[].d print
-    za x[].p.a print
-    za x[].p.b print
-    za x[].d print
-*/
-
-
-
-step x 1 + x&= end
-
-
-sys_ENDFILE
-
-//za& 100 dim //allocate
-
-
-//TODO: make if/else and loop 'work'
-
-sys_ENDFILE
-
-
-
-/*
-za& printptr
-za printptr
-
-101 za 1  []&=
-120 za 2  []&=
-
-
-za 1 [] print
-za 2 [] print
-
-sys_ENDFILE
-
-/*
-za      //gives the array pointer
-za&     //gives reference to the array pointer
-//za$     //takes ownership of the array pointer
-//za$$    //share (increase refcount) of the array pointer
-
-
-//za 100 dim
-/*
-za 3[]&=
-za 3[] print
-*/
-
-sys_ENDFILE
-
-/*
-1 if
-
-    100
-    200
-    300
-
-2 elseif
-
-    400 500 600
-3 elseif
-
-    700 800 900
-
-else
-    1000
-    2000
-
-
-end
-*/
-
-Z32 var x
-
-7777 x& =
-x print
-/*
-loop
-    x print
-
-step
-    x 1 + x& =
-end
-*/
-
-
-
-foo var f1
-foo var f2
-
-10 f1.c &=
-20 f2.c &=
-
-11 f1.p.a &=
-12 f1.p.b &=
-
-
-21 f2.p.a &=
-22 f2.p.b &=
-
-
-f1.p.a print
-f1.p.b print
-f1.c print
-
-f2.p.a print
-f2.p.b print
-f2.c print
-
-
-
-sys_ENDFILE
-
-
-
 
 

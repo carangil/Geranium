@@ -1,3 +1,4 @@
-CFLAGS+= -g -O1
+CFLAGS+= -g -O0
+#CFLAGS+= -g -O1
 CFLAGS+= -DRAM_DEBUG
 COPY=ln -rsf

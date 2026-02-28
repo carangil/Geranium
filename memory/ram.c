@@ -22,7 +22,7 @@
 
 #define GPU_STORAGE
 
-
+#define BLANKVAL 0xe3
 
 /*****************
  *RAM allocation
@@ -49,6 +49,7 @@ typedef struct mem_header_s
 #endif
 	ram_destructor destructor;
 #ifdef RAM_DEBUG
+
 	char* file;
 	int   line;
 	#ifdef RAM_FAKE_FREE
@@ -56,6 +57,7 @@ typedef struct mem_header_s
 		int freeline;
 	#endif
 #endif
+	int size;
 	int refcount;
 	int shadow_size; //allow alloced buffers to have a shadow buffer of out-of-band data (lets zstrings be passed or ram_free'd like regular c strings, but allows additional metadata
 	int magic;
@@ -166,6 +168,7 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_siz
 		x->destructor = destructor;
 		x->magic = MYMAGIC;
 		x->refcount = 1;
+		x->size = size;
                 
 
 #ifdef RAM_DEBUG
@@ -319,11 +322,25 @@ void ram_free(void* thing)
 					//printf("Free physical buffer %p with shadow %d.  Header starts at %p Userdata at %p\n", buffer, header->shadow_size, header, header+1);
 				}
 #ifdef RAM_FAKE_FREE
+		//		printf("FAKE FREE %d\n", header->size);
+
+				//fill with the pointer of the object, so debugger can find read-after-free if garbage values read from here
+
+				char p[ sizeof(void*) ] ;
+				*(void**)(&p) = thing;
+				for (int i=0;i<header->size;i++){
+					((char*)(thing))[i] = p[i % sizeof(void*)];
+				}
+				//memset(thing, BLANKVAL, header->size);
+
+
 				header->magic = FREEMAGIC;
 
 				header->freefile = file;
 				header->freeline = line;
 				
+			//	memset( thing, 0xee, header->)
+
 #else
 				free(buffer);
 #endif
@@ -415,7 +432,8 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 
 		if (header->refcount > 1){
 			//multiple references to buffer means the resized version needs to be a copy
-			fprintf(stdout, "resize multi-rc array makes copy\n");
+			fprintf(stdout, "!!!resize multi-rc array makes copy\n");
+			getc(stdin);
 			char * newbuffer = malloc(sizeof(mem_headerT) + size + header->shadow_size);
 			if (newbuffer){
 				memcpy(newbuffer, buffer, sizeof(mem_headerT) + size + header->shadow_size);
@@ -423,6 +441,7 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 				//adjust the header of new buffer to have 1 reference
 				header = (mem_headerT*)(newbuffer + shadow_size);
 				header->refcount=1;
+				header->size = size; //new size
 
 				//put old header back on list since it still exists
 				zlist_addhead_nocheck(&_ram_debuglist, &oldheader->zlistnode);
@@ -526,7 +545,7 @@ zuint32 ram_allocs()
 		totbytes += node->debug_size;
 #endif
 
-		if (node->magic != FREEMAGIC) 
+		if (node->magic == MYMAGIC)
 		{
 			fprintf(stderr, " %d bytes ", node->debug_size);
 
@@ -537,6 +556,29 @@ zuint32 ram_allocs()
 				abyss((void*)(node+1), node->file, node->line);
 
 			count++;
+		} else if (node->magic == FREEMAGIC){
+
+			//check contents
+			int i=0;
+			unsigned char* obj = (void*)(node+1);
+			unsigned char* p = (void*) &obj;
+
+			for (i=0;i<node->size;i++){
+
+				unsigned  b =  p[i % sizeof(void*)];
+
+				if ( obj[i] != b){
+					printf(" Write-after-free (%x) at %p (%p + %x)\n", obj[i], obj+i, obj,i);
+
+
+				}
+
+			}
+
+
+		} else {
+			 printf(" Bad magic %x on %p\n", node->magic , node);
+
 		}
 
 
@@ -545,8 +587,10 @@ zuint32 ram_allocs()
 	
 	fprintf(stderr, "%d unfreed allocations\n", count);
 
+
 #ifdef RAM_FAKE_FREE
 	fprintf(stderr, "%d bytes   (%d K) ever allocated\n", totbytes, totbytes / 1024);
+	fprintf(stderr, "Used fake free\n");
 #endif
 
 	if (ram_allocs_cnt != count)

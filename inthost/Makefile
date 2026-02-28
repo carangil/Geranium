@@ -4,7 +4,7 @@ include $(ZHOME)/includes/zmake.inc
 
 
 SRCtest=*.c
-ZLIBS=-lzint -lzmem -lzstructures -lzmem  -lzthread
+ZLIBS=-lzint -lzmem -lzstructures -lzmem  -lzthread -lffi
 LIBS=
 
 
@@ -24,4 +24,7 @@ run: test
 
 debugger: test
 	DEBUGINFOD_URLS=""  gdb -q -x cmds.gdb ./test
+
+debugstop: test
+	DEBUGINFOD_URLS=""  gdb  ./test
 

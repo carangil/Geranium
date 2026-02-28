@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <strings.h>
 
 
 
@@ -7,8 +8,10 @@
 #include "int.h"
 
 
-
 int main(int argc, char** args){
+
+
+
 
 	char* src = NULL;
 	char* filename = "start.zz";

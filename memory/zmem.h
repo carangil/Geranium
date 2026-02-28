@@ -4,6 +4,7 @@
 #include "ztypes.h"
 #include <malloc.h>
 #include <string.h>
+#define RAM_DEBUG
 
 #pragma once
 
