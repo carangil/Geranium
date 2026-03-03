@@ -1,9 +1,10 @@
 #include "zstringmap.h"
 #include "zarray.h"
 
+#if 1  //disable debugging printing
 #undef debugf
 #define debugf(...)
-
+#endif
 
 typedef struct stringmapentryS{
     zlistnodeT zlistnode;
@@ -55,6 +56,7 @@ zstringmapT* zstringmap_mk(int nb){
 
 zstringmapT* zstringmap_disown(zstringmapT* map){
 	map->own_elements = ZFALSE;
+    return map;
 }
 
 mapentryT* zstringmap_find(zstringmapT* map, char* key, zbool create) {
@@ -148,7 +150,7 @@ void*  zstringmap_get(zstringmapT* map, char* key){
 
     if (!key)
         return NULL;
-
+//
     mapentryT* e = zstringmap_find(map, key, ZFALSE);
     if (!e){
         debugf("not found %s\n", key);

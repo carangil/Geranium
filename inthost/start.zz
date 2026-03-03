@@ -1,3 +1,48 @@
+()  proc newline
+    10 printchar
+end
+
+(Z32&:np)  proc tref2
+
+    "tref2:"print np print newline
+    66 np =
+end
+
+(Z32:n Z32&:np)  proc tref
+    n print newline
+    np print newline
+    n printptr newline
+    np& printptr newline
+    np& tref2
+end
+
+Z32 var x
+Z32 var y
+
+10 x =
+21 y =
+
+x y& tref
+
+y print newline
+
+//sys_ENDFILE
+
+(Z32:a  Z32:b  (Z32:aa Z32:bb ->CString):callback-> Z32) "$INTERNAL" "test_me" sys test_me
+
+(Z32:aa Z32:bb -> CString)& proc test_me_callback
+    aa print "/"print
+    bb print "/" print
+    "stuff" return
+end
+
+10 22 test_me_callback  test_me print
+
+
+10 printchar
+
+
+//sys_ENDFILE
 
 
 
@@ -28,18 +73,17 @@ step
 
 end
 
+type FILE end
 
-type FILE
-end
+(CString:filename CString:mode -> FILE * ) "$LIBC" "fopen" sys C_fopen
+//(Any&:item Z32:size Z32:count  FILE*:file ->Z32 ) "$LIBC" "fwrite" sys C_fwrite
+
+
+(CString:str Z32:size Z32:count  FILE*:file ->Z32 ) "$LIBC" "fwrite" sys C_fwrite
+//(CString:item Z32:size Z32:count  FILE*:file ->Z32 ) "$LIBC" "fread" sys C_fread
+
 
 FILE* var af
-
-(CString:filename CString:mode -> FILE* ) "$LIBC" "fopen" proc C_fopen
-//(Any&:item Z32:size Z32:count  FILE*:file ->Z32 ) "$LIBC" "fwrite" proc C_fwrite
-
-
-(CString:str Z32:size Z32:count  FILE*:file ->Z32 ) "$LIBC" "fwrite" proc C_fwrite
-//(CString:item Z32:size Z32:count  FILE*:file ->Z32 ) "$LIBC" "fread" proc C_fread
 
 
 "test1.txt" "wb" C_fopen af&=
@@ -51,7 +95,7 @@ FILE* var af
 
 
 
-(->Z32) "libglfw.so.3" "glfwInit" proc glfwInit
+(->Z32) "libglfw.so.3" "glfwInit" sys glfwInit
 
 
 
@@ -63,47 +107,43 @@ GLFWwindow* var w
 
 
 (Z32:w Z32:h CString:title void*:v1 void*:v2 ->GLFWwindow*)
-    "libglfw.so.3" "glfwCreateWindow" proc glfwCreateWindow
+    "libglfw.so.3" "glfwCreateWindow" sys glfwCreateWindow
 
-(->Z32) "libglfw.so.3" "glfwPollEvents" proc glfwPollEvents
+//(->Z32) "libglfw.so.3" "glfwPollEvents" proc glfwPollEvents
+() "libglfw.so.3" "glfwPollEvents" sys glfwPollEvents
 
-(GLFWwindow*) "libglfw.so.3" "glfwSwapBuffers" proc glfwSwapBuffers
+(GLFWwindow*) "libglfw.so.3" "glfwSwapBuffers" sys glfwSwapBuffers
 
-(GLFWwindow*) "libglfw.so.3" "glfwMakeContextCurrent" proc glfwMakeContextCurrent
+(GLFWwindow*) "libglfw.so.3" "glfwMakeContextCurrent" sys glfwMakeContextCurrent
 
-(Z32) "libGL.so.1" "glClear" proc glClear
-(Real Real Real Real) "libGL.so.1" "glClearColor" proc glClearColor
-
-
-(Real Real Real Real) "libGL.so.1" "glColor4f" proc glColor4f
-(Real Real Real) "libGL.so.1" "glVertex3f" proc glVertex3f
-(Z32) "libGL.so.1" "glBegin" proc glBegin
-() "libGL.so.1" "glEnd" proc glEnd
+(Z32) "libGL.so.1" "glClear" sys glClear
+(Real Real Real Real) "libGL.so.1" "glClearColor" sys glClearColor
 
 
-(GLFWwindow*:w (GLFWwindow*:w Z32:key Z32:scancode Z32:action Z32:mods) :callback) "libglfw.so.3" "glfwSetKeyCallback" proc glfwSetKeyCallback
+(Real Real Real Real) "libGL.so.1" "glColor4f" sys glColor4f
+(Real Real Real) "libGL.so.1" "glVertex3f" sys glVertex3f
+(Z32) "libGL.so.1" "glBegin" sys glBegin
+() "libGL.so.1" "glEnd" sys glEnd
 
 
+(GLFWwindow*:w (GLFWwindow*:w Z32:key Z32:scancode Z32:action Z32:mods) :callback) "libglfw.so.3" "glfwSetKeyCallback" sys glfwSetKeyCallback
 
 
-(GLFWwindow*:w Z32:key Z32:scancode Z32:action Z32:mods) & proc keycallback
-    "in callback" print 10 printchar
+Z32 var doexit
 
+(GLFWwindow*:w Z32:key Z32:scancode Z32:action Z32:mods)& proc keycallback
+
+    key print
+
+    " " print
+
+    scancode print
 
     10 printchar
-    //w printptr
 
-end
-
-
-
-
-(GLFWwindow*:w Z32:key Z32:scancode Z32:action Z32:mods)  proc keycallback2
-    "in callback" print 10 printchar
-
-    key printchar
-    10 printchar
-    //w printptr
+    key 65 == if
+        1 doexit&=
+    end
 
 end
 
@@ -143,13 +183,14 @@ loop
         0.0 0.0 1.0 1.0 glColor4f
         0.5 0.5 -1.0  glVertex3f
 
-
     glEnd
 
-
     w glfwSwapBuffers
-   // "frame" print 10 printchar
-  // break
+
+    doexit if
+        break
+    end
+
 end
 
 
