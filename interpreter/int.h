@@ -35,6 +35,7 @@ typedef struct valueS{
 		zint32 z32;
 		zuint32 u32;
 		ptrT ptr;
+		zsize size;
 	} as;
 	//put type info here for interfaces
 }valueT;
@@ -164,6 +165,19 @@ typedef struct instructionS{
 	char* comment;
 }instructionT;
 
+
+#define ERROR_PARSE		1
+#define ERROR_RUNTIME	2
+
+typedef struct errorS {
+	char*	error_string;
+	int		error_code;
+	char*	file;
+	int		line;
+} errorT;
+
+
+
 #define MAXRUNNERS		2
 #define SWITCHRUNNER	0
 
@@ -177,12 +191,12 @@ typedef struct parsectxS{
 	char* comment;  //debugging name for this
 //	zvecT* cleanlist;  //list of pointers that need to be freed
 	struct runnerS *runners[MAXRUNNERS];
+	errorT err;
 	int id;//for debugging
 	int size;
+
 }parsectxT;
 
-#define ERROR_PARSE		1
-#define ERROR_RUNTIME	2
 
 typedef struct exectxS{
 	valueT*	stack;
@@ -192,6 +206,8 @@ typedef struct exectxS{
 	//todo typeinfo for selectors?
 	int sp;
 	int bp;//bp=-1 is last arg, bp=-2 is one before that...
+
+	errorT err;
 
 	char* error_string;
 	int error_code;
@@ -210,12 +226,13 @@ typedef struct exectxS{
 //opcodes are
 
 typedef enum {
+	//abstract instructions that may or may not map to a single bytecode instruction
     op_nop=0,
 	op_constant,	//load any constant value into a stack slot
+	op_constantaddref,	//load any constant value into a stack slot, increasing its reference count
 	op_print32,		//prints integer on stdout
 	op_printptr,	//points pointer (for debugging mostly)
 	op_printstr,	//prints a null-terminated string
-
 	op_getchar,		//read 1 character from stdin
 	op_printchar,	//print 1 character to stdout
 
@@ -224,22 +241,22 @@ typedef enum {
 	op_sub32,
 	op_mul32,
 	op_div32,
-	//comparison	NOT of comparison (no op defined, composite them)
+
+	op_ptrvalid,  //returns true if pointer is non-null
+
 	op_equal32,		//bnot -> not equal
 	op_less32,		//bnot -> greater or equal
 	op_greater32,	//bnot -> less or equal
 
-
 	//unary:
 	op_neg32,	//negative integer  (-3 -> 3)
-	op_inv32,	//invert bits  FFFE to 0001
+	op_inv32,	//invert bits  ...FFFE to ...0001
 	op_bnot,	//true<->false
-
 
 	//get pointer to variable, struct member, or array element
 	op_globalvar,
 	op_localvar,
-	op_subvar,
+	op_subvar,	//get fields from a
 	op_arrayindex,
 
 	//load
@@ -271,7 +288,6 @@ typedef enum {
 	op_break,
 	op_continue,
 
-
 	op_LASTCORE,	//all instructions before this are part of the AST
 
 	//these ones are implementation specific:
@@ -284,10 +300,7 @@ typedef enum {
 //runtime
 
 //FFI
-typedef struct parm{
 
-
-}cparametersT;
 
 typedef struct callerS{
 	char* name;

@@ -32,16 +32,16 @@ void zstr_reset(char* s);
 char* zstr_mk(zsize capacity);
 
 //Append substring of a C or zstring to the end of a zstring.
-//dest cannot be a C string or have more than 1 reference
-//dest may be resized, so the return value may be different:
+//dest must be null or a zsting.
+//if dest has more than 1 reference, a copy is returned
+//dest may be resized, so the return value may be different (a copy)
+//anything returned by zstrcatsub has only 1 reference
 //dest = strcatsub(dest, otherstring,1,10);
 char* zstrcatsub(char* dest, char* src, zsize start, zsize count);
 
 //abbreviated version of zstrcatsub that takes the whole src string
 #define zstrcat(XDEST,XSRC) zstrcatsub(XDEST,XSRC,0,ZSTRING_ALL)
 
-//like zstrcat, but frees the right hand side (combines a zstring on the left with any allocated string on the right (can be a zstring or a cstring that was allocated with the same malloc)
-char* zstrcombine(char* left, char* right);
 
 //creates a new zstring from 2 C strings together
 char* zstrdup2(char* left, char* right);
@@ -50,3 +50,49 @@ char* zstrprintf(char* initial, char* format, ...);
 
 zuint32 zstr_hash(char* s);
 
+
+
+
+
+/*
+ *
+ZSTRNDUP
+
+  zstring* zstrndup(char* src, int n);
+
+  Copies a string (C or Z).   (So it always does the slow strnlen)
+  Copies only first n bytes (-1 means copy all)  (+1 byte for terminator)
+  If src is NULL, this allocates a new string for n bytes (+1 for terminator)
+  If src is shorter than n, then src is null-terminated in a buffer large enough to hold n bytes (+1 for terminator)
+
+  zstrndup always returns:
+   null-terminated
+   single reference
+   the size specified
+
+
+ZSTRNCATSUB
+
+  zstring* zstrncatsub(zstring* dest, char* src, int start, int count);
+
+  Appends src to dest.  Only copies bytes  (start) to (start+count).  This copies (or creates if somehow missing) the terminator
+  -1 for count goes to the end of the src string
+  If dest has more than 1 reference, a copy is made instead of mutating dest.
+  If dest is too small, it is grown 2x, or to the size needed, whichever is larger.  Old dest is freed if growing and dest was the only reference.
+  If dest is null, a copy of src is returned.
+
+  zstrncatsub always returns:
+    null terminated
+    single reference
+
+ZSTRPRINTF
+
+  zstring* zstrprintf(zstring* dest, char* format, ...);
+
+  Supports anything vsprintf supports.
+  If dest is null, this allocates a new string with the sprintf result.
+  If dest is not null, this sprintf appends to the dest, growing needed.
+
+ NOTE: this one currently does not respect the single-reference thing yet.
+
+    */

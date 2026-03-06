@@ -240,7 +240,7 @@ void  tokenize(tokenT* insert, char* in, char* filename, int line){
 				"_.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",  //start with ._alpha
 				"",
 				"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789");
-
+/*
 		if (name && in[name] == '?') {
 			name++; //accept names that end with ?
 		}
@@ -248,6 +248,7 @@ void  tokenize(tokenT* insert, char* in, char* filename, int line){
 		if (name && in[name] == '=') {
 			name++; //accept names that end with =
 		}
+*/
 
 		int digits  = 0;
 
@@ -260,6 +261,11 @@ void  tokenize(tokenT* insert, char* in, char* filename, int line){
 			//special case: if number starts with '-', but has only 1 character, this isn't a negative number, but just a minus sign
 			if ((digits == 1) && (in[0] == '-'))
 				digits = 0;
+
+			//special case: numbers should not end in '.'
+			if ( in[digits-1] == '.' ){
+				digits--;
+			}
 
             //special case: Hex starts with 0x
 
@@ -473,7 +479,7 @@ void dump_types(parsectxT* pctx){
 }
 
 //most basic types
-typeT *tZ32, *tType, *tReal, *tType, *tFloat, *tBit, *tWord, *tCString;
+typeT *tZ32, *tType, *tReal, *tType, *tFloat, *tBit, *tWord, *tString, *tByte, *tStringByte, *tSize32;
 
 
 //some special types
@@ -570,6 +576,9 @@ zbool type_cmp(parsectxT* pctx, typeT* expected, typeT* given, int flags, typeT*
 	if (!expected || !given) //if one is still not present, they are not the same
 		return ZFALSE;
 
+
+
+
 	//at this point both nulls are non-null
 
 	if (expected->is_wild ){
@@ -609,9 +618,19 @@ zbool type_cmp(parsectxT* pctx, typeT* expected, typeT* given, int flags, typeT*
 	}
 
 
+	//special cases
+
+
+
+
+	if ((expected == tSize32) && (tZ32)) {
+		//Size32 type allows passing a Z32 to a C function that wants a size_t
+		//This rule considers it identical to Z32 for all other uses
+		return ZTRUE;
+	}
+
 	if (expected==tAny && (flags&MATCH_ALLOW_LIKE)) //tAny matching anything
 		return ZTRUE;
-
 
 	return ZFALSE;
 
@@ -1134,7 +1153,8 @@ switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* pr
 
 	if ((inst->opcode==op_load)||(inst->opcode==op_loadaddref)||(inst->opcode==op_take)){
 		tracef("compile special load %d bytes from %s\n", inst->result_type->size,inst->result_type->key );
-		prog = switch_asmi(prog, inst->opcode, inst->result_type->size, inst);
+		//printf(" XXX  %s  %d\n",inst->args[0]->result_type->ref )
+		prog = switch_asmi(prog, inst->opcode, inst->args[0]->result_type->ref->size, inst);  //use pointer type to find size
 		return prog;
 	}
 
@@ -1316,6 +1336,13 @@ void do_ffi_call(exectxT* exe, wordT* word){
 
 			pargs[i]=  &( exe->stack[exe->sp - argc + i ].as.ptr.address.word->ffi_caller->ffi_closure_code);
 
+		} else if (word->type->argtypes[i] == tSize32) {
+			//need to sign-extend because size_t is unsigned
+			//printf(" SIGN EXTEND %zu " ,exe->stack[exe->sp - argc + i ].as.size );
+			exe->stack[exe->sp - argc + i ].as.size = exe->stack[exe->sp - argc + i ].as.z32;
+			//printf(" SIGN EXTENDED %zu \n" ,exe->stack[exe->sp - argc + i ].as.size );
+			pargs[i] = &(exe->stack[exe->sp - argc + i ].as);
+
 		} else if (types[i] == &ffi_type_pointer){
 			//pointers are special, because the interpreter keeps a base pointer + offset
 			//C expects a single pointer.  So it's folded fold into a single C pointer
@@ -1392,6 +1419,19 @@ void do_call(exectxT* exe, wordT* word){
 
 	callee->runner.execute(exe, &callee->runner, 0);
 
+	//free any possessive pointers passed that didn't get taken
+	if (proctype->argtypes){
+		for (int i=0;i< zarray_count(proctype->argtypes);i++){
+
+			if (proctype->argtypes[i]->category == STEWARD){
+				printf(" NEED TO FREE %.8s %s\n",  exe->stack[ exe->bp-argc+i].as.ptr.address.bytes  ,proctype->argtypes[i]->key);
+				ram_free( exe->stack[ exe->bp-argc+i].as.ptr.address.bytes);
+			}
+
+		}
+	}
+
+
 	if (proctype->ref){ //returns value
 		tracef(" returns value\n");
 		exe->stack[exe->bp-argc] = exe->stack[exe->sp-1];  //last value on stack is copied to bp position
@@ -1438,12 +1478,14 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 
 		switch (pc->opcode) {
+			case op_nop: pc++; continue;
 
 			case op_constant:  exe->stack[exe->sp++] = pc->imm;  pc++; continue;
+			case op_constantaddref:  exe->stack[exe->sp] = pc->imm; ram_addref( exe->stack[exe->sp++].as.ptr.address.block);  pc++; continue;
 
 			case op_print32:   printf("%d", exe->stack[--exe->sp].as.z32); pc++; continue;
 
-			case op_printptr:   printf("---printptr:%p+%x\n", exe->stack[exe->sp-1].as.ptr.address.bytes, exe->stack[exe->sp-1].as.ptr.offset); pc++; exe->sp--; continue;
+			case op_printptr:   printf("{%p+%x}", exe->stack[exe->sp-1].as.ptr.address.bytes, exe->stack[exe->sp-1].as.ptr.offset); pc++; exe->sp--; continue;
 
 			case op_printstr:   printf("%s", exe->stack[exe->sp-1].as.ptr.address.bytes); pc++; exe->sp--;continue;
 
@@ -1461,13 +1503,27 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 			BINOP(less32, z32, <)
 			BINOP(greater32, z32, >)
 
-			#define UNOP(NAME, AS, OPFUNC) case op_ ## NAME:     exe->stack[exe->sp-1].as.AS = OPFUNC(exe->stack[exe->sp-1].as.AS);  pc++; continue;
+			#define UNOP(NAME, AS, OPFUNC, ASARG) case op_ ## NAME:     exe->stack[exe->sp-1].as.AS = OPFUNC(exe->stack[exe->sp-1].as.ASARG);  pc++; continue;
 
-			UNOP(neg32, z32, -)
-			UNOP(bnot, z32, !)
+			UNOP(neg32, z32, -, z32)
+			UNOP(bnot, z32, !, z32)
+
+			UNOP(ptrvalid, z32 , NULL != , ptr.address.block  )
 
 			//variables
 			case op_argpick:   exe->stack[exe->sp++] = exe->stack[exe->bp+pc->imm.as.z32];  pc++; continue;
+
+			case op_argaddref:   exe->stack[exe->sp] = exe->stack[exe->bp+pc->imm.as.z32];
+			ram_addref( exe->stack[exe->sp++].as.ptr.address.block);
+			pc++; continue;
+
+
+
+			case op_argtake:   exe->stack[exe->sp++] = exe->stack[exe->bp+pc->imm.as.z32];
+			exe->stack[exe->bp+pc->imm.as.z32].as.ptr.address.block = NULL;
+			exe->stack[exe->bp+pc->imm.as.z32].as.ptr.offset = 0;
+			pc++; continue;
+
 
 			case op_take:  //takes a pointer from memory, leaving the old one as zero
 				var = (void*)  exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset;
@@ -1484,6 +1540,20 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 				pc++;
 				continue;
+
+			case op_trash:  //takes a pointer from memory, increasing refcount
+				exe->sp--;
+
+				ram_free(exe->stack[exe->sp].as.ptr.address.block);
+				exe->stack[exe->sp].as.ptr.address.block = NULL;
+				exe->stack[exe->sp].as.ptr.offset = 0;
+
+
+
+				pc++;
+				continue;
+
+
 
 			case op_trashstore:  //stores a pointer in memory.  if there is already a value there, it is freed
 				var = (void*)  exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset;
@@ -1511,8 +1581,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				void* src = exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset;
 
 				//clear before copy into
-				exe->stack[exe->sp-1].as.ptr.offset =0;
-
+				memset(  &exe->stack[exe->sp-1], 0, sizeof(valueT));
 				memcpy( &exe->stack[exe->sp-1] ,
 						src,
 						pc->imm.as.z32);
@@ -1650,6 +1719,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 			default:
 				errorf(" unhandled %d %s\n", pc->opcode, instruction_names[pc->opcode]?instruction_names[pc->opcode]:"noname");
+				exit(1);
 				return;
 
 		}
@@ -1816,11 +1886,21 @@ tokenT* parse_number(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int arg
 	return t;
 }
 
-tokenT* parse_string_literal(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
-	valueT val = {0};
-	val.as.ptr.address.bytes = zstrndup(t->str+1, strlen(t->str)-2);
-	push_assembly(pctx, op_constant, INST_FREE_VALUE, &val, tCString, NULL, tCString);
+
+
+tokenT* parse_include(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+
+	instructionT* arg = pop_arg(pctx);
+
+	char* x = ram_loadstr(arg->val.as.ptr.address.bytes);
+
+	tokenize(t, x, arg->val.as.ptr.address.bytes,0);
+
+	ram_free(x);
+
+
+	ram_free(arg);
 
 	return t;
 }
@@ -1828,6 +1908,28 @@ tokenT* parse_string_literal(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t,
 
 
 #define OF(PCTX, CAT, REF) type_find(PCTX, NULL, REF, CAT, 0, NULL)
+tokenT* parse_string_literal(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+
+	valueT val = {0};
+	val.as.ptr.address.bytes = zstrndup(t->str+1, strlen(t->str)-2);
+
+	if (!strcmp(tnext(t)->str , "$")){		//the program will add a ref
+
+		push_assembly(pctx, op_constantaddref, INST_FREE_VALUE, &val, OF(pctx, STEWARD, tString  ) , NULL, OF(pctx, STEWARD, tString ));
+		t=tnext(t);
+	} else {
+
+		push_assembly(pctx, op_constant, INST_FREE_VALUE, &val, tString, NULL, tString);
+	}
+
+
+
+	return t;
+}
+
+
+
+
 
 void dereference_assembly(parsectxT* pctx, char* loadername){
 
@@ -1924,8 +2026,6 @@ tokenT* autoload(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t){
 		return t;
 	}
 
-
-
 	if (target_type->category == STEWARD && !keep_steward && loadername){
 		//if a variable name of a STEWARD pointer is used without $ or $$ or &, it goes on the stack as a regular pointer
 		//r->result type is something$& (target is something$), so lets create something&
@@ -1951,7 +2051,15 @@ tokenT* autoload(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t){
 	push_subtree(pctx, r); //put it back
 	dereference_assembly(pctx, loadername);	//dereference with the appropriate loader
 
-//	getc(stdin);
+
+	return t;
+}
+
+tokenT* parse_cast(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+
+	instructionT* arg = pop_arg(pctx);
+	arg->result_type = w->val.as.ptr.address.type;  //change the type
+	push_subtree(pctx, arg); //put it back
 	return t;
 }
 
@@ -2233,35 +2341,49 @@ wordT* proc_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* proctype);
 
 tokenT* parse_var(exectxT* exe, parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 
-
 	instructionT* arg0 = pop_arg(pctx);
-	t = tnext(t);
-	char* varname = t->str;
+
+	char* varname = tnext(t)->str;
 	wordT* w = NULL;
 
 	typeT* innertype = NULL; //type of value the variable contains
 
 	if ( arg0->val_type == tType){
-
 		innertype = arg0->val.as.ptr.address.type; //this is a datatype, like a Z32 or whatever
+		t = tnext(t); //skip to name
 
-		if (innertype->category == REFERENCE){
-			seterrorf(exe, ERROR_PARSE, "Variables cannot hold references\n");
-			return NULL ;
-		}
-
-		if (innertype->category == ARRAY){
-			seterrorf(exe, ERROR_PARSE, "Variables cannot hold arrays (must use steward)\n");
-			return NULL;
-		}
-
-		typeT* vartype = OF(pctx, VARIABLE, innertype);
-
-		w = word_mk(exe, pctx, varname, vartype); //word for the variable
-		printf(" %d CREATING VAR %s of %s  @%d %d\n", argc,varname,  vartype->key , w->offset, vartype->size );
 	} else {
-		seterrorf(exe, ERROR_PARSE, "Type constant not found\n");
+		innertype = arg0->result_type;
+		push_subtree(pctx, arg0);
+		arg0=NULL;
+		//don't skip to name, so that the name is used as the next token
 	}
+
+	if(!innertype){
+		seterrorf(exe, ERROR_PARSE, "Type constant not found\n");
+		return NULL;
+	}
+
+
+	if (innertype->category == REFERENCE){
+		seterrorf(exe, ERROR_PARSE, "Variables cannot hold references\n");
+		return NULL ;
+	}
+
+	if (innertype->category == ARRAY){
+		seterrorf(exe, ERROR_PARSE, "Variables cannot hold arrays (must use steward)\n");
+		return NULL;
+	}
+
+	if (innertype == tString){
+		seterrorf(exe, ERROR_PARSE, "Variables cannot hold string (must use steward)\n");
+		return NULL;
+	}
+
+	typeT* vartype = OF(pctx, VARIABLE, innertype);
+
+	w = word_mk(exe, pctx, varname, vartype); //word for the variable
+	printf(" %d CREATING VAR %s of %s  @%d %d\n", argc,varname,  vartype->key , w->offset, vartype->size );
 
 
 	if (w) {
@@ -2388,7 +2510,8 @@ ffi_type* type_map_to_c(typeT* type){
 
 	if (!type)
 		return &ffi_type_void;
-printf(" map %s to C\n", type->key);
+
+	printf(" map %s to C\n", type->key);
 
 	if (type == tZ32)
 		return &ffi_type_sint;
@@ -2396,11 +2519,27 @@ printf(" map %s to C\n", type->key);
 	if (type == tReal)
 		return &ffi_type_float;
 
-	if (type == tCString)
+	if (type == tString)
 		return &ffi_type_pointer;
+
+	if (type == tSize32){
+
+		if (sizeof(size_t) == 8)
+			return &ffi_type_sint64;
+		else{
+			printf(" non-64 bit size\n");
+			exit(1);
+
+		}
+	}
 
 	if (type->category == REFERENCE || type->category == CPOINTER)
 		return &ffi_type_pointer;
+
+	if (type->category == STEWARD && (type->ref->category == REFERENCE || type->ref == tString ) ){
+		//reference counted pointer or string
+		return &ffi_type_pointer;
+	}
 
 
 	if (type->category == PROC){
@@ -2584,7 +2723,7 @@ tokenT* parse_proc(exectxT* exe, parsectxT* pctx, wordT* wi, tokenT* t, int argc
 		seterrorf(exe, ERROR_PARSE, "Proc type constant not found\n");
 	}
 
-	if (w && symname){
+	if (w && symname && symname->val_type== tString ){
 		//external library function
 
 		w->opcode = op_sys;
@@ -2749,8 +2888,8 @@ tokenT* parse_related_type(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, i
 		if (!strcmp(t->str, "*"))
 			type = type_find(pctx, NULL, type, CPOINTER, 0, NULL);
 		if (!strcmp(t->str, "$")){
-			if (type->category != ARRAY){
-				seterrorf(exe, ERROR_PARSE, "steward ($) only applies to array");
+			if (type->category != ARRAY && type != tString && type != tAny ){
+				seterrorf(exe, ERROR_PARSE, "steward ($) only applies to array or string");
 				return NULL;
 			}
 			type = type_find(pctx, NULL, type, STEWARD, 0, NULL);
@@ -2763,6 +2902,15 @@ tokenT* parse_related_type(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, i
 				type = type->ref;
 			}
 		}
+
+		if (!strcmp(t->str,".null")){
+
+			push_assembly(pctx, op_constant, 0, NULL, NULL, assembly_args_mk(1, arg0) ,  type );
+
+			return t;
+
+		}
+
 	} else {
 			printf(" This requires a constant\n");
 			exit(1);
@@ -2976,11 +3124,15 @@ tokenT* parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens){
 
 		//not known
 
-		seterrorf(exe, ERROR_PARSE, "UNDEFINED %s\n from stack ", t->str);
+
+		char* err=zstrprintf(NULL,  "UNDEFINED %s  from stack ", t->str);
 		for (int i=0;i<zvec_count(pctx->codestack);i++){
 			instructionT* inst = zvec_get_at(pctx->codestack, i);
-			exe->error_string =  zstrprintf(exe->error_string, " %s ", inst->result_type?inst->result_type->key : "notype");
+			if (inst->result_type) {
+				err =  zstrprintf(err, " %s", inst->result_type->key );
+			}
 		}
+		seterrorf(exe, ERROR_PARSE, err);
 		return NULL;
 
 	}
@@ -3365,6 +3517,14 @@ void int_run_str(char* src, char* filename){
 
 	add_c_object("test_me" , test_me);
 
+	//add the string functions I already have to this
+	add_c_object("zstrndup" , zstrndup);
+	add_c_object("zstrdup2" , zstrdup2);
+	add_c_object("zstrcatsub" , zstrcatsub);
+
+
+	//debug stuff
+	add_c_object("ram_numrefs" , ram_numrefs);
 
 	parsectxT* pctx= parsectx_mk(NULL, zstrdup("global"));
 	exectxT* exe = exectx_mk();
@@ -3376,7 +3536,11 @@ void int_run_str(char* src, char* filename){
 	tBit = type_mk(exe,pctx, "Bit", NULL, SIMPLE, sizeof(int),  NULL);
 	tWord = type_mk(exe,pctx, "Word", NULL, OPAQUE, sizeof(wordT*),  NULL);
 	tAny =  type_mk(exe, pctx, "Any", NULL, OPAQUE, 0, NULL);  //'Any' does not have a size (but any& does)
-	tCString  = type_mk(exe,pctx, "CString",  NULL, SIMPLE, sizeof(char*), NULL);
+	tSize32 = type_mk(exe,pctx, "Size32",  NULL, SIMPLE, sizeof(size_t), NULL);
+	tString  = type_mk(exe,pctx, "String",  NULL, SIMPLE, sizeof(char*), NULL);
+
+	tByte  = type_mk(exe,pctx, "Byte",  NULL, SIMPLE, 1, NULL);
+	tStringByte  = type_mk(exe,pctx, "StringByte",  NULL, SIMPLE, 1, NULL);
 
 	//create parser words that work in type constants
 	proc_parser_mk(exe,pctx, "(", NULL, parse_type_list); //handle argument lists for functions
@@ -3384,6 +3548,7 @@ void int_run_str(char* src, char* filename){
 	proc_parser_mk(exe,pctx, "$", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into a steward
 	proc_parser_mk(exe,pctx, "@", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into its dereferenced type
 	proc_parser_mk(exe,pctx, "*", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into a
+	proc_parser_mk(exe,pctx, ".null", type_proc_mk(tType, 1, tAny), parse_related_type); //makes a type into a
 	proc_parser_mk(exe,pctx, "[", NULL, parse_array); //create array type TODO:consider moving from [Z32] syntax to Z32[]
 
 	//create control structures
@@ -3393,16 +3558,30 @@ void int_run_str(char* src, char* filename){
 
 	//define parser words for variables, types and procs
 	proc_parser_mk(exe,pctx, "var",  type_proc_mk(NULL, 1, tType), parse_var); //makes a variable in current context
+	proc_parser_mk(exe,pctx, "var",  type_proc_mk(NULL, 1, tAny), parse_var); //makes a variable in current context
+
 	proc_parser_mk(exe,pctx, "type", type_proc_mk(NULL, 0), parse_frame);
 	proc_parser_mk(exe,pctx, "proc", type_proc_mk(NULL, 1, tType), parse_proc);
-	proc_parser_mk(exe,pctx, "sys", type_proc_mk(NULL, 3, tType , tCString, tCString), parse_proc);//import ffi
+	proc_parser_mk(exe,pctx, "sys", type_proc_mk(NULL, 3, tType , tString, tString), parse_proc);//import ffi
+
+	//add some casts
+	proc_opcode_mk2(exe,pctx, op_nop, ".Bit", "(Z32->Bit)");
+	proc_opcode_mk2(exe,pctx, op_nop, ".Z32", "(Bit->Z32)");
 
 
+	proc_parser_mk(exe,pctx, "include", type_proc_mk(NULL, 1, tString), parse_include);
 
-	// //create arrays
+
+	//create arrays
 	proc_opcode_mk2(exe,pctx, op_dim, "dim", "([Any]$&:array Z32:len)");
 	wordT* arrayindex = proc_opcode_mk2(exe,pctx, op_arrayindex, "[]", "( [Any]:a Z32:idx -> like a@&)");
 	arrayindex->autoload = ZTRUE;
+
+
+	//reading a byte from a string returns a StringByte& instead of a Byte&.  StringByte is intentionally is missing a write word
+	arrayindex = proc_opcode_mk2(exe,pctx, op_arrayindex, "[]", "( String:a Z32:idx -> StringByte&)");
+	arrayindex->autoload = ZTRUE;
+	proc_opcode_mk2(exe,pctx, op_load, "@",  "(StringByte& -> Z32)" );
 
 
 
@@ -3425,45 +3604,60 @@ void int_run_str(char* src, char* filename){
 	proc_opcode_mk2(exe,pctx, op_greater32, ">", "(Z32:a Z32:b -> Bit)");
 	proc_opcode_mk2(exe,pctx, op_equal32, "==", "(Z32:a Z32:b -> Bit)");
 
+
+
 	proc_opcode_mk2(exe,pctx, op_neg32, ".-", "(Z32:a  -> Z32)");
 	proc_opcode_mk2(exe,pctx, op_bnot, "!", "(Bit:a  -> Bit)");
 	proc_opcode_mk2(exe,pctx, op_bnot, "!", "(Z32:a  -> Bit)");
+	proc_opcode_mk2(exe,pctx, op_ptrvalid, "?", "(String:s -> Bit  )");
 
 	proc_opcode_mk2(exe,pctx, op_printptr, "printptr", "(Any)");
-
 	proc_opcode_mk2(exe,pctx, op_load, "@",  "(Z32&:a  -> like a@ )" );
 	proc_opcode_mk2(exe,pctx, op_store, "=",  "(Z32:value  like value&:dst)" );
 
 	//store/load cpointers
 	proc_opcode_mk2(exe,pctx, op_store, "=",  "(Any*:value  like value&:dst)" );
-
 	proc_opcode_mk2(exe,pctx, op_load, "@",  "(Any*&:a  -> like a@ )" );
 
 
-	//proc_opcode_mk2(exe,pctx, op_store, "=",  "(Any:value  like value&:dst)" );
-	//proc_opcode_mk2(exe,pctx, op_load, "@",  "(Any&:a  -> like a@ )" );
-
-
+	//array specific
 	proc_opcode_mk2(exe,pctx, op_load, "@",  "([Any]&:a  -> like a@ )" );
-	proc_opcode_mk2(exe,pctx, op_loadaddref, "$",  "([Any]$&:a  -> like a@ )" );
-	proc_opcode_mk2(exe,pctx, op_take, "$$",  "([Any]$&:a  -> like a@ )" );
-	proc_opcode_mk2(exe,pctx, op_trash, "trash",  "([Any]$:a)" );
-
-	proc_opcode_mk2(exe,pctx, op_printstr, "print", "(CString)");
 
 
-	proc_opcode_mk2(exe,pctx, op_trashstore, "=",  "([Any]$:value  like value&:dst)" );
+	//array specific steward rules
+	//proc_opcode_mk2(exe,pctx, op_loadaddref, "$",  "([Any]$&:a  -> like a@ )" );
+	//proc_opcode_mk2(exe,pctx, op_take, "$$",  "([Any]$&:a  -> like a@ )" );
+	//proc_opcode_mk2(exe,pctx, op_trash, "trash",  "([Any]$:a)" );
+	//proc_opcode_mk2(exe,pctx, op_trashstore, "=",  "([Any]$:value  like value&:dst)" );
+
+	proc_opcode_mk2(exe,pctx, op_load, "@",  "(String&:a  -> like a@ )" );
+
+
+
+	//switch to generic steward rules
+	proc_opcode_mk2(exe,pctx, op_loadaddref, "$",  "(Any$&:a  -> like a@ )" );
+	proc_opcode_mk2(exe,pctx, op_take, "$$",  "(Any$&:a  -> like a@ )" );
+	proc_opcode_mk2(exe,pctx, op_trash, "trash",  "(Any$:a)" );
+	proc_opcode_mk2(exe,pctx, op_trashstore, "=",  "(Any$:value  like value&:dst)" );
+
+
+
+
+	proc_opcode_mk2(exe,pctx, op_printstr, "print", "(String)");
+
+
+
+	//proc_opcode_mk2(exe,pctx, op_trashstore, "=",  "(String$:value  like value&:dst)" );
+	//proc_opcode_mk2(exe,pctx, op_load, "@",  "(String&:a  -> like a@ )" );
+	//proc_opcode_mk2(exe,pctx, op_loadaddref, "$",  "(String$&:a  -> like a@ )" );
+	//proc_opcode_mk2(exe,pctx, op_take, "$$",  "(String$&:a  -> like a@ )" );
+	//proc_opcode_mk2(exe,pctx, op_trash, "trash",  "(String$:a)" );
+
 
 
 //	proc_opcode_mk2(exe,pctx, 3232, "=", "(Z32 Z32&)");
 
 	//proc_opcode_mk2(exe,pctx, 888, "@",  "(Z32&  -> Z32 )" );
-
-	//proc_opcode_mk2(exe,pctx, 999, "add",  "(Any: a   like a&:b   like a&&:c )" );
-	//proc_opcode_mk2(exe,pctx, 999, "add",  "(Any&: a   like a@:b   like b:c )" );
-
-	//load integers
-	//proc_opcode_mk2(exe,pctx, 888, "@",  "(Z32.var -> Z32)" );
 
 
 	//dump_dictionary(pctx);

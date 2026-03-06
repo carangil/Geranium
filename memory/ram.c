@@ -594,7 +594,7 @@ zuint32 ram_allocs()
 #endif
 
 	if (ram_allocs_cnt != count)
-		fprintf(stderr, " Internal inconsistency in ram.c, oops\n");
+		fprintf(stderr, " Internal inconsistency in ram.c, oops %d %d\n", ram_allocs_cnt, count);
 
 #endif
 

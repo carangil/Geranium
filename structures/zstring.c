@@ -6,6 +6,10 @@
 #include "zstring.h"
 #include "zarray.h"
 
+
+#undef tracef
+#define tracef(...)
+
 //allocates space (plus null terminator) for string n bytes long
 char* zstr_mk(zsize ns)
 {
@@ -66,47 +70,92 @@ char* zstrndup(char* a, zsize n) {
 	//copies  src[start] up to, not including, src[start+count]  to the end of dest;
 	//if count ==-1, it copies to the end of the string
 	
+	/*	dest		src		what
+	 * null			null	null
+	 * 1ref			null	dest
+	 * 1ref			strchr	dest+str
+	 *
+	 *
+	 * */
+
+
+
+//dest is NULL or a zstring
+//src is a cstring or zstring or null
+//dest returned has only reference (makes copy if needed for that to be true)
+
 char* zstrcatsub(char* dest, char* src, zsize start, zsize count){
 
-	if (dest==NULL){
-		fprintf(stderr, " Can't append to null string\n");
-		exit(1);
-	}
-
-
-	if (ram_numrefs(dest) != 1){
-		fprintf(stderr, " Can't append to string with multiple references\n");
-		exit(1);
-		return dest;
-
-	}
-
-	if (src == NULL)
-		return dest;
-
 	if (count == ZSTRING_ALL){
-		count = ((zuint32)strlen(src)) - start;
+		if (src)
+			count = ((zuint32)strlen(src)) - start;
+		else
+			count=0;
 	}
 
-	//zstr_debug(dest, "dest");
-	//zstr_debug(src, "src");
-   
-	if (!zarray_space(dest, count+2)){
+	int newsize=0;
 
-		int newsize = count +2 + zarray_count(dest);
+	if (dest) {
 
-		if (newsize < zarray_count(dest)*2){
-			//if newsize is less than double, then double
-			newsize = zarray_count(dest)*2;
+		if (!zarray_space(dest, count+2)){
+			tracef("zstringcatsub 3 :  need to resize \n");
+			newsize = count +2 + zarray_count(dest);
+
+			if (newsize < zarray_count(dest)*2){
+				tracef("zstringcatsub 4:  need to resize 2x \n");
+				//if newsize is less than double, then double
+				newsize = zarray_count(dest)*2;
+
+			}
 
 		}
-		dest = zarray_resize(dest, newsize, NULL);
 
+	} else {
+		tracef("zstringcatsub 5:  dest is null, need to copy src \n");
+		return zstrndup(src+start, count);
+	}
+
+	if (dest && (ram_numrefs(dest) != 1) ) {
+
+		tracef("zstringcatsub 6:  dest has %d references, need to copy \n", ram_numrefs(dest));
+
+		//more than one reference, make a copy
+
+		//if we don't have a grow size, then use whatever size original had'
+		if (!newsize){
+
+			tracef("zstringcatsub 7:  dest didn't need resize, so use its original size\n");
+			newsize = zarray_size(dest); //copy will be size of original buffer *
+		}
+
+		char* newstr = zstr_mk( newsize);
+
+		if (newstr){
+			int pos = zarray_count(dest);
+
+			//copy original
+			memcpy( newstr, dest, pos);
+			zarray_use(newstr, pos);
+		}
+
+		ram_free(dest);
+		tracef("dec dest ref %d\n", ram_numrefs(dest));
+		dest = newstr;
+
+	} else if (newsize){
+		tracef("zstringcatsub 8:  dest is resizing\n");
+		dest = zarray_resize(dest, newsize, NULL);
 	}
 
 	int pos = zarray_count(dest);
+
 	if (pos>0)
 	    pos--;
+
+
+	if (src == NULL){
+		printf("src is null\n");
+	}
 	memcpy(dest+pos, src+start, count);
 	dest[pos+count]=0;
 	zarray_use(dest, (zuint32) pos+count+1); //include terminator in byte count
@@ -120,11 +169,6 @@ void zstr_reset(char* s) {
 	zarray_use(s, 1);
 }
 
-char* zstrcombine(char* left, char* right){
-	char * newleft = zstrcat(left,right);
-	ram_free(right);
-	return newleft;
-}
 
 char* zstrdup2(char* left, char* right) {
 	char* ns = zstrndup(left, strlen(left) + strlen(right));
@@ -211,9 +255,12 @@ char* zstrprintf(char* initial, char* format, ...) {
 
 	if (initial == NULL) {
 		str = zstr_mk(s);
-	}
-	else {
+	} else {
 		//printf(" %d count, %d size, %d more\n", zarray_count(initial), zarray_size(initial), s);
+
+		if (ram_numrefs(initial) > 1){
+			errorf("Appending by zstrprintf to zstring with more than 1 ref is not supported!");
+		}
 		
 		offset = zarray_count(initial) - 1; 
 
