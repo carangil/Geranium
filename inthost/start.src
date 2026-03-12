@@ -1,0 +1,476 @@
+"base.src" include
+
+
+
+[Byte]$ var arr
+
+arr& 5 10 dim
+
+[Z32]$ var a2
+a2& 3 7 dim
+
+
+[ [Z32]$]$ var md
+
+
+md& 3 10 dim
+
+md 1[]& 3 3 dim
+md 2[]& 3 3 dim
+
+
+12 md 1[]2[]=
+
+11 md 1[]1[]=
+
+22 md 2[]2[]=
+
+21 md 2[]1[]=
+
+
+md 2[]1[] print newline
+md 2[]2[] print newline
+md 1[]1[] print newline
+md 2[]2[] print newline
+
+
+//md 2[] 4 [] 24=
+
+//md 1[]2[] 12=
+//md 2[]2[] 22=
+
+
+
+/*
+//need to start defining reflection api
+
+(Any:x -> Type) proc typeof     //get the static type of an object
+
+
+( Z32 Subtree: s ) proc Disassemble
+
+    s opcode    //get an opcode
+    s argc    //get number of args
+    s n arg
+    s valtype  //
+    s val     //of whatever type it is
+
+
+    (Any subtree:s -> Z32) .opcode
+    (Any subtree:s -> Z32) .argc
+    (Any subtree:s Z32:n -> Any subtree)
+    (Any subtree:s ->Type ) .immtype
+    (Any subtree:s ->Z32 ) .Z32     //get the immediate value, if its a Z32
+
+
+
+end
+
+
+Z32 Z32 +
+
+
+
+*/
+
+
+(String:s) "$LIBC" "puts" sys puts
+([Byte]:s) "$LIBC" "puts" sys puts
+
+"sdfsdds"$.Byte var b=
+
+b puts
+
+
+
+sys_ENDFILE
+
+
+"This is stuff"  10 left var A =
+A print newline
+A$.Byte var B =
+
+
+64 B 2[]=
+A print newline
+
+
+B$.String var BS =
+
+BS print newline
+
+65 B 2[]=
+
+B$.String var BS2=
+
+BS2 print newline
+BS print newline
+
+
+//"gl.src" include
+
+
+
+
+
+"boo" constant boo
+
+boo print
+
+"boo" constant boos
+boos print
+
+0x100 constant twofiftysix
+
+//hundred print twofiftysix print newline
+
+
+//(String:s) "$LIBC" "puts" sys puts
+(Byte*:s) "$LIBC" "puts" sys puts
+
+
+[Byte]$ var buf
+
+buf& 100 dim
+
+buf 0 [] print
+65 buf 0 [] =
+66 buf 1 [] =
+67 buf 2 [] =
+68 buf 3 [] =
+
+buf printptr
+buf 3[]& printptr
+buf
+
+buf.* puts
+
+
+sys_ENDFILE
+
+
+
+
+(String:s) proc inspect
+    s printptr
+    "'" print s print "'" print
+    s ram_numrefs print
+    newline
+end
+
+
+(String$:s) proc inspect
+    s inspect
+end
+
+"what"$ var s=
+"ever"$ var t=
+
+"single" inspect
+s inspect
+
+"aaaaa"
+s$ t + var u=
+
+s inspect
+t inspect
+u inspect
+
+newline
+
+"ca"$ "ts" + var cats1 =
+"cats"$ var cats2 =
+
+"sdfsdfsdfaaaaaaaa"$ print
+
+cats1 inspect
+cats2 inspect
+cats1 cats2 == if
+
+    "equal" print newline
+    else
+    "notequal" print newline
+end
+
+
+String.null "" == if
+    "empty equal" print
+else
+    "empty notequal" print
+end
+
+
+/*
+s$$ "aaaa" + var u =
+
+
+//s -1 left "bbb" + var u=
+
+s print newline
+t print newline
+u print newline
+
+*/
+
+
+
+
+
+sys_ENDFILE
+(Z32&:np)  proc tref2
+
+    "tref2:"print np print newline
+    66 np =
+end
+
+(Z32:n Z32&:np)  proc tref
+    n print newline
+    np print newline
+    n printptr newline
+    np& printptr newline
+    np& tref2
+end
+
+Z32 var x
+Z32 var y
+
+10 x =
+21 y =
+
+x y& tref
+
+y print newline
+
+"whatever" 5 left var s=
+s print newline
+
+s$$ "more" 1 3 midcat var t=
+
+t print newline
+
+
+t$ var u =
+
+t$ var k=
+
+
+
+t$ "x" + var k2=
+
+
+//t$$ "eee" + var q=
+
+
+
+
+q print newline
+u print newline
+
+(->String$) proc getsss
+    "sss"$ return
+
+end
+
+
+
+getsss var v=
+v$$ "stuff" + v=
+v print newline
+getsss print newline
+
+String.null print newline
+
+
+sys_ENDFILE
+
+(Z32:a  Z32:b  (Z32:aa Z32:bb ->String):callback-> Z32) "$INTERNAL" "test_me" sys test_me
+
+(Z32:aa Z32:bb -> String)& proc test_me_callback
+    aa print "/"print
+    bb print "/" print
+    "stuff" return
+end
+
+10 22 test_me_callback  test_me print
+
+
+
+String$ var s2
+
+
+"whatever" 6 zstrndup s2=
+
+">>>" print
+s2 print newline
+
+10 printchar
+
+String$ var s
+String$ var t
+
+"boo "$ s =
+Z32                         //TODO: var after a value (not a type like Z32 var but like 3 var) should make a variable of that name, and put the variable on the stack
+//"sdfsdf"$  "xxxxxxaa" strcat : zz=   zz print
+
+"sdsd" copy  :p=
+
+p$$ "123" strcat
+
+3 : jj=
+
+jj print newline
+loop end
+
+
+String$ var tt
+"longlonglong"$ tt=
+
+s2$$ tt  1 -1 midcat s2 =
+
+//s2 s 0 3 zstrcatsub
+
+">>>" print
+s2 print newline
+
+
+
+s print
+s$$ t =
+s print
+t print
+
+
+"chars" print newline
+"AC " 1[]  print newline
+
+
+//String var a
+
+
+655389 x =
+x print
+newline
+newline
+sys_ENDFILE
+
+
+
+
+
+[Z32]$ var a
+
+a& 10 dim
+
+Z32 var i
+loop i 10 < if else break end
+
+    i i + i+ a i[]& =
+
+step
+
+    i 1 + i&=
+
+end
+
+0i&=loop i 10 < if else break end
+
+     a i[] print  10 printchar
+
+step
+
+    i 1 + i&=
+
+end
+
+(String:filename String:mode -> FILE * ) "$LIBC" "fopen" sys C_fopen
+//(Any&:item Z32:size Z32:count  FILE*:file ->Z32 ) "$LIBC" "fwrite" sys C_fwrite
+
+
+(String:str Z32:size Z32:count  FILE*:file ->Z32 ) "$LIBC" "fwrite" sys C_fwrite
+//(String:item Z32:size Z32:count  FILE*:file ->Z32 ) "$LIBC" "fread" sys C_fread
+
+
+FILE* var af
+
+
+"test1.txt" "wb" C_fopen af&=
+
+
+
+"BananA!" 7 1 af C_fwrite print " items written" print 10 printchar
+
+
+
+
+
+
+void* var v
+GLFWwindow* var w
+
+
+
+Z32 var doexit
+
+(GLFWwindow*:w Z32:key Z32:scancode Z32:action Z32:mods)& proc keycallback
+
+    key print
+
+    " " print
+
+    scancode print
+
+    10 printchar
+
+    key 65 == if
+        1 doexit&=
+    end
+
+end
+
+
+glfwInit print 10 printchar
+
+600 400 "TEST" v v glfwCreateWindow w&=
+w glfwMakeContextCurrent
+
+1.0 0.5 0.0 1.0 glClearColor
+
+keycallback printptr
+w printptr
+
+
+w keycallback glfwSetKeyCallback
+
+
+"window " print
+w printptr
+
+loop
+
+    glfwPollEvents
+
+    16384 glClear
+
+    4 glBegin
+        1.0 0.0 0.0 1.0 glColor4f
+
+        1.0 0.0 -1.0  glVertex3f
+
+        0.0 1.0 0.0 1.0 glColor4f
+        0.0 0.5 -1.0  glVertex3f
+
+
+        0.0 0.0 1.0 1.0 glColor4f
+        0.5 0.5 -1.0  glVertex3f
+
+    glEnd
+
+    w glfwSwapBuffers
+
+    doexit if
+        break
+    end
+
+end
+
+

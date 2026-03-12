@@ -382,6 +382,7 @@ int ram_numrefs(void* thing)
 		if (header->magic != MYMAGIC){
 
 			printf(" Attempt to count references for non-zmem object\n");
+			printf("%s\n", (char*)123); //crash for debugger
 			return 0;
 		}
 		return header->refcount;

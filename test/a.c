@@ -14,11 +14,12 @@ void dumpmap(zstringmapT* map){
 
 	char* key=NULL;
 	char* value=NULL;
-	void* cursor=NULL;
+	int cursor=0;
 
 	printf(">>");
 	while( zstringmap_nextkey(map, &key, &value, &cursor)){
-			printf("(%s:%s/%s)->", key, value, zstringmap_get(map, key) );
+			printf("(%s:%s)->", key, value );
+		//	printf("(%s:%s/%s)->", key, value, zstringmap_get(map, key) );
 	}
 	printf("\n");
 
@@ -50,38 +51,28 @@ int main(int argc, char** args){
 
 
 	//make a stringmap
-	zstringmapT* map = zstringmap_mk(256);
+	zstringmapT* map = zstringmap_mk(1);
+	zstringmap_disown(map);
 	dumpmap(map);
 
-	zstringmap_put(map, "A", zstrdup("aaa"));
+	zstringmap_put(map, "a", "apple");
+	zstringmap_put(map, "b", "bbb");
+	zstringmap_put(map, "c", "ccc");
+	zstringmap_put(map, "d", "ddd");
+	zstringmap_put(map, "e", "eee");
+	zstringmap_put(map, "fe", "ffeee");
+	zstringmap_put(map, "ge", "eege");
+	zstringmap_put(map, "h", "hheee");
+	zstringmap_delete(map, "e");
+
+
 	dumpmap(map);
-
-	zstringmap_put(map, "B", zstrdup("bbb"));
-	dumpmap(map);
-
-	zstringmap_put(map, "C", zstrdup("ccc"));
-	dumpmap(map);
-
-	//delete one
-	zstringmap_delete(map, "A");
-	dumpmap(map);
-
-	zstringmap_put(map, "D", zstrdup("ddd"));
-	dumpmap(map);
-
-
-	zstringmap_put(map, "C", zstrdup("ccc2"));
-	dumpmap(map);
-
-
-
-
-
 	ram_free(map);
 
 
 	//test some appends
 
+#if 0
 	int* y = zarray_alloc(int, 3);
 
 	zarray_append(y, 1);
@@ -98,7 +89,7 @@ int main(int argc, char** args){
 	}
 
 
-
+#endif
 
 
 

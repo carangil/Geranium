@@ -25,6 +25,11 @@ run: test
 debugger: test
 	DEBUGINFOD_URLS=""  gdb -q -x cmds.gdb ./test
 
+debugscan: test
+	DEBUGINFOD_URLS=""  gdb -q -x cmds.gdb --args ./test -scan $(SCANFILE)
+
+
+
 debugstop: test
 	DEBUGINFOD_URLS=""  gdb  ./test
 

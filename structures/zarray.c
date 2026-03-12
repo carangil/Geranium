@@ -41,6 +41,7 @@ void* zarray_set_meta(void* array, void* ptr){
 	
 }
 
+
 void* zarray_get_meta(void* array){
 	
 	array_shadowT* sh = ram_shadow(array);
@@ -52,6 +53,34 @@ void* zarray_get_meta(void* array){
 	return 0;
 	
 }
+
+
+//if array has one reference, return it
+//if array has more than one reference, copy it
+//ONLY for plain types where you don't need a custom destructor
+void* zarray_cow(void* array, int elemsize) {
+
+
+	if (!array)
+		return NULL;
+
+
+	if ( ram_numrefs(array) == 1){
+		printf("fast case\n");
+		return array;
+	}
+
+
+	printf(" return copy\n");
+
+	//copy case
+	void* newarray = zarray_allocf(elemsize, zarray_size(array), NULL, __FILE__, __LINE__);
+	memcpy(newarray, array, elemsize * zarray_count(array));  //copy values
+	zarray_use( newarray, zarray_count(array));
+	ram_free(array); //dec reference
+	return newarray;
+}
+
 
 
 void* zarray_allocf( zsize elemsize, zuint32 elemnum, ram_destructor custom_destructor, char* file, int line){
@@ -125,6 +154,9 @@ void* zarray_moref(void* array, size_t itemsize, int n, zbool* ok){
 }
 
 void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok){
+
+	size_t oldsize = elemsize * zarray_count(array);
+
 	size_t newsize = elemsize * elemnum;
 
 #ifdef STRUCT_DEBUG
@@ -137,6 +169,23 @@ void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok){
 		
 	
 	void * newarray = ram_resize(array, newsize, ok);
+
+	memset(((char*)newarray)+oldsize, 0, newsize - oldsize );
+
+#if 0
+	printf(" resize %d to %d \n", oldsize, newsize);
+	{
+		unsigned char* b = (void*) newarray;
+		for (int i=0;i< newsize;i++){
+
+			if (i==oldsize)
+				printf("|");
+			printf("%.2x", b[i]);
+
+		}
+
+	}
+#endif
 
 	if (newarray && (elemsize == 1))
 	    ((char*)newarray)[elemnum] = 0;	//null terminator for byte arrays

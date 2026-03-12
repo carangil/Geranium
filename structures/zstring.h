@@ -17,6 +17,8 @@
 char* zstrndup(char* a, zsize n);
 #define zstrdup(SSS)  zstrndup(SSS,ZSTRING_ALL)
 
+char* zstrtrim(char* s); //removes leading and following whitespace (according to isspace(char))
+
 //Split C or zstring on delimiter, returning vector of zstrings
 zvecT* zstrsplit(zvecT* initial, char* str, char delim);
 
@@ -30,6 +32,9 @@ void zstr_reset(char* s);
 
 //Make an empty zstring with space for 'capacity' bytes.  Null terminator automatically added to length.
 char* zstr_mk(zsize capacity);
+
+
+
 
 //Append substring of a C or zstring to the end of a zstring.
 //dest must be null or a zsting.

@@ -258,6 +258,8 @@ typedef enum {
 	op_localvar,
 	op_subvar,	//get fields from a
 	op_arrayindex,
+	op_arraycow, //makes a copy of array if it has more than 1 reference
+	op_arrayinfo, //get size or count
 
 	//load
 	op_load,

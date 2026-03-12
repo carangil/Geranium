@@ -5,6 +5,7 @@
 #include "zvector.h"
 #include "zstring.h"
 #include "zarray.h"
+#include "ctype.h"
 
 
 #undef tracef
@@ -67,6 +68,50 @@ char* zstrndup(char* a, zsize n) {
 	return z;
 	
 }
+
+
+char* zstrtrim(char* s){
+	int first=0;
+
+	if (!s)
+		return zstr_mk(ZSTRING_INITSIZE);
+
+	int last = strlen(s);
+
+
+	if (last==0) {
+
+		return zstr_mk(ZSTRING_INITSIZE); //return empty strings
+	}
+
+	last--;
+
+	while( s[first] && isspace(s[first])) {
+		first++;
+	}
+
+	while (last > 0 &&  s[last] && isspace(s[last])){
+		last--;
+	}
+
+	tracef(" '%s' %d %d\n", s, first, last);
+
+
+	if (last < first)
+		return zstr_mk(ZSTRING_INITSIZE); //empty strings
+
+	char* trimmed = zstrndup( s+first, last-first+1);
+
+	tracef(" '%s' trims to '%s'\n", s, trimmed);
+
+	return trimmed;
+
+}
+
+
+
+
+
 	//copies  src[start] up to, not including, src[start+count]  to the end of dest;
 	//if count ==-1, it copies to the end of the string
 	
@@ -170,6 +215,7 @@ void zstr_reset(char* s) {
 }
 
 
+
 char* zstrdup2(char* left, char* right) {
 	char* ns = zstrndup(left, strlen(left) + strlen(right));
 	ns = zstrcat(ns, right);
@@ -200,7 +246,9 @@ zvecT*  zstrsplit(zvecT* v, char* str, char delim){
 			break;
 		}
 	
+
 		zvec_add_or_free(v, zstrndup(str, p-str));
+
 		
 		str = p+1;
 		//printf("end str is %s, p is %s\n", str, p);

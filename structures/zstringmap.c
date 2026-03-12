@@ -7,7 +7,7 @@
 #endif
 
 typedef struct stringmapentryS{
-    zlistnodeT zlistnode;
+    //zlistnodeT zlistnode;
     char* key;
     void* item;
 }mapentryT;
@@ -46,7 +46,7 @@ zstringmapT* zstringmap_mk(int nb){
     map->buckets = zarray_alloc( mapentryT* , nb);
     zarray_use(map->buckets, nb);
 
-    zlist_init(&map->ordered); //keep a linked list of elements in order
+  //  zlist_init(&map->ordered); //keep a linked list of elements in order
 
 	map->own_elements = ZTRUE; //free elements when map freed
 
@@ -72,9 +72,9 @@ mapentryT* zstringmap_find(zstringmapT* map, char* key, zbool create) {
 
         if (create) {
             debugf("Create bucket %d\n", bn);
-            map->buckets[bn]= zarray_alloc(mapentryT, 8); //create the bucket
+            map->buckets[bn]= zarray_alloc(mapentryT, 32); //create the bucket
             zarray_use(map->buckets[bn],1);
-            zlist_addtail(&map->ordered, &(map->buckets[bn][0].zlistnode)); //add to end of list
+         //   zlist_addtail(&map->ordered, &(map->buckets[bn][0].zlistnode)); //add to end of list
 
             return &(map->buckets[bn][0]);//return first element in bucket
         } else {
@@ -102,9 +102,18 @@ mapentryT* zstringmap_find(zstringmapT* map, char* key, zbool create) {
 
     int len = zarray_count(map->buckets[bn]);
     debugf("creating new entry for %s at position %d\n", key, len);
+
+    //need to remove in case we are expanding
+    //zlist_remove_mid(
+
+    printf(" %p -> ", map->buckets[bn]);
+
     map->buckets[bn] = zarray_more( map->buckets[bn], 1, NULL); //make sure there's space for 1 more
+    printf(" %p \n ", map->buckets[bn]);
+
+
     zarray_use(map->buckets[bn], len+1); //reset the sizeof
-    zlist_addtail(&map->ordered, &(map->buckets[bn][len].zlistnode)); //add to end of list
+ //   zlist_addtail(&map->ordered, &(map->buckets[bn][len].zlistnode)); //add to end of list
 
 
 
@@ -119,7 +128,9 @@ zbool  zstringmap_put(zstringmapT* map, char* key, void* value){
 
     if (!key || !value)
         return ZFALSE;
-debugf("put start %s\n", key);
+
+    debugf("put start %s\n", key);
+
     mapentryT* e = zstringmap_find(map, key, ZTRUE);
     if (!e){
         errorf("Cannot add map %p key %s\n", map, key);
@@ -170,13 +181,16 @@ void zstringmap_delete(zstringmapT* map, char* key){
         return;
     }
 
-   zlist_remove_mid(&e->zlistnode); //remove from the list
+ //  zlist_remove_mid(&e->zlistnode); //remove from the list
 
 	if (map->own_elements)
 	    ram_free(e->item);
 
     ram_free(e->key);
-    e->key=ram_strdup("DELETED");
+
+
+
+    e->key=NULL;
     e->item=NULL;
 
 }
@@ -190,6 +204,7 @@ void zstringmap_delete(zstringmapT* map, char* key){
 //Result is undefined if there are additions or deletions to the map while iterating.
 //ex:   void* cursor = NULL;
 //      while( zstringmap_nextkey(map, &key, &value, &cursor)){ ... }
+#if 0
 zbool zstringmap_nextkey( zstringmapT* map, char** key, void* vitem, void** cursor){
 
 	void** item = vitem;
@@ -215,9 +230,71 @@ zbool zstringmap_nextkey( zstringmapT* map, char** key, void* vitem, void** curs
     }
 
 	debugf(" key is %s\n", e->key);
-    *key = e->key;
-    *item = e->item;
+    if (key)
+        *key = e->key;
+    if (item)
+        *item = e->item;
     *cursor = e;
 
     return ZTRUE;
+}
+#endif
+
+zbool zstringmap_nextkey1( zstringmapT* map, char** key, void** vitem, unsigned int* cursor){
+
+    int bucket = (*cursor)>>16;
+    int item = (*cursor) & 0xFFFF;
+
+    int numbuckets = zarray_count(map->buckets);
+
+  //  printf(" get bucket %d  item %d\n", bucket, item);
+    //skip empty buckets
+    while (! map->buckets[bucket] && (bucket < numbuckets)){
+       // printf("\t\t\tskip empty bucket %d/%d\n", bucket, numbuckets);
+        bucket++;
+    }
+
+    if (bucket >= numbuckets) {
+      //  printf(" empty\n");
+        if (*key)
+            *key = NULL;
+        if (*vitem)
+            *vitem = NULL;
+        return ZFALSE;
+    }
+
+    mapentryT* entry = &map->buckets[bucket][item];
+
+    item++;
+    if (item >= zarray_count(map->buckets[bucket])) {
+        //first item of next bucket
+        bucket++;
+        item=0;
+       // printf("\t\t\t next   bucket %d  item %d\n", bucket, item);
+
+    }
+
+    *cursor = (bucket<<16) | item;
+
+    if (key)
+        *key = entry->key;
+    if (vitem)
+        *vitem = entry->item;
+
+
+    return ZTRUE;
+}
+
+zbool zstringmap_nextkey( zstringmapT* map, char** key, void** vitem, unsigned int* cursor){
+    char* k = NULL;
+    zbool r ;
+    while(r = zstringmap_nextkey1(map, &k, vitem, cursor)){
+
+        if (k)
+            break;
+       // printf(" skip deleted\n");
+    }
+    if (key)
+        *key = k;
+    return r;
 }

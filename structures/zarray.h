@@ -42,6 +42,7 @@ typedef struct array_shadow{
 //set 'num' number of elements as in use
 void zarray_use(void* array, zuint32 num);
 
+void* zarray_cow(void* array, int elemsize);
 
 
 //each zarray can carry 1 pointer the calling function can use to store additional metadata

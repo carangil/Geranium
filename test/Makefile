@@ -18,3 +18,8 @@ clean:
 run: test
 	./test
 	#gdb -ex run ./test
+
+
+
+debugger: test
+	DEBUGINFOD_URLS=""  gdb -q -x cmds.gdb ./test
