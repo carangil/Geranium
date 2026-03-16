@@ -1527,6 +1527,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 			pc++; continue;
 
 
+
 			case op_take:  //takes a pointer from memory, leaving the old one as zero
 				var = (void*)  exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset;
 				exe->stack[exe->sp-1].as.ptr =*var;
@@ -1652,6 +1653,29 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				pc++;
 				continue;
 
+			case op_arrayinfo:
+
+				if (pc->imm.as.z32 == 1){
+					exe->stack[exe->sp-1].as.z32 = zarray_size( exe->stack[exe->sp-1].as.ptr.address.block);
+				} else {
+					exe->stack[exe->sp-1].as.z32 = zarray_count( exe->stack[exe->sp-1].as.ptr.address.block);
+				}
+
+				//exe->stack[ exe->sp-1].as.ptr.address.block = zarray_cow( exe->stack[exe->sp-1].as.ptr.address.block, pc->imm.as.z32  ) ;
+				pc++;
+				continue;
+/*
+			case op_arraysetcount:
+				//sp-2 is array
+				//sp-1 is the new count
+				//TODO: free pointers past count so they don't leak_viewer.  do the same for op_dim.
+				zarray_use( exe->stack[ exe->sp-2].as.ptr.address.block, exe->stack[exe->sp-1].as.z32);
+
+				exe->sp-=2;
+				pc++;
+				continue;
+*/
+
 			case op_arrayindex:
 				//sp-2 is array
 				//sp-1 is the index
@@ -1675,7 +1699,16 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 				if (arrayvar->address.block){
 					//array already exists... resize
-					arrayvar->address.block = zarray_resizef(arrayvar->address.block, arraytype->ref->size, cap, NULL);
+					if (cap >= 0){
+						printf("%d resize\n", cap);
+						arrayvar->address.block = zarray_resizef(arrayvar->address.block, arraytype->ref->size, cap, NULL);
+						printf("resized\n");
+					}
+
+					if (count >= 0) {
+						printf("%d count\n", cap);
+						zarray_use( arrayvar->address.block, count);
+					}
 
 				} else{
 
@@ -1684,7 +1717,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 					arrayvar->offset = 0;
 					printf(" ALLOCATED %d out of %d with elemsize %d  %s\n", count, cap, arraytype->ref->size, arraytype->key);
 				}
-				zarray_use(arrayvar->address.block, count);
+			//	zarray_use(arrayvar->address.block, count);
 				zarray_set_meta( arrayvar->address.block, arraytype );
 
 				exe->sp-=3;
@@ -2954,7 +2987,9 @@ tokenT* parse_related_type(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, i
 			return t;
 
 		}
-
+		if (!strcmp(t->str, ".Instruction")){
+			type = type_find(pctx, NULL, type, SUBTREE, 0, NULL);
+		}
 	} else {
 			printf(" This requires a constant\n");
 			exit(1);
@@ -3595,6 +3630,10 @@ void int_run_str(char* src, char* filename){
 	proc_parser_mk(exe,pctx, "@", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into its dereferenced type
 	proc_parser_mk(exe,pctx, "*", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into a
 	proc_parser_mk(exe,pctx, ".null", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into 0-value.  Z32.null is zero, String.null is null pointer of string type, etc
+
+	proc_parser_mk(exe,pctx, ".Instruction", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into a
+
+
 	proc_parser_mk(exe,pctx, "[", NULL, parse_array); //create array type TODO:consider moving from [Z32] syntax to Z32[]
 
 	//create control structures
@@ -3633,6 +3672,13 @@ void int_run_str(char* src, char* filename){
 
 	wordT* arraycow2 = proc_opcode_mk2(exe,pctx, op_arraycow, ".String", "( [Byte]$:a -> String$)");
 	arraycow2->val.as.z32 = 1;
+
+	proc_opcode_mk2(exe,pctx, op_arrayinfo, ".count", "([Any]:a -> Z32)");
+
+	wordT* arraysize = proc_opcode_mk2(exe,pctx, op_arrayinfo, ".size", "([Any]:a -> Z32)");
+	arraysize->val.as.z32=1;
+
+	proc_opcode_mk2(exe,pctx, op_arraysetcount, ".setcount", "([Any]:a  Z32:count)");
 
 
 
@@ -3674,8 +3720,8 @@ void int_run_str(char* src, char* filename){
 
 
 	proc_opcode_mk2(exe,pctx, op_neg32, ".-", "(Z32:a  -> Z32)");
-	proc_opcode_mk2(exe,pctx, op_bnot, "!", "(Bit:a  -> Bit)");
-	proc_opcode_mk2(exe,pctx, op_bnot, "!", "(Z32:a  -> Bit)");
+	proc_opcode_mk2(exe,pctx, op_bnot, "not", "(Bit:a  -> Bit)");
+	proc_opcode_mk2(exe,pctx, op_bnot, "not", "(Z32:a  -> Bit)");
 	proc_opcode_mk2(exe,pctx, op_ptrvalid, "?", "(String:s -> Bit  )");
 
 	proc_opcode_mk2(exe,pctx, op_printptr, "printptr", "(Any)");
@@ -3698,6 +3744,9 @@ void int_run_str(char* src, char* filename){
 	//proc_opcode_mk2(exe,pctx, op_trashstore, "=",  "([Any]$:value  like value&:dst)" );
 
 	proc_opcode_mk2(exe,pctx, op_load, "@",  "(String&:a  -> like a@ )" );
+
+
+	//proc_opcode_mk2(exe,pctx, op_load, "@",  "(Instruction&:a  -> like a@ )" );
 
 
 

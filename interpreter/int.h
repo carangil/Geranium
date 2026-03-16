@@ -96,6 +96,7 @@ typedef enum {
 	VARIABLE, //not a pointer, but refers to the variable itself
 	ARG,
 	LIKE,
+	SUBTREE,
 	DEREFERENCE// usually deref just strips off the pointer wrapper, but this is for 'like' types where we have to delay doing that.  This is dereference the like type when resolving
 }categoryE;
 
@@ -260,6 +261,7 @@ typedef enum {
 	op_arrayindex,
 	op_arraycow, //makes a copy of array if it has more than 1 reference
 	op_arrayinfo, //get size or count
+	op_arraysetcount,
 
 	//load
 	op_load,
