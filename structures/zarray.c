@@ -66,12 +66,12 @@ void* zarray_cow(void* array, int elemsize) {
 
 
 	if ( ram_numrefs(array) == 1){
-		printf("fast case\n");
+		tracef("fast case\n");
 		return array;
 	}
 
 
-	printf(" return copy\n");
+	tracef(" return copy\n");
 
 	//copy case
 	void* newarray = zarray_allocf(elemsize, zarray_size(array), NULL, __FILE__, __LINE__);

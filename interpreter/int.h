@@ -25,6 +25,7 @@ typedef struct ptrS{
 		struct typeS* type;
 		struct wordS* word;
 		struct valueT* value;
+		struct instructionS* subtree;
 	} address;
 	int offset;
 }ptrT;
@@ -111,8 +112,8 @@ typedef struct wordS{
 //	valueT data;
 	//broken out seperate instead of a union so that I fault on a null pointer instead of accidently reading garbage
 
-    struct parsectxS* target_pctx;// if word represents a proc or struct, these are the variables/fields
-//	struct tokenSf* target_tokens; //if word represents a proc, this is the code
+    struct parsectxS* target_pctx;//$ if word represents a proc or struct, these are the variables/fields /
+	struct parsectxS* restrict_pctx;// if word can only be used in a particiualr context
 
     //special handler during parse phase
     tokenT* (*parse) (struct exectxS* exe, struct parsectxS* pctx, struct wordS* word, tokenT* t, int argc);
@@ -244,6 +245,7 @@ typedef enum {
 	op_div32,
 
 	op_ptrvalid,  //returns true if pointer is non-null
+	op_ptrequal,  //returns true if pointers equal
 
 	op_equal32,		//bnot -> not equal
 	op_less32,		//bnot -> greater or equal

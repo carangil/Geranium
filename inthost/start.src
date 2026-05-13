@@ -1,22 +1,192 @@
 "base.src" include
 
 
+(Z32:a -> Z32) proc fib
+    a 2 > not if
+        1 return
+    else
+        a 2 - fib
+        a 1 - fib + return
+    end
+end
+
+1 fib print newline
+2 fib print newline
+3 fib print newline
+4 fib print newline
+5 fib print newline
+
+
+
+
+Z32.Instruction$ var aa
+
+//(String -> Z32) "$INTERNAL"  "ram_numrefs" sys ram_numrefs
+
+(Any.Instruction:inst ->Z32 )  "$INTERNAL" "instruction_opcode" sys .opcode
+(Any.Instruction:inst ->String )  "$INTERNAL" "instruction_opname" sys .opname
+(Any.Instruction:inst -> [Any.Instruction] )  "$INTERNAL" "instruction_args" sys .args
+(Any.Instruction:inst -> Type )  "$INTERNAL" "instruction_result_type" sys .return
+
+
+(Type:t -> String )  "$INTERNAL" "type_keystr" sys .key
+
+
+//TODO need a way to do a 'type assertion' or whatever
+
+
+(Any.Instruction:inst -> String )  "$INTERNAL" "instruction_val_pointer" sys .valString
+
+
+(Any.Instruction:inst -> Z32 )  "$INTERNAL" "instruction_val_z32" sys .valZ32
+
+
+//returns the type of the constant value (if the instruction has one, null otherwise)
+(Any.Instruction:inst -> Type )  "$INTERNAL" "instruction_val_typeof" sys .valTypeOf
+
+
+
+(Z32:i ) proc fff
+    i print
+end
+888 fff
+
+(Any.Instruction: c Z32:indent)   proc disassemble     //function is passed the instruction tree for a Z32
+
+    (Z32:indent) proc tab
+
+
+        0 var i= loop i indent == if break end
+            "    " print
+        step
+            i 1+i=
+        end
+    end
+
+
+   // indent indentnewline
+
+    c.args.count 0 > if
+    //  indent indentnewline
+      //"{" print
+
+        0 var i=
+        loop
+
+            i c.args.count == if
+                break
+            end
+
+           c.args i[] indent 1+ disassemble
+
+            step
+            i 1+ i=
+        end
+
+
+    end
+
+    newline
+        indent tab
+    c.opname print " " print
+
+
+    c.valTypeOf Z32 == if
+        c.valZ32 print
+
+    c.valTypeOf String == elseif
+
+        "'" print
+        c.valString print
+        "'" print
+
+    c.valTypeOf? elseif
+
+        c.valTypeOf.key print
+
+    end
+
+
+     c.return?if
+            "  (->" print
+            c.return.key print
+            ")" print
+    end
+
+
+
+
+
+end
+
+
+(Any.Instruction$: cd)   proc disassemble
+    cd 0 disassemble
+end
+
+(->String$) proc ten
+    "ten"$ return
+end
+
+
+(Z32:a -> Z32) proc f
+
+    "Hello" print newline
+    a return
+
+end
+
+
+
+newline "disassemble" print newline
+
+
+10 20 +
+4 5 - * .&  disassemble
+
+
+"bananas" 4 left  .& disassemble
+
+
+//ten.& boo
+
 
 [Byte]$ var arr
 
+
 arr& 5 10 dim
+
+
+arr 5[]& printptr
 
 [Z32]$ var a2
 a2& 3 7 dim
 
 
+8 a2 2[]=
+a2 printptr a2.count print "/"  print a2.size print newline
+
+
+
+a2& 4 -1 dim
+a2 printptr a2.count print "/"  print a2.size print newline
+
+
+a2& -1 20 dim
+a2 printptr a2.count print "/"  print a2.size print newline
+
+a2 2 [] print newline
+
+sys_ENDFILE
+
+
 [ [Z32]$]$ var md
 
 
-md& 3 10 dim
+md& 7 10 dim
 
-md 1[]& 3 3 dim
-md 2[]& 3 3 dim
+md 1[]& 3 5 dim
+md 2[]& 3 5 dim
 
 
 12 md 1[]2[]=
@@ -32,6 +202,18 @@ md 2[]1[] print newline
 md 2[]2[] print newline
 md 1[]1[] print newline
 md 2[]2[] print newline
+
+
+
+
+md .size print newline
+md .count print newline
+
+md& 3 -1 dim
+
+//md 3 .setcount
+md .count print newline
+
 
 
 //md 2[] 4 [] 24=
