@@ -348,6 +348,7 @@ wordT* word_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* type){
 	w->type = ram_addref(type);
 	
 	if (pctx){
+		w->in_pctx = pctx;
 		//add to the dictionary
 		zvecT* p =  zstringmap_get(pctx->dictionary, name);
 		if (!p){
@@ -377,6 +378,8 @@ wordT* word_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* type){
 		zvec_add(p, w);
 
 		if (type->category == VARIABLE){
+
+
 			//todo: deal with alignment
 			w->offset = pctx->size;
 			tracef(" made word %s  %s  %d\n", name, type->key, type->ref->size);
@@ -898,7 +901,7 @@ instructionT* push_subtree(parsectxT* pctx, instructionT* inst){
 //tprev(t) is the last arg to it, if there are any
 
 
-#define DEBUG_MATCH 0
+#define DEBUG_MATCH 1
 //tests of a word matches the current typestack of pctx
 
 zbool test_word(parsectxT* pctx, typeT** stacktypes, wordT* word, int flags, int argc){
@@ -976,7 +979,7 @@ typedef struct switchrunnerS{
 	runnerI runner;
 	switchopT* prog;
 	parsectxT* pctx; //todo: remove this, copy the necessary data into here
-	int local_size;
+	//int local_size;
 
 	int toexit;
 	int tostep;
@@ -1168,6 +1171,21 @@ switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* pr
 		return prog;
 	}
 
+
+	if (inst->opcode == op_sectionvar){
+
+		valueT v={0};
+
+		printf("sectionVAR %s frame %p at %d\n", inst->val.as.ptr.address.word->name, inst->val.as.ptr.address.word->in_pctx->frame, inst->val.as.ptr.address.word->offset );
+
+		v.as.ptr.offset = inst->val.as.ptr.address.word->offset;
+		v.as.ptr.address.block = inst->val.as.ptr.address.word->in_pctx->frame;
+
+		prog = switch_asm(prog, op_constant,  inst->result_type  , &v, inst);
+		return prog;
+	}
+
+
 	if (inst->val_type  == tWord){
 		//need to compile the func being pointed to
 
@@ -1216,6 +1234,8 @@ void print_switch_listing(switchopT* prog){
 			else if (prog[i].immtype == tWord && prog[i].imm.as.ptr.address.word )
 				printf("(%s %s)", prog[i].imm.as.ptr.address.word->name, prog[i].imm.as.ptr.address.word->type->key);
 
+			else  if (prog[i].immtype == tString)
+				printf(" '%s'", prog[i].imm.as.ptr.address.bytes);
 			else
 				printf("%d", prog[i].imm.as.z32);
 
@@ -1448,19 +1468,29 @@ void do_call(exectxT* exe, wordT* word){
 
 }
 
+void* alloc_frame(parsectxT* pctx){
+
+	void* frame = ram_alloc_shadow(pctx->size, clean_struct, sizeof(parsectxT*));
+	parsectxT** topctx = ram_shadow(frame);
+	if (topctx)
+		*topctx = pctx;
+
+	if (pctx->size > 0)
+		tracef(" Allocating %d for frame %d %p %p\n", pctx->size, pctx->id, *topctx, pctx);
+
+
+	return frame;
+}
+
 void run_switch(exectxT* exe, runnerI* r, int start){
 
 	switchrunnerT* sw = (switchrunnerT*) r;
 	switchopT* pc = sw->prog + start;
 	void* old_locals = exe->locals;
 
-	tracef(" Allocating %d for local\n", sw->local_size);
-	exe->locals = ram_alloc_shadow(sw->local_size, clean_struct, sizeof(parsectxT*));
-	parsectxT** pctx = ram_shadow(exe->locals);
-	if (pctx)
-		*pctx = sw->pctx;
+	exe->locals = alloc_frame(sw->pctx);
 
-	//if global frame doesn't exist, this is th
+	//if global frame doesn't exist, this is it
 	if (!exe->globals){
 		debugf("take locals as global\n");
 		exe->globals = ram_addref(exe->locals);
@@ -1651,6 +1681,8 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				pc++;
 				continue;
 
+
+
 			case op_globalvar:
 				exe->stack[exe->sp].as.ptr.address.block = exe->globals;
 				exe->stack[exe->sp].as.ptr.offset = pc->imm.as.z32;
@@ -1659,6 +1691,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				exe->sp++;
 				pc++;
 				continue;
+
 
 			case op_subvar:
 				exe->stack[exe->sp-1].as.ptr.offset += pc->imm.as.z32;
@@ -1834,7 +1867,7 @@ runnerI* compile_for_switch(exectxT* exe, parsectxT* pctx){
 	print_switch_listing(prog);
 	sw->prog = prog;
 
-	sw->local_size = pctx->size;
+	//sw->local_size = pctx->size;
 	sw->pctx = pctx;
 
 	return &sw->runner;
@@ -1852,6 +1885,15 @@ wordT* match_word(parsectxT* pctx, parsectxT* searchpctx,  char* name, int infla
 	int maxarg = zvec_count(pctx->codestack); //most args possible is whole stack
 	int flags=0;
 	wordT* word = NULL;
+
+
+	if (pctx->next_match){
+		word = pctx->next_match;
+		pctx->next_match = NULL;
+		return word;
+	}
+
+
 	typeT** argtypes = zarray_alloc(typeT*, maxarg);  //place to keep arg types
 
 
@@ -2539,7 +2581,11 @@ tokenT* parse_var(exectxT* exe, parsectxT* pctx, wordT* wi, tokenT* t, int argc)
 		w->val.as.ptr.address.word =w;
 		w->val_type = tWord;
 
-		if( pctx->parent)
+		if (pctx->is_section){
+			w->opcode = op_sectionvar;
+		} else if (pctx->is_frame){
+			w->opcode = op_subvar;
+		} else if( pctx->parent)
 			w->opcode = op_localvar;
 		else
 			w->opcode = op_globalvar;
@@ -2968,22 +3014,31 @@ tokenT* parse_proc(exectxT* exe, parsectxT* pctx, wordT* wi, tokenT* t, int argc
 
 
 tokenT* parse_frame(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+	zbool issection = ZFALSE;
+
+	if (!strcmp(t->str, "section")){
+		issection = ZTRUE;
+	}
 
 	t=tnext(t); //skip 'type' string
 
 	//should be the name now
 	char* name = t->str;
+
 	debugf(" parsing frame for %s\n", name);
 
 	t=tnext(t);
 
-	//create incomplete data tyoe
+	//create incomplete data type
+
 	typeT* type = type_mk(exe, pctx, name, NULL, PENDING, 0, NULL);
 
 
 	//create parse context
 	parsectxT* innerpctx = parsectx_mk(pctx, zstrprintf(NULL, "frame %s ", type->name));
-
+	innerpctx->frametype = type;
+	innerpctx->is_frame = ZTRUE;
+	innerpctx->is_section = issection;
 
 	type->word->target_pctx = innerpctx;
 
@@ -2994,9 +3049,25 @@ tokenT* parse_frame(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc
 
 	t= parse(exe, innerpctx, t, stops);
 
+	printf("Parsed frame:\n");
+	codestack_print(innerpctx->codestack,0,ZTRUE);
+	printf("--\n");
+
+
 	type->category = FRAME; //it's done
 	type->size = innerpctx->size;
-	
+
+	if (issection){
+		if (type->size != 0 ){
+
+			type->word->target_pctx->frame = alloc_frame(innerpctx);
+			printf("sectionVAR allocating shared data for type  %s %d bytes %p \n", type->word->name, innerpctx->size, type->word->target_pctx->frame);
+
+		}
+
+	}
+
+
 	debugf("done at %s\n", t->str);
 	return t;
 	
@@ -3258,28 +3329,115 @@ tokenT* parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens){
 		//is it a frame member?
 
 		if (zvec_count(pctx->codestack) >= 1 && t->str[0] == '.' ){
-			printf("-------------\n");
+			printf("-------------.%s\n", t->str);
 			instructionT* inst = zvec_get_at(pctx->codestack, zvec_count(pctx->codestack)-1);
 			typeT* ty = inst->result_type;
+
+			//if dotting off a typename:
+			if (ty == tType){
+
+				if (inst->val_type == tType){
+					ty = inst->val.as.ptr.address.type;
+				} else {
+
+					errorf(" type constant not found\n");
+				}
+
+				printf(" dot off typename %s\n", ty->key);
+				//pop it off stack
+				pop_arg(pctx);
+
+				//search for things in the type itself
+
+				w = match_word(pctx, ty->word->target_pctx, t->str+1 /*skip dot*/, 0,NULL , NULL);
+
+				if (w && w->type){
+
+
+					if (w->type == tType || w->type->category == PROC){
+						printf(" found %s. %s\n", ty->key,  w?w->name : "nothing");
+						if (w && w->type && w->type->key) {
+							printf(" ^ is %s\n", w->type->key);
+						}
+
+						pctx->next_match = w;
+						ram_free(inst);
+						continue;
+
+					} else if (ty->word->target_pctx->is_section){ //type has a reference to an instance of itself
+
+						valueT val = {0};
+						val.as.ptr.address.word = w;
+
+						printf("sectionVAR adding op_sectionvar for %s  has pctx %p\n", w->name, w->in_pctx);
+						if (w->in_pctx){
+							printf("%s\n", w->in_pctx->frametype->key);
+
+						}
+
+						push_assembly(pctx, op_sectionvar, 0, &w->val, w->val_type, NULL, OF(pctx, REFERENCE, w->type->ref));
+
+						ram_free(inst);
+						t = autoload(exe, pctx, w,t);
+						t=tnext(t);
+						continue;
+
+						//push reference to the type's shared data
+						//push_assembly(pctx, op_constant, 0, &val,  OF(pctx, REFERENCE, ty), NULL,  OF(pctx, REFERENCE, ty)  );
+
+
+
+
+						//ty = OF(pctx, REFERENCE, ty);
+						//printf(" fallthrough to %s\n", ty->key);
+
+					}else {
+						errorf("Cannot use %s here.\n", w->type->key);
+						exit(1);
+
+					}
+				}  else {
+
+					errorf(" Type/section %s has no member %s\n",ty->name, t->str+1 );
+					exit(1);
+					continue;
+				}
+				printf(" fell\n");
+
+			}
+
+
+
 			if (ty) {
 
 				if (ty->category == VARIABLE || ty->category == REFERENCE)
 					ty = ty->ref;
-
 				type_print(ty);
 			}
 
+			//if dotting off a reference
+
 			if (ty && ty->word && ty->word->target_pctx){
-				printf("  aaaaa %p %p\n", ty->word, ty->word->target_pctx);
 
 				w = match_word(pctx, ty->word->target_pctx, t->str+1 /*skip dot*/, 0,NULL , NULL);
 
 				printf(" found %s\n", w?w->name : "nothing");
+				if (w && w->type && w->type->key) {
+					printf(" ^ is %s\n", w->type->key);
+				}
+
+				if (w->type&& w->type->category != VARIABLE){
+
+					errorf(" struct elements must be variables\n");
+					exit(1);
+				}
+
 				valueT v = {0};
 				v.as.ptr.address.word = w;
 
+				//printf(" pushing subvar assembly %d but word actually is a %d\n", op_subvar, w->opcode);
 				push_assembly(pctx, op_subvar, 0, &v, tWord, assembly_args_mk(1, pop_arg(pctx)), OF(pctx, REFERENCE, w->type->ref));
-
+			//	getc(stdin);
 				t = autoload(exe, pctx, w,t);
 				t=tnext(t);
 				continue;
@@ -3306,7 +3464,10 @@ tokenT* parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens){
 //types
 
 zbool typecleanup(void* v){
+
 		typeT* type = v;
+
+
 		//debugf(" Freeing type %s\n", type->key);
 		ram_free(type->ref);
 		ram_free(type->key);
@@ -3315,6 +3476,8 @@ zbool typecleanup(void* v){
 		//	printf("typecleanup\n");
 		ram_free(type->argtypes);
 		ram_free(type->opt_argnames);
+
+
 		return ZTRUE;
 }
 
@@ -3506,7 +3669,9 @@ typeT* type_find(parsectxT* pctx, char* name, typeT* ref, categoryE category, in
 //parse context
 zbool cleanparsectx(void* v){
 	parsectxT* pctx = v;
-	tracef("cleaning pctx %d\n", pctx->id);
+	tracef("cleaning pctx %d  frame %p\n", pctx->id, pctx->frame);
+	ram_free(pctx->frame);
+
 	ram_free(pctx->dictionary);
 	ram_free(pctx->types);
 	ram_free(pctx->codestack);
@@ -3515,8 +3680,6 @@ zbool cleanparsectx(void* v){
 		ram_free(pctx->runners[i]);
 
 	ram_free(pctx->comment);
-
-	//ram_free(pctx->cleanlist);
 
 	return ZTRUE;
 }
@@ -3789,6 +3952,7 @@ void int_run_str(char* src, char* filename){
 	ADD_INST(switch_jumpfalse);
 	ADD_INST(arrayindex);
 	ADD_INST(sys);
+	ADD_INST(sectionvar);
 
 	add_c_object("test_me" , test_me);
 	add_c_object("instruction_opcode", instruction_opcode);
@@ -3855,6 +4019,7 @@ void int_run_str(char* src, char* filename){
 	proc_parser_mk(exe,pctx, "constant",  type_proc_mk(NULL, 1, tAny), parse_constant); //makes a const
 
 	proc_parser_mk(exe,pctx, "type", type_proc_mk(NULL, 0), parse_frame);
+	proc_parser_mk(exe,pctx, "section", type_proc_mk(NULL, 0), parse_frame);
 	proc_parser_mk(exe,pctx, "proc", type_proc_mk(NULL, 1, tType), parse_proc);
 	proc_parser_mk(exe,pctx, "sys", type_proc_mk(NULL, 3, tType , tString, tString), parse_proc);//import ffi
 
@@ -3903,6 +4068,14 @@ void int_run_str(char* src, char* filename){
 
 	proc_opcode_mk2(exe,pctx, op_load, "@",  "(Byte& -> Z32)" );
 	proc_opcode_mk2(exe,pctx, op_store, "=",  "(Z32:value  Byte&:dst)" );
+
+
+
+	proc_opcode_mk2(exe,pctx, op_load, "@",  "(Real& -> Real)" );
+	proc_opcode_mk2(exe,pctx, op_store, "=",  "(Real:value  Real&:dst)" );
+
+
+
 
 	proc_opcode_mk2(exe,pctx, op_break, "break", "()");
 	proc_opcode_mk2(exe,pctx, op_continue, "continue", "()");
@@ -4000,7 +4173,7 @@ void int_run_str(char* src, char* filename){
 	}
 
 	//dump_types(pctx);
-	dump_dictionary(pctx);
+	//dump_dictionary(pctx);
 
 
 

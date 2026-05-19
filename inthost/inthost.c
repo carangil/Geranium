@@ -244,7 +244,7 @@ int scanmain(int argc, char** args){
 		exit(1);
 	}
 
-	char* buf = ram_loadstr("typemap.txt");
+	char* buf = ram_loadstr(typename);
 
 
 

@@ -114,6 +114,7 @@ typedef struct wordS{
 
     struct parsectxS* target_pctx;//$ if word represents a proc or struct, these are the variables/fields /
 	struct parsectxS* restrict_pctx;// if word can only be used in a particiualr context
+	struct parsectxS* in_pctx; //what pctx this word is in
 
     //special handler during parse phase
     tokenT* (*parse) (struct exectxS* exe, struct parsectxS* pctx, struct wordS* word, tokenT* t, int argc);
@@ -141,8 +142,6 @@ typedef struct typeS{
 	struct typeS** argtypes; //if has args (PROCs)
 
 	struct wordS* word; //word that represents this type
-
-//	struct parsectxS* pctx;//if the type is a frame, it has a context
 
 	char** opt_argnames;  //holds name of args for a proc, optional
 	int		arena_index; //which arena (0 is global heap)
@@ -190,12 +189,18 @@ typedef struct parsectxS{
     zstringmapT* dictionary; //wordT*
     zstringmapT* types;      //typeT*
 	zvecT* codestack;
+	wordT* next_match;
 	char* comment;  //debugging name for this
 //	zvecT* cleanlist;  //list of pointers that need to be freed
+	void* frame;  //pointer to the frame that this parsectx is bound to. (if it s a single thing like a section.  )
+	typeT* frametype;
 	struct runnerS *runners[MAXRUNNERS];
 	errorT err;
 	int id;//for debugging
 	int size;
+
+	zbool is_frame; //if a struct or section
+	zbool is_section;
 
 }parsectxT;
 
@@ -260,6 +265,7 @@ typedef enum {
 	op_globalvar,
 	op_localvar,
 	op_subvar,	//get fields from a
+	op_sectionvar,
 	op_arrayindex,
 	op_arraycow, //makes a copy of array if it has more than 1 reference
 	op_arrayinfo, //get size or count

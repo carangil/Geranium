@@ -1,6 +1,103 @@
 "base.src" include
 
 
+section mod
+
+
+
+    Z32 var a
+    Z32 var b
+    String$ var s
+
+    () proc set
+
+        "Whatever" 4 left s=
+        Z32 var v
+        Z32 var g
+        60 g=
+       20 a =
+       40 b =
+       g print newline "^^^" print newline
+
+    end
+
+
+
+    section aaaa
+        Z32 var h
+        String$ var astr
+        Z32 var g
+    end
+
+    Z32 var c
+
+    () proc get
+
+        b print "_" print a print
+        s print   newline
+        aaaa.g print
+        aaaa.astr print
+    end
+
+//    Z32 var c
+
+    3 constant three
+
+    5 constant five
+
+end
+
+// //mod.a print
+
+//10 mod.a=
+//20 mod.b =
+
+mod.set
+
+"Nothing"$ mod.aaaa.astr=
+
+"Stuff"$ var str=
+
+99 mod.aaaa.g =
+
+mod.get
+
+999 mod.aaaa.g =
+
+33 mod.b =
+
+
+mod.get
+
+mod.a print newline
+mod.b print newline
+
+//"((" print
+
+//"))" print newline
+
+mod.three
+sys_ENDFILE
+
+mod.three mod.five + print newline
+
+mod.inner var IN
+
+1 IN.g=
+3 IN.h=
+
+Real var rr
+123.5 rr =
+
+
+IN.g print newline
+IN.h print newline
+
+
+sys_ENDFILE
+
+
+
 (Z32:a -> Z32) proc fib
     a 2 > not if
         1 return
@@ -120,6 +217,7 @@ end
 end
 
 
+
 (Any.Instruction$: cd)   proc disassemble
     cd 0 disassemble
 end
@@ -143,6 +241,7 @@ newline "disassemble" print newline
 
 10 20 +
 4 5 - * .&  disassemble
+
 
 
 "bananas" 4 left  .& disassemble
@@ -177,7 +276,60 @@ a2 printptr a2.count print "/"  print a2.size print newline
 
 a2 2 [] print newline
 
-sys_ENDFILE
+
+"zzz" print newline
+
+
+type stuff
+
+    Z32 var a
+
+
+    type inner
+        Z32 var b
+        Z32 var c
+    end
+
+    (Z32:v Z32:u    ->Z32 ) proc whatever
+        "whatever" print newline
+        v u + return
+    end
+
+   inner var ii
+
+    10 20 + print
+
+end
+
+
+
+//100 stuff.whatever      //should make it so you can get the name of a function from a type, so a type can be used like a namespace
+stuff var ss
+
+
+
+13 ss.a=
+14 ss.ii.b =
+15 ss.ii.c =
+
+ss.a print newline
+ss.ii.b print newline
+ss.ii.c print newline
+
+//inner var iv
+
+//stuff.hhh
+//88 99 ss.whatever print
+22 33 stuff.whatever print
+
+stuff.inner var si
+
+30 si.b=
+73 si.c =
+
+si.b si.c print newline
+
+//sys_ENDFILE
 
 
 [ [Z32]$]$ var md
@@ -265,6 +417,8 @@ b puts
 
 
 
+
+
 sys_ENDFILE
 
 
@@ -326,6 +480,7 @@ buf 3[]& printptr
 buf
 
 buf.* puts
+
 
 
 sys_ENDFILE
@@ -397,8 +552,9 @@ u print newline
 
 
 
-
 sys_ENDFILE
+
+
 (Z32&:np)  proc tref2
 
     "tref2:"print np print newline
