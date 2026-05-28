@@ -3,6 +3,7 @@
 #include "zarray.h"
 #include <stdio.h>
 
+#undef debugf
 #define debugf(...)
 
 int zarray_global_shadow_offset = 0;	

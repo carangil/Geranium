@@ -206,7 +206,7 @@ int scanmain(int argc, char** args){
 
 
 	if (!inname || !outname || !libname){
-		printf("%s iINFILE oOUTFILE Lsofile   with optional tTYPEMAP\n");
+		printf(" iINFILE oOUTFILE Lsofile   with optional tTYPEMAP\n");
 		exit(1);
 	}
 
@@ -260,6 +260,9 @@ int scanmain(int argc, char** args){
 
 	zvecT* cols = zvec_mk(NULL, 8);
 
+	if (!cols)
+		abort();
+
 	ctypedT* func = NULL;
 
 	for (;*in;in++){
@@ -282,7 +285,7 @@ int scanmain(int argc, char** args){
 						char* sig = NULL;
 						func = ram_alloc(sizeof(ctypedT), freectyped);
 
-						printf(" function '%s' ", zvec_get_at(cols,0));
+						printf(" function '%s' ", (char*)zvec_get_at(cols,0));
 
 						zvec_add( functions, func);
 
@@ -324,7 +327,7 @@ int scanmain(int argc, char** args){
 
 						arg->name = zstrdup(zvec_get_at(cols,0));
 
-						printf(" arg:'%s' ", zvec_get_at(cols,0));
+						printf(" arg:'%s' ", zvec_get_x_at(cols,char*,0));
 
 						for (int i=4; i<zvec_count(cols);i++){
 							char*s = zvec_get_at(cols,i);
@@ -386,7 +389,7 @@ int scanmain(int argc, char** args){
 
 	char* val = NULL;
 	char*	name=NULL;
-	void*	cursor=NULL;
+	zstringmap_cursorT	cursor = 0;
 
 
 	while (zstringmap_nextkey(unmapped_types, &name, &val, &cursor)) {
@@ -431,7 +434,7 @@ int scanmain(int argc, char** args){
 	}
 
 	if (section)
-		fprintf(out, "end\n\n", section);
+		fprintf(out, "end\n\n");
 
 
 

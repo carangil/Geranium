@@ -1,12 +1,13 @@
 // projectZ - This file is part of a project named 'projectZ'
 // ProjectZ is (C) 2018 Mark W. Sherman, all rights reserved.
 // Commercial use prohibited.
+#pragma once
+
 #include "ztypes.h"
 #include <malloc.h>
 #include <string.h>
-#define RAM_DEBUG
 
-#pragma once
+
 
 int ram_shadow_offset(size_t s);
 

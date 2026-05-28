@@ -13,7 +13,6 @@ typedef struct zstringmapS{
 
 
 
-
 zstringmapT* zstringmap_mk(int nb);
 
 zbool  zstringmap_put(zstringmapT* map, char* key, void* value);
@@ -24,7 +23,9 @@ zstringmapT*  zstringmap_disown(zstringmapT* map);
 //Usage: zstringmap_nextkey(map, &key, &item, &cursor);  where item is pointer to a pointer variable, cursor is unsigned int*
 //zbool zstringmap_nextkey2( zstringmapT* map, char** key, void* voidvoidstar, unsigned int* cursor);
 
-zbool zstringmap_nextkey( zstringmapT* map, char** key, void** vitem, unsigned int* cursor);
+
+typedef unsigned int  zstringmap_cursorT;
+zbool zstringmap_nextkey( zstringmapT* map, char** key_out, void* vitem_out, unsigned int* cursor);
 
 
 

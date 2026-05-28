@@ -430,9 +430,9 @@ wordT* word_alias_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* newtype, 
 void dump_dictionary(parsectxT* pctx){
 	char*	name=NULL;
 	zvecT* 	words = NULL;
-	void*	cursor=NULL;
+	zstringmap_cursorT	cursor=0;
 	int i;
-
+void* p =0;
 	while (zstringmap_nextkey(pctx->dictionary, &name, &words, &cursor)) {
 		printf("%s:\n", name);
 		for (i=0;i<zvec_count(words); i++){
@@ -475,7 +475,7 @@ void type_print(typeT* t){
 void dump_types(parsectxT* pctx){
 	char*	name=NULL;
 	typeT* 	type = NULL;
-	void*	cursor=NULL;
+	zstringmap_cursorT	cursor=0;
 	printf(" types:\n");
 	while (zstringmap_nextkey(pctx->types, &name, &type, &cursor)) {
 
@@ -1268,7 +1268,7 @@ void clean_by_list(void* v, parsectxT* pctx){
 
 	char*	name=NULL;
 	zvecT* 	words = NULL;
-	void*	cursor=NULL;
+	zstringmap_cursorT	cursor=0;
 	int i;
 
 	while (zstringmap_nextkey(pctx->dictionary, &name, &words, &cursor)) {
@@ -1279,7 +1279,7 @@ void clean_by_list(void* v, parsectxT* pctx){
 				//free possessive pointers held by this struct
 				if (word->type->ref->category == STEWARD){
 					tracef("TO CLEAN$ \t%s\t%s\n", word->name, word->type?word->type->key:"notype");
-					ptrT* p = bytes + word->offset;
+					ptrT* p = (void*) (bytes + word->offset);
 					ram_free(p->address.bytes);
 				}
 
@@ -2075,7 +2075,7 @@ tokenT* parse_c_constant(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int
 	typeT* type = typeinst->val.as.ptr.address.type;
 
 	if (type != tZ32){
-			errorf(" type %s not supported for sys constant\n", type?type->key:type);
+			errorf(" type %s not supported for sys constant\n", type?type->key:"notype");
 			exit(1);
 	}
 
@@ -2701,8 +2701,8 @@ typeT* type_proc_mk(typeT* ret, int n, ...){
 
 }
 
-void interpreter_callback( ffi_cif* cif, void* ret, void** args, wordT* word){
-
+void interpreter_callback( ffi_cif* cif, void* ret, void** args, void* vword){
+	wordT* word = vword;
 
 	int argc = zarray_count(word->type->ref->argtypes);
 
@@ -3323,7 +3323,7 @@ tokenT* parse_flow(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc)
 			push_assembly(pctx, op_block, 0, NULL, NULL, step, NULL);
 		}
 
-		instructionT* parts = NULL;
+		instructionT** parts = NULL;
 
 		if (step)
 			parts = pop_args(pctx, 2);

@@ -285,16 +285,19 @@ zbool zstringmap_nextkey1( zstringmapT* map, char** key, void** vitem, unsigned 
     return ZTRUE;
 }
 
-zbool zstringmap_nextkey( zstringmapT* map, char** key, void** vitem, unsigned int* cursor){
+zbool zstringmap_nextkey( zstringmapT* map, char** key_out, void* vitem_out, unsigned int* cursor){
+
+    void** vitem = vitem_out;
+
     char* k = NULL;
     zbool r ;
-    while(r = zstringmap_nextkey1(map, &k, vitem, cursor)){
+    while( (r = zstringmap_nextkey1(map, &k, vitem, cursor))){
 
         if (k)
             break;
        // printf(" skip deleted\n");
     }
-    if (key)
-        *key = k;
+    if (key_out)
+        *key_out = k;
     return r;
 }
