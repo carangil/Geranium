@@ -2,22 +2,37 @@
     10 printchar
 end
 
+
 //debug
+(String -> Z32) "_INTERNAL"  "ram_numrefs" sys ram_numrefs
 
 
-//([Any] -> Z32) "$INTERNAL"  "ram_numrefs" sys ram_numrefs
-(String -> Z32) "$INTERNAL"  "ram_numrefs" sys ram_numrefs
-
-(String:a String:b -> String) "$LIBC" "strstr" sys strstr
+type void end
 
 
-(String:a String:b -> Z32) "$LIBC" "strcmp" sys strcmp
+section libc
+
+    (String:a String:b -> String) "_LIBC" "strstr" sys strstr
+    (String:a String:b -> Z32) "_LIBC" "strcmp" sys strcmp
+
+    type FILE end
+
+
+    (String:filename String:mode -> FILE * ) "_LIBC" "fopen" sys fopen
+    ([Byte]:str Z32:count FILE* :file -> Any* ) "_LIBC" "fgets" sys fgets
+
+
+    (String:str Size32:size Size32:count  FILE*:file ->Size32 ) "_LIBC" "fwrite" sys fwrite
+    (FILE*:file ->Size32 ) "_LIBC" "fclose" sys fclose
+end
+
+
 
 (String:a String:b -> Bit) proc ==
 
     a? if
         b? if
-            a b strcmp 0 == return
+            a b libc.strcmp 0 == return
         end
     end
 
@@ -30,10 +45,10 @@ end
 
 //string
 
-(String:s Size32:count -> String$) "$INTERNAL"  "zstrndup" sys left
+(String:s Size32:count -> String$) "_INTERNAL"  "zstrndup" sys left
 
 
-(String$:dest String:src Size32:count Size32:count -> String$) "$INTERNAL" "zstrcatsub" sys midcat
+(String$:dest String:src Size32:count Size32:count -> String$) "_INTERNAL" "zstrcatsub" sys midcat
 
 (String$:dest String:src -> String$) proc +
     dest$$ src 0 -1 midcat
@@ -46,16 +61,13 @@ end
 end
 
 
-(Z32:mode ) "libGL.so.1" "glCullFace" sys glCullFace
+//(Z32:mode ) "libGL.so.1" "glCullFace" sys glCullFace
+
+
 
 
 //file
 
-type FILE end
-
-type void end
-(String:filename String:mode -> FILE * ) "$LIBC" "fopen" sys C_fopen
-(String:str Size32:size Size32:count  FILE*:file ->Size32 ) "$LIBC" "fwrite" sys C_fwrite
 
 
 //glfw

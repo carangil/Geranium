@@ -1,0 +1,13 @@
+#!/bin/bash
+
+
+
+./tag-header stdio.h
+./geninc stdio.tags  ../inc/stdio.inc libctypes.txt stdio _LIBC +stdio.pre
+
+
+	
+
+
+
+

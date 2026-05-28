@@ -1,7 +1,7 @@
 #ifndef INT_H
 #define INT_H
 
-#include "int.h"
+
 #include "zmem.h"
 #include "zlist.h"
 #include "zstring.h"

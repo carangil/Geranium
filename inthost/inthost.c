@@ -2,11 +2,8 @@
 #include <strings.h>
 
 #include <ctype.h>
-
-#include "ztypes.h"
-#include "zmem.h"
 #include "int.h"
-#include "zstring.h"
+
 
 char * read_to_char(char* in, char stop) {
 
@@ -38,58 +35,41 @@ int back_match_parens(char* cap, int pos){
 }
 
 
-zstringmapT* ignores = NULL;
+//zstringmapT* ignores = NULL;
 zstringmapT* types = NULL;
 zstringmapT* unmapped_types = NULL;
 zvecT* protos = NULL;
 zvecT* defs = NULL;
 
-char* process_arg(char* arg, char** type){
 
-	/*if (strstr(arg, "(")){
-		printf("can't deal with function pointers\n");
-		return;
-	}*/
+char* maptype(char* ctype_in){
 
-	if (arg[strlen(arg)-1] == ' ')
-		arg[strlen(arg)-1] = 0;
 
-	/*
-	if (strlen(arg)==0){
-			*type = "notype";
-			return "noarg";
-	}*/
+	zvecT* argparts = zstrsplit(NULL, ctype_in, ' ');
 
-	zvecT* argparts = zstrsplit(NULL, arg, ' '); //split on space
-	//arg name is last parts
-
-	if (zvec_count(argparts)<2){
-		*type = arg;
-		return "noname";
-	}
-
-	char* argname = zvec_remove_last(argparts);
 
 	for (int i=0;i<zvec_count(argparts);i++){
-		if (zstringmap_get(ignores, zvec_get_at(argparts, i)))
-			zvec_get_x_at(argparts, char*, i)[0] = 0; //truncate it
+		char* part = zvec_get_at(argparts, i);
+		char* replace = zstringmap_get(types, part);
+		if (replace && !strcmp(replace, "")){
+			ram_free(part);
+			zvec_set_at(argparts, i, zstrdup(replace));
+
+		}
+
 	}
 
-	char* argtype = zstrbuild(argparts, 0);
+	char* ctype = zstrbuild(argparts,0);
 
 
-	*type = argtype;
-	return argname;
-}
-
-
-char* maptype(char* ctype){
+	if  ( !strcmp(ctype, "void"))
+		return NULL;
 
 	char* mapped = zstringmap_get(types, ctype);
 
+	printf(" replace '%s'->'%s'->'%s'", ctype_in, ctype, mapped?mapped:"none");
+
 	//printf(" check %s   %s\n", ctype,  mapped?mapped:"nomap");
-
-
 
 	if (!mapped && ctype[ strlen(ctype)-1] == '*'){
 
@@ -117,67 +97,6 @@ char* maptype(char* ctype){
 
 char* libname = NULL;
 
-char* process(char* cap){
-
-	char* line = NULL;
-
-//	line = zstrprintf(line,  "\n// %s\n", cap);
-
-
-
-	if (strstr(cap, "typedef")){
-		return line;
-	}
-
-
-
-	int pos = strlen(cap) -1;
-	while (pos >= 0 && cap[pos] != ')')
-		pos--;
-
-	//printf("parens : %s\n", cap+pos);
-
-	int startargs = back_match_parens( cap, pos);
-	cap[pos] = 0; //kill last paren
-	cap[startargs] = 0;
-	printf("// %s\n", cap);
-
-	char* ftype = NULL;
-	char* name = process_arg(cap , &ftype); //get function name and type
-	char* fmapped = maptype(ftype);
-
-	printf("func\t'%s'\t'%s'  %s\n",ftype, name, fmapped);
-
-	zvecT* args = zstrsplit(NULL,cap+startargs+1, ',');//split on comma
-
-	line = zstrprintf(line, "(");
-	for (int i=0;i<zvec_count(args);i++){
-
-
-		char* type = NULL;
-		printf(" arg %d'%s' ", i, zvec_get_at(args,i));
-
-		char* argname = process_arg( zvec_get_at(args,i) , &type );
-		char* mapped = maptype(type);
-
-		if (!strcmp(mapped, "void"))
-			continue;
-
-		printf("arg\ttype'%s'\t'argname%s'\tmapped:%s\n",type, argname, mapped?mapped:"nomapping" );
-		line = zstrprintf(line,  "%s:%s ", mapped, argname);
-	}
-
-	if (0!=strcmp(fmapped, "void")) {
-
-		line = zstrprintf(line, " -> %s", fmapped);
-	}
-
-
-	line = zstrprintf(line,  ") \"%s\" \"%s\" sys %s\n",  libname, name, name);
-
-
-	return line;
-}
 
 void process_define(char* s){
 
@@ -195,8 +114,8 @@ void process_define(char* s){
 					if (l)
 						*l=0;
 
-					if (zstringmap_get(ignores, name))
-						return;
+				//	//if (zstringmap_get(ignores, name))
+				//		return;
 					char* d = zstrprintf(NULL, "%s constant %s\n", val, name );
 
 					zvec_add(defs, d);
@@ -207,18 +126,55 @@ void process_define(char* s){
 
 }
 
+typedef struct ctypedT{
+	char* type;
+	char* name;
+	char* comment;
+	zvecT* subs;
+}ctypedT;
+
+zbool freectyped(void* v){
+	ctypedT* c = v;
+	ram_free(c->type);
+	ram_free(c->name);
+	ram_free(c->subs);
+	ram_free(c->comment);
+}
+//	zstringmap_disown(ignores);
+
+
+int strcommon(char* s, char* t){
+	int common = 0;
+
+	printf(" %s vs %s \n", s, t);
+	while (*s && *t){
+
+		if (*s == *t)
+			common++;
+		else
+			break;
+
+		s++;
+		t++;
+	}
+
+	return common;
+}
 
 int scanmain(int argc, char** args){
 
 	char* inname= NULL;
 	char* outname=NULL;
+	char* incname= NULL;
 	char* typename="typemap.txt";
 
+	char* section = NULL;
+	char* prefix = NULL;
 	char* t = "t";
-	ignores = zstringmap_mk(10);
-	zstringmap_disown(ignores);
-	protos = zvec_mk(NULL, 10);
-	defs = zvec_mk(NULL, 10);
+
+
+//	protos = zvec_mk(NULL, 10);
+	//defs = zvec_mk(NULL, 10);
 
 	for (int i=1;i<argc;i++){
 
@@ -236,6 +192,16 @@ int scanmain(int argc, char** args){
 		if (args[i][0]=='i')
 			inname = args[i]+1;
 
+		if (args[i][0]=='p')
+			prefix = args[i]+1;
+
+		if (args[i][0]=='s')
+			section = args[i]+1;
+
+		if (args[i][0]=='+')
+			incname = args[i]+1;
+
+
 	}
 
 
@@ -245,7 +211,6 @@ int scanmain(int argc, char** args){
 	}
 
 	char* buf = ram_loadstr(typename);
-
 
 
 
@@ -276,139 +241,199 @@ int scanmain(int argc, char** args){
 
 		printf(" '%s' '%s'\n", cname, zname);
 
-		if (!strcmp(zname, "ignore")){
-			zstringmap_put(ignores, cname, t);
-		} else {
+		//if (!strcmp(zname, "ignore")){
+			//zstringmap_put(ignores, cname, t);
+		//} else {
 			zstringmap_put(types, cname, zname);
-		}
+		//}
 
 	}
 
 
 	printf("//%s\n", args[1]);
 
+	zvecT* functions = zvec_mk(NULL, 8);
+
 	char* in = ram_loadstr( inname);
-	//out = fopen(args[2], "wb");
 
-	char* capture = zstr_mk(100);
+	char* capture = zstr_mk(1000);
 
-	char* s = NULL;
-	int brace = 0;
-	int didspace = 0;
+	zvecT* cols = zvec_mk(NULL, 8);
+
+	ctypedT* func = NULL;
 
 	for (;*in;in++){
 
-		//ignore space
-		if (isspace (*in)){
+		if (*in == '\t' || *in =='\n'){
 
-			didspace ++;
-			*in = ' '; //make sure whitespace is a real space
-			if (didspace > 1)
-				continue;
-
-
-		} else {
-			didspace =0;
-		}
-
-		if (*in == '#'){
-			char* x = in;
-			in = read_to_char(in, '\n');
-			s = zstrndup(x, in-x);
-			printf("preproc[%s]\n", s );
-		//todo: handle defined
-			process_define(s);
-			ram_free(s);
+			//printf("Column with %s\n", capture);
+			zvec_add(cols, zstrdup(capture));
 			zstr_reset(capture);
-			continue;
-		}
-
-		//not a space, treat as start of something
 
 
-		if (!strncmp(in, "//", 2 )){
-				in = read_to_char(in,'\n');
-				continue;
-		}
+			if (*in == '\n'){
+
+				//printf("LINE with %s\n",  zvec_get_at(cols, 0) );
+
+				if (zvec_count(cols) >3){
+					if (!strcmp(zvec_get_at(cols, 3), "p")){
+
+						char* rtype = NULL;
+						char* sig = NULL;
+						func = ram_alloc(sizeof(ctypedT), freectyped);
+
+						printf(" function '%s' ", zvec_get_at(cols,0));
+
+						zvec_add( functions, func);
+
+						int common=0;
+
+						if (prefix){
+							common = strcommon(zvec_get_at(cols,0), prefix);
+						}
+
+						func->name = zstrdup(common+zvec_get_at(cols,0));
+
+						for (int i=4; i<zvec_count(cols);i++){
+							char*s = zvec_get_at(cols,i);
 
 
-		if (!strncmp(in, "/*", 2 )){
+							if (strstr(s, "typeref:typename:") == s){
+								rtype = s+ 17;
+								printf("returns '%s'\n", rtype);
 
-			in = strstr(in, "*/") +2;
-			continue;
-		}
+								func->type = maptype( rtype);
 
-		if (*in == '{'){
 
-			if (strstr (capture, "extern") && strstr(capture, "\"C\"")){
-					continue;
-					zstr_reset(capture);
+							}
+
+							if (strstr(s, "signature:") == s)
+								sig = s+ 10;;
+
+							printf("\n");
+						}
+
+						func->subs = zvec_mk(NULL,8);
+						func->comment = zstrprintf(NULL, "%s %s %s\n", rtype?rtype:"none" , func->name, sig?sig:"(?)");
+					}
+
+
+					if (!strcmp(zvec_get_at(cols, 3), "z")){
+
+						ctypedT* arg = ram_alloc(sizeof(ctypedT), freectyped);
+
+						arg->name = zstrdup(zvec_get_at(cols,0));
+
+						printf(" arg:'%s' ", zvec_get_at(cols,0));
+
+						for (int i=4; i<zvec_count(cols);i++){
+							char*s = zvec_get_at(cols,i);
+							char* atype = NULL;
+							char* funcname = NULL;
+							if (strstr(s, "typeref:typename:") == s){
+								atype = s+ 17;
+
+								arg->type = maptype(atype);
+								printf("type '%s'->'%s'\n", atype, arg->type);
+							}
+
+							if (strstr(s, "prototype:") == s){
+								funcname = s+ 10;
+								printf("for func '%s'\n", funcname);
+							}
+						}
+
+						//attacch to last function
+						zvec_add(func->subs, arg);
+						printf("\n");
+					}
+
+
+
+				}
+
+
+				while(zvec_count(cols))
+					ram_free(zvec_remove_last(cols));
+
+
 			}
-
-			brace++;
-
-		}
-
-		if (*in == '}'){
-			brace--;
-			if (brace < 0)
-				brace=0;
 			continue;
 		}
 
-		if (brace){
-			printf("-%c", *in);
-			continue;  //skip between braces
-		}
 
-		if (*in == ';' || *in == '{'){
+		capture = zstrcatsub( capture, in, 0, 1);
 
-			printf("%s\n", capture);
-
-			char* def = process(capture);
-
-			if (def != NULL)
-				zvec_add(protos, def);
-
-		//	zvecT* parts = zstrsplit(NULL, capture, ' ');
-
-			//getc(stdin);
-			zstr_reset(capture);
-			printf("reset %s\n", capture);
-			continue;
-		}
-
-		//printf("+%c", *in);
-		//printf("%s\n", capture);
-		capture=zstrcatsub(capture, in, 0, 1);
-
-		if (*in == '*')  //insert space after * so there is always a space before function name in cases like  char*func(
-			capture=zstrcatsub(capture, " ", 0, 1);
 
 
 	}
-
-	;
-	void* cursor = NULL;
-
-	char* key= NULL;
-	char* v;
-
 
 	FILE* out = fopen(outname, "wb");
 
-	printf("unmapped types:\n");
-	while( zstringmap_nextkey(unmapped_types, &key, &v, &cursor)){
-		printf("%s\n", key);
-		fprintf(out, "type %s end\n", key);
+	if (section)
+		fprintf(out, "section %s\n\n", section);
+
+
+	if (incname){
+		char* i = ram_loadstr(incname);
+		fprintf(out, "%s\n",  i);
+		ram_free(i);
+
 	}
 
-	for (int i=0;i<zvec_count(defs); i++)
-		fprintf(out, "%s\n", zvec_get_at(defs,i));
 
-	for (int i=0;i<zvec_count(protos); i++)
-		fprintf(out, "%s\n", zvec_get_at(protos,i));
-	fclose(out);
+	printf("unmapped types:\n");
+
+	char* val = NULL;
+	char*	name=NULL;
+	void*	cursor=NULL;
+
+
+	while (zstringmap_nextkey(unmapped_types, &name, &val, &cursor)) {
+		printf("%s\n", name);
+		fprintf (out, "\ttype %s end\n", name);
+
+	}
+
+
+
+
+	for (int i=0;i < zvec_count(functions); i++){
+		ctypedT* function = zvec_get_at(functions, i);
+
+		printf(" func %s\n", function->name);
+
+		char* override = zstringmap_get(types, function->name);
+
+
+
+		fprintf(out, "\t// %s\n", function-> comment);
+
+		if (override){
+			fprintf(out, "\t%s\n\n", override);
+			continue;
+		}
+
+		fprintf(out, "\t ( ");
+
+		for (int j=0;j<zvec_count(function->subs);j++){
+			ctypedT* arg = zvec_get_at(function->subs, j);
+
+			fprintf(out, "%s:%s ",arg->type, arg->name );
+
+		}
+
+		if (function->type && strlen(function->type)){
+			fprintf(out, " -> %s ", function->type );  //return type
+		}
+		fprintf(out, ") \"%s\" \"%s\" sys %s \n\n",  libname, function->name, function->name);
+
+	}
+
+	if (section)
+		fprintf(out, "end\n\n", section);
+
+
 
 	return 0;
 }
@@ -416,7 +441,7 @@ int scanmain(int argc, char** args){
 
 int main(int argc, char** args){
 
-	//stringtest();
+	//stringtest();const,
 	if (argc>1 && !strcmp(args[1], "-scan"))
 		return scanmain(argc-1, args+1);
 
@@ -435,7 +460,6 @@ int main(int argc, char** args){
 	} else {
 			errorf("Cannot load %s\n", filename);
 	}
-
 
 	ram_allocs();
 

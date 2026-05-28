@@ -1,0 +1,7 @@
+int,Z32
+longint,Long32
+size_t,Size32
+char*,String
+constchar*,String
+void*,Any&
+constvoid*,Any&

@@ -1,5 +1,121 @@
 "base.src" include
 
+type char end
+type FILE end
+
+
+section abc
+
+    (Z32:a) proc p
+        "p called" print newline
+    end
+
+    ( [Any]:array   Z32:len    Z32:size  (->Any):callback )  "_LIBC" "qsort" sys qsort
+
+end
+
+
+"inc/stdio.inc" include
+
+
+"whatever" "wb" stdio.fopen var f=
+
+"testing" f stdio.fputs
+
+f stdio.ftell print newline
+
+f 3 stdio.SEEK_SET stdio.fseek
+
+"T1" f stdio.fputs
+
+
+section stdlib
+    //try qsort
+
+   ( [Any]:array   Z32:len    Z32:size  (->Any):callback )  "_LIBC" "qsort" sys qsort
+
+end
+
+section sort
+
+    "cats" constant ss
+
+   (Z32&:a Z32&:b ->Z32)& proc Z32compare
+
+        a b == if
+            0 return
+        end
+
+        a b < if
+            -1 return
+        end
+
+
+        1 return
+
+    end
+
+    (Z32&:a Z32&:b ->Z32)& proc Z32compareR
+
+        a b == if
+            0 return
+        end
+
+        a b < if
+            1 return
+        end
+
+
+        -1 return
+
+    end
+
+
+   ( [Z32]:arr Z32:reverse ) proc sort
+
+        reverse if
+            arr arr.count 4 Z32compareR stdlib.qsort
+        else
+            arr arr.count 4 Z32compare stdlib.qsort
+        end
+   end
+
+
+end
+
+
+//sort.ss print newline
+
+f stdio.fclose
+33 abc.p
+
+[Z32]$ var v
+
+
+
+v& 3 3 dim
+
+3 v 0[]=
+1 v 2[]=
+7 v 1[]=
+
+
+v 3 4 sort.Z32compare stdlib.qsort
+
+//v 1 sort.sort
+
+
+v 0 [] print newline
+v 1 [] print newline
+v 2 [] print newline
+
+
+
+
+
+
+sys_ENDFILE
+
 
 section mod
 
@@ -52,6 +168,144 @@ end
 //10 mod.a=
 //20 mod.b =
 
+
+[Byte]$ var readbuffer
+
+readbuffer& 256 256 dim
+
+//66 readbuffer 0[]=
+//readbuffer$$.String print newline
+
+
+
+"What"$.Byte var wb=
+wb .count print newline
+ // "H" 0[]  wb 2[]=
+64 256 + wb 2[]=
+wb$.String var sbb =
+wb .count print newline
+sbb print newline
+
+
+"testin.txt" "r" libc.fopen var fh=
+
+
+loop
+    readbuffer 8  fh libc.fgets var r=
+
+    r? not if break end
+    "{" print
+        readbuffer.String print
+    "}" print
+
+end
+
+fh printptr newline
+fh $$ libc.fclose
+fh printptr newline
+
+
+
+section kv
+    String$ var k
+    String$ var v
+
+    () proc Print
+        k print  "=" print v print newline
+    end
+end
+
+ () proc kvPrint
+        kv.k print  "=" print kv.v print newline
+    end
+
+
+"A"$ kv.k=
+
+"aaa"$ kv.v=
+
+kv.Print
+kvPrint
+
+( Z32:index Z32:size Z32:type Bit:normalized Z32:stride Any&:pointer  ) "libGL.so.1" "glVertexAttribPointer" sys glVertexAttribPointer
+
+
+type tkv
+    Z32 var k
+    Z32 var v
+
+    type bee
+        Z32 var B
+    end
+
+    (tkv&:mytkv) expose proc Print
+        bee var b
+        mytkv.k print "-inner-"  print   mytkv.v print
+    end
+
+end
+
+
+(tkv&:mytkv) proc xPrint
+    tkv.bee var b
+    mytkv.k print "-outer-"  print   mytkv.v print newline
+end
+
+
+
+tkv var ttk
+
+10 ttk.k =
+22 ttk.v =
+
+
+ttk Print
+ttk xPrint
+
+sys_ENDFILE
+
+
+Z32 var t3
+100 t3 =
+
+(Z32& : a) proc useref
+    a print newline
+
+    a 1 + a=
+    110 a == not if
+        a& useref
+    end
+
+end
+
+t3& useref
+t3 print newline
+
+
+
+tkv var tk
+
+10 tk.k=
+12 tk.v=
+
+tk Print
+
+sys_ENDFILE
+
+"apple"$ kv.k=
+"A"$ kv.v=
+kv.Print
+
+sys_ENDFILE
+
+
+
+ //"banana" 6 1   fh  libc.fwrite
+//fh libc.fclose
+
+
+
+
 mod.set
 
 "Nothing"$ mod.aaaa.astr=
@@ -95,7 +349,7 @@ IN.h print newline
 
 
 sys_ENDFILE
-
+//
 
 
 (Z32:a -> Z32) proc fib
@@ -118,28 +372,28 @@ end
 
 Z32.Instruction$ var aa
 
-//(String -> Z32) "$INTERNAL"  "ram_numrefs" sys ram_numrefs
+//(String -> Z32) "_INTERNAL"  "ram_numrefs" sys ram_numrefs
 
-(Any.Instruction:inst ->Z32 )  "$INTERNAL" "instruction_opcode" sys .opcode
-(Any.Instruction:inst ->String )  "$INTERNAL" "instruction_opname" sys .opname
-(Any.Instruction:inst -> [Any.Instruction] )  "$INTERNAL" "instruction_args" sys .args
-(Any.Instruction:inst -> Type )  "$INTERNAL" "instruction_result_type" sys .return
+(Any.Instruction:inst ->Z32 )  "_INTERNAL" "instruction_opcode" sys .opcode
+(Any.Instruction:inst ->String )  "_INTERNAL" "instruction_opname" sys .opname
+(Any.Instruction:inst -> [Any.Instruction] )  "_INTERNAL" "instruction_args" sys .args
+(Any.Instruction:inst -> Type )  "_INTERNAL" "instruction_result_type" sys .return
 
 
-(Type:t -> String )  "$INTERNAL" "type_keystr" sys .key
+(Type:t -> String )  "_INTERNAL" "type_keystr" sys .key
 
 
 //TODO need a way to do a 'type assertion' or whatever
 
 
-(Any.Instruction:inst -> String )  "$INTERNAL" "instruction_val_pointer" sys .valString
+(Any.Instruction:inst -> String )  "_INTERNAL" "instruction_val_pointer" sys .valString
 
 
-(Any.Instruction:inst -> Z32 )  "$INTERNAL" "instruction_val_z32" sys .valZ32
+(Any.Instruction:inst -> Z32 )  "_INTERNAL" "instruction_val_z32" sys .valZ32
 
 
 //returns the type of the constant value (if the instruction has one, null otherwise)
-(Any.Instruction:inst -> Type )  "$INTERNAL" "instruction_val_typeof" sys .valTypeOf
+(Any.Instruction:inst -> Type )  "_INTERNAL" "instruction_val_typeof" sys .valTypeOf
 
 
 
@@ -408,8 +662,8 @@ Z32 Z32 +
 */
 
 
-(String:s) "$LIBC" "puts" sys puts
-([Byte]:s) "$LIBC" "puts" sys puts
+(String:s) "_LIBC" "puts" sys puts
+([Byte]:s) "_LIBC" "puts" sys puts
 
 "sdfsdds"$.Byte var b=
 
@@ -461,8 +715,8 @@ boos print
 //hundred print twofiftysix print newline
 
 
-//(String:s) "$LIBC" "puts" sys puts
-(Byte*:s) "$LIBC" "puts" sys puts
+//(String:s) "_LIBC" "puts" sys puts
+(Byte*:s) "_LIBC" "puts" sys puts
 
 
 [Byte]$ var buf
@@ -621,7 +875,7 @@ String.null print newline
 
 sys_ENDFILE
 
-(Z32:a  Z32:b  (Z32:aa Z32:bb ->String):callback-> Z32) "$INTERNAL" "test_me" sys test_me
+(Z32:a  Z32:b  (Z32:aa Z32:bb ->String):callback-> Z32) "_INTERNAL" "test_me" sys test_me
 
 (Z32:aa Z32:bb -> String)& proc test_me_callback
     aa print "/"print
@@ -720,12 +974,12 @@ step
 
 end
 
-(String:filename String:mode -> FILE * ) "$LIBC" "fopen" sys C_fopen
-//(Any&:item Z32:size Z32:count  FILE*:file ->Z32 ) "$LIBC" "fwrite" sys C_fwrite
+(String:filename String:mode -> FILE * ) "_LIBC" "fopen" sys C_fopen
+//(Any&:item Z32:size Z32:count  FILE*:file ->Z32 ) "_LIBC" "fwrite" sys C_fwrite
 
 
-(String:str Z32:size Z32:count  FILE*:file ->Z32 ) "$LIBC" "fwrite" sys C_fwrite
-//(String:item Z32:size Z32:count  FILE*:file ->Z32 ) "$LIBC" "fread" sys C_fread
+(String:str Z32:size Z32:count  FILE*:file ->Z32 ) "_LIBC" "fwrite" sys C_fwrite
+//(String:item Z32:size Z32:count  FILE*:file ->Z32 ) "_LIBC" "fread" sys C_fread
 
 
 FILE* var af
@@ -734,8 +988,9 @@ FILE* var af
 "test1.txt" "wb" C_fopen af&=
 
 
+[
 
-"BananA!" 7 1 af C_fwrite print " items written" print 10 printchar
+//"BananA!" 7 1 af C_fwrite print " items written" print 10 printchar
 
 
 

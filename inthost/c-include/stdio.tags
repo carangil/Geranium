@@ -1,0 +1,54 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	0	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	//
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/home/mars/projects/Zcore/inthost/c-include/	//
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+fopen	stdio.h	/^FILE * fopen( const char *  filename, const char *  mode );$/;"	p	typeref:typename:FILE *	signature:(const char * filename,const char * mode)
+filename	stdio.h	/^FILE * fopen( const char *  filename, const char *  mode );$/;"	z	prototype:fopen	typeref:typename:const char *	file:
+mode	stdio.h	/^FILE * fopen( const char *  filename, const char *  mode );$/;"	z	prototype:fopen	typeref:typename:const char *	file:
+fflush	stdio.h	/^int fflush( FILE * stream );$/;"	p	typeref:typename:int	signature:(FILE * stream)
+stream	stdio.h	/^int fflush( FILE * stream );$/;"	z	prototype:fflush	typeref:typename:FILE *	file:
+fclose	stdio.h	/^int fclose( FILE * stream );$/;"	p	typeref:typename:int	signature:(FILE * stream)
+stream	stdio.h	/^int fclose( FILE * stream );$/;"	z	prototype:fclose	typeref:typename:FILE *	file:
+fgetc	stdio.h	/^int fgetc( FILE * stream );$/;"	p	typeref:typename:int	signature:(FILE * stream)
+stream	stdio.h	/^int fgetc( FILE * stream );$/;"	z	prototype:fgetc	typeref:typename:FILE *	file:
+fgets	stdio.h	/^char * fgets( char *  s, int n, FILE *  stream );$/;"	p	typeref:typename:char *	signature:(char * s,int n,FILE * stream)
+s	stdio.h	/^char * fgets( char *  s, int n, FILE *  stream );$/;"	z	prototype:fgets	typeref:typename:char *	file:
+n	stdio.h	/^char * fgets( char *  s, int n, FILE *  stream );$/;"	z	prototype:fgets	typeref:typename:int	file:
+stream	stdio.h	/^char * fgets( char *  s, int n, FILE *  stream );$/;"	z	prototype:fgets	typeref:typename:FILE *	file:
+fread	stdio.h	/^size_t fread( void *  ptr, size_t size, size_t nmemb, FILE *  stream );$/;"	p	typeref:typename:size_t	signature:(void * ptr,size_t size,size_t nmemb,FILE * stream)
+ptr	stdio.h	/^size_t fread( void *  ptr, size_t size, size_t nmemb, FILE *  stream );$/;"	z	prototype:fread	typeref:typename:void *	file:
+size	stdio.h	/^size_t fread( void *  ptr, size_t size, size_t nmemb, FILE *  stream );$/;"	z	prototype:fread	typeref:typename:size_t	file:
+nmemb	stdio.h	/^size_t fread( void *  ptr, size_t size, size_t nmemb, FILE *  stream );$/;"	z	prototype:fread	typeref:typename:size_t	file:
+stream	stdio.h	/^size_t fread( void *  ptr, size_t size, size_t nmemb, FILE *  stream );$/;"	z	prototype:fread	typeref:typename:FILE *	file:
+fputc	stdio.h	/^int fputc( int c, FILE * stream );$/;"	p	typeref:typename:int	signature:(int c,FILE * stream)
+c	stdio.h	/^int fputc( int c, FILE * stream );$/;"	z	prototype:fputc	typeref:typename:int	file:
+stream	stdio.h	/^int fputc( int c, FILE * stream );$/;"	z	prototype:fputc	typeref:typename:FILE *	file:
+fputs	stdio.h	/^int fputs( const char *  s, FILE *  stream );$/;"	p	typeref:typename:int	signature:(const char * s,FILE * stream)
+s	stdio.h	/^int fputs( const char *  s, FILE *  stream );$/;"	z	prototype:fputs	typeref:typename:const char *	file:
+stream	stdio.h	/^int fputs( const char *  s, FILE *  stream );$/;"	z	prototype:fputs	typeref:typename:FILE *	file:
+fwrite	stdio.h	/^size_t fwrite( const void *  ptr, size_t size, size_t nmemb, FILE *  stream );$/;"	p	typeref:typename:size_t	signature:(const void * ptr,size_t size,size_t nmemb,FILE * stream)
+ptr	stdio.h	/^size_t fwrite( const void *  ptr, size_t size, size_t nmemb, FILE *  stream );$/;"	z	prototype:fwrite	typeref:typename:const void *	file:
+size	stdio.h	/^size_t fwrite( const void *  ptr, size_t size, size_t nmemb, FILE *  stream );$/;"	z	prototype:fwrite	typeref:typename:size_t	file:
+nmemb	stdio.h	/^size_t fwrite( const void *  ptr, size_t size, size_t nmemb, FILE *  stream );$/;"	z	prototype:fwrite	typeref:typename:size_t	file:
+stream	stdio.h	/^size_t fwrite( const void *  ptr, size_t size, size_t nmemb, FILE *  stream );$/;"	z	prototype:fwrite	typeref:typename:FILE *	file:
+fseek	stdio.h	/^int fseek( FILE * stream, long int offset, int whence );$/;"	p	typeref:typename:int	signature:(FILE * stream,long int offset,int whence)
+stream	stdio.h	/^int fseek( FILE * stream, long int offset, int whence );$/;"	z	prototype:fseek	typeref:typename:FILE *	file:
+offset	stdio.h	/^int fseek( FILE * stream, long int offset, int whence );$/;"	z	prototype:fseek	typeref:typename:long int	file:
+whence	stdio.h	/^int fseek( FILE * stream, long int offset, int whence );$/;"	z	prototype:fseek	typeref:typename:int	file:
+ftell	stdio.h	/^long int ftell( FILE * stream );$/;"	p	typeref:typename:long int	signature:(FILE * stream)
+stream	stdio.h	/^long int ftell( FILE * stream );$/;"	z	prototype:ftell	typeref:typename:FILE *	file:
+rewind	stdio.h	/^void rewind( FILE * stream );$/;"	p	typeref:typename:void	signature:(FILE * stream)
+stream	stdio.h	/^void rewind( FILE * stream );$/;"	z	prototype:rewind	typeref:typename:FILE *	file:
+feof	stdio.h	/^int feof( FILE * stream );$/;"	p	typeref:typename:int	signature:(FILE * stream)
+stream	stdio.h	/^int feof( FILE * stream );$/;"	z	prototype:feof	typeref:typename:FILE *	file:
+clearerr	stdio.h	/^void clearerr( FILE * stream );$/;"	p	typeref:typename:void	signature:(FILE * stream)
+stream	stdio.h	/^void clearerr( FILE * stream );$/;"	z	prototype:clearerr	typeref:typename:FILE *	file:
+ferror	stdio.h	/^int ferror( FILE * stream );$/;"	p	typeref:typename:int	signature:(FILE * stream)
+stream	stdio.h	/^int ferror( FILE * stream );$/;"	z	prototype:ferror	typeref:typename:FILE *	file:

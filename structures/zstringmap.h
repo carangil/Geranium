@@ -22,8 +22,9 @@ void* zstringmap_get(zstringmapT* map, char* key);
 zstringmapT*  zstringmap_disown(zstringmapT* map); 
 
 //Usage: zstringmap_nextkey(map, &key, &item, &cursor);  where item is pointer to a pointer variable, cursor is unsigned int*
-zbool zstringmap_nextkey2( zstringmapT* map, char** key, void* voidvoidstar, unsigned int* cursor);
+//zbool zstringmap_nextkey2( zstringmapT* map, char** key, void* voidvoidstar, unsigned int* cursor);
 
+zbool zstringmap_nextkey( zstringmapT* map, char** key, void** vitem, unsigned int* cursor);
 
 
 

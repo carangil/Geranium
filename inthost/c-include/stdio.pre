@@ -1,0 +1,3 @@
+	Z32   "SEEK_END" sys SEEK_END
+	Z32   "SEEK_SET" sys SEEK_SET
+	Z32   "SEEK_CUR" sys SEEK_CUR
