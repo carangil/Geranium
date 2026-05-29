@@ -34,7 +34,7 @@ void zstr_reset(char* s);
 char* zstr_mk(zsize capacity);
 
 
-
+int zstrcmp(const char* a, const char* b); //compare 2 string, with null check.  NULL==NULL    NULL< valid   NULL > valid
 
 //Append substring of a C or zstring to the end of a zstring.
 //dest must be null or a zsting.

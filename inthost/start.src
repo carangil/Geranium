@@ -1,18 +1,31 @@
-"base.src" include
+//"base.src" include
+
+"inc/base.inc" include
 
 type char end
 type FILE end
 
+(String:s String:t) proc cmp
 
-section abc
-
-    (Z32:a) proc p
-        "p called" print newline
+    s print " " print t print " " print
+    s t == if
+        "same" print newline
+    else
+        "different" print newline
     end
 
-    ( [Any]:array   Z32:len    Z32:size  (->Any):callback )  "_LIBC" "qsort" sys qsort
-
 end
+
+
+
+"aa" "bb" cmp
+"aa" "aa" cmp
+
+"aa" String.null cmp
+
+String.null String.null cmp
+
+
 
 
 "inc/stdio.inc" include
@@ -28,13 +41,15 @@ f 3 stdio.SEEK_SET stdio.fseek
 
 "T1" f stdio.fputs
 
-
+/*
 section stdlib
     //try qsort
 
    ( [Any]:array   Z32:len    Z32:size  (->Any):callback )  "_LIBC" "qsort" sys qsort
-
 end
+*/
+
+"inc/stdlib.inc" include
 
 section sort
 
@@ -74,9 +89,9 @@ section sort
    ( [Z32]:arr Z32:reverse ) proc sort
 
         reverse if
-            arr arr.count 4 Z32compareR stdlib.qsort
+            arr arr.count arr.size1 Z32compareR stdlib.qsort
         else
-            arr arr.count 4 Z32compare stdlib.qsort
+            arr arr.count arr.size1 Z32compare stdlib.qsort
         end
    end
 
@@ -87,11 +102,10 @@ end
 //sort.ss print newline
 
 f stdio.fclose
-33 abc.p
 
 [Z32]$ var v
 
-
+"PATH" stdlib.getenv print newline
 
 v& 3 3 dim
 
@@ -106,12 +120,22 @@ v 3 4 sort.Z32compare stdlib.qsort
 
 
 v 0 [] print newline
+
+
 v 1 [] print newline
 v 2 [] print newline
 
 
 
+(Any.Instruction:inst -> Type )  "_INTERNAL" "instruction_result_type" sys .return
 
+
+(Type:t -> String )  "_INTERNAL" "type_keystr" sys .key
+
+
+v .size1 print newline
+"asdas"$ .Byte var sb=
+sb .size1 print newline
 
 
 sys_ENDFILE
@@ -218,6 +242,7 @@ end
  () proc kvPrint
         kv.k print  "=" print kv.v print newline
     end
+
 
 
 "A"$ kv.k=

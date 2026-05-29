@@ -42,6 +42,7 @@ zvecT* protos = NULL;
 zvecT* defs = NULL;
 
 
+
 char* maptype(char* ctype_in){
 
 
@@ -228,16 +229,16 @@ int scanmain(int argc, char** args){
 		char* p = zvec_get_at(lines, i);
 		if (strlen(p)==0)
 			continue; //skip blank lines
-		char* comma = strchr(p, ',');
-		if (!comma){
-			printf(" expected comma\n");
+		char* semi = strchr(p, ';');
+		if (!semi){
+			printf(" expected semicolon\n");
 			exit(1);
 		}
 
-		*comma=0;
+		*semi=0;
 
 		char* cname = zstrtrim(p);
-		char* zname = zstrtrim(comma+1);
+		char* zname = zstrtrim(semi+1);
 
 		printf(" '%s' '%s'\n", cname, zname);
 
@@ -458,7 +459,7 @@ int main(int argc, char** args){
 
 	src = ram_loadstr(filename);
 	if (src){
-		int_run_str(src, args[1]);
+		int_run_str(src, filename);
 		ram_free(src);
 	} else {
 			errorf("Cannot load %s\n", filename);

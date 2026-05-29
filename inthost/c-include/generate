@@ -7,7 +7,8 @@
 
 
 	
-
+./tag-header stdlib.h
+./geninc stdlib.tags  ../inc/stdlib.inc libctypes.txt stdlib _LIBC
 
 
 

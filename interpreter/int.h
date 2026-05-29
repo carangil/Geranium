@@ -65,7 +65,10 @@ void int_insert_tokenf(tokenT* A, tokenT* B, zbool before);
 
 #define tinsert_after(AFTER,NEW)    int_insert_tokenf(  AFTER, NEW, ZFALSE)
 
-#define tnext(ITEM)		((tokenT*)zlist_next(ITEM))
+//#define tnext(ITEM)		((tokenT*)zlist_next(ITEM))
+
+tokenT* tnext(tokenT* item);
+
 #define tprev(ITEM)    ((tokenT*)zlist_prev(ITEM))
 
 
@@ -167,8 +170,8 @@ typedef struct instructionS{
 }instructionT;
 
 
-#define ERROR_PARSE		1
-#define ERROR_RUNTIME	2
+#define ERROR_PARSE		0x100
+#define ERROR_RUNTIME	0x200
 
 typedef struct errorS {
 	char*	error_string;
@@ -177,7 +180,8 @@ typedef struct errorS {
 	int		line;
 } errorT;
 
-
+//a runner is an implemenation of the language.
+// SWITCHRUNNER is a switch-case bytecode interpreter
 
 #define MAXRUNNERS		2
 #define SWITCHRUNNER	0

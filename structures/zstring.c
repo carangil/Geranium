@@ -109,7 +109,20 @@ char* zstrtrim(char* s){
 }
 
 
+int zstrcmp(const char* a, const char* b){
 
+	if (a == b)
+		return 0; //
+
+	if (!a)
+		return 1;
+
+	if (!b)
+		return -1;
+
+	return strcmp(a,b);
+
+}
 
 
 	//copies  src[start] up to, not including, src[start+count]  to the end of dest;

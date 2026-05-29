@@ -4,7 +4,7 @@
 
 #define RAM_C
 
-#define RAM_FAKE_FREE
+//#define RAM_FAKE_FREE
 
 #include <malloc.h>
 #include <string.h>

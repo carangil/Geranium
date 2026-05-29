@@ -15,7 +15,27 @@
 #undef debugf
 #define debugf(...)
 
+//quick hack for fast error messages
+int lastline = 0;
+char* lastfile ="nofile";
 
+tokenT* tnext(tokenT*item){
+
+	tokenT* next = ((tokenT*)zlist_next(item));
+	if (next){
+		lastline = next->line;
+		lastfile = next->sourcefile;
+	}
+
+	return next;
+}
+
+void myExit(int a){
+
+		printf("EXITING  %s:%d\n", lastfile, lastline);
+		exit(a);
+}
+#define exit myExit
 
 //error reporting
 void set_error(exectxT* exectx, int code, char* string){
@@ -31,7 +51,7 @@ void set_error(exectxT* exectx, int code, char* string){
 
 char* echo(char* s){
 	fprintf(stderr, "SETERROR %s\n",s);
-	exit(1);
+	//exit(1);
 	return s;
 }
 
@@ -694,7 +714,7 @@ void instruction_print(instructionT* inst, int level, zbool recurse){
 
 	if (inst->val_type) {
 		if( inst->val_type == tType)
-			printf( " %s:(%s) ", inst->val.as.ptr.address.type->key, inst->val_type->key);
+			printf( " %s:(%s) ", inst->val.as.ptr.address.type ?inst->val.as.ptr.address.type->key:"nil", inst->val_type->key);
 		else if( inst->val_type == tWord)
 			printf( " %s:(%s) ", inst->val.as.ptr.address.word->name, inst->val_type->key);
 		else
@@ -1159,6 +1179,12 @@ switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* pr
 		return prog;
 	}
 
+	if (inst->opcode == op_arrayinfo && inst->val.as.z32 == 2){
+		//want the size of the array element.  this is a constant
+		prog = switch_asmi(prog, op_constant,inst->args[0]->result_type->ref->size , inst);
+		return prog;
+	}
+
 	if ((inst->opcode==op_globalvar)||(inst->opcode==op_subvar)||(inst->opcode==op_localvar)){
 		wordT* var = inst->val.as.ptr.address.word;
 		prog = switch_asmi(prog, inst->opcode,var->offset, inst);
@@ -1221,10 +1247,9 @@ switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* pr
 }
 
 
-
 void print_switch_listing(switchopT* prog){
-		for (int i=0;i<zarray_count(prog);i++){
 
+	for (int i=0;i<zarray_count(prog);i++){
 
 		char* name = instruction_names[ prog[i].opcode < op_MAX? prog[i].opcode:0];
 
@@ -1536,7 +1561,9 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 			case op_printptr:   printf("{%p+%x}", exe->stack[exe->sp-1].as.ptr.address.bytes, exe->stack[exe->sp-1].as.ptr.offset); pc++; exe->sp--; continue;
 
-			case op_printstr:   printf("%s", exe->stack[exe->sp-1].as.ptr.address.bytes); pc++; exe->sp--;continue;
+			case op_printstr:
+				char* s = exe->stack[exe->sp-1].as.ptr.address.bytes;
+				printf("%s", s?s:"nullstr"); pc++; exe->sp--;continue;
 
 			case op_printchar:   putc( exe->stack[exe->sp-1].as.z32 , stdout); pc++;exe->sp--;continue;
 
@@ -3189,6 +3216,13 @@ tokenT* parse_type_name(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int 
 	exit(1);
 }
 
+typeT* type_find_related(parsectxT* pctx, typeT* type, char* selection){
+
+
+
+}
+
+
 tokenT* parse_related_type(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	//typestack_pop(pctx, argc);
@@ -3199,6 +3233,14 @@ tokenT* parse_related_type(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, i
 	int instflags=0;
 
 	if (type){		//if the type is a constant, get it
+
+		//type -> other
+		if (!strcmp(t->str,".null")){
+			push_assembly(pctx, op_constant, 0, NULL, NULL, assembly_args_mk(1, arg0) ,  type );
+			return t;
+		}
+
+		//type -> type
 
 		if (!strcmp(t->str, "&"))
 			type = type_find(pctx, NULL, type, REFERENCE, 0, NULL);
@@ -3220,16 +3262,11 @@ tokenT* parse_related_type(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, i
 			}
 		}
 
-		if (!strcmp(t->str,".null")){
-
-			push_assembly(pctx, op_constant, 0, NULL, NULL, assembly_args_mk(1, arg0) ,  type );
-
-			return t;
-
-		}
 		if (!strcmp(t->str, ".Instruction")){
 			type = type_find(pctx, NULL, type, SUBTREE, 0, NULL);
 		}
+
+
 	} else {
 			printf(" This requires a constant\n");
 			exit(1);
@@ -3945,6 +3982,14 @@ typeT* instruction_val_typeof( instructionT* inst){
 
 }
 
+
+typeT* type_sizeof( typeT* t){
+	if (!t)
+		return NULL;
+	return t->size;
+}
+
+
 //instruction constant as a integer
 int instruction_val_z32(instructionT* inst){
 	if(!inst)
@@ -4090,11 +4135,13 @@ void int_run_str(char* src, char* filename){
 	add_c_object("instruction_val_pointer", instruction_val_pointer);
 	add_c_object("instruction_val_z32", instruction_val_z32);
 	add_c_object("instruction_val_typeof", instruction_val_typeof);
+	add_c_object("type_sizeof", type_sizeof);
 
 	//add the string functions I already have to this
 	add_c_object("zstrndup" , zstrndup);
 	add_c_object("zstrdup2" , zstrdup2);
 	add_c_object("zstrcatsub" , zstrcatsub);
+	add_c_object("zstrcmp" , zstrcmp);
 
 
 	//debug stuff
@@ -4125,7 +4172,7 @@ void int_run_str(char* src, char* filename){
 	proc_parser_mk(exe,pctx, "&", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into its reference type
 	proc_parser_mk(exe,pctx, "$", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into a steward
 	proc_parser_mk(exe,pctx, "@", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into its dereferenced type
-	proc_parser_mk(exe,pctx, "*", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into a
+	proc_parser_mk(exe,pctx, "*", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into a c pointer
 	proc_parser_mk(exe,pctx, ".null", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into 0-value.  Z32.null is zero, String.null is null pointer of string type, etc
 
 	proc_parser_mk(exe,pctx, ".Instruction", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into a
@@ -4178,8 +4225,17 @@ void int_run_str(char* src, char* filename){
 
 	proc_opcode_mk2(exe,pctx, op_arrayinfo, ".count", "([Any]:a -> Z32)");
 
+
+
+
+
 	wordT* arraysize = proc_opcode_mk2(exe,pctx, op_arrayinfo, ".size", "([Any]:a -> Z32)");
 	arraysize->val.as.z32=1;
+
+
+	arraysize = proc_opcode_mk2(exe,pctx, op_arrayinfo, ".size1", "([Any]:a -> Z32)");
+	arraysize->val.as.z32=2;
+
 
 	proc_opcode_mk2(exe,pctx, op_arraysetcount, ".setcount", "([Any]:a  Z32:count)");
 

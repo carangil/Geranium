@@ -2,51 +2,11 @@
     10 printchar
 end
 
-
-//debug
-(String -> Z32) "_INTERNAL"  "ram_numrefs" sys ram_numrefs
-
-
-type void end
-
-
-section libc
-
-    (String:a String:b -> String) "_LIBC" "strstr" sys strstr
-    (String:a String:b -> Z32) "_LIBC" "strcmp" sys strcmp
-
-    type FILE end
-
-
-    (String:filename String:mode -> FILE * ) "_LIBC" "fopen" sys fopen
-    ([Byte]:str Z32:count FILE* :file -> Any* ) "_LIBC" "fgets" sys fgets
-
-
-    (String:str Size32:size Size32:count  FILE*:file ->Size32 ) "_LIBC" "fwrite" sys fwrite
-    (FILE*:file ->Size32 ) "_LIBC" "fclose" sys fclose
-end
-
-
-
-(String:a String:b -> Bit) proc ==
-
-    a? if
-        b? if
-            a b libc.strcmp 0 == return
-        end
-    end
-
-    "bad pointer passed to compare" print newline
-
-    0.Bit return
-
-end
-
-
 //string
 
-(String:s Size32:count -> String$) "_INTERNAL"  "zstrndup" sys left
+(String:s String:t -> Z32) "_INTERNAL"  "zstrcmp" sys strcmp
 
+(String:s Size32:count -> String$) "_INTERNAL"  "zstrndup" sys left
 
 (String$:dest String:src Size32:count Size32:count -> String$) "_INTERNAL" "zstrcatsub" sys midcat
 
@@ -54,19 +14,25 @@ end
     dest$$ src 0 -1 midcat
 end
 
-//print for String already defined, but do it for String$ (possessive pointer):
+(String:a String:b -> Bit) proc ==
 
+    a b strcmp 0 == return
+
+end
+
+
+
+//print for String already defined, but do it for String$ (possessive pointer):
 (String$:s) proc print
     s print
 end
 
 
+
+
+/*
 //(Z32:mode ) "libGL.so.1" "glCullFace" sys glCullFace
 
-
-
-
-//file
 
 
 
@@ -89,5 +55,5 @@ type GLFWwindow end
 (Z32) "libGL.so.1" "glBegin" sys glBegin
 () "libGL.so.1" "glEnd" sys glEnd
 
-
+*/
 
