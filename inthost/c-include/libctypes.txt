@@ -1,3 +1,4 @@
+#ctype;ztype
 int;Z32
 longint;Long32
 size_t;Size32

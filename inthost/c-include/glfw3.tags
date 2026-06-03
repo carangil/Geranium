@@ -1,0 +1,697 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	0	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	//
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/home/mars/projects/Zcore/inthost/c-include/	//
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+GLFWglproc	GLFW/glfw3.h	/^typedef void (*GLFWglproc)(void);$/;"	t	typeref:typename:void (*)(void)
+GLFWvkproc	GLFW/glfw3.h	/^typedef void (*GLFWvkproc)(void);$/;"	t	typeref:typename:void (*)(void)
+GLFWmonitor	GLFW/glfw3.h	/^typedef struct GLFWmonitor GLFWmonitor;$/;"	t	typeref:struct:GLFWmonitor
+GLFWwindow	GLFW/glfw3.h	/^typedef struct GLFWwindow GLFWwindow;$/;"	t	typeref:struct:GLFWwindow
+GLFWcursor	GLFW/glfw3.h	/^typedef struct GLFWcursor GLFWcursor;$/;"	t	typeref:struct:GLFWcursor
+GLFWerrorfun	GLFW/glfw3.h	/^typedef void (* GLFWerrorfun)(int error_code, const char* description);$/;"	t	typeref:typename:void (*)(int error_code,const char * description)
+GLFWwindowposfun	GLFW/glfw3.h	/^typedef void (* GLFWwindowposfun)(GLFWwindow* window, int xpos, int ypos);$/;"	t	typeref:typename:void (*)(GLFWwindow * window,int xpos,int ypos)
+GLFWwindowsizefun	GLFW/glfw3.h	/^typedef void (* GLFWwindowsizefun)(GLFWwindow* window, int width, int height);$/;"	t	typeref:typename:void (*)(GLFWwindow * window,int width,int height)
+GLFWwindowclosefun	GLFW/glfw3.h	/^typedef void (* GLFWwindowclosefun)(GLFWwindow* window);$/;"	t	typeref:typename:void (*)(GLFWwindow * window)
+GLFWwindowrefreshfun	GLFW/glfw3.h	/^typedef void (* GLFWwindowrefreshfun)(GLFWwindow* window);$/;"	t	typeref:typename:void (*)(GLFWwindow * window)
+GLFWwindowfocusfun	GLFW/glfw3.h	/^typedef void (* GLFWwindowfocusfun)(GLFWwindow* window, int focused);$/;"	t	typeref:typename:void (*)(GLFWwindow * window,int focused)
+GLFWwindowiconifyfun	GLFW/glfw3.h	/^typedef void (* GLFWwindowiconifyfun)(GLFWwindow* window, int iconified);$/;"	t	typeref:typename:void (*)(GLFWwindow * window,int iconified)
+GLFWwindowmaximizefun	GLFW/glfw3.h	/^typedef void (* GLFWwindowmaximizefun)(GLFWwindow* window, int maximized);$/;"	t	typeref:typename:void (*)(GLFWwindow * window,int maximized)
+GLFWframebuffersizefun	GLFW/glfw3.h	/^typedef void (* GLFWframebuffersizefun)(GLFWwindow* window, int width, int height);$/;"	t	typeref:typename:void (*)(GLFWwindow * window,int width,int height)
+GLFWwindowcontentscalefun	GLFW/glfw3.h	/^typedef void (* GLFWwindowcontentscalefun)(GLFWwindow* window, float xscale, float yscale);$/;"	t	typeref:typename:void (*)(GLFWwindow * window,float xscale,float yscale)
+GLFWmousebuttonfun	GLFW/glfw3.h	/^typedef void (* GLFWmousebuttonfun)(GLFWwindow* window, int button, int action, int mods);$/;"	t	typeref:typename:void (*)(GLFWwindow * window,int button,int action,int mods)
+GLFWcursorposfun	GLFW/glfw3.h	/^typedef void (* GLFWcursorposfun)(GLFWwindow* window, double xpos, double ypos);$/;"	t	typeref:typename:void (*)(GLFWwindow * window,double xpos,double ypos)
+GLFWcursorenterfun	GLFW/glfw3.h	/^typedef void (* GLFWcursorenterfun)(GLFWwindow* window, int entered);$/;"	t	typeref:typename:void (*)(GLFWwindow * window,int entered)
+GLFWscrollfun	GLFW/glfw3.h	/^typedef void (* GLFWscrollfun)(GLFWwindow* window, double xoffset, double yoffset);$/;"	t	typeref:typename:void (*)(GLFWwindow * window,double xoffset,double yoffset)
+GLFWkeyfun	GLFW/glfw3.h	/^typedef void (* GLFWkeyfun)(GLFWwindow* window, int key, int scancode, int action, int mods);$/;"	t	typeref:typename:void (*)(GLFWwindow * window,int key,int scancode,int action,int mods)
+GLFWcharfun	GLFW/glfw3.h	/^typedef void (* GLFWcharfun)(GLFWwindow* window, unsigned int codepoint);$/;"	t	typeref:typename:void (*)(GLFWwindow * window,unsigned int codepoint)
+GLFWcharmodsfun	GLFW/glfw3.h	/^typedef void (* GLFWcharmodsfun)(GLFWwindow* window, unsigned int codepoint, int mods);$/;"	t	typeref:typename:void (*)(GLFWwindow * window,unsigned int codepoint,int mods)
+GLFWdropfun	GLFW/glfw3.h	/^typedef void (* GLFWdropfun)(GLFWwindow* window, int path_count, const char* paths[]);$/;"	t	typeref:typename:void (*)(GLFWwindow * window,int path_count,const char * paths[])
+GLFWmonitorfun	GLFW/glfw3.h	/^typedef void (* GLFWmonitorfun)(GLFWmonitor* monitor, int event);$/;"	t	typeref:typename:void (*)(GLFWmonitor * monitor,int event)
+GLFWjoystickfun	GLFW/glfw3.h	/^typedef void (* GLFWjoystickfun)(int jid, int event);$/;"	t	typeref:typename:void (*)(int jid,int event)
+GLFWvidmode	GLFW/glfw3.h	/^typedef struct GLFWvidmode$/;"	s
+width	GLFW/glfw3.h	/^    int width;$/;"	m	struct:GLFWvidmode	typeref:typename:int
+height	GLFW/glfw3.h	/^    int height;$/;"	m	struct:GLFWvidmode	typeref:typename:int
+redBits	GLFW/glfw3.h	/^    int redBits;$/;"	m	struct:GLFWvidmode	typeref:typename:int
+greenBits	GLFW/glfw3.h	/^    int greenBits;$/;"	m	struct:GLFWvidmode	typeref:typename:int
+blueBits	GLFW/glfw3.h	/^    int blueBits;$/;"	m	struct:GLFWvidmode	typeref:typename:int
+refreshRate	GLFW/glfw3.h	/^    int refreshRate;$/;"	m	struct:GLFWvidmode	typeref:typename:int
+GLFWvidmode	GLFW/glfw3.h	/^} GLFWvidmode;$/;"	t	typeref:struct:GLFWvidmode
+GLFWgammaramp	GLFW/glfw3.h	/^typedef struct GLFWgammaramp$/;"	s
+red	GLFW/glfw3.h	/^    unsigned short* red;$/;"	m	struct:GLFWgammaramp	typeref:typename:unsigned short *
+green	GLFW/glfw3.h	/^    unsigned short* green;$/;"	m	struct:GLFWgammaramp	typeref:typename:unsigned short *
+blue	GLFW/glfw3.h	/^    unsigned short* blue;$/;"	m	struct:GLFWgammaramp	typeref:typename:unsigned short *
+size	GLFW/glfw3.h	/^    unsigned int size;$/;"	m	struct:GLFWgammaramp	typeref:typename:unsigned int
+GLFWgammaramp	GLFW/glfw3.h	/^} GLFWgammaramp;$/;"	t	typeref:struct:GLFWgammaramp
+GLFWimage	GLFW/glfw3.h	/^typedef struct GLFWimage$/;"	s
+width	GLFW/glfw3.h	/^    int width;$/;"	m	struct:GLFWimage	typeref:typename:int
+height	GLFW/glfw3.h	/^    int height;$/;"	m	struct:GLFWimage	typeref:typename:int
+pixels	GLFW/glfw3.h	/^    unsigned char* pixels;$/;"	m	struct:GLFWimage	typeref:typename:unsigned char *
+GLFWimage	GLFW/glfw3.h	/^} GLFWimage;$/;"	t	typeref:struct:GLFWimage
+GLFWgamepadstate	GLFW/glfw3.h	/^typedef struct GLFWgamepadstate$/;"	s
+buttons	GLFW/glfw3.h	/^    unsigned char buttons[15];$/;"	m	struct:GLFWgamepadstate	typeref:typename:unsigned char[15]
+axes	GLFW/glfw3.h	/^    float axes[6];$/;"	m	struct:GLFWgamepadstate	typeref:typename:float[6]
+GLFWgamepadstate	GLFW/glfw3.h	/^} GLFWgamepadstate;$/;"	t	typeref:struct:GLFWgamepadstate
+glfwInit	GLFW/glfw3.h	/^GLFWAPI int glfwInit(void);$/;"	p	typeref:typename:GLFWAPI int	signature:(void)
+glfwTerminate	GLFW/glfw3.h	/^GLFWAPI void glfwTerminate(void);$/;"	p	typeref:typename:GLFWAPI void	signature:(void)
+glfwInitHint	GLFW/glfw3.h	/^GLFWAPI void glfwInitHint(int hint, int value);$/;"	p	typeref:typename:GLFWAPI void	signature:(int hint,int value)
+hint	GLFW/glfw3.h	/^GLFWAPI void glfwInitHint(int hint, int value);$/;"	z	prototype:glfwInitHint	typeref:typename:int	file:
+value	GLFW/glfw3.h	/^GLFWAPI void glfwInitHint(int hint, int value);$/;"	z	prototype:glfwInitHint	typeref:typename:int	file:
+glfwGetVersion	GLFW/glfw3.h	/^GLFWAPI void glfwGetVersion(int* major, int* minor, int* rev);$/;"	p	typeref:typename:GLFWAPI void	signature:(int * major,int * minor,int * rev)
+major	GLFW/glfw3.h	/^GLFWAPI void glfwGetVersion(int* major, int* minor, int* rev);$/;"	z	prototype:glfwGetVersion	typeref:typename:int *	file:
+minor	GLFW/glfw3.h	/^GLFWAPI void glfwGetVersion(int* major, int* minor, int* rev);$/;"	z	prototype:glfwGetVersion	typeref:typename:int *	file:
+rev	GLFW/glfw3.h	/^GLFWAPI void glfwGetVersion(int* major, int* minor, int* rev);$/;"	z	prototype:glfwGetVersion	typeref:typename:int *	file:
+glfwGetVersionString	GLFW/glfw3.h	/^GLFWAPI const char* glfwGetVersionString(void);$/;"	p	typeref:typename:GLFWAPI const char *	signature:(void)
+glfwGetError	GLFW/glfw3.h	/^GLFWAPI int glfwGetError(const char** description);$/;"	p	typeref:typename:GLFWAPI int	signature:(const char ** description)
+description	GLFW/glfw3.h	/^GLFWAPI int glfwGetError(const char** description);$/;"	z	prototype:glfwGetError	typeref:typename:const char **	file:
+glfwSetErrorCallback	GLFW/glfw3.h	/^GLFWAPI GLFWerrorfun glfwSetErrorCallback(GLFWerrorfun callback);$/;"	p	typeref:typename:GLFWAPI GLFWerrorfun	signature:(GLFWerrorfun callback)
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWerrorfun glfwSetErrorCallback(GLFWerrorfun callback);$/;"	z	prototype:glfwSetErrorCallback	typeref:typename:GLFWerrorfun	file:
+glfwGetMonitors	GLFW/glfw3.h	/^GLFWAPI GLFWmonitor** glfwGetMonitors(int* count);$/;"	p	typeref:typename:GLFWAPI GLFWmonitor **	signature:(int * count)
+count	GLFW/glfw3.h	/^GLFWAPI GLFWmonitor** glfwGetMonitors(int* count);$/;"	z	prototype:glfwGetMonitors	typeref:typename:int *	file:
+glfwGetPrimaryMonitor	GLFW/glfw3.h	/^GLFWAPI GLFWmonitor* glfwGetPrimaryMonitor(void);$/;"	p	typeref:typename:GLFWAPI GLFWmonitor *	signature:(void)
+glfwGetMonitorPos	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorPos(GLFWmonitor* monitor, int* xpos, int* ypos);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWmonitor * monitor,int * xpos,int * ypos)
+monitor	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorPos(GLFWmonitor* monitor, int* xpos, int* ypos);$/;"	z	prototype:glfwGetMonitorPos	typeref:typename:GLFWmonitor *	file:
+xpos	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorPos(GLFWmonitor* monitor, int* xpos, int* ypos);$/;"	z	prototype:glfwGetMonitorPos	typeref:typename:int *	file:
+ypos	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorPos(GLFWmonitor* monitor, int* xpos, int* ypos);$/;"	z	prototype:glfwGetMonitorPos	typeref:typename:int *	file:
+glfwGetMonitorWorkarea	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorWorkarea(GLFWmonitor* monitor, int* xpos, int* ypos, int* width, int*/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWmonitor * monitor,int * xpos,int * ypos,int * width,int * height)
+monitor	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorWorkarea(GLFWmonitor* monitor, int* xpos, int* ypos, int* width, int*/;"	z	prototype:glfwGetMonitorWorkarea	typeref:typename:GLFWmonitor *	file:
+xpos	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorWorkarea(GLFWmonitor* monitor, int* xpos, int* ypos, int* width, int*/;"	z	prototype:glfwGetMonitorWorkarea	typeref:typename:int *	file:
+ypos	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorWorkarea(GLFWmonitor* monitor, int* xpos, int* ypos, int* width, int*/;"	z	prototype:glfwGetMonitorWorkarea	typeref:typename:int *	file:
+width	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorWorkarea(GLFWmonitor* monitor, int* xpos, int* ypos, int* width, int*/;"	z	prototype:glfwGetMonitorWorkarea	typeref:typename:int *	file:
+height	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorWorkarea(GLFWmonitor* monitor, int* xpos, int* ypos, int* width, int*/;"	z	prototype:glfwGetMonitorWorkarea	typeref:typename:int *	file:
+glfwGetMonitorPhysicalSize	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorPhysicalSize(GLFWmonitor* monitor, int* widthMM, int* heightMM);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWmonitor * monitor,int * widthMM,int * heightMM)
+monitor	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorPhysicalSize(GLFWmonitor* monitor, int* widthMM, int* heightMM);$/;"	z	prototype:glfwGetMonitorPhysicalSize	typeref:typename:GLFWmonitor *	file:
+widthMM	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorPhysicalSize(GLFWmonitor* monitor, int* widthMM, int* heightMM);$/;"	z	prototype:glfwGetMonitorPhysicalSize	typeref:typename:int *	file:
+heightMM	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorPhysicalSize(GLFWmonitor* monitor, int* widthMM, int* heightMM);$/;"	z	prototype:glfwGetMonitorPhysicalSize	typeref:typename:int *	file:
+glfwGetMonitorContentScale	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorContentScale(GLFWmonitor* monitor, float* xscale, float* yscale);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWmonitor * monitor,float * xscale,float * yscale)
+monitor	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorContentScale(GLFWmonitor* monitor, float* xscale, float* yscale);$/;"	z	prototype:glfwGetMonitorContentScale	typeref:typename:GLFWmonitor *	file:
+xscale	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorContentScale(GLFWmonitor* monitor, float* xscale, float* yscale);$/;"	z	prototype:glfwGetMonitorContentScale	typeref:typename:float *	file:
+yscale	GLFW/glfw3.h	/^GLFWAPI void glfwGetMonitorContentScale(GLFWmonitor* monitor, float* xscale, float* yscale);$/;"	z	prototype:glfwGetMonitorContentScale	typeref:typename:float *	file:
+glfwGetMonitorName	GLFW/glfw3.h	/^GLFWAPI const char* glfwGetMonitorName(GLFWmonitor* monitor);$/;"	p	typeref:typename:GLFWAPI const char *	signature:(GLFWmonitor * monitor)
+monitor	GLFW/glfw3.h	/^GLFWAPI const char* glfwGetMonitorName(GLFWmonitor* monitor);$/;"	z	prototype:glfwGetMonitorName	typeref:typename:GLFWmonitor *	file:
+glfwSetMonitorUserPointer	GLFW/glfw3.h	/^GLFWAPI void glfwSetMonitorUserPointer(GLFWmonitor* monitor, void* pointer);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWmonitor * monitor,void * pointer)
+monitor	GLFW/glfw3.h	/^GLFWAPI void glfwSetMonitorUserPointer(GLFWmonitor* monitor, void* pointer);$/;"	z	prototype:glfwSetMonitorUserPointer	typeref:typename:GLFWmonitor *	file:
+pointer	GLFW/glfw3.h	/^GLFWAPI void glfwSetMonitorUserPointer(GLFWmonitor* monitor, void* pointer);$/;"	z	prototype:glfwSetMonitorUserPointer	typeref:typename:void *	file:
+glfwGetMonitorUserPointer	GLFW/glfw3.h	/^GLFWAPI void* glfwGetMonitorUserPointer(GLFWmonitor* monitor);$/;"	p	typeref:typename:GLFWAPI void *	signature:(GLFWmonitor * monitor)
+monitor	GLFW/glfw3.h	/^GLFWAPI void* glfwGetMonitorUserPointer(GLFWmonitor* monitor);$/;"	z	prototype:glfwGetMonitorUserPointer	typeref:typename:GLFWmonitor *	file:
+glfwSetMonitorCallback	GLFW/glfw3.h	/^GLFWAPI GLFWmonitorfun glfwSetMonitorCallback(GLFWmonitorfun callback);$/;"	p	typeref:typename:GLFWAPI GLFWmonitorfun	signature:(GLFWmonitorfun callback)
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWmonitorfun glfwSetMonitorCallback(GLFWmonitorfun callback);$/;"	z	prototype:glfwSetMonitorCallback	typeref:typename:GLFWmonitorfun	file:
+glfwGetVideoModes	GLFW/glfw3.h	/^GLFWAPI const GLFWvidmode* glfwGetVideoModes(GLFWmonitor* monitor, int* count);$/;"	p	typeref:typename:GLFWAPI const GLFWvidmode *	signature:(GLFWmonitor * monitor,int * count)
+monitor	GLFW/glfw3.h	/^GLFWAPI const GLFWvidmode* glfwGetVideoModes(GLFWmonitor* monitor, int* count);$/;"	z	prototype:glfwGetVideoModes	typeref:typename:GLFWmonitor *	file:
+count	GLFW/glfw3.h	/^GLFWAPI const GLFWvidmode* glfwGetVideoModes(GLFWmonitor* monitor, int* count);$/;"	z	prototype:glfwGetVideoModes	typeref:typename:int *	file:
+glfwGetVideoMode	GLFW/glfw3.h	/^GLFWAPI const GLFWvidmode* glfwGetVideoMode(GLFWmonitor* monitor);$/;"	p	typeref:typename:GLFWAPI const GLFWvidmode *	signature:(GLFWmonitor * monitor)
+monitor	GLFW/glfw3.h	/^GLFWAPI const GLFWvidmode* glfwGetVideoMode(GLFWmonitor* monitor);$/;"	z	prototype:glfwGetVideoMode	typeref:typename:GLFWmonitor *	file:
+glfwSetGamma	GLFW/glfw3.h	/^GLFWAPI void glfwSetGamma(GLFWmonitor* monitor, float gamma);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWmonitor * monitor,float gamma)
+monitor	GLFW/glfw3.h	/^GLFWAPI void glfwSetGamma(GLFWmonitor* monitor, float gamma);$/;"	z	prototype:glfwSetGamma	typeref:typename:GLFWmonitor *	file:
+gamma	GLFW/glfw3.h	/^GLFWAPI void glfwSetGamma(GLFWmonitor* monitor, float gamma);$/;"	z	prototype:glfwSetGamma	typeref:typename:float	file:
+glfwGetGammaRamp	GLFW/glfw3.h	/^GLFWAPI const GLFWgammaramp* glfwGetGammaRamp(GLFWmonitor* monitor);$/;"	p	typeref:typename:GLFWAPI const GLFWgammaramp *	signature:(GLFWmonitor * monitor)
+monitor	GLFW/glfw3.h	/^GLFWAPI const GLFWgammaramp* glfwGetGammaRamp(GLFWmonitor* monitor);$/;"	z	prototype:glfwGetGammaRamp	typeref:typename:GLFWmonitor *	file:
+glfwSetGammaRamp	GLFW/glfw3.h	/^GLFWAPI void glfwSetGammaRamp(GLFWmonitor* monitor, const GLFWgammaramp* ramp);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWmonitor * monitor,const GLFWgammaramp * ramp)
+monitor	GLFW/glfw3.h	/^GLFWAPI void glfwSetGammaRamp(GLFWmonitor* monitor, const GLFWgammaramp* ramp);$/;"	z	prototype:glfwSetGammaRamp	typeref:typename:GLFWmonitor *	file:
+ramp	GLFW/glfw3.h	/^GLFWAPI void glfwSetGammaRamp(GLFWmonitor* monitor, const GLFWgammaramp* ramp);$/;"	z	prototype:glfwSetGammaRamp	typeref:typename:const GLFWgammaramp *	file:
+glfwDefaultWindowHints	GLFW/glfw3.h	/^GLFWAPI void glfwDefaultWindowHints(void);$/;"	p	typeref:typename:GLFWAPI void	signature:(void)
+glfwWindowHint	GLFW/glfw3.h	/^GLFWAPI void glfwWindowHint(int hint, int value);$/;"	p	typeref:typename:GLFWAPI void	signature:(int hint,int value)
+hint	GLFW/glfw3.h	/^GLFWAPI void glfwWindowHint(int hint, int value);$/;"	z	prototype:glfwWindowHint	typeref:typename:int	file:
+value	GLFW/glfw3.h	/^GLFWAPI void glfwWindowHint(int hint, int value);$/;"	z	prototype:glfwWindowHint	typeref:typename:int	file:
+glfwWindowHintString	GLFW/glfw3.h	/^GLFWAPI void glfwWindowHintString(int hint, const char* value);$/;"	p	typeref:typename:GLFWAPI void	signature:(int hint,const char * value)
+hint	GLFW/glfw3.h	/^GLFWAPI void glfwWindowHintString(int hint, const char* value);$/;"	z	prototype:glfwWindowHintString	typeref:typename:int	file:
+value	GLFW/glfw3.h	/^GLFWAPI void glfwWindowHintString(int hint, const char* value);$/;"	z	prototype:glfwWindowHintString	typeref:typename:const char *	file:
+glfwCreateWindow	GLFW/glfw3.h	/^GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height, const char* title, GLFWmonitor* moni/;"	p	typeref:typename:GLFWAPI GLFWwindow *	signature:(int width,int height,const char * title,GLFWmonitor * monitor,GLFWwindow * share)
+width	GLFW/glfw3.h	/^GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height, const char* title, GLFWmonitor* moni/;"	z	prototype:glfwCreateWindow	typeref:typename:int	file:
+height	GLFW/glfw3.h	/^GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height, const char* title, GLFWmonitor* moni/;"	z	prototype:glfwCreateWindow	typeref:typename:int	file:
+title	GLFW/glfw3.h	/^GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height, const char* title, GLFWmonitor* moni/;"	z	prototype:glfwCreateWindow	typeref:typename:const char *	file:
+monitor	GLFW/glfw3.h	/^GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height, const char* title, GLFWmonitor* moni/;"	z	prototype:glfwCreateWindow	typeref:typename:GLFWmonitor *	file:
+share	GLFW/glfw3.h	/^GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height, const char* title, GLFWmonitor* moni/;"	z	prototype:glfwCreateWindow	typeref:typename:GLFWwindow *	file:
+glfwDestroyWindow	GLFW/glfw3.h	/^GLFWAPI void glfwDestroyWindow(GLFWwindow* window);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwDestroyWindow(GLFWwindow* window);$/;"	z	prototype:glfwDestroyWindow	typeref:typename:GLFWwindow *	file:
+glfwWindowShouldClose	GLFW/glfw3.h	/^GLFWAPI int glfwWindowShouldClose(GLFWwindow* window);$/;"	p	typeref:typename:GLFWAPI int	signature:(GLFWwindow * window)
+window	GLFW/glfw3.h	/^GLFWAPI int glfwWindowShouldClose(GLFWwindow* window);$/;"	z	prototype:glfwWindowShouldClose	typeref:typename:GLFWwindow *	file:
+glfwSetWindowShouldClose	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowShouldClose(GLFWwindow* window, int value);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,int value)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowShouldClose(GLFWwindow* window, int value);$/;"	z	prototype:glfwSetWindowShouldClose	typeref:typename:GLFWwindow *	file:
+value	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowShouldClose(GLFWwindow* window, int value);$/;"	z	prototype:glfwSetWindowShouldClose	typeref:typename:int	file:
+glfwSetWindowTitle	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowTitle(GLFWwindow* window, const char* title);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,const char * title)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowTitle(GLFWwindow* window, const char* title);$/;"	z	prototype:glfwSetWindowTitle	typeref:typename:GLFWwindow *	file:
+title	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowTitle(GLFWwindow* window, const char* title);$/;"	z	prototype:glfwSetWindowTitle	typeref:typename:const char *	file:
+glfwSetWindowIcon	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowIcon(GLFWwindow* window, int count, const GLFWimage* images);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,int count,const GLFWimage * images)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowIcon(GLFWwindow* window, int count, const GLFWimage* images);$/;"	z	prototype:glfwSetWindowIcon	typeref:typename:GLFWwindow *	file:
+count	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowIcon(GLFWwindow* window, int count, const GLFWimage* images);$/;"	z	prototype:glfwSetWindowIcon	typeref:typename:int	file:
+images	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowIcon(GLFWwindow* window, int count, const GLFWimage* images);$/;"	z	prototype:glfwSetWindowIcon	typeref:typename:const GLFWimage *	file:
+glfwGetWindowPos	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowPos(GLFWwindow* window, int* xpos, int* ypos);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,int * xpos,int * ypos)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowPos(GLFWwindow* window, int* xpos, int* ypos);$/;"	z	prototype:glfwGetWindowPos	typeref:typename:GLFWwindow *	file:
+xpos	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowPos(GLFWwindow* window, int* xpos, int* ypos);$/;"	z	prototype:glfwGetWindowPos	typeref:typename:int *	file:
+ypos	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowPos(GLFWwindow* window, int* xpos, int* ypos);$/;"	z	prototype:glfwGetWindowPos	typeref:typename:int *	file:
+glfwSetWindowPos	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowPos(GLFWwindow* window, int xpos, int ypos);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,int xpos,int ypos)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowPos(GLFWwindow* window, int xpos, int ypos);$/;"	z	prototype:glfwSetWindowPos	typeref:typename:GLFWwindow *	file:
+xpos	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowPos(GLFWwindow* window, int xpos, int ypos);$/;"	z	prototype:glfwSetWindowPos	typeref:typename:int	file:
+ypos	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowPos(GLFWwindow* window, int xpos, int ypos);$/;"	z	prototype:glfwSetWindowPos	typeref:typename:int	file:
+glfwGetWindowSize	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowSize(GLFWwindow* window, int* width, int* height);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,int * width,int * height)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowSize(GLFWwindow* window, int* width, int* height);$/;"	z	prototype:glfwGetWindowSize	typeref:typename:GLFWwindow *	file:
+width	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowSize(GLFWwindow* window, int* width, int* height);$/;"	z	prototype:glfwGetWindowSize	typeref:typename:int *	file:
+height	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowSize(GLFWwindow* window, int* width, int* height);$/;"	z	prototype:glfwGetWindowSize	typeref:typename:int *	file:
+glfwSetWindowSizeLimits	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowSizeLimits(GLFWwindow* window, int minwidth, int minheight, int maxwid/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,int minwidth,int minheight,int maxwidth,int maxheight)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowSizeLimits(GLFWwindow* window, int minwidth, int minheight, int maxwid/;"	z	prototype:glfwSetWindowSizeLimits	typeref:typename:GLFWwindow *	file:
+minwidth	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowSizeLimits(GLFWwindow* window, int minwidth, int minheight, int maxwid/;"	z	prototype:glfwSetWindowSizeLimits	typeref:typename:int	file:
+minheight	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowSizeLimits(GLFWwindow* window, int minwidth, int minheight, int maxwid/;"	z	prototype:glfwSetWindowSizeLimits	typeref:typename:int	file:
+maxwidth	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowSizeLimits(GLFWwindow* window, int minwidth, int minheight, int maxwid/;"	z	prototype:glfwSetWindowSizeLimits	typeref:typename:int	file:
+maxheight	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowSizeLimits(GLFWwindow* window, int minwidth, int minheight, int maxwid/;"	z	prototype:glfwSetWindowSizeLimits	typeref:typename:int	file:
+glfwSetWindowAspectRatio	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowAspectRatio(GLFWwindow* window, int numer, int denom);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,int numer,int denom)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowAspectRatio(GLFWwindow* window, int numer, int denom);$/;"	z	prototype:glfwSetWindowAspectRatio	typeref:typename:GLFWwindow *	file:
+numer	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowAspectRatio(GLFWwindow* window, int numer, int denom);$/;"	z	prototype:glfwSetWindowAspectRatio	typeref:typename:int	file:
+denom	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowAspectRatio(GLFWwindow* window, int numer, int denom);$/;"	z	prototype:glfwSetWindowAspectRatio	typeref:typename:int	file:
+glfwSetWindowSize	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowSize(GLFWwindow* window, int width, int height);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,int width,int height)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowSize(GLFWwindow* window, int width, int height);$/;"	z	prototype:glfwSetWindowSize	typeref:typename:GLFWwindow *	file:
+width	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowSize(GLFWwindow* window, int width, int height);$/;"	z	prototype:glfwSetWindowSize	typeref:typename:int	file:
+height	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowSize(GLFWwindow* window, int width, int height);$/;"	z	prototype:glfwSetWindowSize	typeref:typename:int	file:
+glfwGetFramebufferSize	GLFW/glfw3.h	/^GLFWAPI void glfwGetFramebufferSize(GLFWwindow* window, int* width, int* height);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,int * width,int * height)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwGetFramebufferSize(GLFWwindow* window, int* width, int* height);$/;"	z	prototype:glfwGetFramebufferSize	typeref:typename:GLFWwindow *	file:
+width	GLFW/glfw3.h	/^GLFWAPI void glfwGetFramebufferSize(GLFWwindow* window, int* width, int* height);$/;"	z	prototype:glfwGetFramebufferSize	typeref:typename:int *	file:
+height	GLFW/glfw3.h	/^GLFWAPI void glfwGetFramebufferSize(GLFWwindow* window, int* width, int* height);$/;"	z	prototype:glfwGetFramebufferSize	typeref:typename:int *	file:
+glfwGetWindowFrameSize	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowFrameSize(GLFWwindow* window, int* left, int* top, int* right, int* bo/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,int * left,int * top,int * right,int * bottom)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowFrameSize(GLFWwindow* window, int* left, int* top, int* right, int* bo/;"	z	prototype:glfwGetWindowFrameSize	typeref:typename:GLFWwindow *	file:
+left	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowFrameSize(GLFWwindow* window, int* left, int* top, int* right, int* bo/;"	z	prototype:glfwGetWindowFrameSize	typeref:typename:int *	file:
+top	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowFrameSize(GLFWwindow* window, int* left, int* top, int* right, int* bo/;"	z	prototype:glfwGetWindowFrameSize	typeref:typename:int *	file:
+right	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowFrameSize(GLFWwindow* window, int* left, int* top, int* right, int* bo/;"	z	prototype:glfwGetWindowFrameSize	typeref:typename:int *	file:
+bottom	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowFrameSize(GLFWwindow* window, int* left, int* top, int* right, int* bo/;"	z	prototype:glfwGetWindowFrameSize	typeref:typename:int *	file:
+glfwGetWindowContentScale	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowContentScale(GLFWwindow* window, float* xscale, float* yscale);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,float * xscale,float * yscale)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowContentScale(GLFWwindow* window, float* xscale, float* yscale);$/;"	z	prototype:glfwGetWindowContentScale	typeref:typename:GLFWwindow *	file:
+xscale	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowContentScale(GLFWwindow* window, float* xscale, float* yscale);$/;"	z	prototype:glfwGetWindowContentScale	typeref:typename:float *	file:
+yscale	GLFW/glfw3.h	/^GLFWAPI void glfwGetWindowContentScale(GLFWwindow* window, float* xscale, float* yscale);$/;"	z	prototype:glfwGetWindowContentScale	typeref:typename:float *	file:
+glfwGetWindowOpacity	GLFW/glfw3.h	/^GLFWAPI float glfwGetWindowOpacity(GLFWwindow* window);$/;"	p	typeref:typename:GLFWAPI float	signature:(GLFWwindow * window)
+window	GLFW/glfw3.h	/^GLFWAPI float glfwGetWindowOpacity(GLFWwindow* window);$/;"	z	prototype:glfwGetWindowOpacity	typeref:typename:GLFWwindow *	file:
+glfwSetWindowOpacity	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowOpacity(GLFWwindow* window, float opacity);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,float opacity)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowOpacity(GLFWwindow* window, float opacity);$/;"	z	prototype:glfwSetWindowOpacity	typeref:typename:GLFWwindow *	file:
+opacity	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowOpacity(GLFWwindow* window, float opacity);$/;"	z	prototype:glfwSetWindowOpacity	typeref:typename:float	file:
+glfwIconifyWindow	GLFW/glfw3.h	/^GLFWAPI void glfwIconifyWindow(GLFWwindow* window);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwIconifyWindow(GLFWwindow* window);$/;"	z	prototype:glfwIconifyWindow	typeref:typename:GLFWwindow *	file:
+glfwRestoreWindow	GLFW/glfw3.h	/^GLFWAPI void glfwRestoreWindow(GLFWwindow* window);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwRestoreWindow(GLFWwindow* window);$/;"	z	prototype:glfwRestoreWindow	typeref:typename:GLFWwindow *	file:
+glfwMaximizeWindow	GLFW/glfw3.h	/^GLFWAPI void glfwMaximizeWindow(GLFWwindow* window);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwMaximizeWindow(GLFWwindow* window);$/;"	z	prototype:glfwMaximizeWindow	typeref:typename:GLFWwindow *	file:
+glfwShowWindow	GLFW/glfw3.h	/^GLFWAPI void glfwShowWindow(GLFWwindow* window);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwShowWindow(GLFWwindow* window);$/;"	z	prototype:glfwShowWindow	typeref:typename:GLFWwindow *	file:
+glfwHideWindow	GLFW/glfw3.h	/^GLFWAPI void glfwHideWindow(GLFWwindow* window);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwHideWindow(GLFWwindow* window);$/;"	z	prototype:glfwHideWindow	typeref:typename:GLFWwindow *	file:
+glfwFocusWindow	GLFW/glfw3.h	/^GLFWAPI void glfwFocusWindow(GLFWwindow* window);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwFocusWindow(GLFWwindow* window);$/;"	z	prototype:glfwFocusWindow	typeref:typename:GLFWwindow *	file:
+glfwRequestWindowAttention	GLFW/glfw3.h	/^GLFWAPI void glfwRequestWindowAttention(GLFWwindow* window);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwRequestWindowAttention(GLFWwindow* window);$/;"	z	prototype:glfwRequestWindowAttention	typeref:typename:GLFWwindow *	file:
+glfwGetWindowMonitor	GLFW/glfw3.h	/^GLFWAPI GLFWmonitor* glfwGetWindowMonitor(GLFWwindow* window);$/;"	p	typeref:typename:GLFWAPI GLFWmonitor *	signature:(GLFWwindow * window)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWmonitor* glfwGetWindowMonitor(GLFWwindow* window);$/;"	z	prototype:glfwGetWindowMonitor	typeref:typename:GLFWwindow *	file:
+glfwSetWindowMonitor	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowMonitor(GLFWwindow* window, GLFWmonitor* monitor, int xpos, int ypos, /;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,GLFWmonitor * monitor,int xpos,int ypos,int width,int height,int refreshRate)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowMonitor(GLFWwindow* window, GLFWmonitor* monitor, int xpos, int ypos, /;"	z	prototype:glfwSetWindowMonitor	typeref:typename:GLFWwindow *	file:
+monitor	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowMonitor(GLFWwindow* window, GLFWmonitor* monitor, int xpos, int ypos, /;"	z	prototype:glfwSetWindowMonitor	typeref:typename:GLFWmonitor *	file:
+xpos	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowMonitor(GLFWwindow* window, GLFWmonitor* monitor, int xpos, int ypos, /;"	z	prototype:glfwSetWindowMonitor	typeref:typename:int	file:
+ypos	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowMonitor(GLFWwindow* window, GLFWmonitor* monitor, int xpos, int ypos, /;"	z	prototype:glfwSetWindowMonitor	typeref:typename:int	file:
+width	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowMonitor(GLFWwindow* window, GLFWmonitor* monitor, int xpos, int ypos, /;"	z	prototype:glfwSetWindowMonitor	typeref:typename:int	file:
+height	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowMonitor(GLFWwindow* window, GLFWmonitor* monitor, int xpos, int ypos, /;"	z	prototype:glfwSetWindowMonitor	typeref:typename:int	file:
+refreshRate	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowMonitor(GLFWwindow* window, GLFWmonitor* monitor, int xpos, int ypos, /;"	z	prototype:glfwSetWindowMonitor	typeref:typename:int	file:
+glfwGetWindowAttrib	GLFW/glfw3.h	/^GLFWAPI int glfwGetWindowAttrib(GLFWwindow* window, int attrib);$/;"	p	typeref:typename:GLFWAPI int	signature:(GLFWwindow * window,int attrib)
+window	GLFW/glfw3.h	/^GLFWAPI int glfwGetWindowAttrib(GLFWwindow* window, int attrib);$/;"	z	prototype:glfwGetWindowAttrib	typeref:typename:GLFWwindow *	file:
+attrib	GLFW/glfw3.h	/^GLFWAPI int glfwGetWindowAttrib(GLFWwindow* window, int attrib);$/;"	z	prototype:glfwGetWindowAttrib	typeref:typename:int	file:
+glfwSetWindowAttrib	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowAttrib(GLFWwindow* window, int attrib, int value);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,int attrib,int value)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowAttrib(GLFWwindow* window, int attrib, int value);$/;"	z	prototype:glfwSetWindowAttrib	typeref:typename:GLFWwindow *	file:
+attrib	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowAttrib(GLFWwindow* window, int attrib, int value);$/;"	z	prototype:glfwSetWindowAttrib	typeref:typename:int	file:
+value	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowAttrib(GLFWwindow* window, int attrib, int value);$/;"	z	prototype:glfwSetWindowAttrib	typeref:typename:int	file:
+glfwSetWindowUserPointer	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowUserPointer(GLFWwindow* window, void* pointer);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,void * pointer)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowUserPointer(GLFWwindow* window, void* pointer);$/;"	z	prototype:glfwSetWindowUserPointer	typeref:typename:GLFWwindow *	file:
+pointer	GLFW/glfw3.h	/^GLFWAPI void glfwSetWindowUserPointer(GLFWwindow* window, void* pointer);$/;"	z	prototype:glfwSetWindowUserPointer	typeref:typename:void *	file:
+glfwGetWindowUserPointer	GLFW/glfw3.h	/^GLFWAPI void* glfwGetWindowUserPointer(GLFWwindow* window);$/;"	p	typeref:typename:GLFWAPI void *	signature:(GLFWwindow * window)
+window	GLFW/glfw3.h	/^GLFWAPI void* glfwGetWindowUserPointer(GLFWwindow* window);$/;"	z	prototype:glfwGetWindowUserPointer	typeref:typename:GLFWwindow *	file:
+glfwSetWindowPosCallback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowposfun glfwSetWindowPosCallback(GLFWwindow* window, GLFWwindowposfun callback)/;"	p	typeref:typename:GLFWAPI GLFWwindowposfun	signature:(GLFWwindow * window,GLFWwindowposfun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWwindowposfun glfwSetWindowPosCallback(GLFWwindow* window, GLFWwindowposfun callback)/;"	z	prototype:glfwSetWindowPosCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowposfun glfwSetWindowPosCallback(GLFWwindow* window, GLFWwindowposfun callback)/;"	z	prototype:glfwSetWindowPosCallback	typeref:typename:GLFWwindowposfun	file:
+glfwSetWindowSizeCallback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowsizefun glfwSetWindowSizeCallback(GLFWwindow* window, GLFWwindowsizefun callba/;"	p	typeref:typename:GLFWAPI GLFWwindowsizefun	signature:(GLFWwindow * window,GLFWwindowsizefun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWwindowsizefun glfwSetWindowSizeCallback(GLFWwindow* window, GLFWwindowsizefun callba/;"	z	prototype:glfwSetWindowSizeCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowsizefun glfwSetWindowSizeCallback(GLFWwindow* window, GLFWwindowsizefun callba/;"	z	prototype:glfwSetWindowSizeCallback	typeref:typename:GLFWwindowsizefun	file:
+glfwSetWindowCloseCallback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowclosefun glfwSetWindowCloseCallback(GLFWwindow* window, GLFWwindowclosefun cal/;"	p	typeref:typename:GLFWAPI GLFWwindowclosefun	signature:(GLFWwindow * window,GLFWwindowclosefun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWwindowclosefun glfwSetWindowCloseCallback(GLFWwindow* window, GLFWwindowclosefun cal/;"	z	prototype:glfwSetWindowCloseCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowclosefun glfwSetWindowCloseCallback(GLFWwindow* window, GLFWwindowclosefun cal/;"	z	prototype:glfwSetWindowCloseCallback	typeref:typename:GLFWwindowclosefun	file:
+glfwSetWindowRefreshCallback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowrefreshfun glfwSetWindowRefreshCallback(GLFWwindow* window, GLFWwindowrefreshf/;"	p	typeref:typename:GLFWAPI GLFWwindowrefreshfun	signature:(GLFWwindow * window,GLFWwindowrefreshfun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWwindowrefreshfun glfwSetWindowRefreshCallback(GLFWwindow* window, GLFWwindowrefreshf/;"	z	prototype:glfwSetWindowRefreshCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowrefreshfun glfwSetWindowRefreshCallback(GLFWwindow* window, GLFWwindowrefreshf/;"	z	prototype:glfwSetWindowRefreshCallback	typeref:typename:GLFWwindowrefreshfun	file:
+glfwSetWindowFocusCallback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowfocusfun glfwSetWindowFocusCallback(GLFWwindow* window, GLFWwindowfocusfun cal/;"	p	typeref:typename:GLFWAPI GLFWwindowfocusfun	signature:(GLFWwindow * window,GLFWwindowfocusfun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWwindowfocusfun glfwSetWindowFocusCallback(GLFWwindow* window, GLFWwindowfocusfun cal/;"	z	prototype:glfwSetWindowFocusCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowfocusfun glfwSetWindowFocusCallback(GLFWwindow* window, GLFWwindowfocusfun cal/;"	z	prototype:glfwSetWindowFocusCallback	typeref:typename:GLFWwindowfocusfun	file:
+glfwSetWindowIconifyCallback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowiconifyfun glfwSetWindowIconifyCallback(GLFWwindow* window, GLFWwindowiconifyf/;"	p	typeref:typename:GLFWAPI GLFWwindowiconifyfun	signature:(GLFWwindow * window,GLFWwindowiconifyfun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWwindowiconifyfun glfwSetWindowIconifyCallback(GLFWwindow* window, GLFWwindowiconifyf/;"	z	prototype:glfwSetWindowIconifyCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowiconifyfun glfwSetWindowIconifyCallback(GLFWwindow* window, GLFWwindowiconifyf/;"	z	prototype:glfwSetWindowIconifyCallback	typeref:typename:GLFWwindowiconifyfun	file:
+glfwSetWindowMaximizeCallback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowmaximizefun glfwSetWindowMaximizeCallback(GLFWwindow* window, GLFWwindowmaximi/;"	p	typeref:typename:GLFWAPI GLFWwindowmaximizefun	signature:(GLFWwindow * window,GLFWwindowmaximizefun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWwindowmaximizefun glfwSetWindowMaximizeCallback(GLFWwindow* window, GLFWwindowmaximi/;"	z	prototype:glfwSetWindowMaximizeCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowmaximizefun glfwSetWindowMaximizeCallback(GLFWwindow* window, GLFWwindowmaximi/;"	z	prototype:glfwSetWindowMaximizeCallback	typeref:typename:GLFWwindowmaximizefun	file:
+glfwSetFramebufferSizeCallback	GLFW/glfw3.h	/^GLFWAPI GLFWframebuffersizefun glfwSetFramebufferSizeCallback(GLFWwindow* window, GLFWframebuffe/;"	p	typeref:typename:GLFWAPI GLFWframebuffersizefun	signature:(GLFWwindow * window,GLFWframebuffersizefun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWframebuffersizefun glfwSetFramebufferSizeCallback(GLFWwindow* window, GLFWframebuffe/;"	z	prototype:glfwSetFramebufferSizeCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWframebuffersizefun glfwSetFramebufferSizeCallback(GLFWwindow* window, GLFWframebuffe/;"	z	prototype:glfwSetFramebufferSizeCallback	typeref:typename:GLFWframebuffersizefun	file:
+glfwSetWindowContentScaleCallback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowcontentscalefun glfwSetWindowContentScaleCallback(GLFWwindow* window, GLFWwind/;"	p	typeref:typename:GLFWAPI GLFWwindowcontentscalefun	signature:(GLFWwindow * window,GLFWwindowcontentscalefun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWwindowcontentscalefun glfwSetWindowContentScaleCallback(GLFWwindow* window, GLFWwind/;"	z	prototype:glfwSetWindowContentScaleCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWwindowcontentscalefun glfwSetWindowContentScaleCallback(GLFWwindow* window, GLFWwind/;"	z	prototype:glfwSetWindowContentScaleCallback	typeref:typename:GLFWwindowcontentscalefun	file:
+glfwPollEvents	GLFW/glfw3.h	/^GLFWAPI void glfwPollEvents(void);$/;"	p	typeref:typename:GLFWAPI void	signature:(void)
+glfwWaitEvents	GLFW/glfw3.h	/^GLFWAPI void glfwWaitEvents(void);$/;"	p	typeref:typename:GLFWAPI void	signature:(void)
+glfwWaitEventsTimeout	GLFW/glfw3.h	/^GLFWAPI void glfwWaitEventsTimeout(double timeout);$/;"	p	typeref:typename:GLFWAPI void	signature:(double timeout)
+timeout	GLFW/glfw3.h	/^GLFWAPI void glfwWaitEventsTimeout(double timeout);$/;"	z	prototype:glfwWaitEventsTimeout	typeref:typename:double	file:
+glfwPostEmptyEvent	GLFW/glfw3.h	/^GLFWAPI void glfwPostEmptyEvent(void);$/;"	p	typeref:typename:GLFWAPI void	signature:(void)
+glfwGetInputMode	GLFW/glfw3.h	/^GLFWAPI int glfwGetInputMode(GLFWwindow* window, int mode);$/;"	p	typeref:typename:GLFWAPI int	signature:(GLFWwindow * window,int mode)
+window	GLFW/glfw3.h	/^GLFWAPI int glfwGetInputMode(GLFWwindow* window, int mode);$/;"	z	prototype:glfwGetInputMode	typeref:typename:GLFWwindow *	file:
+mode	GLFW/glfw3.h	/^GLFWAPI int glfwGetInputMode(GLFWwindow* window, int mode);$/;"	z	prototype:glfwGetInputMode	typeref:typename:int	file:
+glfwSetInputMode	GLFW/glfw3.h	/^GLFWAPI void glfwSetInputMode(GLFWwindow* window, int mode, int value);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,int mode,int value)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSetInputMode(GLFWwindow* window, int mode, int value);$/;"	z	prototype:glfwSetInputMode	typeref:typename:GLFWwindow *	file:
+mode	GLFW/glfw3.h	/^GLFWAPI void glfwSetInputMode(GLFWwindow* window, int mode, int value);$/;"	z	prototype:glfwSetInputMode	typeref:typename:int	file:
+value	GLFW/glfw3.h	/^GLFWAPI void glfwSetInputMode(GLFWwindow* window, int mode, int value);$/;"	z	prototype:glfwSetInputMode	typeref:typename:int	file:
+glfwRawMouseMotionSupported	GLFW/glfw3.h	/^GLFWAPI int glfwRawMouseMotionSupported(void);$/;"	p	typeref:typename:GLFWAPI int	signature:(void)
+glfwGetKeyName	GLFW/glfw3.h	/^GLFWAPI const char* glfwGetKeyName(int key, int scancode);$/;"	p	typeref:typename:GLFWAPI const char *	signature:(int key,int scancode)
+key	GLFW/glfw3.h	/^GLFWAPI const char* glfwGetKeyName(int key, int scancode);$/;"	z	prototype:glfwGetKeyName	typeref:typename:int	file:
+scancode	GLFW/glfw3.h	/^GLFWAPI const char* glfwGetKeyName(int key, int scancode);$/;"	z	prototype:glfwGetKeyName	typeref:typename:int	file:
+glfwGetKeyScancode	GLFW/glfw3.h	/^GLFWAPI int glfwGetKeyScancode(int key);$/;"	p	typeref:typename:GLFWAPI int	signature:(int key)
+key	GLFW/glfw3.h	/^GLFWAPI int glfwGetKeyScancode(int key);$/;"	z	prototype:glfwGetKeyScancode	typeref:typename:int	file:
+glfwGetKey	GLFW/glfw3.h	/^GLFWAPI int glfwGetKey(GLFWwindow* window, int key);$/;"	p	typeref:typename:GLFWAPI int	signature:(GLFWwindow * window,int key)
+window	GLFW/glfw3.h	/^GLFWAPI int glfwGetKey(GLFWwindow* window, int key);$/;"	z	prototype:glfwGetKey	typeref:typename:GLFWwindow *	file:
+key	GLFW/glfw3.h	/^GLFWAPI int glfwGetKey(GLFWwindow* window, int key);$/;"	z	prototype:glfwGetKey	typeref:typename:int	file:
+glfwGetMouseButton	GLFW/glfw3.h	/^GLFWAPI int glfwGetMouseButton(GLFWwindow* window, int button);$/;"	p	typeref:typename:GLFWAPI int	signature:(GLFWwindow * window,int button)
+window	GLFW/glfw3.h	/^GLFWAPI int glfwGetMouseButton(GLFWwindow* window, int button);$/;"	z	prototype:glfwGetMouseButton	typeref:typename:GLFWwindow *	file:
+button	GLFW/glfw3.h	/^GLFWAPI int glfwGetMouseButton(GLFWwindow* window, int button);$/;"	z	prototype:glfwGetMouseButton	typeref:typename:int	file:
+glfwGetCursorPos	GLFW/glfw3.h	/^GLFWAPI void glfwGetCursorPos(GLFWwindow* window, double* xpos, double* ypos);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,double * xpos,double * ypos)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwGetCursorPos(GLFWwindow* window, double* xpos, double* ypos);$/;"	z	prototype:glfwGetCursorPos	typeref:typename:GLFWwindow *	file:
+xpos	GLFW/glfw3.h	/^GLFWAPI void glfwGetCursorPos(GLFWwindow* window, double* xpos, double* ypos);$/;"	z	prototype:glfwGetCursorPos	typeref:typename:double *	file:
+ypos	GLFW/glfw3.h	/^GLFWAPI void glfwGetCursorPos(GLFWwindow* window, double* xpos, double* ypos);$/;"	z	prototype:glfwGetCursorPos	typeref:typename:double *	file:
+glfwSetCursorPos	GLFW/glfw3.h	/^GLFWAPI void glfwSetCursorPos(GLFWwindow* window, double xpos, double ypos);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,double xpos,double ypos)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSetCursorPos(GLFWwindow* window, double xpos, double ypos);$/;"	z	prototype:glfwSetCursorPos	typeref:typename:GLFWwindow *	file:
+xpos	GLFW/glfw3.h	/^GLFWAPI void glfwSetCursorPos(GLFWwindow* window, double xpos, double ypos);$/;"	z	prototype:glfwSetCursorPos	typeref:typename:double	file:
+ypos	GLFW/glfw3.h	/^GLFWAPI void glfwSetCursorPos(GLFWwindow* window, double xpos, double ypos);$/;"	z	prototype:glfwSetCursorPos	typeref:typename:double	file:
+glfwCreateCursor	GLFW/glfw3.h	/^GLFWAPI GLFWcursor* glfwCreateCursor(const GLFWimage* image, int xhot, int yhot);$/;"	p	typeref:typename:GLFWAPI GLFWcursor *	signature:(const GLFWimage * image,int xhot,int yhot)
+image	GLFW/glfw3.h	/^GLFWAPI GLFWcursor* glfwCreateCursor(const GLFWimage* image, int xhot, int yhot);$/;"	z	prototype:glfwCreateCursor	typeref:typename:const GLFWimage *	file:
+xhot	GLFW/glfw3.h	/^GLFWAPI GLFWcursor* glfwCreateCursor(const GLFWimage* image, int xhot, int yhot);$/;"	z	prototype:glfwCreateCursor	typeref:typename:int	file:
+yhot	GLFW/glfw3.h	/^GLFWAPI GLFWcursor* glfwCreateCursor(const GLFWimage* image, int xhot, int yhot);$/;"	z	prototype:glfwCreateCursor	typeref:typename:int	file:
+glfwCreateStandardCursor	GLFW/glfw3.h	/^GLFWAPI GLFWcursor* glfwCreateStandardCursor(int shape);$/;"	p	typeref:typename:GLFWAPI GLFWcursor *	signature:(int shape)
+shape	GLFW/glfw3.h	/^GLFWAPI GLFWcursor* glfwCreateStandardCursor(int shape);$/;"	z	prototype:glfwCreateStandardCursor	typeref:typename:int	file:
+glfwDestroyCursor	GLFW/glfw3.h	/^GLFWAPI void glfwDestroyCursor(GLFWcursor* cursor);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWcursor * cursor)
+cursor	GLFW/glfw3.h	/^GLFWAPI void glfwDestroyCursor(GLFWcursor* cursor);$/;"	z	prototype:glfwDestroyCursor	typeref:typename:GLFWcursor *	file:
+glfwSetCursor	GLFW/glfw3.h	/^GLFWAPI void glfwSetCursor(GLFWwindow* window, GLFWcursor* cursor);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,GLFWcursor * cursor)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSetCursor(GLFWwindow* window, GLFWcursor* cursor);$/;"	z	prototype:glfwSetCursor	typeref:typename:GLFWwindow *	file:
+cursor	GLFW/glfw3.h	/^GLFWAPI void glfwSetCursor(GLFWwindow* window, GLFWcursor* cursor);$/;"	z	prototype:glfwSetCursor	typeref:typename:GLFWcursor *	file:
+glfwSetKeyCallback	GLFW/glfw3.h	/^GLFWAPI GLFWkeyfun glfwSetKeyCallback(GLFWwindow* window, GLFWkeyfun callback);$/;"	p	typeref:typename:GLFWAPI GLFWkeyfun	signature:(GLFWwindow * window,GLFWkeyfun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWkeyfun glfwSetKeyCallback(GLFWwindow* window, GLFWkeyfun callback);$/;"	z	prototype:glfwSetKeyCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWkeyfun glfwSetKeyCallback(GLFWwindow* window, GLFWkeyfun callback);$/;"	z	prototype:glfwSetKeyCallback	typeref:typename:GLFWkeyfun	file:
+glfwSetCharCallback	GLFW/glfw3.h	/^GLFWAPI GLFWcharfun glfwSetCharCallback(GLFWwindow* window, GLFWcharfun callback);$/;"	p	typeref:typename:GLFWAPI GLFWcharfun	signature:(GLFWwindow * window,GLFWcharfun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWcharfun glfwSetCharCallback(GLFWwindow* window, GLFWcharfun callback);$/;"	z	prototype:glfwSetCharCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWcharfun glfwSetCharCallback(GLFWwindow* window, GLFWcharfun callback);$/;"	z	prototype:glfwSetCharCallback	typeref:typename:GLFWcharfun	file:
+glfwSetCharModsCallback	GLFW/glfw3.h	/^GLFWAPI GLFWcharmodsfun glfwSetCharModsCallback(GLFWwindow* window, GLFWcharmodsfun callback);$/;"	p	typeref:typename:GLFWAPI GLFWcharmodsfun	signature:(GLFWwindow * window,GLFWcharmodsfun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWcharmodsfun glfwSetCharModsCallback(GLFWwindow* window, GLFWcharmodsfun callback);$/;"	z	prototype:glfwSetCharModsCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWcharmodsfun glfwSetCharModsCallback(GLFWwindow* window, GLFWcharmodsfun callback);$/;"	z	prototype:glfwSetCharModsCallback	typeref:typename:GLFWcharmodsfun	file:
+glfwSetMouseButtonCallback	GLFW/glfw3.h	/^GLFWAPI GLFWmousebuttonfun glfwSetMouseButtonCallback(GLFWwindow* window, GLFWmousebuttonfun cal/;"	p	typeref:typename:GLFWAPI GLFWmousebuttonfun	signature:(GLFWwindow * window,GLFWmousebuttonfun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWmousebuttonfun glfwSetMouseButtonCallback(GLFWwindow* window, GLFWmousebuttonfun cal/;"	z	prototype:glfwSetMouseButtonCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWmousebuttonfun glfwSetMouseButtonCallback(GLFWwindow* window, GLFWmousebuttonfun cal/;"	z	prototype:glfwSetMouseButtonCallback	typeref:typename:GLFWmousebuttonfun	file:
+glfwSetCursorPosCallback	GLFW/glfw3.h	/^GLFWAPI GLFWcursorposfun glfwSetCursorPosCallback(GLFWwindow* window, GLFWcursorposfun callback)/;"	p	typeref:typename:GLFWAPI GLFWcursorposfun	signature:(GLFWwindow * window,GLFWcursorposfun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWcursorposfun glfwSetCursorPosCallback(GLFWwindow* window, GLFWcursorposfun callback)/;"	z	prototype:glfwSetCursorPosCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWcursorposfun glfwSetCursorPosCallback(GLFWwindow* window, GLFWcursorposfun callback)/;"	z	prototype:glfwSetCursorPosCallback	typeref:typename:GLFWcursorposfun	file:
+glfwSetCursorEnterCallback	GLFW/glfw3.h	/^GLFWAPI GLFWcursorenterfun glfwSetCursorEnterCallback(GLFWwindow* window, GLFWcursorenterfun cal/;"	p	typeref:typename:GLFWAPI GLFWcursorenterfun	signature:(GLFWwindow * window,GLFWcursorenterfun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWcursorenterfun glfwSetCursorEnterCallback(GLFWwindow* window, GLFWcursorenterfun cal/;"	z	prototype:glfwSetCursorEnterCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWcursorenterfun glfwSetCursorEnterCallback(GLFWwindow* window, GLFWcursorenterfun cal/;"	z	prototype:glfwSetCursorEnterCallback	typeref:typename:GLFWcursorenterfun	file:
+glfwSetScrollCallback	GLFW/glfw3.h	/^GLFWAPI GLFWscrollfun glfwSetScrollCallback(GLFWwindow* window, GLFWscrollfun callback);$/;"	p	typeref:typename:GLFWAPI GLFWscrollfun	signature:(GLFWwindow * window,GLFWscrollfun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWscrollfun glfwSetScrollCallback(GLFWwindow* window, GLFWscrollfun callback);$/;"	z	prototype:glfwSetScrollCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWscrollfun glfwSetScrollCallback(GLFWwindow* window, GLFWscrollfun callback);$/;"	z	prototype:glfwSetScrollCallback	typeref:typename:GLFWscrollfun	file:
+glfwSetDropCallback	GLFW/glfw3.h	/^GLFWAPI GLFWdropfun glfwSetDropCallback(GLFWwindow* window, GLFWdropfun callback);$/;"	p	typeref:typename:GLFWAPI GLFWdropfun	signature:(GLFWwindow * window,GLFWdropfun callback)
+window	GLFW/glfw3.h	/^GLFWAPI GLFWdropfun glfwSetDropCallback(GLFWwindow* window, GLFWdropfun callback);$/;"	z	prototype:glfwSetDropCallback	typeref:typename:GLFWwindow *	file:
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWdropfun glfwSetDropCallback(GLFWwindow* window, GLFWdropfun callback);$/;"	z	prototype:glfwSetDropCallback	typeref:typename:GLFWdropfun	file:
+glfwJoystickPresent	GLFW/glfw3.h	/^GLFWAPI int glfwJoystickPresent(int jid);$/;"	p	typeref:typename:GLFWAPI int	signature:(int jid)
+jid	GLFW/glfw3.h	/^GLFWAPI int glfwJoystickPresent(int jid);$/;"	z	prototype:glfwJoystickPresent	typeref:typename:int	file:
+glfwGetJoystickAxes	GLFW/glfw3.h	/^GLFWAPI const float* glfwGetJoystickAxes(int jid, int* count);$/;"	p	typeref:typename:GLFWAPI const float *	signature:(int jid,int * count)
+jid	GLFW/glfw3.h	/^GLFWAPI const float* glfwGetJoystickAxes(int jid, int* count);$/;"	z	prototype:glfwGetJoystickAxes	typeref:typename:int	file:
+count	GLFW/glfw3.h	/^GLFWAPI const float* glfwGetJoystickAxes(int jid, int* count);$/;"	z	prototype:glfwGetJoystickAxes	typeref:typename:int *	file:
+glfwGetJoystickButtons	GLFW/glfw3.h	/^GLFWAPI const unsigned char* glfwGetJoystickButtons(int jid, int* count);$/;"	p	typeref:typename:GLFWAPI const unsigned char *	signature:(int jid,int * count)
+jid	GLFW/glfw3.h	/^GLFWAPI const unsigned char* glfwGetJoystickButtons(int jid, int* count);$/;"	z	prototype:glfwGetJoystickButtons	typeref:typename:int	file:
+count	GLFW/glfw3.h	/^GLFWAPI const unsigned char* glfwGetJoystickButtons(int jid, int* count);$/;"	z	prototype:glfwGetJoystickButtons	typeref:typename:int *	file:
+glfwGetJoystickHats	GLFW/glfw3.h	/^GLFWAPI const unsigned char* glfwGetJoystickHats(int jid, int* count);$/;"	p	typeref:typename:GLFWAPI const unsigned char *	signature:(int jid,int * count)
+jid	GLFW/glfw3.h	/^GLFWAPI const unsigned char* glfwGetJoystickHats(int jid, int* count);$/;"	z	prototype:glfwGetJoystickHats	typeref:typename:int	file:
+count	GLFW/glfw3.h	/^GLFWAPI const unsigned char* glfwGetJoystickHats(int jid, int* count);$/;"	z	prototype:glfwGetJoystickHats	typeref:typename:int *	file:
+glfwGetJoystickName	GLFW/glfw3.h	/^GLFWAPI const char* glfwGetJoystickName(int jid);$/;"	p	typeref:typename:GLFWAPI const char *	signature:(int jid)
+jid	GLFW/glfw3.h	/^GLFWAPI const char* glfwGetJoystickName(int jid);$/;"	z	prototype:glfwGetJoystickName	typeref:typename:int	file:
+glfwGetJoystickGUID	GLFW/glfw3.h	/^GLFWAPI const char* glfwGetJoystickGUID(int jid);$/;"	p	typeref:typename:GLFWAPI const char *	signature:(int jid)
+jid	GLFW/glfw3.h	/^GLFWAPI const char* glfwGetJoystickGUID(int jid);$/;"	z	prototype:glfwGetJoystickGUID	typeref:typename:int	file:
+glfwSetJoystickUserPointer	GLFW/glfw3.h	/^GLFWAPI void glfwSetJoystickUserPointer(int jid, void* pointer);$/;"	p	typeref:typename:GLFWAPI void	signature:(int jid,void * pointer)
+jid	GLFW/glfw3.h	/^GLFWAPI void glfwSetJoystickUserPointer(int jid, void* pointer);$/;"	z	prototype:glfwSetJoystickUserPointer	typeref:typename:int	file:
+pointer	GLFW/glfw3.h	/^GLFWAPI void glfwSetJoystickUserPointer(int jid, void* pointer);$/;"	z	prototype:glfwSetJoystickUserPointer	typeref:typename:void *	file:
+glfwGetJoystickUserPointer	GLFW/glfw3.h	/^GLFWAPI void* glfwGetJoystickUserPointer(int jid);$/;"	p	typeref:typename:GLFWAPI void *	signature:(int jid)
+jid	GLFW/glfw3.h	/^GLFWAPI void* glfwGetJoystickUserPointer(int jid);$/;"	z	prototype:glfwGetJoystickUserPointer	typeref:typename:int	file:
+glfwJoystickIsGamepad	GLFW/glfw3.h	/^GLFWAPI int glfwJoystickIsGamepad(int jid);$/;"	p	typeref:typename:GLFWAPI int	signature:(int jid)
+jid	GLFW/glfw3.h	/^GLFWAPI int glfwJoystickIsGamepad(int jid);$/;"	z	prototype:glfwJoystickIsGamepad	typeref:typename:int	file:
+glfwSetJoystickCallback	GLFW/glfw3.h	/^GLFWAPI GLFWjoystickfun glfwSetJoystickCallback(GLFWjoystickfun callback);$/;"	p	typeref:typename:GLFWAPI GLFWjoystickfun	signature:(GLFWjoystickfun callback)
+callback	GLFW/glfw3.h	/^GLFWAPI GLFWjoystickfun glfwSetJoystickCallback(GLFWjoystickfun callback);$/;"	z	prototype:glfwSetJoystickCallback	typeref:typename:GLFWjoystickfun	file:
+glfwUpdateGamepadMappings	GLFW/glfw3.h	/^GLFWAPI int glfwUpdateGamepadMappings(const char* string);$/;"	p	typeref:typename:GLFWAPI int	signature:(const char * string)
+string	GLFW/glfw3.h	/^GLFWAPI int glfwUpdateGamepadMappings(const char* string);$/;"	z	prototype:glfwUpdateGamepadMappings	typeref:typename:const char *	file:
+glfwGetGamepadName	GLFW/glfw3.h	/^GLFWAPI const char* glfwGetGamepadName(int jid);$/;"	p	typeref:typename:GLFWAPI const char *	signature:(int jid)
+jid	GLFW/glfw3.h	/^GLFWAPI const char* glfwGetGamepadName(int jid);$/;"	z	prototype:glfwGetGamepadName	typeref:typename:int	file:
+glfwGetGamepadState	GLFW/glfw3.h	/^GLFWAPI int glfwGetGamepadState(int jid, GLFWgamepadstate* state);$/;"	p	typeref:typename:GLFWAPI int	signature:(int jid,GLFWgamepadstate * state)
+jid	GLFW/glfw3.h	/^GLFWAPI int glfwGetGamepadState(int jid, GLFWgamepadstate* state);$/;"	z	prototype:glfwGetGamepadState	typeref:typename:int	file:
+state	GLFW/glfw3.h	/^GLFWAPI int glfwGetGamepadState(int jid, GLFWgamepadstate* state);$/;"	z	prototype:glfwGetGamepadState	typeref:typename:GLFWgamepadstate *	file:
+glfwSetClipboardString	GLFW/glfw3.h	/^GLFWAPI void glfwSetClipboardString(GLFWwindow* window, const char* string);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window,const char * string)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSetClipboardString(GLFWwindow* window, const char* string);$/;"	z	prototype:glfwSetClipboardString	typeref:typename:GLFWwindow *	file:
+string	GLFW/glfw3.h	/^GLFWAPI void glfwSetClipboardString(GLFWwindow* window, const char* string);$/;"	z	prototype:glfwSetClipboardString	typeref:typename:const char *	file:
+glfwGetClipboardString	GLFW/glfw3.h	/^GLFWAPI const char* glfwGetClipboardString(GLFWwindow* window);$/;"	p	typeref:typename:GLFWAPI const char *	signature:(GLFWwindow * window)
+window	GLFW/glfw3.h	/^GLFWAPI const char* glfwGetClipboardString(GLFWwindow* window);$/;"	z	prototype:glfwGetClipboardString	typeref:typename:GLFWwindow *	file:
+glfwGetTime	GLFW/glfw3.h	/^GLFWAPI double glfwGetTime(void);$/;"	p	typeref:typename:GLFWAPI double	signature:(void)
+glfwSetTime	GLFW/glfw3.h	/^GLFWAPI void glfwSetTime(double time);$/;"	p	typeref:typename:GLFWAPI void	signature:(double time)
+time	GLFW/glfw3.h	/^GLFWAPI void glfwSetTime(double time);$/;"	z	prototype:glfwSetTime	typeref:typename:double	file:
+glfwGetTimerValue	GLFW/glfw3.h	/^GLFWAPI uint64_t glfwGetTimerValue(void);$/;"	p	typeref:typename:GLFWAPI uint64_t	signature:(void)
+glfwGetTimerFrequency	GLFW/glfw3.h	/^GLFWAPI uint64_t glfwGetTimerFrequency(void);$/;"	p	typeref:typename:GLFWAPI uint64_t	signature:(void)
+glfwMakeContextCurrent	GLFW/glfw3.h	/^GLFWAPI void glfwMakeContextCurrent(GLFWwindow* window);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwMakeContextCurrent(GLFWwindow* window);$/;"	z	prototype:glfwMakeContextCurrent	typeref:typename:GLFWwindow *	file:
+glfwGetCurrentContext	GLFW/glfw3.h	/^GLFWAPI GLFWwindow* glfwGetCurrentContext(void);$/;"	p	typeref:typename:GLFWAPI GLFWwindow *	signature:(void)
+glfwSwapBuffers	GLFW/glfw3.h	/^GLFWAPI void glfwSwapBuffers(GLFWwindow* window);$/;"	p	typeref:typename:GLFWAPI void	signature:(GLFWwindow * window)
+window	GLFW/glfw3.h	/^GLFWAPI void glfwSwapBuffers(GLFWwindow* window);$/;"	z	prototype:glfwSwapBuffers	typeref:typename:GLFWwindow *	file:
+glfwSwapInterval	GLFW/glfw3.h	/^GLFWAPI void glfwSwapInterval(int interval);$/;"	p	typeref:typename:GLFWAPI void	signature:(int interval)
+interval	GLFW/glfw3.h	/^GLFWAPI void glfwSwapInterval(int interval);$/;"	z	prototype:glfwSwapInterval	typeref:typename:int	file:
+glfwExtensionSupported	GLFW/glfw3.h	/^GLFWAPI int glfwExtensionSupported(const char* extension);$/;"	p	typeref:typename:GLFWAPI int	signature:(const char * extension)
+extension	GLFW/glfw3.h	/^GLFWAPI int glfwExtensionSupported(const char* extension);$/;"	z	prototype:glfwExtensionSupported	typeref:typename:const char *	file:
+glfwGetProcAddress	GLFW/glfw3.h	/^GLFWAPI GLFWglproc glfwGetProcAddress(const char* procname);$/;"	p	typeref:typename:GLFWAPI GLFWglproc	signature:(const char * procname)
+procname	GLFW/glfw3.h	/^GLFWAPI GLFWglproc glfwGetProcAddress(const char* procname);$/;"	z	prototype:glfwGetProcAddress	typeref:typename:const char *	file:
+glfwVulkanSupported	GLFW/glfw3.h	/^GLFWAPI int glfwVulkanSupported(void);$/;"	p	typeref:typename:GLFWAPI int	signature:(void)
+glfwGetRequiredInstanceExtensions	GLFW/glfw3.h	/^GLFWAPI const char** glfwGetRequiredInstanceExtensions(uint32_t* count);$/;"	p	typeref:typename:GLFWAPI const char **	signature:(uint32_t * count)
+count	GLFW/glfw3.h	/^GLFWAPI const char** glfwGetRequiredInstanceExtensions(uint32_t* count);$/;"	z	prototype:glfwGetRequiredInstanceExtensions	typeref:typename:uint32_t *	file:
+glfwGetInstanceProcAddress	GLFW/glfw3.h	/^GLFWAPI GLFWvkproc glfwGetInstanceProcAddress(VkInstance instance, const char* procname);$/;"	p	typeref:typename:GLFWAPI GLFWvkproc	signature:(VkInstance instance,const char * procname)
+instance	GLFW/glfw3.h	/^GLFWAPI GLFWvkproc glfwGetInstanceProcAddress(VkInstance instance, const char* procname);$/;"	z	prototype:glfwGetInstanceProcAddress	typeref:typename:VkInstance	file:
+procname	GLFW/glfw3.h	/^GLFWAPI GLFWvkproc glfwGetInstanceProcAddress(VkInstance instance, const char* procname);$/;"	z	prototype:glfwGetInstanceProcAddress	typeref:typename:const char *	file:
+glfwGetPhysicalDevicePresentationSupport	GLFW/glfw3.h	/^GLFWAPI int glfwGetPhysicalDevicePresentationSupport(VkInstance instance, VkPhysicalDevice devic/;"	p	typeref:typename:GLFWAPI int	signature:(VkInstance instance,VkPhysicalDevice device,uint32_t queuefamily)
+instance	GLFW/glfw3.h	/^GLFWAPI int glfwGetPhysicalDevicePresentationSupport(VkInstance instance, VkPhysicalDevice devic/;"	z	prototype:glfwGetPhysicalDevicePresentationSupport	typeref:typename:VkInstance	file:
+device	GLFW/glfw3.h	/^GLFWAPI int glfwGetPhysicalDevicePresentationSupport(VkInstance instance, VkPhysicalDevice devic/;"	z	prototype:glfwGetPhysicalDevicePresentationSupport	typeref:typename:VkPhysicalDevice	file:
+queuefamily	GLFW/glfw3.h	/^GLFWAPI int glfwGetPhysicalDevicePresentationSupport(VkInstance instance, VkPhysicalDevice devic/;"	z	prototype:glfwGetPhysicalDevicePresentationSupport	typeref:typename:uint32_t	file:
+glfwCreateWindowSurface	GLFW/glfw3.h	/^GLFWAPI VkResult glfwCreateWindowSurface(VkInstance instance, GLFWwindow* window, const VkAlloca/;"	p	typeref:typename:GLFWAPI VkResult	signature:(VkInstance instance,GLFWwindow * window,const VkAllocationCallbacks * allocator,VkSurfaceKHR * surface)
+instance	GLFW/glfw3.h	/^GLFWAPI VkResult glfwCreateWindowSurface(VkInstance instance, GLFWwindow* window, const VkAlloca/;"	z	prototype:glfwCreateWindowSurface	typeref:typename:VkInstance	file:
+window	GLFW/glfw3.h	/^GLFWAPI VkResult glfwCreateWindowSurface(VkInstance instance, GLFWwindow* window, const VkAlloca/;"	z	prototype:glfwCreateWindowSurface	typeref:typename:GLFWwindow *	file:
+allocator	GLFW/glfw3.h	/^GLFWAPI VkResult glfwCreateWindowSurface(VkInstance instance, GLFWwindow* window, const VkAlloca/;"	z	prototype:glfwCreateWindowSurface	typeref:typename:const VkAllocationCallbacks *	file:
+surface	GLFW/glfw3.h	/^GLFWAPI VkResult glfwCreateWindowSurface(VkInstance instance, GLFWwindow* window, const VkAlloca/;"	z	prototype:glfwCreateWindowSurface	typeref:typename:VkSurfaceKHR *	file:
+#define _glfw3_h_
+ #define _WIN32
+  #define APIENTRY __stdcall
+  #define APIENTRY
+ #define GLFW_APIENTRY_DEFINED
+ #define WINGDIAPI __declspec(dllimport)
+ #define GLFW_WINGDIAPI_DEFINED
+ #define CALLBACK __stdcall
+ #define GLFW_CALLBACK_DEFINED
+   #define GL_GLEXT_LEGACY
+ #define GLFWAPI __declspec(dllexport)
+ #define GLFWAPI __declspec(dllimport)
+ #define GLFWAPI __attribute__((visibility("default")))
+ #define GLFWAPI
+#define GLFW_VERSION_MAJOR          3
+#define GLFW_VERSION_MINOR          3
+#define GLFW_VERSION_REVISION       10
+#define GLFW_TRUE                   1
+#define GLFW_FALSE                  0
+#define GLFW_RELEASE                0
+#define GLFW_PRESS                  1
+#define GLFW_REPEAT                 2
+#define GLFW_HAT_CENTERED           0
+#define GLFW_HAT_UP                 1
+#define GLFW_HAT_RIGHT              2
+#define GLFW_HAT_DOWN               4
+#define GLFW_HAT_LEFT               8
+#define GLFW_HAT_RIGHT_UP           (GLFW_HAT_RIGHT | GLFW_HAT_UP)
+#define GLFW_HAT_RIGHT_DOWN         (GLFW_HAT_RIGHT | GLFW_HAT_DOWN)
+#define GLFW_HAT_LEFT_UP            (GLFW_HAT_LEFT  | GLFW_HAT_UP)
+#define GLFW_HAT_LEFT_DOWN          (GLFW_HAT_LEFT  | GLFW_HAT_DOWN)
+#define GLFW_KEY_UNKNOWN            -1
+#define GLFW_KEY_SPACE              32
+#define GLFW_KEY_APOSTROPHE         39  /* ' */
+#define GLFW_KEY_COMMA              44  /* , */
+#define GLFW_KEY_MINUS              45  /* - */
+#define GLFW_KEY_PERIOD             46  /* . */
+#define GLFW_KEY_SLASH              47  /* / */
+#define GLFW_KEY_0                  48
+#define GLFW_KEY_1                  49
+#define GLFW_KEY_2                  50
+#define GLFW_KEY_3                  51
+#define GLFW_KEY_4                  52
+#define GLFW_KEY_5                  53
+#define GLFW_KEY_6                  54
+#define GLFW_KEY_7                  55
+#define GLFW_KEY_8                  56
+#define GLFW_KEY_9                  57
+#define GLFW_KEY_SEMICOLON          59  /* ; */
+#define GLFW_KEY_EQUAL              61  /* = */
+#define GLFW_KEY_A                  65
+#define GLFW_KEY_B                  66
+#define GLFW_KEY_C                  67
+#define GLFW_KEY_D                  68
+#define GLFW_KEY_E                  69
+#define GLFW_KEY_F                  70
+#define GLFW_KEY_G                  71
+#define GLFW_KEY_H                  72
+#define GLFW_KEY_I                  73
+#define GLFW_KEY_J                  74
+#define GLFW_KEY_K                  75
+#define GLFW_KEY_L                  76
+#define GLFW_KEY_M                  77
+#define GLFW_KEY_N                  78
+#define GLFW_KEY_O                  79
+#define GLFW_KEY_P                  80
+#define GLFW_KEY_Q                  81
+#define GLFW_KEY_R                  82
+#define GLFW_KEY_S                  83
+#define GLFW_KEY_T                  84
+#define GLFW_KEY_U                  85
+#define GLFW_KEY_V                  86
+#define GLFW_KEY_W                  87
+#define GLFW_KEY_X                  88
+#define GLFW_KEY_Y                  89
+#define GLFW_KEY_Z                  90
+#define GLFW_KEY_LEFT_BRACKET       91  /* [ */
+#define GLFW_KEY_BACKSLASH          92  /* \ */
+#define GLFW_KEY_RIGHT_BRACKET      93  /* ] */
+#define GLFW_KEY_GRAVE_ACCENT       96  /* ` */
+#define GLFW_KEY_WORLD_1            161 /* non-US #1 */
+#define GLFW_KEY_WORLD_2            162 /* non-US #2 */
+#define GLFW_KEY_ESCAPE             256
+#define GLFW_KEY_ENTER              257
+#define GLFW_KEY_TAB                258
+#define GLFW_KEY_BACKSPACE          259
+#define GLFW_KEY_INSERT             260
+#define GLFW_KEY_DELETE             261
+#define GLFW_KEY_RIGHT              262
+#define GLFW_KEY_LEFT               263
+#define GLFW_KEY_DOWN               264
+#define GLFW_KEY_UP                 265
+#define GLFW_KEY_PAGE_UP            266
+#define GLFW_KEY_PAGE_DOWN          267
+#define GLFW_KEY_HOME               268
+#define GLFW_KEY_END                269
+#define GLFW_KEY_CAPS_LOCK          280
+#define GLFW_KEY_SCROLL_LOCK        281
+#define GLFW_KEY_NUM_LOCK           282
+#define GLFW_KEY_PRINT_SCREEN       283
+#define GLFW_KEY_PAUSE              284
+#define GLFW_KEY_F1                 290
+#define GLFW_KEY_F2                 291
+#define GLFW_KEY_F3                 292
+#define GLFW_KEY_F4                 293
+#define GLFW_KEY_F5                 294
+#define GLFW_KEY_F6                 295
+#define GLFW_KEY_F7                 296
+#define GLFW_KEY_F8                 297
+#define GLFW_KEY_F9                 298
+#define GLFW_KEY_F10                299
+#define GLFW_KEY_F11                300
+#define GLFW_KEY_F12                301
+#define GLFW_KEY_F13                302
+#define GLFW_KEY_F14                303
+#define GLFW_KEY_F15                304
+#define GLFW_KEY_F16                305
+#define GLFW_KEY_F17                306
+#define GLFW_KEY_F18                307
+#define GLFW_KEY_F19                308
+#define GLFW_KEY_F20                309
+#define GLFW_KEY_F21                310
+#define GLFW_KEY_F22                311
+#define GLFW_KEY_F23                312
+#define GLFW_KEY_F24                313
+#define GLFW_KEY_F25                314
+#define GLFW_KEY_KP_0               320
+#define GLFW_KEY_KP_1               321
+#define GLFW_KEY_KP_2               322
+#define GLFW_KEY_KP_3               323
+#define GLFW_KEY_KP_4               324
+#define GLFW_KEY_KP_5               325
+#define GLFW_KEY_KP_6               326
+#define GLFW_KEY_KP_7               327
+#define GLFW_KEY_KP_8               328
+#define GLFW_KEY_KP_9               329
+#define GLFW_KEY_KP_DECIMAL         330
+#define GLFW_KEY_KP_DIVIDE          331
+#define GLFW_KEY_KP_MULTIPLY        332
+#define GLFW_KEY_KP_SUBTRACT        333
+#define GLFW_KEY_KP_ADD             334
+#define GLFW_KEY_KP_ENTER           335
+#define GLFW_KEY_KP_EQUAL           336
+#define GLFW_KEY_LEFT_SHIFT         340
+#define GLFW_KEY_LEFT_CONTROL       341
+#define GLFW_KEY_LEFT_ALT           342
+#define GLFW_KEY_LEFT_SUPER         343
+#define GLFW_KEY_RIGHT_SHIFT        344
+#define GLFW_KEY_RIGHT_CONTROL      345
+#define GLFW_KEY_RIGHT_ALT          346
+#define GLFW_KEY_RIGHT_SUPER        347
+#define GLFW_KEY_MENU               348
+#define GLFW_KEY_LAST               GLFW_KEY_MENU
+#define GLFW_MOD_SHIFT           0x0001
+#define GLFW_MOD_CONTROL         0x0002
+#define GLFW_MOD_ALT             0x0004
+#define GLFW_MOD_SUPER           0x0008
+#define GLFW_MOD_CAPS_LOCK       0x0010
+#define GLFW_MOD_NUM_LOCK        0x0020
+#define GLFW_MOUSE_BUTTON_1         0
+#define GLFW_MOUSE_BUTTON_2         1
+#define GLFW_MOUSE_BUTTON_3         2
+#define GLFW_MOUSE_BUTTON_4         3
+#define GLFW_MOUSE_BUTTON_5         4
+#define GLFW_MOUSE_BUTTON_6         5
+#define GLFW_MOUSE_BUTTON_7         6
+#define GLFW_MOUSE_BUTTON_8         7
+#define GLFW_MOUSE_BUTTON_LAST      GLFW_MOUSE_BUTTON_8
+#define GLFW_MOUSE_BUTTON_LEFT      GLFW_MOUSE_BUTTON_1
+#define GLFW_MOUSE_BUTTON_RIGHT     GLFW_MOUSE_BUTTON_2
+#define GLFW_MOUSE_BUTTON_MIDDLE    GLFW_MOUSE_BUTTON_3
+#define GLFW_JOYSTICK_1             0
+#define GLFW_JOYSTICK_2             1
+#define GLFW_JOYSTICK_3             2
+#define GLFW_JOYSTICK_4             3
+#define GLFW_JOYSTICK_5             4
+#define GLFW_JOYSTICK_6             5
+#define GLFW_JOYSTICK_7             6
+#define GLFW_JOYSTICK_8             7
+#define GLFW_JOYSTICK_9             8
+#define GLFW_JOYSTICK_10            9
+#define GLFW_JOYSTICK_11            10
+#define GLFW_JOYSTICK_12            11
+#define GLFW_JOYSTICK_13            12
+#define GLFW_JOYSTICK_14            13
+#define GLFW_JOYSTICK_15            14
+#define GLFW_JOYSTICK_16            15
+#define GLFW_JOYSTICK_LAST          GLFW_JOYSTICK_16
+#define GLFW_GAMEPAD_BUTTON_A               0
+#define GLFW_GAMEPAD_BUTTON_B               1
+#define GLFW_GAMEPAD_BUTTON_X               2
+#define GLFW_GAMEPAD_BUTTON_Y               3
+#define GLFW_GAMEPAD_BUTTON_LEFT_BUMPER     4
+#define GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER    5
+#define GLFW_GAMEPAD_BUTTON_BACK            6
+#define GLFW_GAMEPAD_BUTTON_START           7
+#define GLFW_GAMEPAD_BUTTON_GUIDE           8
+#define GLFW_GAMEPAD_BUTTON_LEFT_THUMB      9
+#define GLFW_GAMEPAD_BUTTON_RIGHT_THUMB     10
+#define GLFW_GAMEPAD_BUTTON_DPAD_UP         11
+#define GLFW_GAMEPAD_BUTTON_DPAD_RIGHT      12
+#define GLFW_GAMEPAD_BUTTON_DPAD_DOWN       13
+#define GLFW_GAMEPAD_BUTTON_DPAD_LEFT       14
+#define GLFW_GAMEPAD_BUTTON_LAST            GLFW_GAMEPAD_BUTTON_DPAD_LEFT
+#define GLFW_GAMEPAD_BUTTON_CROSS       GLFW_GAMEPAD_BUTTON_A
+#define GLFW_GAMEPAD_BUTTON_CIRCLE      GLFW_GAMEPAD_BUTTON_B
+#define GLFW_GAMEPAD_BUTTON_SQUARE      GLFW_GAMEPAD_BUTTON_X
+#define GLFW_GAMEPAD_BUTTON_TRIANGLE    GLFW_GAMEPAD_BUTTON_Y
+#define GLFW_GAMEPAD_AXIS_LEFT_X        0
+#define GLFW_GAMEPAD_AXIS_LEFT_Y        1
+#define GLFW_GAMEPAD_AXIS_RIGHT_X       2
+#define GLFW_GAMEPAD_AXIS_RIGHT_Y       3
+#define GLFW_GAMEPAD_AXIS_LEFT_TRIGGER  4
+#define GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER 5
+#define GLFW_GAMEPAD_AXIS_LAST          GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER
+#define GLFW_NO_ERROR               0
+#define GLFW_NOT_INITIALIZED        0x00010001
+#define GLFW_NO_CURRENT_CONTEXT     0x00010002
+#define GLFW_INVALID_ENUM           0x00010003
+#define GLFW_INVALID_VALUE          0x00010004
+#define GLFW_OUT_OF_MEMORY          0x00010005
+#define GLFW_API_UNAVAILABLE        0x00010006
+#define GLFW_VERSION_UNAVAILABLE    0x00010007
+#define GLFW_PLATFORM_ERROR         0x00010008
+#define GLFW_FORMAT_UNAVAILABLE     0x00010009
+#define GLFW_NO_WINDOW_CONTEXT      0x0001000A
+#define GLFW_FOCUSED                0x00020001
+#define GLFW_ICONIFIED              0x00020002
+#define GLFW_RESIZABLE              0x00020003
+#define GLFW_VISIBLE                0x00020004
+#define GLFW_DECORATED              0x00020005
+#define GLFW_AUTO_ICONIFY           0x00020006
+#define GLFW_FLOATING               0x00020007
+#define GLFW_MAXIMIZED              0x00020008
+#define GLFW_CENTER_CURSOR          0x00020009
+#define GLFW_TRANSPARENT_FRAMEBUFFER 0x0002000A
+#define GLFW_HOVERED                0x0002000B
+#define GLFW_FOCUS_ON_SHOW          0x0002000C
+#define GLFW_RED_BITS               0x00021001
+#define GLFW_GREEN_BITS             0x00021002
+#define GLFW_BLUE_BITS              0x00021003
+#define GLFW_ALPHA_BITS             0x00021004
+#define GLFW_DEPTH_BITS             0x00021005
+#define GLFW_STENCIL_BITS           0x00021006
+#define GLFW_ACCUM_RED_BITS         0x00021007
+#define GLFW_ACCUM_GREEN_BITS       0x00021008
+#define GLFW_ACCUM_BLUE_BITS        0x00021009
+#define GLFW_ACCUM_ALPHA_BITS       0x0002100A
+#define GLFW_AUX_BUFFERS            0x0002100B
+#define GLFW_STEREO                 0x0002100C
+#define GLFW_SAMPLES                0x0002100D
+#define GLFW_SRGB_CAPABLE           0x0002100E
+#define GLFW_REFRESH_RATE           0x0002100F
+#define GLFW_DOUBLEBUFFER           0x00021010
+#define GLFW_CLIENT_API             0x00022001
+#define GLFW_CONTEXT_VERSION_MAJOR  0x00022002
+#define GLFW_CONTEXT_VERSION_MINOR  0x00022003
+#define GLFW_CONTEXT_REVISION       0x00022004
+#define GLFW_CONTEXT_ROBUSTNESS     0x00022005
+#define GLFW_OPENGL_FORWARD_COMPAT  0x00022006
+#define GLFW_OPENGL_DEBUG_CONTEXT   0x00022007
+#define GLFW_OPENGL_PROFILE         0x00022008
+#define GLFW_CONTEXT_RELEASE_BEHAVIOR 0x00022009
+#define GLFW_CONTEXT_NO_ERROR       0x0002200A
+#define GLFW_CONTEXT_CREATION_API   0x0002200B
+#define GLFW_SCALE_TO_MONITOR       0x0002200C
+#define GLFW_COCOA_RETINA_FRAMEBUFFER 0x00023001
+#define GLFW_COCOA_FRAME_NAME         0x00023002
+#define GLFW_COCOA_GRAPHICS_SWITCHING 0x00023003
+#define GLFW_X11_CLASS_NAME         0x00024001
+#define GLFW_X11_INSTANCE_NAME      0x00024002
+#define GLFW_NO_API                          0
+#define GLFW_OPENGL_API             0x00030001
+#define GLFW_OPENGL_ES_API          0x00030002
+#define GLFW_NO_ROBUSTNESS                   0
+#define GLFW_NO_RESET_NOTIFICATION  0x00031001
+#define GLFW_LOSE_CONTEXT_ON_RESET  0x00031002
+#define GLFW_OPENGL_ANY_PROFILE              0
+#define GLFW_OPENGL_CORE_PROFILE    0x00032001
+#define GLFW_OPENGL_COMPAT_PROFILE  0x00032002
+#define GLFW_CURSOR                 0x00033001
+#define GLFW_STICKY_KEYS            0x00033002
+#define GLFW_STICKY_MOUSE_BUTTONS   0x00033003
+#define GLFW_LOCK_KEY_MODS          0x00033004
+#define GLFW_RAW_MOUSE_MOTION       0x00033005
+#define GLFW_CURSOR_NORMAL          0x00034001
+#define GLFW_CURSOR_HIDDEN          0x00034002
+#define GLFW_CURSOR_DISABLED        0x00034003
+#define GLFW_ANY_RELEASE_BEHAVIOR            0
+#define GLFW_RELEASE_BEHAVIOR_FLUSH 0x00035001
+#define GLFW_RELEASE_BEHAVIOR_NONE  0x00035002
+#define GLFW_NATIVE_CONTEXT_API     0x00036001
+#define GLFW_EGL_CONTEXT_API        0x00036002
+#define GLFW_OSMESA_CONTEXT_API     0x00036003
+#define GLFW_WAYLAND_PREFER_LIBDECOR    0x00038001
+#define GLFW_WAYLAND_DISABLE_LIBDECOR   0x00038002
+#define GLFW_ARROW_CURSOR           0x00036001
+#define GLFW_IBEAM_CURSOR           0x00036002
+#define GLFW_CROSSHAIR_CURSOR       0x00036003
+#define GLFW_HAND_CURSOR            0x00036004
+#define GLFW_HRESIZE_CURSOR         0x00036005
+#define GLFW_VRESIZE_CURSOR         0x00036006
+#define GLFW_CONNECTED              0x00040001
+#define GLFW_DISCONNECTED           0x00040002
+#define GLFW_JOYSTICK_HAT_BUTTONS   0x00050001
+#define GLFW_COCOA_CHDIR_RESOURCES  0x00051001
+#define GLFW_COCOA_MENUBAR          0x00051002
+#define GLFW_WAYLAND_LIBDECOR       0x00053001
+#define GLFW_DONT_CARE              -1
+#define        boo         324 | 200
+ #define GLAPIENTRY APIENTRY
+ #define GLFW_GLAPIENTRY_DEFINED

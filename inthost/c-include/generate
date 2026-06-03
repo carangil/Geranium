@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#source config
 
 
 ./tag-header stdio.h
@@ -10,5 +10,30 @@
 ./tag-header stdlib.h
 ./geninc stdlib.tags  ../inc/stdlib.inc libctypes.txt stdlib _LIBC
 
+
+./tag-header stdlib.h
+./geninc stdlib.tags  ../inc/stdlib.inc libctypes.txt stdlib _LIBC
+
+
+
+
+./tag-header GLFW/callbacks.h
+./geninc callbacks.tags  callbacks.inc glfw3types.txt x x  pglfw
+#extract callback types to make types;
+cp glfw3types.txt  glfw3types2.txt
+cat callbacks.inc  | grep sys | awk -F\"  '{print $4 ";" $1}' >> glfw3types2.txt
+
+
+./tag-header GLFW/glfw3.h
+./geninc glfw3.tags  ../inc/glfw3.inc glfw3types2.txt glfw libglfw.so.3 pglfw
+
+
+
+
+./tag-header GL/glcorearb.h
+./geninc glcorearb.tags  ../inc/glcorearb.inc gltypes.txt gl libGL.so.1 pgl
+
+./tag-header GL/gl.h
+./geninc gl.tags  ../inc/glold.inc gltypes.txt glold libGL.so.1 pgl
 
 

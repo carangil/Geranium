@@ -61,6 +61,9 @@ zstringmapT* zstringmap_disown(zstringmapT* map){
 
 mapentryT* zstringmap_find(zstringmapT* map, char* key, zbool create) {
 
+    if (!map)
+        return NULL;
+
     unsigned int hash = zstr_hash(key);
     int numbuckets = zarray_count(map->buckets);
     unsigned int bn = hash % numbuckets;
@@ -161,7 +164,7 @@ void*  zstringmap_get(zstringmapT* map, char* key){
 
     if (!key)
         return NULL;
-//
+
     mapentryT* e = zstringmap_find(map, key, ZFALSE);
     if (!e){
         debugf("not found %s\n", key);

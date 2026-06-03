@@ -42,6 +42,13 @@ typedef struct valueS{
 }valueT;
 
 
+void int_add_c_object(char* name, void* proc);
+void int_add_c_val32(char* name, int val);
+
+#define INT_STRUCT_SIZE(TYPE) int_add_c_val32( "_size_" #TYPE , sizeof(TYPE))
+#define INT_STRUCT_MEMBER(TYPE,MEMBER) int_add_c_val32( "_offset_" #TYPE "_" #MEMBER , offsetof(TYPE,MEMBER) )
+
+
 //tokens
 
 typedef struct tokenS{
@@ -120,7 +127,7 @@ typedef struct wordS{
 	struct parsectxS* in_pctx; //what pctx this word is in
 
     //special handler during parse phase
-    tokenT* (*parse) (struct exectxS* exe, struct parsectxS* pctx, struct wordS* word, tokenT* t, int argc);
+    tokenT* (*parse) (struct parsectxS* pctx, struct wordS* word, tokenT* t, int argc);
 
 	int opcode; //what opcode to use to call this function (can be a primitive like 'add', could call a c function, etc...)
 	valueT val;
@@ -194,12 +201,12 @@ typedef struct parsectxS{
     zstringmapT* types;      //typeT*
 	zvecT* codestack;
 	wordT* next_match;
+	errorT err; //parse_errors
 	char* comment;  //debugging name for this
 //	zvecT* cleanlist;  //list of pointers that need to be freed
 	void* frame;  //pointer to the frame that this parsectx is bound to. (if it s a single thing like a section.  )
 	typeT* frametype;
 	struct runnerS *runners[MAXRUNNERS];
-	errorT err;
 	int id;//for debugging
 	int size;
 
@@ -218,17 +225,15 @@ typedef struct exectxS{
 	int sp;
 	int bp;//bp=-1 is last arg, bp=-2 is one before that...
 
-	errorT err;
+	errorT err; //runtime errors
 
-	char* error_string;
-	int error_code;
+//	char* error_string;
+//	int error_code;
 
 }exectxT;
 
 
 
-#define iferr(EXECTX)  if((EXECTX)->error_code)
-#define ifok(EXECTX)  if(!(EXECTX)->error_code)
 
 //instruction enums
 
@@ -303,6 +308,15 @@ typedef enum {
 	op_loop,
 	op_break,
 	op_continue,
+
+	//floating point
+	op_fadd,
+	op_fsub,
+	op_fmul,
+	op_fdiv,
+	op_fpow,
+
+
 
 	op_LASTCORE,	//all instructions before this are part of the AST
 

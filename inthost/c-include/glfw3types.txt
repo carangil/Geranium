@@ -1,0 +1,20 @@
+GLFWAPI;
+const;
+int;Z32
+char*;String
+char*[];[String]
+char;Byte
+uint32_t;Z32
+double;Double32
+uint64_t;Size32
+void*;Any&
+float;Real
+unsignedint;Z32
+GLFWglproc;Any&
+int*;Z32&
+
+#not testing vulkan, but needed to be able to compile:
+VkInstance;Any&
+VkPhysicalDevice;Any&
+VkResult;Any&
+GLFWvkproc;Any&

@@ -2,9 +2,9 @@
 
 scanner=../test
 
-echo $scanner -scan i$1 o../inc/$2 t$3 s$4 L$5 $6
+echo $scanner -scan i$1 o../inc/$2 t$3 s$4 L$5 $6 $7
 
-$scanner -scan i$1 o$2 t$3 s$4 L$5 $6
+$scanner -scan i$1 o$2 t$3 s$4 L$5 $6 $7
 
 
 

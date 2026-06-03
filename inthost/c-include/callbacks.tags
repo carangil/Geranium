@@ -1,0 +1,82 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	0	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	//
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/home/mars/projects/Zcore/inthost/c-include/	//
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+GLFWerrorfun	GLFW/callbacks.h	/^void  GLFWerrorfun(int error_code, const char* description);$/;"	p	typeref:typename:void	signature:(int error_code,const char * description)
+error_code	GLFW/callbacks.h	/^void  GLFWerrorfun(int error_code, const char* description);$/;"	z	prototype:GLFWerrorfun	typeref:typename:int	file:
+description	GLFW/callbacks.h	/^void  GLFWerrorfun(int error_code, const char* description);$/;"	z	prototype:GLFWerrorfun	typeref:typename:const char *	file:
+GLFWwindowposfun	GLFW/callbacks.h	/^void  GLFWwindowposfun(GLFWwindow* window, int xpos, int ypos);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window,int xpos,int ypos)
+window	GLFW/callbacks.h	/^void  GLFWwindowposfun(GLFWwindow* window, int xpos, int ypos);$/;"	z	prototype:GLFWwindowposfun	typeref:typename:GLFWwindow *	file:
+xpos	GLFW/callbacks.h	/^void  GLFWwindowposfun(GLFWwindow* window, int xpos, int ypos);$/;"	z	prototype:GLFWwindowposfun	typeref:typename:int	file:
+ypos	GLFW/callbacks.h	/^void  GLFWwindowposfun(GLFWwindow* window, int xpos, int ypos);$/;"	z	prototype:GLFWwindowposfun	typeref:typename:int	file:
+GLFWwindowsizefun	GLFW/callbacks.h	/^void  GLFWwindowsizefun(GLFWwindow* window, int width, int height);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window,int width,int height)
+window	GLFW/callbacks.h	/^void  GLFWwindowsizefun(GLFWwindow* window, int width, int height);$/;"	z	prototype:GLFWwindowsizefun	typeref:typename:GLFWwindow *	file:
+width	GLFW/callbacks.h	/^void  GLFWwindowsizefun(GLFWwindow* window, int width, int height);$/;"	z	prototype:GLFWwindowsizefun	typeref:typename:int	file:
+height	GLFW/callbacks.h	/^void  GLFWwindowsizefun(GLFWwindow* window, int width, int height);$/;"	z	prototype:GLFWwindowsizefun	typeref:typename:int	file:
+GLFWwindowclosefun	GLFW/callbacks.h	/^void  GLFWwindowclosefun(GLFWwindow* window);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window)
+window	GLFW/callbacks.h	/^void  GLFWwindowclosefun(GLFWwindow* window);$/;"	z	prototype:GLFWwindowclosefun	typeref:typename:GLFWwindow *	file:
+GLFWwindowrefreshfun	GLFW/callbacks.h	/^void  GLFWwindowrefreshfun(GLFWwindow* window);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window)
+window	GLFW/callbacks.h	/^void  GLFWwindowrefreshfun(GLFWwindow* window);$/;"	z	prototype:GLFWwindowrefreshfun	typeref:typename:GLFWwindow *	file:
+GLFWwindowfocusfun	GLFW/callbacks.h	/^void  GLFWwindowfocusfun(GLFWwindow* window, int focused);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window,int focused)
+window	GLFW/callbacks.h	/^void  GLFWwindowfocusfun(GLFWwindow* window, int focused);$/;"	z	prototype:GLFWwindowfocusfun	typeref:typename:GLFWwindow *	file:
+focused	GLFW/callbacks.h	/^void  GLFWwindowfocusfun(GLFWwindow* window, int focused);$/;"	z	prototype:GLFWwindowfocusfun	typeref:typename:int	file:
+GLFWwindowiconifyfun	GLFW/callbacks.h	/^void  GLFWwindowiconifyfun(GLFWwindow* window, int iconified);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window,int iconified)
+window	GLFW/callbacks.h	/^void  GLFWwindowiconifyfun(GLFWwindow* window, int iconified);$/;"	z	prototype:GLFWwindowiconifyfun	typeref:typename:GLFWwindow *	file:
+iconified	GLFW/callbacks.h	/^void  GLFWwindowiconifyfun(GLFWwindow* window, int iconified);$/;"	z	prototype:GLFWwindowiconifyfun	typeref:typename:int	file:
+GLFWwindowmaximizefun	GLFW/callbacks.h	/^void  GLFWwindowmaximizefun(GLFWwindow* window, int maximized);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window,int maximized)
+window	GLFW/callbacks.h	/^void  GLFWwindowmaximizefun(GLFWwindow* window, int maximized);$/;"	z	prototype:GLFWwindowmaximizefun	typeref:typename:GLFWwindow *	file:
+maximized	GLFW/callbacks.h	/^void  GLFWwindowmaximizefun(GLFWwindow* window, int maximized);$/;"	z	prototype:GLFWwindowmaximizefun	typeref:typename:int	file:
+GLFWframebuffersizefun	GLFW/callbacks.h	/^void  GLFWframebuffersizefun(GLFWwindow* window, int width, int height);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window,int width,int height)
+window	GLFW/callbacks.h	/^void  GLFWframebuffersizefun(GLFWwindow* window, int width, int height);$/;"	z	prototype:GLFWframebuffersizefun	typeref:typename:GLFWwindow *	file:
+width	GLFW/callbacks.h	/^void  GLFWframebuffersizefun(GLFWwindow* window, int width, int height);$/;"	z	prototype:GLFWframebuffersizefun	typeref:typename:int	file:
+height	GLFW/callbacks.h	/^void  GLFWframebuffersizefun(GLFWwindow* window, int width, int height);$/;"	z	prototype:GLFWframebuffersizefun	typeref:typename:int	file:
+GLFWwindowcontentscalefun	GLFW/callbacks.h	/^void  GLFWwindowcontentscalefun(GLFWwindow* window, float xscale, float yscale);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window,float xscale,float yscale)
+window	GLFW/callbacks.h	/^void  GLFWwindowcontentscalefun(GLFWwindow* window, float xscale, float yscale);$/;"	z	prototype:GLFWwindowcontentscalefun	typeref:typename:GLFWwindow *	file:
+xscale	GLFW/callbacks.h	/^void  GLFWwindowcontentscalefun(GLFWwindow* window, float xscale, float yscale);$/;"	z	prototype:GLFWwindowcontentscalefun	typeref:typename:float	file:
+yscale	GLFW/callbacks.h	/^void  GLFWwindowcontentscalefun(GLFWwindow* window, float xscale, float yscale);$/;"	z	prototype:GLFWwindowcontentscalefun	typeref:typename:float	file:
+GLFWmousebuttonfun	GLFW/callbacks.h	/^void  GLFWmousebuttonfun(GLFWwindow* window, int button, int action, int mods);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window,int button,int action,int mods)
+window	GLFW/callbacks.h	/^void  GLFWmousebuttonfun(GLFWwindow* window, int button, int action, int mods);$/;"	z	prototype:GLFWmousebuttonfun	typeref:typename:GLFWwindow *	file:
+button	GLFW/callbacks.h	/^void  GLFWmousebuttonfun(GLFWwindow* window, int button, int action, int mods);$/;"	z	prototype:GLFWmousebuttonfun	typeref:typename:int	file:
+action	GLFW/callbacks.h	/^void  GLFWmousebuttonfun(GLFWwindow* window, int button, int action, int mods);$/;"	z	prototype:GLFWmousebuttonfun	typeref:typename:int	file:
+mods	GLFW/callbacks.h	/^void  GLFWmousebuttonfun(GLFWwindow* window, int button, int action, int mods);$/;"	z	prototype:GLFWmousebuttonfun	typeref:typename:int	file:
+GLFWcursorposfun	GLFW/callbacks.h	/^void  GLFWcursorposfun(GLFWwindow* window, double xpos, double ypos);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window,double xpos,double ypos)
+window	GLFW/callbacks.h	/^void  GLFWcursorposfun(GLFWwindow* window, double xpos, double ypos);$/;"	z	prototype:GLFWcursorposfun	typeref:typename:GLFWwindow *	file:
+xpos	GLFW/callbacks.h	/^void  GLFWcursorposfun(GLFWwindow* window, double xpos, double ypos);$/;"	z	prototype:GLFWcursorposfun	typeref:typename:double	file:
+ypos	GLFW/callbacks.h	/^void  GLFWcursorposfun(GLFWwindow* window, double xpos, double ypos);$/;"	z	prototype:GLFWcursorposfun	typeref:typename:double	file:
+GLFWcursorenterfun	GLFW/callbacks.h	/^void  GLFWcursorenterfun(GLFWwindow* window, int entered);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window,int entered)
+window	GLFW/callbacks.h	/^void  GLFWcursorenterfun(GLFWwindow* window, int entered);$/;"	z	prototype:GLFWcursorenterfun	typeref:typename:GLFWwindow *	file:
+entered	GLFW/callbacks.h	/^void  GLFWcursorenterfun(GLFWwindow* window, int entered);$/;"	z	prototype:GLFWcursorenterfun	typeref:typename:int	file:
+GLFWscrollfun	GLFW/callbacks.h	/^void  GLFWscrollfun(GLFWwindow* window, double xoffset, double yoffset);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window,double xoffset,double yoffset)
+window	GLFW/callbacks.h	/^void  GLFWscrollfun(GLFWwindow* window, double xoffset, double yoffset);$/;"	z	prototype:GLFWscrollfun	typeref:typename:GLFWwindow *	file:
+xoffset	GLFW/callbacks.h	/^void  GLFWscrollfun(GLFWwindow* window, double xoffset, double yoffset);$/;"	z	prototype:GLFWscrollfun	typeref:typename:double	file:
+yoffset	GLFW/callbacks.h	/^void  GLFWscrollfun(GLFWwindow* window, double xoffset, double yoffset);$/;"	z	prototype:GLFWscrollfun	typeref:typename:double	file:
+GLFWkeyfun	GLFW/callbacks.h	/^void  GLFWkeyfun(GLFWwindow* window, int key, int scancode, int action, int mods);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window,int key,int scancode,int action,int mods)
+window	GLFW/callbacks.h	/^void  GLFWkeyfun(GLFWwindow* window, int key, int scancode, int action, int mods);$/;"	z	prototype:GLFWkeyfun	typeref:typename:GLFWwindow *	file:
+key	GLFW/callbacks.h	/^void  GLFWkeyfun(GLFWwindow* window, int key, int scancode, int action, int mods);$/;"	z	prototype:GLFWkeyfun	typeref:typename:int	file:
+scancode	GLFW/callbacks.h	/^void  GLFWkeyfun(GLFWwindow* window, int key, int scancode, int action, int mods);$/;"	z	prototype:GLFWkeyfun	typeref:typename:int	file:
+action	GLFW/callbacks.h	/^void  GLFWkeyfun(GLFWwindow* window, int key, int scancode, int action, int mods);$/;"	z	prototype:GLFWkeyfun	typeref:typename:int	file:
+mods	GLFW/callbacks.h	/^void  GLFWkeyfun(GLFWwindow* window, int key, int scancode, int action, int mods);$/;"	z	prototype:GLFWkeyfun	typeref:typename:int	file:
+GLFWcharfun	GLFW/callbacks.h	/^void  GLFWcharfun(GLFWwindow* window, unsigned int codepoint);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window,unsigned int codepoint)
+window	GLFW/callbacks.h	/^void  GLFWcharfun(GLFWwindow* window, unsigned int codepoint);$/;"	z	prototype:GLFWcharfun	typeref:typename:GLFWwindow *	file:
+codepoint	GLFW/callbacks.h	/^void  GLFWcharfun(GLFWwindow* window, unsigned int codepoint);$/;"	z	prototype:GLFWcharfun	typeref:typename:unsigned int	file:
+GLFWcharmodsfun	GLFW/callbacks.h	/^void  GLFWcharmodsfun(GLFWwindow* window, unsigned int codepoint, int mods);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window,unsigned int codepoint,int mods)
+window	GLFW/callbacks.h	/^void  GLFWcharmodsfun(GLFWwindow* window, unsigned int codepoint, int mods);$/;"	z	prototype:GLFWcharmodsfun	typeref:typename:GLFWwindow *	file:
+codepoint	GLFW/callbacks.h	/^void  GLFWcharmodsfun(GLFWwindow* window, unsigned int codepoint, int mods);$/;"	z	prototype:GLFWcharmodsfun	typeref:typename:unsigned int	file:
+mods	GLFW/callbacks.h	/^void  GLFWcharmodsfun(GLFWwindow* window, unsigned int codepoint, int mods);$/;"	z	prototype:GLFWcharmodsfun	typeref:typename:int	file:
+GLFWdropfun	GLFW/callbacks.h	/^void  GLFWdropfun(GLFWwindow* window, int path_count, const char* paths[]);$/;"	p	typeref:typename:void	signature:(GLFWwindow * window,int path_count,const char * paths[])
+window	GLFW/callbacks.h	/^void  GLFWdropfun(GLFWwindow* window, int path_count, const char* paths[]);$/;"	z	prototype:GLFWdropfun	typeref:typename:GLFWwindow *	file:
+path_count	GLFW/callbacks.h	/^void  GLFWdropfun(GLFWwindow* window, int path_count, const char* paths[]);$/;"	z	prototype:GLFWdropfun	typeref:typename:int	file:
+paths	GLFW/callbacks.h	/^void  GLFWdropfun(GLFWwindow* window, int path_count, const char* paths[]);$/;"	z	prototype:GLFWdropfun	typeref:typename:const char * []	file:
+GLFWmonitorfun	GLFW/callbacks.h	/^void  GLFWmonitorfun(GLFWmonitor* monitor, int event);$/;"	p	typeref:typename:void	signature:(GLFWmonitor * monitor,int event)
+monitor	GLFW/callbacks.h	/^void  GLFWmonitorfun(GLFWmonitor* monitor, int event);$/;"	z	prototype:GLFWmonitorfun	typeref:typename:GLFWmonitor *	file:
+event	GLFW/callbacks.h	/^void  GLFWmonitorfun(GLFWmonitor* monitor, int event);$/;"	z	prototype:GLFWmonitorfun	typeref:typename:int	file:
+GLFWjoystickfun	GLFW/callbacks.h	/^void  GLFWjoystickfun(int jid, int event);$/;"	p	typeref:typename:void	signature:(int jid,int event)
+jid	GLFW/callbacks.h	/^void  GLFWjoystickfun(int jid, int event);$/;"	z	prototype:GLFWjoystickfun	typeref:typename:int	file:
+event	GLFW/callbacks.h	/^void  GLFWjoystickfun(int jid, int event);$/;"	z	prototype:GLFWjoystickfun	typeref:typename:int	file:

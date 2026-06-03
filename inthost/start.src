@@ -1,9 +1,12 @@
 //"base.src" include
 
 "inc/base.inc" include
+"inc/stdio.inc" include
+"inc/glfw3.inc" include
+"inc/glcorearb.inc" include
+"inc/glold.inc" include  //legacy opengl
 
-type char end
-type FILE end
+
 
 (String:s String:t) proc cmp
 
@@ -12,6 +15,7 @@ type FILE end
         "same" print newline
     else
         "different" print newline
+
     end
 
 end
@@ -28,7 +32,8 @@ String.null String.null cmp
 
 
 
-"inc/stdio.inc" include
+
+//"inc/stdio.inc" include
 
 
 "whatever" "wb" stdio.fopen var f=
@@ -138,7 +143,146 @@ v .size1 print newline
 sb .size1 print newline
 
 
+glfw.Init
+
+1024 768 "Test" glfw.monitor*.null glfw.window*.null glfw.CreateWindow  var win=
+
+win printptr newline
+
+win glfw.MakeContextCurrent
+
+
+"Multi
+
+Line
+
+quote " print newline
+
+
+
+
+() proc checkGL
+
+
+    loop
+        gl.GetError var e =
+
+        e gl.NO_ERROR == if
+            break
+        end
+
+        "opengl error: " print e print newline
+    end
+
+
+end
+
+
+
+Z32 var w
+Z32 var h
+
+0.0 var fx
+
+
+Z32 var vao
+
+1 vao&.cptr gl.GenVertexArrays
+vao gl.BindVertexArray
+
+Z32 var vbo
+
+1 vbo& .cptr  gl.GenBuffers
+
+type Vec4
+    Real var x
+    Real var y
+    Real var z
+    Real var w
+end
+
+[Vec4]$ var pos
+
+
+pos& 3 3 dim
+
+
+-1.0 pos 0[].z=
+
+
+
+0.25 pos 1[].y=
+-1.0 pos 1[].z=
+
+0.25 pos 2[].x=
+-1.0 pos 2[].z=
+
+
+gl.ARRAY_BUFFER  vbo gl.BindBuffer
+12 4 *
+
+gl.ARRAY_BUFFER 12 4*   pos.cptr   gl.DYNAMIC_DRAW gl.BufferData
+
+
+
+0 gl.EnableVertexAttribArray
+
+
+   0 3  gl.FLOAT  0.Bit 12  0    gl.VertexAttribPointer
+
+
+
+
+loop
+    glfw.PollEvents
+    win glfw.WindowShouldClose if
+        break
+    end
+
+    win w& h& glfw.GetFramebufferSize
+
+    0 0 w h gl.Viewport
+
+
+    1.0 0.5 0.25 1.0 gl.ClearColor
+
+
+    gl.COLOR_BUFFER_BIT gl.Clear
+
+checkGL
+    gl.TRIANGLES 0 3  gl.DrawArrays
+
+
+
+
+    gl.TRIANGLES glold.Begin
+
+        1.0 0.0 0.0 1.0 glold.Color4f
+
+        1.0 0.0 -1.0  glold.Vertex3f
+
+        0.0 1.0 0.0 1.0 glold.Color4f
+       fx 0.5 -1.0  glold.Vertex3f
+
+
+        0.0 0.0 1.0 1.0 glold.Color4f
+        0.5 0.5 -1.0  glold.Vertex3f
+
+    glold.End
+
+
+
+    fx 0.01 + fx=
+
+    win glfw.SwapBuffers
+
+    10
+end
+
+
+
 sys_ENDFILE
+
 
 
 section mod
@@ -690,7 +834,8 @@ Z32 Z32 +
 (String:s) "_LIBC" "puts" sys puts
 ([Byte]:s) "_LIBC" "puts" sys puts
 
-"sdfsdds"$.Byte var b=
+
+
 
 b puts
 
@@ -1063,20 +1208,21 @@ w keycallback glfwSetKeyCallback
 "window " print
 w printptr
 
+
+0.0 var f
+
 loop
 
     glfwPollEvents
 
-    16384 glClear
+    gl.COLOR_BUFFER_BIT gl.COLOR_DEPTH_BIT or  glClear
 
-    4 glBegin
+    gl.TRIANGLES glBegin
         1.0 0.0 0.0 1.0 glColor4f
-
         1.0 0.0 -1.0  glVertex3f
 
         0.0 1.0 0.0 1.0 glColor4f
-        0.0 0.5 -1.0  glVertex3f
-
+         -1.0 0.5 -1.0  glVertex3f
 
         0.0 0.0 1.0 1.0 glColor4f
         0.5 0.5 -1.0  glVertex3f
@@ -1084,6 +1230,8 @@ loop
     glEnd
 
     w glfwSwapBuffers
+
+    f 0.1 + f=
 
     doexit if
         break

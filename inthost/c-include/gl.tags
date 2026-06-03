@@ -1,0 +1,23 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	0	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	//
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/home/mars/projects/Zcore/inthost/c-include/	//
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+glBegin	GL/gl.h	/^void glBegin(int prim);$/;"	p	typeref:typename:void	signature:(int prim)
+prim	GL/gl.h	/^void glBegin(int prim);$/;"	z	prototype:glBegin	typeref:typename:int	file:
+glEnd	GL/gl.h	/^void glEnd();$/;"	p	typeref:typename:void	signature:()
+glVertex3f	GL/gl.h	/^void glVertex3f(float, float, float);$/;"	p	typeref:typename:void	signature:(float,float,float)
+__anon11fb5330010d	GL/gl.h	/^void glVertex3f(float, float, float);$/;"	z	prototype:glVertex3f	typeref:typename:float	file:
+__anon11fb5330020d	GL/gl.h	/^void glVertex3f(float, float, float);$/;"	z	prototype:glVertex3f	typeref:typename:float	file:
+__anon11fb5330030d	GL/gl.h	/^void glVertex3f(float, float, float);$/;"	z	prototype:glVertex3f	typeref:typename:float	file:
+glColor4f	GL/gl.h	/^void glColor4f(float, float, float, float);$/;"	p	typeref:typename:void	signature:(float,float,float,float)
+__anon11fb5330040d	GL/gl.h	/^void glColor4f(float, float, float, float);$/;"	z	prototype:glColor4f	typeref:typename:float	file:
+__anon11fb5330050d	GL/gl.h	/^void glColor4f(float, float, float, float);$/;"	z	prototype:glColor4f	typeref:typename:float	file:
+__anon11fb5330060d	GL/gl.h	/^void glColor4f(float, float, float, float);$/;"	z	prototype:glColor4f	typeref:typename:float	file:
+__anon11fb5330070d	GL/gl.h	/^void glColor4f(float, float, float, float);$/;"	z	prototype:glColor4f	typeref:typename:float	file:

@@ -1,0 +1,40 @@
+GLFWAPI;
+const;
+int;Z32
+char*;String
+char*[];[String]
+char;Byte
+uint32_t;Z32
+double;Double32
+uint64_t;Size32
+void*;Any&
+float;Real
+unsignedint;Z32
+GLFWglproc;Any&
+int*;Z32&
+
+#not testing vulkan, but needed to be able to compile:
+VkInstance;Any&
+VkPhysicalDevice;Any&
+VkResult;Any&
+GLFWvkproc;Any&
+GLFWerrorfun;	 ( Z32:_error_code String:_description ) 
+GLFWwindowposfun;	 ( window*:_window Z32:_xpos Z32:_ypos ) 
+GLFWwindowsizefun;	 ( window*:_window Z32:_width Z32:_height ) 
+GLFWwindowclosefun;	 ( window*:_window ) 
+GLFWwindowrefreshfun;	 ( window*:_window ) 
+GLFWwindowfocusfun;	 ( window*:_window Z32:_focused ) 
+GLFWwindowiconifyfun;	 ( window*:_window Z32:_iconified ) 
+GLFWwindowmaximizefun;	 ( window*:_window Z32:_maximized ) 
+GLFWframebuffersizefun;	 ( window*:_window Z32:_width Z32:_height ) 
+GLFWwindowcontentscalefun;	 ( window*:_window Real:_xscale Real:_yscale ) 
+GLFWmousebuttonfun;	 ( window*:_window Z32:_button Z32:_action Z32:_mods ) 
+GLFWcursorposfun;	 ( window*:_window Double32:_xpos Double32:_ypos ) 
+GLFWcursorenterfun;	 ( window*:_window Z32:_entered ) 
+GLFWscrollfun;	 ( window*:_window Double32:_xoffset Double32:_yoffset ) 
+GLFWkeyfun;	 ( window*:_window Z32:_key Z32:_scancode Z32:_action Z32:_mods ) 
+GLFWcharfun;	 ( window*:_window Z32:_codepoint ) 
+GLFWcharmodsfun;	 ( window*:_window Z32:_codepoint Z32:_mods ) 
+GLFWdropfun;	 ( window*:_window Z32:_path_count [String]:_paths ) 
+GLFWmonitorfun;	 ( monitor*:_monitor Z32:_event ) 
+GLFWjoystickfun;	 ( Z32:_jid Z32:_event ) 

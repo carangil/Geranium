@@ -38,16 +38,67 @@ void myExit(int a){
 #define exit myExit
 
 //error reporting
-void set_error(exectxT* exectx, int code, char* string){
-	if (!exectx){
-		fprintf(stderr, "Error %d: %s",code, string);
-		ram_free(string);
+void set_error(errorT* err, int code, char* string){
 
+	if (!err){
+		fprintf(stderr, "set_error %d: %s",code, string);
+		ram_free(string);
+		return;
 	}
-	exectx->error_code = code;
-	exectx->error_string = string;
+
+	if (err->error_string){
+		fprintf(stderr, "Warning existing error %s already set\n", err->error_string);
+		ram_free(err->error_string);
+	}
+
+
+	err->error_code = code;
+	err->error_string = string;
+	err->file = NULL;
+	err->line = 0;
 }
 
+//adds
+void errtok(errorT* err, tokenT* t){
+
+	if(t){
+		err->file = t->sourcefile;
+		err->line = t->line;
+	} else {
+		err->file=NULL;
+		err->line=0;
+	}
+}
+
+int copyerr(errorT* dst, errorT* src){
+
+	set_error(dst, src->error_code, ram_addref(src->error_string));
+	dst->line = src->line;
+	dst->file = src->file;
+
+	return dst->error_code;
+}
+
+#define ERRTOK(CONTEXT,TOKEN)  errtok(&((CONTEXT)->err), TOKEN)
+#define ERRUP(UPCONTEXT,DOWNCONTEXT)  copyerr( &((UPCONTEXT)->err), &((DOWNCONTEXT)->err))
+
+int printerr(errorT* err){
+
+	if (err->error_code){
+		fprintf(stderr, "%d  %s:%d %s\n",err->error_code, err->file?err->file:"", err->line, err->error_string);
+	}
+
+	return err->error_code;
+}
+
+void reseterr(errorT* err){
+	ram_free(err->error_string);
+	err->error_string = NULL;
+	err->error_code=0;
+}
+
+#define PRINTERR(CONTEXT)    printerr(  &( (CONTEXT)->err))
+#define RESETERR(CONTEXT)    reseterr(  &( (CONTEXT)->err))
 
 char* echo(char* s){
 	fprintf(stderr, "SETERROR %s\n",s);
@@ -55,8 +106,18 @@ char* echo(char* s){
 	return s;
 }
 
-#define seterrorf(EXECTX, CODE, ...)  set_error(EXECTX, CODE, echo(zstrprintf( (EXECTX)->error_string, __VA_ARGS__)))
-#define PERROR(...) seterrorf(exe, ERROR_PARSE, ...)
+//#define seterrorf(CONTEXT, CODE, ...)  set_error(&(CONTEXT->err), CODE, echo(zstrprintf( (CONTEXT)->err.error_string, __VA_ARGS__))   )
+
+#define PERROR(CONTEXT, ...) set_error(&(CONTEXT->err), ERROR_PARSE, echo(zstrprintf( NULL, __VA_ARGS__)))
+
+
+
+
+// for testing    if(ERR(pctx))
+
+#define ERR(CONTEXT)	((CONTEXT)->err.error_code)
+#define OK(CONTEXT)		(0==(CONTEXT)->err.error_code)
+
 
 /* TOKENIZER*/
 /* This first part parses an input string and returns a linked list of tokens
@@ -332,7 +393,7 @@ void  tokenize(tokenT* insert, char* in, char* filename, int line){
 //execution context
 zbool clean_exe(void* v){
 	exectxT* exe = v;
-	ram_free(exe->error_string);
+	ram_free(exe->err.error_string);
 	ram_free(exe->stack);
 	return ZTRUE;
 }
@@ -362,7 +423,7 @@ zbool word_clean(void* v){
 
 //creates a word.  If owntype no reference is added to type, so that freeing the word frees the type.
 
-wordT* word_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* type){
+wordT* word_mk(parsectxT* pctx, char* name, typeT* type){
 
 	wordT* w = ram_alloc(sizeof(wordT), word_clean);
 	
@@ -384,14 +445,14 @@ wordT* word_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* type){
 
 			wordT* cw = zvec_get_at(p, i);
 			if (cw->type->argc == 0 && w->type->argc ==0){
-				seterrorf(exe, ERROR_PARSE, "Creating second word with no args in same pctx\n");
+				PERROR(pctx, "Creating second word with no args in same pctx\n");
 				ram_free(w);
 				return NULL;
 			}
 			//if both same type (proc) then also error
 			//todo:might have more  conflicts, not known yet
 			if (cw->type == w->type){ //todo use cmp_type with 'no wildcards/subst'
-				seterrorf(exe, ERROR_PARSE, "Creating second word with same type\n");
+				PERROR(pctx, "Creating second word with no args in same pctx\n");
 				ram_free(w);
 				return NULL;
 			}
@@ -419,7 +480,7 @@ wordT* word_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* type){
 
 
 	}else{
-		seterrorf(exe, ERROR_PARSE,  "creating word with no container\n");
+		PERROR(pctx, "Creating second word with no args in same pctx\n");
 		return NULL;
 
 	}
@@ -428,7 +489,7 @@ wordT* word_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* type){
 }
 
 
-wordT* word_alias_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* newtype, wordT* original){
+wordT* word_alias_mk(char* name, typeT* newtype, wordT* original){
 	wordT* alias = ram_alloc(sizeof(wordT), word_clean);
 
 
@@ -506,7 +567,7 @@ void dump_types(parsectxT* pctx){
 }
 
 //most basic types
-typeT *tZ32, *tType, *tReal, *tType, *tFloat, *tBit, *tWord, *tString, *tByte, *tStringByte, *tSize32, *tLong32;
+typeT *tZ32, *tType, *tReal, *tType, *tFloat, *tBit, *tWord, *tString, *tByte, *tStringByte, *tSize32, *tLong32, *tDouble32;
 
 //some special types
 typeT* tAny; //matches any type
@@ -585,6 +646,7 @@ typeT* resolve_like_type_for_caller(parsectxT* pctx, typeT* expected, typeT* pro
 
 	}
 
+
 	errorf("BAD LIKETYPE CASE\n");
 	exit(1);
 
@@ -660,6 +722,11 @@ zbool type_cmp(parsectxT* pctx, typeT* expected, typeT* given, int flags, typeT*
 	if ((expected == tLong32) && (given ==tZ32)) {
 		//Size32 type allows passing a Z32 to a C function that wants a long, whatever size it is on that system
 		//This rule considers it identical to Z32 for all other uses
+		return ZTRUE;
+	}
+
+	if ((expected == tDouble32) && (given ==tReal)) {
+		//for C functions that need double.
 		return ZTRUE;
 	}
 
@@ -1575,6 +1642,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 			BINOP(add32, z32, +)
 			BINOP(sub32, z32, -)
+			BINOP(mul32, z32, *)
 			BINOP(equal32, z32, ==)
 			BINOP(less32, z32, <)
 			BINOP(greater32, z32, >)
@@ -1585,6 +1653,12 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 			UNOP(bnot, z32, !, z32)
 
 			UNOP(ptrvalid, z32 , NULL != , ptr.address.block  )
+
+
+			BINOP(fadd, f, +)
+			BINOP(fsub, f, -)
+			BINOP(fmul, f, *)
+			BINOP(fdiv, f, /)
 
 
 			case op_ptrequal:
@@ -1932,6 +2006,10 @@ wordT* match_word(parsectxT* pctx, parsectxT* searchpctx,  char* name, int infla
 	if (pctx->next_match){
 		word = pctx->next_match;
 		pctx->next_match = NULL;
+		if (rarg){
+			*rarg = word->type->argc;
+			printf(" returning %s with %d args\n", word->name, *rarg);
+		}
 		return word;
 	}
 
@@ -2003,7 +2081,7 @@ wordT* match_word(parsectxT* pctx, parsectxT* searchpctx,  char* name, int infla
 								tracef(" new type for word is %s\n", pt->key);
 
 
-								wordT* new_word = word_alias_mk(NULL, sc, word->name, pt, word);
+								wordT* new_word = word_alias_mk(word->name, pt, word);
 								return new_word;
 
 						}
@@ -2027,9 +2105,9 @@ wordT* match_word(parsectxT* pctx, parsectxT* searchpctx,  char* name, int infla
 
 }
 
-tokenT*  parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens);
+tokenT*  parse(parsectxT* pctx, tokenT* t, char** stop_tokens);
 
-tokenT* parse_number(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+tokenT* parse_number(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	valueT val = {0};
 
@@ -2047,11 +2125,11 @@ tokenT* parse_number(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int arg
 	return t;
 }
 
-wordT* proc_opcode_mk(exectxT* exe, parsectxT* pctx,  int opcode, char* name,  typeT* proctype);
-wordT* proc_opcode_mk2(exectxT* exe, parsectxT* pctx,  int opcode, char* name,  char* typestr);
+wordT* proc_opcode_mk(parsectxT* pctx,  int opcode, char* name,  typeT* proctype);
+wordT* proc_opcode_mk2(parsectxT* pctx,  int opcode, char* name,  char* typestr);
 typeT* type_proc_mk(typeT* ret, int n, ...);
 
-tokenT* parse_constant(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+tokenT* parse_constant(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	instructionT* inst = pop_arg(pctx);
 	t=tnext(t);
@@ -2068,7 +2146,7 @@ tokenT* parse_constant(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int a
 		return NULL;
 	}
 
-	wordT* word = proc_opcode_mk(exe, pctx, op_constant, name, type_proc_mk(inst->val_type,0));
+	wordT* word = proc_opcode_mk(pctx, op_constant, name, type_proc_mk(inst->val_type,0));
 	word->val = inst->val;
 	word->val_type = inst->val_type;
 
@@ -2080,8 +2158,14 @@ tokenT* parse_constant(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int a
 }
 
 zstringmapT* c_objects=NULL;
+zstringmapT* c_constants=NULL;
 
-tokenT* parse_c_constant(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+typedef struct{
+	int val32;  //todo van use valueT for more constants if we really need to
+} c_constantT;
+
+
+tokenT* parse_c_constant(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	zbool is_c_constant = ZFALSE;
 
@@ -2092,10 +2176,10 @@ tokenT* parse_c_constant(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int
 	char* name = t->str;
 
 	char* objname = inst->val.as.ptr.address.bytes;
-	void* obj = zstringmap_get(c_objects, objname);
+	c_constantT* cc = zstringmap_get(c_constants, objname);
 
-	if (!obj){
-		printf(" c object %s not found\n", objname);
+	if (!cc){
+		printf(" c constant %s not found\n", objname);
 		exit(1);
 	}
 
@@ -2106,10 +2190,10 @@ tokenT* parse_c_constant(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int
 			exit(1);
 	}
 
-	wordT* word = proc_opcode_mk(exe, pctx, op_constant, name, type_proc_mk(type,0));
+	wordT* word = proc_opcode_mk(pctx, op_constant, name, type_proc_mk(type,0));
 
 
-	word->val.as.z32 = *(int*)(obj);
+	word->val.as.z32 = cc->val32;
 	word->val_type = type;
 
 	ram_free(typeinst);
@@ -2120,7 +2204,7 @@ tokenT* parse_c_constant(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int
 
 
 
-tokenT* parse_include(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+tokenT* parse_include(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	instructionT* arg = pop_arg(pctx);
 
@@ -2139,7 +2223,7 @@ tokenT* parse_include(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int ar
 
 #define OF(PCTX, CAT, REF) type_find(PCTX, NULL, REF, CAT, 0, NULL)
 
-tokenT* parse_string_literal(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+tokenT* parse_string_literal(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	valueT val = {0};
 	val.as.ptr.address.bytes = zstrndup(t->str+1, strlen(t->str)-2);
@@ -2186,7 +2270,7 @@ void dereference_assembly(parsectxT* pctx, char* loadername){
 
 
 
-tokenT* autoload(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t){
+tokenT* autoload(parsectxT* pctx, wordT* w, tokenT* t){
 	//Depending on the type it's a reference to, determine if you load it or not
 
 	instructionT* r = pop_arg(pctx);
@@ -2319,7 +2403,7 @@ tokenT* autoload(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t){
 	return t;
 }
 
-tokenT* parse_cast(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+tokenT* parse_cast(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	instructionT* arg = pop_arg(pctx);
 	arg->result_type = w->val.as.ptr.address.type;  //change the type
@@ -2328,7 +2412,7 @@ tokenT* parse_cast(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc)
 }
 
 
-tokenT* parse_default(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+tokenT* parse_default(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	tracef("default parse for %s %s  (%d args)\n", t->str, w->type->key, w->type->argc);
 
@@ -2366,7 +2450,7 @@ tokenT* parse_default(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int ar
 
 		if (w->autoload){
 
-			t = autoload(exe, pctx, w, t);
+			t = autoload(pctx, w, t);
 
 		}
 
@@ -2386,7 +2470,7 @@ tokenT* parse_default(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int ar
 		push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, NULL, w->type->ref );
 
 		if (w->autoload) //enforce autoload rules
-			t = autoload(exe, pctx, w, t);
+			t = autoload(pctx, w, t);
 
 		return t;
 	}
@@ -2414,7 +2498,7 @@ tokenT* parse_default(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int ar
 
 		if (w->autoload){
 
-			t = autoload(exe, pctx, w, t);
+			t = autoload(pctx, w, t);
 
 		}
 
@@ -2429,15 +2513,15 @@ tokenT* parse_default(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int ar
 
 parsectxT* parsectx_mk(parsectxT* parent, char* name);
 
-typeT* type_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* ref, categoryE category, int size, typeT** args );
+typeT* type_mk(parsectxT* pctx, char* name, typeT* ref, categoryE category, int size, typeT** args );
 
 
-tokenT* parse_array(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+tokenT* parse_array(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 		int depth = codestack_depth(pctx);
 		char* stops[] = {"]", NULL};
 		t = tnext(t);
-		t = parse(exe,pctx, t, stops);
+		t = parse(pctx, t, stops);
 
 		//should be a datatype on the stack now
 
@@ -2460,12 +2544,13 @@ tokenT* parse_array(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc
 			}
 		}
 
-		seterrorf(exe, ERROR_PARSE, "expected type\n");
+		PERROR(pctx, ERROR_PARSE, "expected type\n");
+
 		return t;
 }
 
 
-tokenT* parse_type_list(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+tokenT* parse_type_list(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	t = tnext(t); //skip over "("
 	int depth = codestack_depth(pctx);  //get codestack depth
@@ -2491,7 +2576,7 @@ tokenT* parse_type_list(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int 
 
 	while(t->tok != ')'){
 
-		t = parse(exe, pctx, t, stops);	//parse until a stop
+		t = parse(pctx, t, stops);	//parse until a stop
 
 		if (!t)
 			break;
@@ -2528,7 +2613,7 @@ tokenT* parse_type_list(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int 
 				}
 
 				if (is_like != -1) {
-					v.as.ptr.address.type = type_mk(exe, NULL, t->str, NULL, LIKE, 0, NULL);
+					v.as.ptr.address.type = type_mk(NULL, t->str, NULL, LIKE, 0, NULL);
 					v.as.ptr.address.type->argc = is_like;
 					push_assembly(pctx, op_constant, INST_FREE_VALUE, &v, tType, NULL, tType);
 				} else {
@@ -2540,14 +2625,15 @@ tokenT* parse_type_list(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int 
 
 	}
 
-	iferr(exe)
+	if(ERR(pctx))
 		return NULL;
+
 
 	if (expect_ret){
 
 		ret_arg = pop_arg(pctx);
 		if (ret_arg->result_type != tType || ret_arg->val_type != tType || ret_arg->val.as.ptr.address.type == NULL){
-			seterrorf(exe, ERROR_PARSE,"missing or bad type name in arglist\n");
+			PERROR(pctx, ERROR_PARSE, "missing or bad type name in arglist\n");
 		}
 		ret = ret_arg->val.as.ptr.address.type;
 
@@ -2586,7 +2672,7 @@ tokenT* parse_type_list(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int 
 
 	//create the type
 
-	typeT* ptype = type_mk(NULL, NULL, NULL, ret, PROC, 0, inst_const_types(args));
+	typeT* ptype = type_mk(NULL, NULL, ret, PROC, 0, inst_const_types(args));
 
 	ptype->opt_argnames = zvec_detach(argnames,NULL);
 	//ptype->argleave = leave;
@@ -2629,12 +2715,12 @@ tokenT* parse_cond(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 }
 */
 
-wordT* proc_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* proctype);
+wordT* proc_mk(parsectxT* pctx, char* name, typeT* proctype);
 
 #if 1
 
 
-tokenT* parse_var(exectxT* exe, parsectxT* pctx, wordT* wi, tokenT* t, int argc){
+tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 
 	instructionT* arg0 = pop_arg(pctx);
 
@@ -2655,29 +2741,32 @@ tokenT* parse_var(exectxT* exe, parsectxT* pctx, wordT* wi, tokenT* t, int argc)
 	}
 
 	if(!innertype){
-		seterrorf(exe, ERROR_PARSE, "Type constant not found\n");
+		PERROR(pctx,  "Type constant not found\n");
+		ERRTOK(pctx, t);
 		return NULL;
 	}
 
-
 	if (innertype->category == REFERENCE){
-		seterrorf(exe, ERROR_PARSE, "Variables cannot hold references\n");
+		PERROR(pctx,  "Variables cannot hold references\n");
+		ERRTOK(pctx, t);
 		return NULL ;
 	}
 
 	if (innertype->category == ARRAY){
-		seterrorf(exe, ERROR_PARSE, "Variables cannot hold arrays (must use steward)\n");
+		PERROR(pctx,  "Variables cannot hold arrays (must use steward)\n");
+		ERRTOK(pctx, t);
 		return NULL;
 	}
 
 	if (innertype == tString){
-		seterrorf(exe, ERROR_PARSE, "Variables cannot hold string (must use steward)\n");
+		PERROR(pctx,  "Variables cannot hold string (must use steward)\n");
+		ERRTOK(pctx, t);
 		return NULL;
 	}
 
 	typeT* vartype = OF(pctx, VARIABLE, innertype);
 
-	w = word_mk(exe, pctx, varname, vartype); //word for the variable
+	w = word_mk(pctx, varname, vartype); //word for the variable
 	printf(" %d CREATING VAR %s of %s  @%d %d\n", argc,varname,  vartype->key , w->offset, vartype->size );
 
 
@@ -2724,7 +2813,7 @@ typeT* type_proc_mk(typeT* ret, int n, ...){
 		zarray_use(types, n);
 	}
 
-	return type_mk(NULL, NULL, NULL, ret,PROC,0,types);
+	return type_mk(NULL, NULL, ret,PROC,0,types);
 
 }
 
@@ -2788,7 +2877,22 @@ void interpreter_callback( ffi_cif* cif, void* ret, void** args, void* vword){
 
 
 
-void add_c_object(char* name, void* proc){
+
+void int_add_c_val32(char* name, int val){
+
+	if (!c_constants){
+		c_constants = zstringmap_mk(64);
+	}
+	c_constantT* cc = ram_alloc(sizeof(c_constantT), NULL);
+
+	cc->val32 = val;
+
+	printf("CONST %s\t%d\n", name, val);
+
+	zstringmap_put(c_constants, name, cc);
+}
+
+void int_add_c_object(char* name, void* proc){
 
 	if (!c_objects){
 		c_objects = zstringmap_mk(64);
@@ -2811,8 +2915,16 @@ ffi_type* type_map_to_c(typeT* type){
 	if (type == tZ32 || type == tBit)
 		return &ffi_type_sint;
 
+
+	if (type == tByte)
+		return &ffi_type_uint8;
+
+
 	if (type == tReal)
 		return &ffi_type_float;
+
+	if (type == tDouble32)
+		return &ffi_type_double;
 
 	if (type == tString)
 		return &ffi_type_pointer;
@@ -2843,7 +2955,7 @@ ffi_type* type_map_to_c(typeT* type){
 		return &ffi_type_pointer;
 	}
 
-	errorf(" unhandled return type translation: %s\n", type->key);
+	errorf(" unhandled  type translation: %s\n", type->key);
 	exit(1);
 	return NULL;
 }
@@ -2973,7 +3085,7 @@ callerT* caller_lookup(char* soname, char* name, typeT* ret,  typeT** args){
 	if (func)
 		return caller_mk(name, func, ret, args);
 
-	exit(1);
+
 	return NULL;
 }
 
@@ -2982,7 +3094,9 @@ callerT* caller_lookup(char* soname, char* name, typeT* ret,  typeT** args){
 
 
 
-tokenT* parse_proc(exectxT* exe, parsectxT* pctx, wordT* wi, tokenT* t, int argc){
+tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
+
+	int tolerate=0;
 
 	parsectxT* install_pctx = pctx;  //by default this item is in THIS context
 
@@ -3016,6 +3130,11 @@ tokenT* parse_proc(exectxT* exe, parsectxT* pctx, wordT* wi, tokenT* t, int argc
 
 	t = tnext(t);
 
+	if (!strcmp(t->str, "optional")){
+			tolerate=1;
+			t=tnext(t);
+	}
+
 	char* varname = t->str;
 	if (t->str[0]=='.') {
 
@@ -3028,10 +3147,11 @@ tokenT* parse_proc(exectxT* exe, parsectxT* pctx, wordT* wi, tokenT* t, int argc
 		vartype = arg0->val.as.ptr.address.type;  //this is a datatype, like a proc
 
 		tracef(" %d CREATING PROC %s of %s\n", argc,varname,  vartype->key  );
-		w = word_mk(exe,install_pctx, varname, vartype); //word for the variable
+		w = word_mk(install_pctx, varname, vartype); //word for the variable
 
 	} else {
-		seterrorf(exe, ERROR_PARSE, "Proc type constant not found\n");
+
+		PERROR(pctx, "Proc type constant not found\n");
 	}
 
 	if (w && symname && symname->val_type== tString ){
@@ -3044,8 +3164,8 @@ tokenT* parse_proc(exectxT* exe, parsectxT* pctx, wordT* wi, tokenT* t, int argc
 		w->val.as.ptr.address.block = w;
 		w->val_type = tWord;
 
-		if (!w->ffi_caller){
-			seterrorf(exe, ERROR_PARSE, zstrprintf(NULL, "Could not find %s:%s\n",
+		if (!w->ffi_caller && !tolerate){
+			PERROR(pctx, zstrprintf(NULL, "Could not find %s:%s\n",
 				libname->val.as.ptr.address.bytes, symname->val.as.ptr.address.bytes));
 		}
 
@@ -3092,7 +3212,7 @@ tokenT* parse_proc(exectxT* exe, parsectxT* pctx, wordT* wi, tokenT* t, int argc
 		//create the variable arg names
 		for (int i=0;i<proctype->argc;i++){
 			printf("adding arg %s",proctype->opt_argnames[i] );
-			wordT* argvar = word_mk(exe, innerpctx, proctype->opt_argnames[i], OF(pctx, ARG, proctype->argtypes[i]));
+			wordT* argvar = word_mk(innerpctx, proctype->opt_argnames[i], OF(pctx, ARG, proctype->argtypes[i]));
 			argvar->val.as.z32 = -proctype->argc + i; //offset from bp
 			argvar->val_type = tZ32;
 			argvar->opcode = op_argpick;
@@ -3109,20 +3229,25 @@ tokenT* parse_proc(exectxT* exe, parsectxT* pctx, wordT* wi, tokenT* t, int argc
 
 
 		if (proctype->ref)
-			proc_opcode_mk(exe, innerpctx, op_returnval, "return", type_proc_mk(NULL, 1, proctype->ref));
+			proc_opcode_mk(innerpctx, op_returnval, "return", type_proc_mk(NULL, 1, proctype->ref));
 		else //no return value
-			proc_opcode_mk(exe, innerpctx, op_return, "return", type_proc_mk(NULL, 0));
+			proc_opcode_mk(innerpctx, op_return, "return", type_proc_mk(NULL, 0));
 
 		char* stops[]={"end", NULL};
 
 		printf(" parse inner pctx %p for word %p\n", innerpctx, w);
 
 
-		t= parse(exe, innerpctx, t, stops);
+		t= parse(innerpctx, t, stops);
 
-		printf(" Parsed proc %s %s\n", w->name, w->type->key);
-		codestack_print(innerpctx->codestack,0,ZTRUE);
-		//getc(stdin);
+		printf(" Parsed proc %s %s  %p\n", w->name, w->type->key, t);
+
+		ERRUP(pctx,  innerpctx);
+
+		if (OK(pctx)){
+			codestack_print(innerpctx->codestack,0,ZTRUE);
+		}
+
 
 	}
 	ram_free(arg0);
@@ -3135,7 +3260,7 @@ tokenT* parse_proc(exectxT* exe, parsectxT* pctx, wordT* wi, tokenT* t, int argc
 
 
 
-tokenT* parse_frame(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+tokenT* parse_frame(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 	zbool issection = ZFALSE;
 
 	if (!strcmp(t->str, "section")){
@@ -3153,7 +3278,7 @@ tokenT* parse_frame(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc
 
 	//create incomplete data type
 
-	typeT* type = type_mk(exe, pctx, name, NULL, PENDING, 0, NULL);
+	typeT* type = type_mk(pctx, name, NULL, PENDING, 0, NULL);
 
 
 	//create parse context
@@ -3169,7 +3294,7 @@ tokenT* parse_frame(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc
 	printf(" parse inner pctx %p for word %p\n", innerpctx, type->word);
 	//getc(stdin);
 
-	t= parse(exe, innerpctx, t, stops);
+	t= parse(innerpctx, t, stops);
 
 	printf("Parsed frame:\n");
 	codestack_print(innerpctx->codestack,0,ZTRUE);
@@ -3196,7 +3321,7 @@ tokenT* parse_frame(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc
 }
 #endif
 
-tokenT* parse_type_name(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+tokenT* parse_type_name(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	if (w->val_type == tType && w->val.as.ptr.address.type){
 
@@ -3223,7 +3348,7 @@ typeT* type_find_related(parsectxT* pctx, typeT* type, char* selection){
 }
 
 
-tokenT* parse_related_type(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+tokenT* parse_related_type(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	//typestack_pop(pctx, argc);
 	instructionT* arg0 = pop_arg(pctx);
@@ -3248,14 +3373,15 @@ tokenT* parse_related_type(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, i
 			type = type_find(pctx, NULL, type, CPOINTER, 0, NULL);
 		if (!strcmp(t->str, "$")){
 			if (type->category != ARRAY && type != tString && type != tAny && type->category!= SUBTREE ){
-				seterrorf(exe, ERROR_PARSE, "steward ($) only applies to array or string");
+				//seterrorf(exe, ERROR_PARSE, "steward ($) only applies to array or string");
+				PERROR(pctx, "steward ($) only applies to array or string");
 				return NULL;
 			}
 			type = type_find(pctx, NULL, type, STEWARD, 0, NULL);
 		}
 		if (!strcmp(t->str, "@")){
 			if (type->is_wild){
-				type = type_mk(NULL, NULL, NULL,type, DEREFERENCE,0, NULL);
+				type = type_mk(NULL, NULL,type, DEREFERENCE,0, NULL);
 				instflags = INST_FREE_VALUE; //the type created above is not attached to a pctx, so free it when done
 			} else {
 				type = type->ref;
@@ -3282,7 +3408,7 @@ tokenT* parse_related_type(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, i
 }
 
 //parse_flow
-tokenT* parse_flow(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc){
+tokenT* parse_flow(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	valueT vtrue = {0};
 	vtrue.as.z32 = 1;
@@ -3303,7 +3429,7 @@ tokenT* parse_flow(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc)
 
 				int depth = codestack_depth(pctx);
 				t = tnext(t);  //skip over if/elseif
-				t = parse(exe, pctx, t, ifstops); //parse until end/if/elseif
+				t = parse(pctx, t, ifstops); //parse until end/if/elseif
 
 				//true side instructions are on codestack
 
@@ -3332,7 +3458,6 @@ tokenT* parse_flow(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc)
 		instructionT** a = pop_args(pctx, parts);
 		push_assembly(pctx, op_if,0,NULL, NULL, a, NULL);
 
-			printf("HERE\n\n");
 		codestack_print(pctx->codestack,0, ZTRUE);
 
 		return t;
@@ -3346,7 +3471,7 @@ tokenT* parse_flow(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc)
 		char* stepstops[]= { "end",  NULL};
 		int depth = codestack_depth(pctx);
 		t=tnext(t);
-		t = parse(exe, pctx,t, loopstops);
+		t = parse(pctx,t, loopstops);
 		body = pop_args(pctx, codestack_depth(pctx) - depth);
 
 		push_assembly(pctx, op_block, 0,NULL, NULL, body,NULL);
@@ -3355,7 +3480,7 @@ tokenT* parse_flow(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc)
 		if (!strcmp(t->str, "step")){
 			depth = codestack_depth(pctx);
 			t = tnext(t);
-			t = parse(exe, pctx,t, loopstops);
+			t = parse(pctx,t, loopstops);
 			step = pop_args(pctx, codestack_depth(pctx) - depth);
 			push_assembly(pctx, op_block, 0, NULL, NULL, step, NULL);
 		}
@@ -3378,7 +3503,7 @@ tokenT* parse_flow(exectxT* exe, parsectxT* pctx, wordT* w, tokenT* t, int argc)
 
 //parse until either end of input or any stop_tokens
 //topparse
-tokenT* parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens){
+tokenT* parse(parsectxT* pctx, tokenT* t, char** stop_tokens){
 	//skip past this stub
 	if (t->tok == TOKEN_STARTFILE){
 		t=tnext(t);
@@ -3408,12 +3533,12 @@ tokenT* parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens){
 				continue;
 
 			case TOKEN_NUMBER:
-				t = parse_number(exe, pctx, NULL, t, 0);
+				t = parse_number(pctx, NULL, t, 0);
 				t=tnext(t);
 				continue;
 
 			case TOKEN_LITERAL:
-				t = parse_string_literal(exe, pctx, NULL, t, 0);
+				t = parse_string_literal(pctx, NULL, t, 0);
 				t=tnext(t);
 				continue;
 		}
@@ -3438,17 +3563,22 @@ tokenT* parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens){
 
 			if (!w->parse){
 				//printf("do default parse\n");
-				t = parse_default(exe, pctx, w, t, argc);
+				t = parse_default(pctx, w, t, argc);
 			} else{
 			//:w	printf("do %s parse\n", w->name);
-				t = w->parse(exe, pctx, w, t, argc);
+				t = w->parse(pctx, w, t, argc);
+			}
+
+			if (ERR(pctx)){
+				PRINTERR(pctx);
+				return NULL;
 			}
 
 			for (int i=0;i<argc;i++)
 				tstart = tprev(tstart);
 
 			if (!t){
-					seterrorf(exe, ERROR_PARSE, "unexpected end of input\n");
+					PERROR(pctx, "unexpected end of input\n");
 
 					return NULL;
 			}
@@ -3481,16 +3611,11 @@ tokenT* parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens){
 
 				//search for things in the type itself
 
-				dump_dictionary(ty->word->target_pctx);
+				//dump_dictionary(ty->word->target_pctx);
 				tracef(" search for %s\n", t->str+1);
 
-				//strict matching
-				w = match_word(pctx, ty->word->target_pctx, t->str+1 /*skip dot*/, 0,NULL , NULL);
 
-				//allow wildcards / any / like
-				if (!w)
-					w = match_word(pctx, ty->word->target_pctx, t->str+1 /*skip dot*/, MATCH_ALLOW_LIKE,NULL , NULL);
-
+				w = match_word(pctx, ty->word->target_pctx, t->str+1 /*skip dot*/, MATCH_ALLOW_LIKE,NULL , NULL);
 
 				if (w)
 					tracef("found %s %s\n", w->name, w->type?w->type->key:"notype");
@@ -3520,25 +3645,14 @@ tokenT* parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens){
 
 						}
 
-
-
 						push_assembly(pctx, op_sectionvar, 0, &w->val, w->val_type, NULL, OF(pctx, REFERENCE, w->type->ref));
 
 						ram_free(inst);
 						if (w->autoload){
-							t = autoload(exe, pctx, w,t);
+							t = autoload(pctx, w,t);
 						}
 						t=tnext(t);
 						continue;
-
-						//push reference to the type's shared data
-						//push_assembly(pctx, op_constant, 0, &val,  OF(pctx, REFERENCE, ty), NULL,  OF(pctx, REFERENCE, ty)  );
-
-
-
-
-						//ty = OF(pctx, REFERENCE, ty);
-						//printf(" fallthrough to %s\n", ty->key);
 
 					}else {
 						errorf("Cannot use %s here.\n", w->type->key);
@@ -3548,11 +3662,11 @@ tokenT* parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens){
 				}  else {
 
 					errorf(" Type/section %s has no member %s\n",ty->name, t->str+1 );
-					exit(1);
-					continue;
+				//	exit(1);
+					//continue;
 				}
 				errorf(" fell\n");
-				exit(1);
+			//	exit(1);
 			}
 
 
@@ -3562,8 +3676,6 @@ tokenT* parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens){
 				ty = ty->ref;
 				tracef("looking for %s in ref %s word %s\n", t->str, ty->key, ty->word->name);
 
-
-//			if (ty && ty->word && ty->word->target_pctx && ty->category == REFERENCE){
 
 				w = match_word(pctx, ty->word->target_pctx, t->str+1 /*skip dot*/, 0,NULL , NULL);
 
@@ -3586,7 +3698,7 @@ tokenT* parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens){
 				//printf(" pushing subvar assembly %d but word actually is a %d\n", op_subvar, w->opcode);
 				push_assembly(pctx, op_subvar, 0, &v, tWord, assembly_args_mk(1, pop_arg(pctx)), OF(pctx, REFERENCE, w->type->ref));
 			//	getc(stdin);
-				t = autoload(exe, pctx, w,t);
+				t = autoload(pctx, w,t);
 				t=tnext(t);
 				continue;
 			}
@@ -3595,14 +3707,18 @@ tokenT* parse(exectxT* exe, parsectxT* pctx, tokenT* t, char** stop_tokens){
 		//not known
 
 
-		char* err=zstrprintf(NULL,  "UNDEFINED %s  from stack ", t->str);
+		char* msg=zstrdup("");
 		for (int i=0;i<zvec_count(pctx->codestack);i++){
 			instructionT* inst = zvec_get_at(pctx->codestack, i);
 			if (inst->result_type) {
-				err =  zstrprintf(err, " %s", inst->result_type->key );
+				msg =  zstrprintf(msg, " %s;", inst->result_type->key );
 			}
 		}
-		seterrorf(exe, ERROR_PARSE, err);
+
+		PERROR(pctx, "UNDEFINED %s  from stack: %s\n", t->str, msg);
+		ERRTOK(pctx, t);
+		ram_free(msg);
+
 		return NULL;
 
 	}
@@ -3620,11 +3736,8 @@ zbool typecleanup(void* v){
 		ram_free(type->ref);
 		ram_free(type->key);
 		ram_free(type->name);
-		//if (type->argtypes)
-		//	printf("typecleanup\n");
 		ram_free(type->argtypes);
 		ram_free(type->opt_argnames);
-
 
 		return ZTRUE;
 }
@@ -3701,10 +3814,10 @@ char* type_key(char* name, typeT* ref, categoryE category, int size, typeT** arg
 
 int type_mk_line=0;
 
-wordT* proc_parser_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* proctype, void* parsefunc);
+wordT* proc_parser_mk(parsectxT* pctx, char* name, typeT* proctype, void* parsefunc);
 
 //create a type.  takes ownership of 'args' if passed
-typeT* type_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* ref, categoryE category, int size, typeT** args ){
+typeT* type_mk(parsectxT* pctx, char* name, typeT* ref, categoryE category, int size, typeT** args ){
 									
 	typeT* type = ram_alloc(sizeof(typeT), typecleanup); type_mk_line = __LINE__;
 
@@ -3746,7 +3859,7 @@ typeT* type_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* ref, categoryE 
 			//store it as a word
 			if (name && strlen(name) > 0){
 				debugf("Making word %s to push type\n", name);
-				wordT* w = proc_parser_mk(exe, pctx, name,  type_proc_mk( tType, 0), parse_type_name);//create a proc word, that runs parse_type_name at parse time
+				wordT* w = proc_parser_mk(pctx, name,  type_proc_mk( tType, 0), parse_type_name);//create a proc word, that runs parse_type_name at parse time
 				type->word =w; //the type needs a word to find it
 				w->val.as.ptr.address.type = type;
 				w->val_type = tType; //is a type
@@ -3798,12 +3911,12 @@ typeT* type_find(parsectxT* pctx, char* name, typeT* ref, categoryE category, in
 	if (category == NAMED){
 		//wanted a type by name (like a struct), but the type is not yet
 		//defined.
-		return type_mk(NULL, pctx, name, NULL, PENDING, 0, NULL);
+		return type_mk(pctx, name, NULL, PENDING, 0, NULL);
 
 	}
 
 	if (ref){
-		return type_mk(NULL, pctx, NULL, ref, category, size, args);
+		return type_mk(pctx, NULL, ref, category, size, args);
 	}
 
 	//did not find anything
@@ -3827,7 +3940,10 @@ zbool cleanparsectx(void* v){
 	for (int i=0;i<MAXRUNNERS;i++)
 		ram_free(pctx->runners[i]);
 
+	RESETERR(pctx); //clear any error messages
+
 	ram_free(pctx->comment);
+
 
 	return ZTRUE;
 }
@@ -3850,21 +3966,21 @@ parsectxT* parsectx_mk(parsectxT* parent, char* name){
 
 
 //Makes a procedure word in a dictionary
-wordT* proc_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* proctype){
+wordT* proc_mk(parsectxT* pctx, char* name, typeT* proctype){
 
 		if (!proctype)
 			proctype = type_proc_mk(NULL, 0);  //if no type specified, pick a proc with no args and no return
 
-		wordT* procword= word_mk(exe, pctx, name, proctype);
+		wordT* procword= word_mk(pctx, name, proctype);
 		ram_free(proctype); //word above has a reference to it
 
 		return procword;
 }
 
 //Makes a procedure word that runs an opcode. Most primitives are these.
-wordT* proc_opcode_mk(exectxT* exe, parsectxT* pctx,  int opcode, char* name, typeT* proctype){
-		wordT* w = proc_mk(exe, pctx, name, proctype);
-		iferr(exe) {
+wordT* proc_opcode_mk(parsectxT* pctx,  int opcode, char* name, typeT* proctype){
+		wordT* w = proc_mk(pctx, name, proctype);
+		if(ERR(pctx)) {
 			return NULL;
 		}
 		w->opcode = opcode;
@@ -3873,12 +3989,12 @@ wordT* proc_opcode_mk(exectxT* exe, parsectxT* pctx,  int opcode, char* name, ty
 }
 
 
-typeT* type_from_str(exectxT* exe, parsectxT* pctx, char* str);
+typeT* type_from_str(parsectxT* pctx, char* str);
 
-wordT* proc_opcode_mk2(exectxT* exe, parsectxT* pctx,  int opcode, char* name, char* typestr){
-	typeT* proctype = type_from_str(exe, pctx, typestr);
-	wordT* w = proc_mk(exe, pctx, name, proctype);
-	iferr(exe) {
+wordT* proc_opcode_mk2(parsectxT* pctx,  int opcode, char* name, char* typestr){
+	typeT* proctype = type_from_str(pctx, typestr);
+	wordT* w = proc_mk(pctx, name, proctype);
+	if(ERR(pctx)) {
 		return NULL;
 	}
 	w->opcode = opcode;
@@ -3887,9 +4003,9 @@ wordT* proc_opcode_mk2(exectxT* exe, parsectxT* pctx,  int opcode, char* name, c
 }
 
 //Makes a procedure word that runs a C function in the parser.  The parser is made of these.
-wordT* proc_parser_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* proctype, void* parsefunc){
-		wordT* w = proc_mk(exe, pctx, name, proctype);
-		iferr(exe) {
+wordT* proc_parser_mk(parsectxT* pctx, char* name, typeT* proctype, void* parsefunc){
+		wordT* w = proc_mk(pctx, name, proctype);
+		if(ERR(pctx)) {
 			return NULL;
 		}
 		w->parse = parsefunc;
@@ -3898,7 +4014,7 @@ wordT* proc_parser_mk(exectxT* exe, parsectxT* pctx, char* name, typeT* proctype
 
 //Takes a string and produces the datatype it represents as a constant.  This is much easier than chaining together multiple lines of C building a data type from the actual structs.
 //The caller of this function is responsible to free this typeT struct, or store it somewhere that will free it
-typeT* type_from_str(exectxT* exe, parsectxT* pctx, char* str){
+typeT* type_from_str(parsectxT* pctx, char* str){
 	//takes a string and makes a type
 	zlistT tokens;
     zlist_init(&tokens);
@@ -3908,7 +4024,7 @@ typeT* type_from_str(exectxT* exe, parsectxT* pctx, char* str){
 
     tokenize(first, str, "type_from_str", 1);
 
-    parse(exe, pctx, zlist_head(&tokens), NULL);
+    parse(pctx, zlist_head(&tokens), NULL);
 
 	//codestack_print(pctx->codestack, ZTRUE);
 	instructionT* it = pop_arg(pctx);
@@ -3983,9 +4099,9 @@ typeT* instruction_val_typeof( instructionT* inst){
 }
 
 
-typeT* type_sizeof( typeT* t){
+int type_sizeof( typeT* t){
 	if (!t)
-		return NULL;
+		return 0;
 	return t->size;
 }
 
@@ -4077,12 +4193,6 @@ char* type_keystr (typeT* t){
 }
 
 
-/* platform specific constants for C */
-int const_SEEK_SET = SEEK_SET;
-int const_SEEK_CUR = SEEK_CUR;
-int const_SEEK_END = SEEK_END;
-
-
 
 //tokenize and parse (evnetually... run)
 void int_run_str(char* src, char* filename){
@@ -4117,242 +4227,232 @@ void int_run_str(char* src, char* filename){
 	ADD_INST(sectionvar);
 
 
-
 	//C constants
-	add_c_object("SEEK_SET", &const_SEEK_SET);
-	add_c_object("SEEK_CUR", &const_SEEK_CUR);
-	add_c_object("SEEK_END", &const_SEEK_END);
+
 
 
 	//C functions
-	add_c_object("test_me" , test_me);
-	add_c_object("instruction_opcode", instruction_opcode);
-	add_c_object("instruction_opname", instruction_opname);
+	int_add_c_object("test_me" , test_me);
+	int_add_c_object("instruction_opcode", instruction_opcode);
+	int_add_c_object("instruction_opname", instruction_opname);
 
-	add_c_object("instruction_args", instruction_args);
-	add_c_object("instruction_result_type", instruction_result_type);
-	add_c_object("type_keystr", type_keystr);
-	add_c_object("instruction_val_pointer", instruction_val_pointer);
-	add_c_object("instruction_val_z32", instruction_val_z32);
-	add_c_object("instruction_val_typeof", instruction_val_typeof);
-	add_c_object("type_sizeof", type_sizeof);
+	int_add_c_object("instruction_args", instruction_args);
+	int_add_c_object("instruction_result_type", instruction_result_type);
+	int_add_c_object("type_keystr", type_keystr);
+	int_add_c_object("instruction_val_pointer", instruction_val_pointer);
+	int_add_c_object("instruction_val_z32", instruction_val_z32);
+	int_add_c_object("instruction_val_typeof", instruction_val_typeof);
+	int_add_c_object("type_sizeof", type_sizeof);
 
 	//add the string functions I already have to this
-	add_c_object("zstrndup" , zstrndup);
-	add_c_object("zstrdup2" , zstrdup2);
-	add_c_object("zstrcatsub" , zstrcatsub);
-	add_c_object("zstrcmp" , zstrcmp);
+	int_add_c_object("zstrndup" , zstrndup);
+	int_add_c_object("zstrdup2" , zstrdup2);
+	int_add_c_object("zstrcatsub" , zstrcatsub);
+	int_add_c_object("zstrcmp" , zstrcmp);
 
 
 	//debug stuff
-	add_c_object("ram_numrefs" , ram_numrefs);
+	int_add_c_object("ram_numrefs" , ram_numrefs);
 
 	parsectxT* pctx= parsectx_mk(NULL, zstrdup("global"));
-	exectxT* exe = exectx_mk();
+
 
 	//create basic types
-	tType = type_mk(exe, pctx, "Type", NULL, OPAQUE, sizeof(typeT*), NULL);
+	tType = type_mk(pctx, "Type", NULL, OPAQUE, sizeof(typeT*), NULL);
 	tType->word->val_type = tType;
 
-	tZ32  = type_mk(exe,pctx, "Z32",  NULL, SIMPLE, sizeof(zint32), NULL);
-	tReal = type_mk(exe,pctx, "Real", NULL, SIMPLE, sizeof(FLOAT),  NULL);
-	tBit = type_mk(exe,pctx, "Bit", NULL, SIMPLE, sizeof(int),  NULL);
-	tWord = type_mk(exe,pctx, "Word", NULL, OPAQUE, sizeof(wordT*),  NULL);
-	tAny =  type_mk(exe, pctx, "Any", NULL, OPAQUE, 0, NULL);  //'Any' does not have a size (but any& does)
-	tSize32 = type_mk(exe,pctx, "Size32",  NULL, SIMPLE, sizeof(size_t), NULL);
-	tLong32 = type_mk(exe,pctx, "Long32",  NULL, SIMPLE, sizeof(long), NULL);
-	tString  = type_mk(exe,pctx, "String",  NULL, SIMPLE, sizeof(char*), NULL);
+	tZ32  = type_mk(pctx, "Z32",  NULL, SIMPLE, sizeof(zint32), NULL);
+	tReal = type_mk(pctx, "Real", NULL, SIMPLE, sizeof(FLOAT),  NULL);
+	tBit = type_mk(pctx, "Bit", NULL, SIMPLE, sizeof(int),  NULL);
+	tWord = type_mk(pctx, "Word", NULL, OPAQUE, sizeof(wordT*),  NULL);
+	tAny =  type_mk(pctx, "Any", NULL, OPAQUE, 0, NULL);  //'Any' does not have a size (but any& does)
 
-	tByte  = type_mk(exe,pctx, "Byte",  NULL, SIMPLE, 1, NULL);
-	tStringByte  = type_mk(exe,pctx, "StringByte",  NULL, SIMPLE, 1, NULL);
+	tString  = type_mk(pctx, "String",  NULL, SIMPLE, sizeof(char*), NULL);
+	tByte  = type_mk(pctx, "Byte",  NULL, SIMPLE, 1, NULL);
+	tStringByte  = type_mk(pctx, "StringByte",  NULL, SIMPLE, 1, NULL);
 
+	//These types are internall, 32-bit.  Size32 and Long32 can be used interchangable with zint32
+	//Double32 can be used interchangable with Real.
+	//They exist for callng C functions that expect or return 64-bit values.  They are converted to/from 64-bit when calling or returning from C
+	//These types should only be used in C sys definitions.
+	tSize32 = type_mk(pctx, "Size32",  NULL, SIMPLE, sizeof(tZ32), NULL);
+	tLong32 = type_mk(pctx, "Long32",  NULL, SIMPLE, sizeof(tZ32), NULL);
+	tDouble32 = type_mk(pctx, "Double32",  NULL, SIMPLE, sizeof(tReal), NULL);
 
 	//create parser words that work in type constants
-	proc_parser_mk(exe,pctx, "(", NULL, parse_type_list); //handle argument lists for functions
-	proc_parser_mk(exe,pctx, "&", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into its reference type
-	proc_parser_mk(exe,pctx, "$", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into a steward
-	proc_parser_mk(exe,pctx, "@", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into its dereferenced type
-	proc_parser_mk(exe,pctx, "*", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into a c pointer
-	proc_parser_mk(exe,pctx, ".null", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into 0-value.  Z32.null is zero, String.null is null pointer of string type, etc
+	proc_parser_mk(pctx, "(", NULL, parse_type_list); //handle argument lists for functions
+	proc_parser_mk(pctx, "&", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into its reference type
+	proc_parser_mk(pctx, "$", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into a steward
+	proc_parser_mk(pctx, "@", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into its dereferenced type
+	proc_parser_mk(pctx, "*", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into a c pointer
+	proc_parser_mk(pctx, ".null", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into 0-value.  Z32.null is zero, String.null is null pointer of string type, etc
 
-	proc_parser_mk(exe,pctx, ".Instruction", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into a
+	proc_parser_mk(pctx, ".Instruction", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into an instruction that produces this type
 
-
-	proc_parser_mk(exe,pctx, "[", NULL, parse_array); //create array type TODO:consider moving from [Z32] syntax to Z32[]
+	proc_parser_mk(pctx, "[", NULL, parse_array); //create array type TODO:consider moving from [Z32] syntax to Z32[]
 
 	//create control structures
-	proc_parser_mk(exe,pctx, "if", type_proc_mk(NULL, 1, tZ32), parse_flow); //parse flow structures
-	proc_parser_mk(exe,pctx, "if", type_proc_mk(NULL, 1, tBit), parse_flow); //parse flow structures
-	proc_parser_mk(exe,pctx, "loop", NULL, parse_flow); //parse flow structures
+	proc_parser_mk(pctx, "if", type_proc_mk(NULL, 1, tZ32), parse_flow); //parse flow structures
+	proc_parser_mk(pctx, "if", type_proc_mk(NULL, 1, tBit), parse_flow); //parse flow structures
+	proc_parser_mk(pctx, "loop", NULL, parse_flow); //parse flow structures
 
 	//define parser words for variables, types and procs
-	proc_parser_mk(exe,pctx, "var",  type_proc_mk(NULL, 1, tType), parse_var); //makes a variable in current context
-	proc_parser_mk(exe,pctx, "var",  type_proc_mk(NULL, 1, tAny), parse_var); //makes a variable in current context
-	proc_parser_mk(exe,pctx, "constant",  type_proc_mk(NULL, 1, tAny), parse_constant); //makes a const
+	proc_parser_mk(pctx, "var",  type_proc_mk(NULL, 1, tType), parse_var); //makes a variable in current context
+	proc_parser_mk(pctx, "var",  type_proc_mk(NULL, 1, tAny), parse_var); //makes a variable in current context
+	proc_parser_mk(pctx, "constant",  type_proc_mk(NULL, 1, tAny), parse_constant); //makes a const
 
-	proc_parser_mk(exe,pctx, "type", type_proc_mk(NULL, 0), parse_frame);
-	proc_parser_mk(exe,pctx, "section", type_proc_mk(NULL, 0), parse_frame);
-	proc_parser_mk(exe,pctx, "proc", type_proc_mk(NULL, 1, tType), parse_proc);
-	proc_parser_mk(exe,pctx, "expose", type_proc_mk(NULL, 1, tType), parse_proc);
+	proc_parser_mk(pctx, "type", type_proc_mk(NULL, 0), parse_frame);
+	proc_parser_mk(pctx, "section", type_proc_mk(NULL, 0), parse_frame);
+	proc_parser_mk(pctx, "proc", type_proc_mk(NULL, 1, tType), parse_proc);
+	proc_parser_mk(pctx, "expose", type_proc_mk(NULL, 1, tType), parse_proc);
 
-	proc_parser_mk(exe,pctx, "sys", type_proc_mk(NULL, 3, tType , tString, tString), parse_proc);//import ffi
-	proc_parser_mk(exe,pctx, "sys", type_proc_mk(NULL, 2, tType , tString), parse_c_constant);
+	proc_parser_mk(pctx, "sys", type_proc_mk(NULL, 3, tType , tString, tString), parse_proc);//import ffi
+	proc_parser_mk(pctx, "sys", type_proc_mk(NULL, 2, tType , tString), parse_c_constant);
 
 	//add some casts
-	proc_opcode_mk2(exe,pctx, op_nop, ".Bit", "(Z32->Bit)");
-	proc_opcode_mk2(exe,pctx, op_nop, ".Z32", "(Bit->Z32)");
+	proc_opcode_mk2(pctx, op_nop, ".Bit", "(Z32->Bit)");
+	proc_opcode_mk2(pctx, op_nop, ".Z32", "(Bit->Z32)");
 
-
-	proc_parser_mk(exe,pctx, "include", type_proc_mk(NULL, 1, tString), parse_include);
-
+	proc_parser_mk(pctx, "include", type_proc_mk(NULL, 1, tString), parse_include);
 
 	//create arrays
-	proc_opcode_mk2(exe,pctx, op_dim, "dim", "([Any]$&:array Z32:len Z32:capacity   )");
+	proc_opcode_mk2(pctx, op_dim, "dim", "([Any]$&:array Z32:len Z32:capacity   )");
 
-	wordT* arrayindex = proc_opcode_mk2(exe,pctx, op_arrayindex, "[]", "( [Any]:a Z32:idx -> like a@&)");
+	wordT* arrayindex = proc_opcode_mk2(pctx, op_arrayindex, "[]", "( [Any]:a Z32:idx -> like a@&)");
 	arrayindex->autoload = ZTRUE;
 
 
-	wordT* arraycow = proc_opcode_mk2(exe,pctx, op_arraycow, ".Byte", "( String$:a -> [Byte]$)");
+	wordT* arraycow = proc_opcode_mk2(pctx, op_arraycow, ".Byte", "( String$:a -> [Byte]$)");
 	arraycow->val.as.z32 = 1;
 
-	wordT* arraycow2 = proc_opcode_mk2(exe,pctx, op_arraycow, ".String", "( [Byte]$:a -> String$)");
+	wordT* arraycow2 = proc_opcode_mk2(pctx, op_arraycow, ".String", "( [Byte]$:a -> String$)");
 	arraycow2->val.as.z32 = 1;
 
+	proc_opcode_mk2(pctx, op_nop, ".String", "( [Byte]:a -> String)");  //use a byte array as a string, for printing and stuff
+	proc_opcode_mk2(pctx, op_arrayinfo, ".count", "([Any]:a -> Z32)");
 
-	proc_opcode_mk2(exe, pctx, op_nop, ".String", "( [Byte]:a -> String)");  //use a byte array as a string, for printing and stuff
-
-
-	proc_opcode_mk2(exe,pctx, op_arrayinfo, ".count", "([Any]:a -> Z32)");
-
-
-
-
-
-	wordT* arraysize = proc_opcode_mk2(exe,pctx, op_arrayinfo, ".size", "([Any]:a -> Z32)");
+	wordT* arraysize = proc_opcode_mk2(pctx, op_arrayinfo, ".size", "([Any]:a -> Z32)");
 	arraysize->val.as.z32=1;
 
-
-	arraysize = proc_opcode_mk2(exe,pctx, op_arrayinfo, ".size1", "([Any]:a -> Z32)");
+	arraysize = proc_opcode_mk2(pctx, op_arrayinfo, ".size1", "([Any]:a -> Z32)");
 	arraysize->val.as.z32=2;
 
-
-	proc_opcode_mk2(exe,pctx, op_arraysetcount, ".setcount", "([Any]:a  Z32:count)");
-
+	//set count of array
+	proc_opcode_mk2(pctx, op_arraysetcount, ".setcount", "([Any]:a  Z32:count)");
 
 
 	//pass an array to a cprogram as a pointer
-	proc_opcode_mk2(exe,pctx, op_nop, ".*",  "([Any]:arr -> like arr@*)" );
+	//proc_opcode_mk2(pctx, op_nop, ".*",  "([Any]:arr -> like arr@*)" );
 
 	//pass a reference to a cprogram as a pointer (like a Z32)
-	//proc_opcode_mk2(exe,pctx, op_nop, ".*",  "(Any&:item -> like item*)" );
+	//proc_opcode_mk2(pctx, op_nop, ".*",  "(Any&:item -> like item*)" );
 
 
 	//reading a byte from a string returns a StringByte& instead of a Byte&.  StringByte is intentionally is missing a write word
-	arrayindex = proc_opcode_mk2(exe,pctx, op_arrayindex, "[]", "( String:a Z32:idx -> StringByte&)");
+	arrayindex = proc_opcode_mk2(pctx, op_arrayindex, "[]", "( String:a Z32:idx -> StringByte&)");
 	arrayindex->autoload = ZTRUE;
-	proc_opcode_mk2(exe,pctx, op_load, "@",  "(StringByte& -> Z32)" );
+	proc_opcode_mk2(pctx, op_load, "@",  "(StringByte& -> Z32)" );
 
 
-	proc_opcode_mk2(exe,pctx, op_load, "@",  "(Byte& -> Z32)" );
-	proc_opcode_mk2(exe,pctx, op_store, "=",  "(Z32:value  Byte&:dst)" );
-
-
-
-	proc_opcode_mk2(exe,pctx, op_load, "@",  "(Real& -> Real)" );
-	proc_opcode_mk2(exe,pctx, op_store, "=",  "(Real:value  Real&:dst)" );
+	proc_opcode_mk2(pctx, op_load, "@",  "(Byte& -> Z32)" );
+	proc_opcode_mk2(pctx, op_store, "=",  "(Z32:value  Byte&:dst)" );
 
 
 
+	proc_opcode_mk2(pctx, op_load, "@",  "(Real& -> Real)" );
+	proc_opcode_mk2(pctx, op_store, "=",  "(Real:value  Real&:dst)" );
 
-	proc_opcode_mk2(exe,pctx, op_break, "break", "()");
-	proc_opcode_mk2(exe,pctx, op_continue, "continue", "()");
+
+	proc_opcode_mk2(pctx, op_break, "break", "()");
+	proc_opcode_mk2(pctx, op_continue, "continue", "()");
 
 	//create primitives. minimal at the moment
-	//thse use the above specified parser
+	//these use the above specified parser
 
-	proc_opcode_mk2(exe,pctx, op_printchar, "printchar", "(Z32)");
-	proc_opcode_mk2(exe,pctx, op_getchar, "getchar", "(->Z32)");
+	proc_opcode_mk2(pctx, op_printchar, "printchar", "(Z32)");
+	proc_opcode_mk2(pctx, op_getchar, "getchar", "(->Z32)");
 
-	proc_opcode_mk2(exe,pctx, op_print32, "print", "(Z32)");
+	proc_opcode_mk2(pctx, op_print32, "print", "(Z32)");
 
-	proc_opcode_mk2(exe,pctx, op_add32, "+", "(Z32:a Z32:b -> Z32)");
-	proc_opcode_mk2(exe,pctx, op_sub32, "-", "(Z32:a Z32:b -> Z32)");
-	proc_opcode_mk2(exe,pctx, op_mul32, "*", "(Z32:a Z32:b -> Z32)");
-	proc_opcode_mk2(exe,pctx, op_div32, "/", "(Z32:a Z32:b -> Z32)");
-	proc_opcode_mk2(exe,pctx, op_less32, "<", "(Z32:a Z32:b -> Z32)");
-	proc_opcode_mk2(exe,pctx, op_greater32, ">", "(Z32:a Z32:b -> Bit)");
-	proc_opcode_mk2(exe,pctx, op_equal32, "==", "(Z32:a Z32:b -> Bit)");
+	proc_opcode_mk2(pctx, op_add32, "+", "(Z32:a Z32:b -> Z32)");
+	proc_opcode_mk2(pctx, op_sub32, "-", "(Z32:a Z32:b -> Z32)");
+	proc_opcode_mk2(pctx, op_mul32, "*", "(Z32:a Z32:b -> Z32)");
+	proc_opcode_mk2(pctx, op_div32, "/", "(Z32:a Z32:b -> Z32)");
+	proc_opcode_mk2(pctx, op_less32, "<", "(Z32:a Z32:b -> Z32)");
+	proc_opcode_mk2(pctx, op_greater32, ">", "(Z32:a Z32:b -> Bit)");
+	proc_opcode_mk2(pctx, op_equal32, "==", "(Z32:a Z32:b -> Bit)");
 
-	proc_opcode_mk2(exe,pctx, op_ptrequal, "==", "(Type:a Type:b -> Bit)");
+	proc_opcode_mk2(pctx, op_ptrequal, "==", "(Type:a Type:b -> Bit)");
 
-	proc_opcode_mk2(exe,pctx, op_neg32, ".-", "(Z32:a  -> Z32)");
-	proc_opcode_mk2(exe,pctx, op_bnot, "not", "(Bit:a  -> Bit)");
-	proc_opcode_mk2(exe,pctx, op_bnot, "not", "(Z32:a  -> Bit)");
-	proc_opcode_mk2(exe,pctx, op_ptrvalid, "?", "(String:s -> Bit  )");
-	proc_opcode_mk2(exe,pctx, op_ptrvalid, "?", "(Type:s -> Bit  )");
+	proc_opcode_mk2(pctx, op_neg32, ".-", "(Z32:a  -> Z32)");
+	proc_opcode_mk2(pctx, op_bnot, "not", "(Bit:a  -> Bit)");
+	proc_opcode_mk2(pctx, op_bnot, "not", "(Z32:a  -> Bit)");
+	proc_opcode_mk2(pctx, op_ptrvalid, "?", "(String:s -> Bit  )");
+	proc_opcode_mk2(pctx, op_ptrvalid, "?", "(Type:s -> Bit  )");
 
-	proc_opcode_mk2(exe,pctx, op_ptrvalid, "?", "(Any*:s -> Bit  )");
+	proc_opcode_mk2(pctx, op_ptrvalid, "?", "(Any*:s -> Bit  )");
 
-	proc_opcode_mk2(exe,pctx, op_printptr, "printptr", "(Any)");
-	proc_opcode_mk2(exe,pctx, op_load, "@",  "(Z32&:a  -> like a@ )" );
-	proc_opcode_mk2(exe,pctx, op_store, "=",  "(Z32:value  like value&:dst)" );
+	proc_opcode_mk2(pctx, op_printptr, "printptr", "(Any)");
+	proc_opcode_mk2(pctx, op_load, "@",  "(Z32&:a  -> like a@ )" );
+	proc_opcode_mk2(pctx, op_store, "=",  "(Z32:value  like value&:dst)" );
 
 	//store/load cpointers
-	proc_opcode_mk2(exe,pctx, op_store, "=",  "(Any*:value  like value&:dst)" );
-	proc_opcode_mk2(exe,pctx, op_load, "@",  "(Any*&:a  -> like a@ )" );
+	proc_opcode_mk2(pctx, op_store, "=",  "(Any*:value  like value&:dst)" );
+	proc_opcode_mk2(pctx, op_load, "@",  "(Any*&:a  -> like a@ )" );
 
 
 	//array specific
-	proc_opcode_mk2(exe,pctx, op_load, "@",  "([Any]&:a  -> like a@ )" );
+	proc_opcode_mk2(pctx, op_load, "@",  "([Any]&:a  -> like a@ )" );
 
 
 	//array specific steward rules
-	//proc_opcode_mk2(exe,pctx, op_loadaddref, "$",  "([Any]$&:a  -> like a@ )" );
-	//proc_opcode_mk2(exe,pctx, op_take, "$$",  "([Any]$&:a  -> like a@ )" );
-	//proc_opcode_mk2(exe,pctx, op_trash, "trash",  "([Any]$:a)" );
-	//proc_opcode_mk2(exe,pctx, op_trashstore, "=",  "([Any]$:value  like value&:dst)" );
+	//proc_opcode_mk2(pctx, op_loadaddref, "$",  "([Any]$&:a  -> like a@ )" );
+	//proc_opcode_mk2(pctx, op_take, "$$",  "([Any]$&:a  -> like a@ )" );
+	//proc_opcode_mk2(pctx, op_trash, "trash",  "([Any]$:a)" );
+	//proc_opcode_mk2(pctx, op_trashstore, "=",  "([Any]$:value  like value&:dst)" );
 
-	proc_opcode_mk2(exe,pctx, op_load, "@",  "(String&:a  -> like a@ )" );
-
-
-
+	proc_opcode_mk2(pctx, op_load, "@",  "(String&:a  -> like a@ )" );
 
 	//switch to generic steward rules
-	proc_opcode_mk2(exe,pctx, op_loadaddref, "$",  "(Any$&:a  -> like a@ )" );
-	proc_opcode_mk2(exe,pctx, op_take, "$$",  "(Any$&:a  -> like a@ )" );
-	proc_opcode_mk2(exe,pctx, op_trash, "trash",  "(Any$:a)" );
-	proc_opcode_mk2(exe,pctx, op_trashstore, "=",  "(Any$:value  like value&:dst)" );
+	proc_opcode_mk2(pctx, op_loadaddref, "$",  "(Any$&:a  -> like a@ )" );
+	proc_opcode_mk2(pctx, op_take, "$$",  "(Any$&:a  -> like a@ )" );
+	proc_opcode_mk2(pctx, op_trash, "trash",  "(Any$:a)" );
+	proc_opcode_mk2(pctx, op_trashstore, "=",  "(Any$:value  like value&:dst)" );
 
 
 	//the following, when applied to a C pointer, fetches the pointer from the variable AND clears the variable.
 	//usage is for 'closing' or 'freeing' something in C, and making sure you null out the pointer
 	//  someFileHandle$$ fclose
 	// instead of having to fo      someFileHandle fclose   null someFileHandle=
+	proc_opcode_mk2(pctx, op_take, "$$",  "(Any*&:a  -> like a@ )" );
 
-	proc_opcode_mk2(exe,pctx, op_take, "$$",  "(Any*&:a  -> like a@ )" );
+	proc_opcode_mk2(pctx, op_load, "@",  "(Any.Instruction&:a -> like a@)" );
+	proc_opcode_mk2(pctx, op_printstr, "print", "(String)");
 
-
-	proc_opcode_mk2(exe,pctx, op_load, "@",  "(Any.Instruction&:a -> like a@)" );
-
-
-	proc_opcode_mk2(exe,pctx, op_printstr, "print", "(String)");
-
-	//proc_opcode_mk2(exe,pctx, op_trashstore, "=",  "(String$:value  like value&:dst)" );
-	//proc_opcode_mk2(exe,pctx, op_load, "@",  "(String&:a  -> like a@ )" );
-	//proc_opcode_mk2(exe,pctx, op_loadaddref, "$",  "(String$&:a  -> like a@ )" );
-	//proc_opcode_mk2(exe,pctx, op_take, "$$",  "(String$&:a  -> like a@ )" );
-	//proc_opcode_mk2(exe,pctx, op_trash, "trash",  "(String$:a)" );
+	//proc_opcode_mk2(pctx, op_trashstore, "=",  "(String$:value  like value&:dst)" );
+	//proc_opcode_mk2(pctx, op_load, "@",  "(String&:a  -> like a@ )" );
+	//proc_opcode_mk2(pctx, op_loadaddref, "$",  "(String$&:a  -> like a@ )" );
+	//proc_opcode_mk2(pctx, op_take, "$$",  "(String$&:a  -> like a@ )" );
+	//proc_opcode_mk2(pctx, op_trash, "trash",  "(String$:a)" );
+	//proc_opcode_mk2(pctx, 3232, "=", "(Z32 Z32&)");
+	//proc_opcode_mk2(pctx, 888, "@",  "(Z32&  -> Z32 )" );
 
 
+	//float
+	proc_opcode_mk2(pctx, op_fadd, "+", "(Real:a Real:b->Real)");
+	proc_opcode_mk2(pctx, op_fsub, "-", "(Real:a Real:b->Real)");
+	proc_opcode_mk2(pctx, op_fmul, "*", "(Real:a Real:b->Real)");
+	proc_opcode_mk2(pctx, op_fdiv, "/", "(Real:a Real:b->Real)");
+	proc_opcode_mk2(pctx, op_fpow, "^", "(Real:a Real:b->Real)");
 
-//	proc_opcode_mk2(exe,pctx, 3232, "=", "(Z32 Z32&)");
 
-	//proc_opcode_mk2(exe,pctx, 888, "@",  "(Z32&  -> Z32 )" );
+	//turn an array or reference into a cpointer
+	//consider making this automatic?
+	proc_opcode_mk2(pctx, op_nop, ".cptr", "(Any&:a->like a@*)");
+	proc_opcode_mk2(pctx, op_nop, ".cptr", "([Any]:a->like a@*)");
 
-
-	//dump_dictionary(pctx);
-	//dump_types(pctx);
+	//specifically o
+	//proc_opcode_mk2(pctx, op_nop, ".cptr", "(Z32 a->Any*)");
 
     zlistT tokens;
     zlist_init(&tokens);
@@ -4362,20 +4462,18 @@ void int_run_str(char* src, char* filename){
 
     tokenize(first, src, filename, 1);
 
-    parse(exe, pctx, zlist_head(&tokens), NULL);
+    parse(pctx, zlist_head(&tokens), NULL);
 
 	codestack_print(pctx->codestack,0, ZTRUE);
 
-	iferr(exe){
-		fprintf(stderr, "Error(%d): %s\n", exe->error_code, exe->error_string);
-	}
+	PRINTERR(pctx); //print error, if any
 
 	//dump_types(pctx);
 	//dump_dictionary(pctx);
 
+	exectxT* exe = exectx_mk();
 
-
-	ifok(exe){
+	if(OK(pctx)){
 		runnerI* runme = compile_for_switch(exe, pctx);
 		//getc(stdin);
 
@@ -4389,15 +4487,14 @@ void int_run_str(char* src, char* filename){
 		//ram_free(runme); //runner is part of the pctx, and is freed there
 	}
 
-
-
+	RESETERR(pctx);
 
     zlist_cleanup(&tokens);
 	ram_free(pctx);
 	ram_free(exe);
 	ram_free(instruction_names);
 	ram_free(c_objects);
-	//ram_free(c_constants);
+	ram_free(c_constants);
 	c_objects=NULL;
 	abyss = leak_viewer;
 

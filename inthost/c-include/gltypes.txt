@@ -1,0 +1,39 @@
+GLAPI;
+APIENTRY;
+GLboolean;Bit
+GLenum;Z32
+GLint;Z32
+const;
+GLchar*;String
+GLchar;Byte
+GLbyte;Byte
+GLbitfield;Z32
+GLdouble;Double32
+GLuint;Z32
+GLsizei;Z32
+GLfloat;Real
+GLubyte;Byte
+GLintptr;Any&
+#todo; some data types not supported
+GLsync;Any&
+GLshort;Z32
+GLuint64EXT;Any&
+GLuint64;Any&
+GLint64;Any&
+GLsizeiptr;Z32
+GLushort;Z32
+void*;Any*
+GLint64EXT;Any&
+#remove some functions:
+glDebugMessageCallback;
+glDebugMessageCallbackARB;
+glCreateSyncFromCLeventARB;
+glEGLImageTargetTexStorageEXT;
+glEGLImageTargetTextureStorageEXT;
+glGetVkProcAddrNV;
+#legacy oldgl.inc:
+int;Z32
+float;Real
+#some  overridden prototypes:
+glVertexAttribPointer;( Z32:_index Z32:_size Z32:_type Bit:_normalized Z32:_stride Size32:_pointer ) "libGL.so.1" "glVertexAttribPointer" sys optional VertexAttribPointer
+
