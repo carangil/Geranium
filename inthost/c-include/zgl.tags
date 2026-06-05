@@ -1,0 +1,33 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	0	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	//
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/home/mars/projects/Zcore/inthost/c-include/	//
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+zgl_int_init	zgl.h	/^void zgl_int_init();$/;"	p	typeref:typename:void	signature:()
+zgl_test	zgl.h	/^void zgl_test(int a, char* s);$/;"	p	typeref:typename:void	signature:(int a,char * s)
+a	zgl.h	/^void zgl_test(int a, char* s);$/;"	z	prototype:zgl_test	typeref:typename:int	file:
+s	zgl.h	/^void zgl_test(int a, char* s);$/;"	z	prototype:zgl_test	typeref:typename:char *	file:
+zgl_init	zgl.h	/^zbool zgl_init(void* procgetter);$/;"	p	typeref:typename:zbool	signature:(void * procgetter)
+procgetter	zgl.h	/^zbool zgl_init(void* procgetter);$/;"	z	prototype:zgl_init	typeref:typename:void *	file:
+zglErrorString	zgl.h	/^const char* zglErrorString(GLenum errorCode);$/;"	p	typeref:typename:const char *	signature:(GLenum errorCode)
+errorCode	zgl.h	/^const char* zglErrorString(GLenum errorCode);$/;"	z	prototype:zglErrorString	typeref:typename:GLenum	file:
+zglCheckError	zgl.h	/^int zglCheckError(int spot);$/;"	p	typeref:typename:int	signature:(int spot)
+spot	zgl.h	/^int zglCheckError(int spot);$/;"	z	prototype:zglCheckError	typeref:typename:int	file:
+zglShaderT	zgl.h	/^typedef struct zglShaderT {$/;"	s
+v	zgl.h	/^	int v;$/;"	m	struct:zglShaderT	typeref:typename:int
+f	zgl.h	/^	int f;$/;"	m	struct:zglShaderT	typeref:typename:int
+program	zgl.h	/^	int program;$/;"	m	struct:zglShaderT	typeref:typename:int
+log	zgl.h	/^    char* log;$/;"	m	struct:zglShaderT	typeref:typename:char *
+symbols	zgl.h	/^    zvecT symbols;$/;"	m	struct:zglShaderT	typeref:typename:zvecT
+zglShaderT	zgl.h	/^}zglShaderT;$/;"	t	typeref:struct:zglShaderT
+zglBuildProgram	zgl.h	/^int zglBuildProgram(char* vsrc, char* fsrc, char** rlog);$/;"	p	typeref:typename:int	signature:(char * vsrc,char * fsrc,char ** rlog)
+vsrc	zgl.h	/^int zglBuildProgram(char* vsrc, char* fsrc, char** rlog);$/;"	z	prototype:zglBuildProgram	typeref:typename:char *	file:
+fsrc	zgl.h	/^int zglBuildProgram(char* vsrc, char* fsrc, char** rlog);$/;"	z	prototype:zglBuildProgram	typeref:typename:char *	file:
+rlog	zgl.h	/^int zglBuildProgram(char* vsrc, char* fsrc, char** rlog);$/;"	z	prototype:zglBuildProgram	typeref:typename:char **	file:
+#define ZGL_ENABLE_INT

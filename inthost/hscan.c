@@ -17,6 +17,9 @@ char* prefix = NULL;
 int strcommon(char* s, char* t){
 	int common = 0;
 
+	if (!s || !t)
+		return 0;
+
 	printf(" %s vs %s \n", s, t);
 	while (*s && *t){
 
@@ -56,6 +59,7 @@ char* maptype(char* ctype_in){
 	int common=0;
 	if (prefix){
 		common = strcommon(ctype, prefix);
+
 	}
 
 
@@ -312,12 +316,20 @@ int scanmain(int argc, char** args){
 
 						int common=0;
 
-						if (prefix){
-							common = strcommon(zvec_get_at(cols,0), prefix);
-						}
+						char* cn = zvec_get_at(cols,0);
 
-						func->cname = zstrdup(zvec_get_at(cols,0));
-						func->name = zstrdup(common+zvec_get_at(cols,0));
+						common = strcommon(cn, prefix);
+						if (common && cn[common] == '_')
+							common++;
+
+
+
+
+
+						func->cname = zstrdup(cn);
+						func->name = zstrdup(common+cn);
+
+
 
 						for (int i=4; i<zvec_count(cols);i++){
 							char*s = zvec_get_at(cols,i);

@@ -13,8 +13,9 @@ default: build/includes/.made build/objs
 	make -C structures
 	make -C misc
 	make -C vectormath
-	make -C gfx_pixeltoaster
 	make -C interpreter
+	make -C zgl #requires interpreter integration
+	make -C gfx_pixeltoaster
 	touch build/objs/.made #keeps track of when the objs were updated
 	@echo done
 

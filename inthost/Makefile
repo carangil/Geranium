@@ -4,7 +4,7 @@ include $(ZHOME)/includes/zmake.inc
 
 
 SRCtest=*.c
-ZLIBS=-lzint -lzmem -lzstructures -lzmem  -lzthread -lffi
+ZLIBS=-lzint -lzmem -lzstructures -lzmem  -lzthread -lffi -lzgl
 LIBS=
 
 
@@ -18,6 +18,9 @@ clean:
 cleanall:
 	-rm test
 	make -C .. clean
+
+generate:
+	cd c-include ;	./generate
 
 run: test
 	./test

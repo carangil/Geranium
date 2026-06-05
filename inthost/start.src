@@ -132,11 +132,6 @@ v 2 [] print newline
 
 
 
-(Any.Instruction:inst -> Type )  "_INTERNAL" "instruction_result_type" sys .return
-
-
-(Type:t -> String )  "_INTERNAL" "type_keystr" sys .key
-
 
 v .size1 print newline
 "asdas"$ .Byte var sb=
@@ -151,6 +146,19 @@ win printptr newline
 
 win glfw.MakeContextCurrent
 
+"ctx" print newline
+
+
+
+
+
+"x"
+1.0
+
+
+
+
+//sys_ENDFILE
 
 "Multi
 
@@ -184,15 +192,11 @@ Z32 var h
 
 0.0 var fx
 
-
 Z32 var vao
 
 1 vao&.cptr gl.GenVertexArrays
 vao gl.BindVertexArray
 
-Z32 var vbo
-
-1 vbo& .cptr  gl.GenBuffers
 
 type Vec4
     Real var x
@@ -203,35 +207,139 @@ end
 
 [Vec4]$ var pos
 
-
 pos& 3 3 dim
 
+(Real:x Real:y Real:z Real:w Vec4&:a ) proc =
 
--1.0 pos 0[].z=
+    x a.x=
+    y a.y=
+    z a.z=
+    w a.w=
+end
 
 
+0.0 0.0 0.0  1.0 pos 0[]=
+1.0 0.0 0.0  1.0 pos 1[]=
+0.0 1.0 0.0  1.0 pos 2[]=
 
-0.25 pos 1[].y=
--1.0 pos 1[].z=
-
-0.25 pos 2[].x=
--1.0 pos 2[].z=
-
+Z32 var vbo
+1 vbo&.cptr  gl.GenBuffers
 
 gl.ARRAY_BUFFER  vbo gl.BindBuffer
-12 4 *
-
-gl.ARRAY_BUFFER 12 4*   pos.cptr   gl.DYNAMIC_DRAW gl.BufferData
-
-
+gl.ARRAY_BUFFER 16 4*   pos.cptr   gl.DYNAMIC_DRAW gl.BufferData
 
 0 gl.EnableVertexAttribArray
+0 3  gl.FLOAT  0.Bit 16  0    gl.VertexAttribPointer
 
 
-   0 3  gl.FLOAT  0.Bit 12  0    gl.VertexAttribPointer
 
 
 
+
+
+
+(Real:x Real:y Real:z Real:w [Vec4]:c Z32:n) proc set
+
+    x c n[].x=
+    y c n[].y=
+    z c n[].z=
+    w c n[].w=
+
+end
+
+[Vec4]$ var colors
+colors& 3 3 dim
+
+1.0 0.0 0.0 1.0 colors 0 set
+0.0 1.0 0.0 1.0 colors 1 set
+0.0 0.0 1.0 1.0 colors 2 set
+
+
+
+Z32 var cbo
+1 cbo&.cptr  gl.GenBuffers
+
+gl.ARRAY_BUFFER  cbo gl.BindBuffer
+gl.ARRAY_BUFFER 16 4*   colors.cptr   gl.DYNAMIC_DRAW gl.BufferData
+
+1 gl.EnableVertexAttribArray
+1 3  gl.FLOAT  0.Bit 16  0    gl.VertexAttribPointer
+
+
+
+"inc/zgl.inc" include
+
+(Any.Instruction$:inst) proc init_zgl
+    inst.valWord.cfunc printptr newline
+    inst.valWord.cfunc zgl.init
+end
+
+String.null glfw.GetProcAddress >- init_zgl
+
+/*
+String.null glfw.GetProcAddress~ var get_proc_address=
+get_proc_address .opname print newline
+get_proc_address .valTypeOf .key print newline
+
+"GetProcAddress cfunc is ::" print
+get_proc_address .valWord .cfunc printptr newline
+*/
+
+//sys_ENDFILE
+
+
+//get_proc_address .valWord .cfunc zgl.init
+
+(Z32:a) proc glerr
+    a zgl.CheckError  //ignore returned value
+end
+
+
+
+
+//shaders
+    String$ var log
+
+    "
+        #version 430 core
+
+        in vec4 position;
+        in vec4 color;
+
+        out vec4 vf_color;
+
+        void main(){
+
+            gl_Position = position;
+            vf_color = color;
+        }
+    "
+
+
+    "
+        #version 430 core
+        out vec4 color;
+
+        in vec4 vf_color;
+
+        void main(){
+
+            color = vf_color;  vec4(1.0,0.0,0.0,1.0);
+        }
+    "
+    log&
+
+zgl.BuildProgram var shader=
+
+
+
+"shader = " print shader printptr newline
+
+log print newline
+
+200 zgl.CheckError
+shader gl.UseProgram
+201 zgl.CheckError
 
 loop
     glfw.PollEvents
@@ -241,20 +349,32 @@ loop
 
     win w& h& glfw.GetFramebufferSize
 
+
     0 0 w h gl.Viewport
+
+    //test error on purposegi
+    100  glerr
+    //77 9999 gl.BlendFunc
+    200 glerr
+
 
 
     1.0 0.5 0.25 1.0 gl.ClearColor
 
-
     gl.COLOR_BUFFER_BIT gl.Clear
+
+//    22 "boo"  zgl.test
+
+
+
+
 
 checkGL
     gl.TRIANGLES 0 3  gl.DrawArrays
 
 
 
-
+/*
     gl.TRIANGLES glold.Begin
 
         1.0 0.0 0.0 1.0 glold.Color4f
@@ -269,7 +389,7 @@ checkGL
         0.5 0.5 -1.0  glold.Vertex3f
 
     glold.End
-
+*/
 
 
     fx 0.01 + fx=
@@ -542,27 +662,6 @@ end
 Z32.Instruction$ var aa
 
 //(String -> Z32) "_INTERNAL"  "ram_numrefs" sys ram_numrefs
-
-(Any.Instruction:inst ->Z32 )  "_INTERNAL" "instruction_opcode" sys .opcode
-(Any.Instruction:inst ->String )  "_INTERNAL" "instruction_opname" sys .opname
-(Any.Instruction:inst -> [Any.Instruction] )  "_INTERNAL" "instruction_args" sys .args
-(Any.Instruction:inst -> Type )  "_INTERNAL" "instruction_result_type" sys .return
-
-
-(Type:t -> String )  "_INTERNAL" "type_keystr" sys .key
-
-
-//TODO need a way to do a 'type assertion' or whatever
-
-
-(Any.Instruction:inst -> String )  "_INTERNAL" "instruction_val_pointer" sys .valString
-
-
-(Any.Instruction:inst -> Z32 )  "_INTERNAL" "instruction_val_z32" sys .valZ32
-
-
-//returns the type of the constant value (if the instruction has one, null otherwise)
-(Any.Instruction:inst -> Type )  "_INTERNAL" "instruction_val_typeof" sys .valTypeOf
 
 
 
@@ -1081,7 +1180,7 @@ p$$ "123" strcat
 3 : jj=
 
 jj print newline
-loop end
+//loop end
 
 
 String$ var tt

@@ -2,6 +2,8 @@
     10 printchar
 end
 
+"inc/reflect.inc" include
+
 //string
 
 (String:s String:t -> Z32) "_INTERNAL"  "zstrcmp" sys strcmp
@@ -19,5 +21,9 @@ end
     a b strcmp 0 == return
 
 end
+
+
+
+
 
 

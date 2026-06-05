@@ -878,7 +878,7 @@ section glfw
 	 ( String:_extension  -> Z32 ) "libglfw.so.3" "glfwExtensionSupported" sys optional ExtensionSupported 
 
 	// GLFWAPI GLFWglproc GetProcAddress (const char * procname)
-	 ( String:_procname  -> Any& ) "libglfw.so.3" "glfwGetProcAddress" sys optional GetProcAddress 
+	 ( String:_procname  -> Any* ) "libglfw.so.3" "glfwGetProcAddress" sys optional GetProcAddress 
 
 	// GLFWAPI int VulkanSupported (void)
 	 (  -> Z32 ) "libglfw.so.3" "glfwVulkanSupported" sys optional VulkanSupported 

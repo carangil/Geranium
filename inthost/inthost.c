@@ -3,7 +3,7 @@
 
 #include <ctype.h>
 #include "int.h"
-
+#include "zgl.h"
 
 int scanmain(int argc, char** args);
 
@@ -27,6 +27,10 @@ int main(int argc, char** args){
 	}
 
 	set_platform_constants();
+
+	zgl_int_init();
+
+
 
 	src = ram_loadstr(filename);
 	if (src){

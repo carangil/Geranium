@@ -173,7 +173,7 @@ void int_insert_tokenf(tokenT* A, tokenT* B, zbool before) {
 
 //used to recognize 2-letter combinations like ->, etc
 zuint32 find_pair(char* patterns, char a, char b){
-	for(  ;*patterns;patterns+=2){
+	for(  ;*patterns;patterns+=3){
 		if ( ((*patterns)==a) &&(*(patterns+1)==b))
 			return TOKEN_PAIR(a,b) ;
 	}
@@ -246,7 +246,7 @@ void  tokenize(tokenT* insert, char* in, char* filename, int line){
 
 		//find twochar patterns like ->,etc. including comment start/end markers
 		//looking for pairs before chars makes sure the matching is 'greedy'
-		if ((p = find_pair("$$.*.&--++==->/**///[]>=<=!=.-###=\\\\/\\\\/", c, next))){
+		if ((p = find_pair("$$ .* .& .@ .$ -- ++ == -> <- >- /* */ // [] >= <= != .- <> \\\\ /\\ \\/", c, next))){
 			if (  p == TOKEN_PAIR('/','/')  ) { //special handling for // comments
 				while(*in!= '\n')
 					in++;
@@ -1474,9 +1474,12 @@ void do_ffi_call(exectxT* exe, wordT* word){
 			//pars is POINTER to the value being passed, which is the folded pointer on the stack
 			pargs[i] = &( exe->stack[exe->sp - argc + i ].as.ptr.address.bytes);
 
-			//printf(" to %p\n ", exe->stack[exe->sp - argc +i].as.ptr.address.bytes);
+		//	printf("\n-%d----- %s\n", i, exe->stack[exe->sp - argc + i ].as.ptr.address.bytes);
+
+
 		} else {
 			//floats, ints, chars, anything else is just in this 'as' union, ready to go
+
 			pargs[i] = &(exe->stack[exe->sp - argc + i ].as);
 		}
 	}
@@ -1485,7 +1488,7 @@ void do_ffi_call(exectxT* exe, wordT* word){
 
 		//now do the call
 
-
+	//printf(" to call %s %p\n", word->name, word->ffi_caller->funcptr);
 
 	if (word->ffi_caller->rettype == &ffi_type_void){
 
@@ -1494,29 +1497,19 @@ void do_ffi_call(exectxT* exe, wordT* word){
 	} else if (word->ffi_caller->rettype == &ffi_type_pointer){
 		void* rv = NULL;
 		ffi_call(&word->ffi_caller->cif, word->ffi_caller->funcptr , &rv, &pargs[0]);
-
 		exe->stack[exe->sp].as.ptr.address.block = rv;
 		exe->stack[exe->sp].as.ptr.offset = 0;
 		exe->sp++;
 
-
 	} else if (word->ffi_caller->rettype == &ffi_type_sint){
 		ffi_sarg rv;
-
 		ffi_call(&word->ffi_caller->cif, word->ffi_caller->funcptr , &rv, &pargs[0]);
-
 		exe->stack[exe->sp].as.z32 = (int)rv;
-
 		exe->sp++;
-
-
 	} else if (word->ffi_caller->rettype == &ffi_type_sint64){
 		ffi_sarg rv;
-
 		ffi_call(&word->ffi_caller->cif, word->ffi_caller->funcptr , &rv, &pargs[0]);
-
 		exe->stack[exe->sp].as.z32 = (int)rv;
-
 		exe->sp++;
 	}
 
@@ -2422,7 +2415,6 @@ tokenT* parse_default(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 
 
-
 	if (w->type->category == PROC) {
 
 
@@ -2430,7 +2422,7 @@ tokenT* parse_default(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 		inst->comment = ram_addref(w->comment);
 
 
-		if (tnext(t) && !strcmp(tnext(t)->str,".&")){
+		if (tnext(t) && !strcmp(tnext(t)->str,">-")){
 			t=tnext(t);
 
 
@@ -2951,11 +2943,15 @@ ffi_type* type_map_to_c(typeT* type){
 	if (type == tType)
 		return &ffi_type_pointer;
 
+
+	if (type == tWord)
+		return &ffi_type_pointer;
+
 	if (type->category == PROC){
 		return &ffi_type_pointer;
 	}
 
-	errorf(" unhandled  type translation: %s\n", type->key);
+	errorf(" unhandled type translation: %s\n", type->key);
 	exit(1);
 	return NULL;
 }
@@ -3102,11 +3098,18 @@ tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 
 	instructionT* libname = NULL;//for external functions
 	instructionT* symname = NULL;
+	instructionT* cproc = NULL;
 
-	if (wi->type->argc == 3){
+	if (wi->type->argc == 3){  //library name and function name (for dynamic loading)
 
 		symname = pop_arg(pctx);
 		libname = pop_arg(pctx);
+
+	}
+
+	if (wi->type->argc == 2){  //explicitly passed c function pointer)
+
+		cproc = pop_arg(pctx);
 
 	}
 
@@ -3181,6 +3184,14 @@ tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 		ram_free(arg0);
 
 		return t;
+	}
+
+	if (cproc){
+		//an explitly given c pointer
+		printf(" todo: defer this link until compile time\n");
+		exit(1);
+
+
 	}
 
 	if (w){
@@ -4105,6 +4116,14 @@ int type_sizeof( typeT* t){
 	return t->size;
 }
 
+void* word_cfunc(wordT* w){
+	if (w && w->ffi_caller)
+		return w->ffi_caller->funcptr;
+
+	return NULL;
+
+
+}
 
 //instruction constant as a integer
 int instruction_val_z32(instructionT* inst){
@@ -4244,6 +4263,10 @@ void int_run_str(char* src, char* filename){
 	int_add_c_object("instruction_val_typeof", instruction_val_typeof);
 	int_add_c_object("type_sizeof", type_sizeof);
 
+	int_add_c_object("word_cfunc", word_cfunc);
+
+
+
 	//add the string functions I already have to this
 	int_add_c_object("zstrndup" , zstrndup);
 	int_add_c_object("zstrdup2" , zstrdup2);
@@ -4308,6 +4331,7 @@ void int_run_str(char* src, char* filename){
 
 	proc_parser_mk(pctx, "sys", type_proc_mk(NULL, 3, tType , tString, tString), parse_proc);//import ffi
 	proc_parser_mk(pctx, "sys", type_proc_mk(NULL, 2, tType , tString), parse_c_constant);
+	proc_parser_mk(pctx, "sys", type_proc_mk(NULL, 2, tType , OF(pctx, CPOINTER, tAny)), parse_proc);
 
 	//add some casts
 	proc_opcode_mk2(pctx, op_nop, ".Bit", "(Z32->Bit)");

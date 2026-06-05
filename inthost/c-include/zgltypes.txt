@@ -4,8 +4,9 @@ longint;Long32
 size_t;Size32
 char*;String
 constchar*;String
-void*;Any&
+void*;Any*
 constvoid*;Any&
 int(*)(constvoid*,constvoid*);(Any&:a Any&:b ->Z32)
 anyArray;[Any]
-bool;Bit
+zbool;Bit
+char**;String$&

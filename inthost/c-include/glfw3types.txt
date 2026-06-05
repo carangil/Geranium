@@ -10,7 +10,7 @@ uint64_t;Size32
 void*;Any&
 float;Real
 unsignedint;Z32
-GLFWglproc;Any&
+GLFWglproc;Any*
 int*;Z32&
 
 #not testing vulkan, but needed to be able to compile:
