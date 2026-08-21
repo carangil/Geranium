@@ -79,4 +79,8 @@ void* zarray_moref(void* array, size_t itemsize, int n, zbool* ok);
 #define zarray_append(ARRAY, ITEM)     ( zarray_space(ARRAY, 1)? (ARRAY)[ zarray_count(ARRAY)++] = ITEM, (ARRAY) : zarray_spaceerr() )
 void* zarray_spaceerr();
 
+//gives address of appended element, and increments count:      foo* f = zarray_appendptr(foos)    , adds a foo* to the array
+#define zarray_appendptr(ARRAY)     ( zarray_space(ARRAY, 1)?  &(ARRAY)[ zarray_count(ARRAY)++] : zarray_spaceerr() )
+
+
 #endif

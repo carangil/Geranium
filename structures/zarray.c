@@ -140,6 +140,11 @@ void* zarray_allocf( zsize elemsize, zuint32 elemnum, ram_destructor custom_dest
 
 void* zarray_moref(void* array, size_t itemsize, int n, zbool* ok){
 
+	if (!array){
+		return zarray_allocf(itemsize, n, NULL, __FILE__, __LINE__);
+	}
+
+
 	if ( zarray_space(array, n))
 		return array;	//enough space, do not resize`
 
@@ -153,6 +158,7 @@ void* zarray_moref(void* array, size_t itemsize, int n, zbool* ok){
 
 	return zarray_resizef(array, itemsize, newsize, ok);
 }
+
 
 void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok){
 

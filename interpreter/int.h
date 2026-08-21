@@ -32,10 +32,10 @@ typedef struct ptrS{
 
 typedef struct valueS{
 	union {
+		ptrT ptr;
 		FLOAT f;
 		zint32 z32;
 		zuint32 u32;
-		ptrT ptr;
 		zsize size;
 	} as;
 	//put type info here for interfaces
@@ -108,7 +108,8 @@ typedef enum {
 	ARG,
 	LIKE,
 	SUBTREE,
-	DEREFERENCE// usually deref just strips off the pointer wrapper, but this is for 'like' types where we have to delay doing that.  This is dereference the like type when resolving
+	DEREFERENCE,// usually deref just strips off the pointer wrapper, but this is for 'like' types where we have to delay doing that.  This is dereference the like type when resolving
+	ITERATED //for a function arg that is passed as an array, but each invocation of the function sees the value inside the array (such as attributes on shaders)
 }categoryE;
 
 struct exectxS;
@@ -316,7 +317,7 @@ typedef enum {
 	op_fdiv,
 	op_fpow,
 
-
+	op_fictional_call, //don't really call the function.  This instruction is not ever implemented in the interpreter and produces a runtime error.  But exists to allow the concept of 'calling' something that another part of the compiler will resolve into something.
 
 	op_LASTCORE,	//all instructions before this are part of the AST
 

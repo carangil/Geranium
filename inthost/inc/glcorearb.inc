@@ -4890,7 +4890,7 @@ section gl
 	 ( Z32:_pname Z32*:_data ) "libGL.so.1" "glGetIntegerv" sys optional GetIntegerv 
 
 	// GLAPI const GLubyte * APIENTRY GetString (GLenum name)
-	 ( Z32:_name  -> Byte* ) "libGL.so.1" "glGetString" sys optional GetString 
+	 ( Z32:_name  -> String ) "libGL.so.1" "glGetString" sys optional GetString 
 
 	// GLAPI void APIENTRY GetTexImage (GLenum target,GLint level,GLenum format,GLenum type,void * pixels)
 	 ( Z32:_target Z32:_level Z32:_format Z32:_type Any*:_pixels ) "libGL.so.1" "glGetTexImage" sys optional GetTexImage 
@@ -5316,7 +5316,7 @@ section gl
 	 ( Z32:_index Byte:_x Byte:_y Byte:_z Byte:_w ) "libGL.so.1" "glVertexAttrib4Nub" sys optional VertexAttrib4Nub 
 
 	// GLAPI void APIENTRY VertexAttrib4Nubv (GLuint index,const GLubyte * v)
-	 ( Z32:_index Byte*:_v ) "libGL.so.1" "glVertexAttrib4Nubv" sys optional VertexAttrib4Nubv 
+	 ( Z32:_index String:_v ) "libGL.so.1" "glVertexAttrib4Nubv" sys optional VertexAttrib4Nubv 
 
 	// GLAPI void APIENTRY VertexAttrib4Nuiv (GLuint index,const GLuint * v)
 	 ( Z32:_index Z32*:_v ) "libGL.so.1" "glVertexAttrib4Nuiv" sys optional VertexAttrib4Nuiv 
@@ -5349,7 +5349,7 @@ section gl
 	 ( Z32:_index Z32*:_v ) "libGL.so.1" "glVertexAttrib4sv" sys optional VertexAttrib4sv 
 
 	// GLAPI void APIENTRY VertexAttrib4ubv (GLuint index,const GLubyte * v)
-	 ( Z32:_index Byte*:_v ) "libGL.so.1" "glVertexAttrib4ubv" sys optional VertexAttrib4ubv 
+	 ( Z32:_index String:_v ) "libGL.so.1" "glVertexAttrib4ubv" sys optional VertexAttrib4ubv 
 
 	// GLAPI void APIENTRY VertexAttrib4uiv (GLuint index,const GLuint * v)
 	 ( Z32:_index Z32*:_v ) "libGL.so.1" "glVertexAttrib4uiv" sys optional VertexAttrib4uiv 
@@ -5486,7 +5486,7 @@ section gl
 	 ( Z32:_index Z32*:_v ) "libGL.so.1" "glVertexAttribI4sv" sys optional VertexAttribI4sv 
 
 	// GLAPI void APIENTRY VertexAttribI4ubv (GLuint index,const GLubyte * v)
-	 ( Z32:_index Byte*:_v ) "libGL.so.1" "glVertexAttribI4ubv" sys optional VertexAttribI4ubv 
+	 ( Z32:_index String:_v ) "libGL.so.1" "glVertexAttribI4ubv" sys optional VertexAttribI4ubv 
 
 	// GLAPI void APIENTRY VertexAttribI4usv (GLuint index,const GLushort * v)
 	 ( Z32:_index Z32*:_v ) "libGL.so.1" "glVertexAttribI4usv" sys optional VertexAttribI4usv 
@@ -5549,7 +5549,7 @@ section gl
 	 ( Z32:_buffer Z32:_drawbuffer Real:_depth Z32:_stencil ) "libGL.so.1" "glClearBufferfi" sys optional ClearBufferfi 
 
 	// GLAPI const GLubyte * APIENTRY GetStringi (GLenum name,GLuint index)
-	 ( Z32:_name Z32:_index  -> Byte* ) "libGL.so.1" "glGetStringi" sys optional GetStringi 
+	 ( Z32:_name Z32:_index  -> String ) "libGL.so.1" "glGetStringi" sys optional GetStringi 
 
 	// GLAPI GLboolean APIENTRY IsRenderbuffer (GLuint renderbuffer)
 	 ( Z32:_renderbuffer  -> Bit ) "libGL.so.1" "glIsRenderbuffer" sys optional IsRenderbuffer 
@@ -8252,13 +8252,13 @@ section gl
 	 ( Z32:_path  -> Bit ) "libGL.so.1" "glIsPathNV" sys optional IsPathNV 
 
 	// GLAPI void APIENTRY PathCommandsNV (GLuint path,GLsizei numCommands,const GLubyte * commands,GLsizei numCoords,GLenum coordType,const void * coords)
-	 ( Z32:_path Z32:_numCommands Byte*:_commands Z32:_numCoords Z32:_coordType Any*:_coords ) "libGL.so.1" "glPathCommandsNV" sys optional PathCommandsNV 
+	 ( Z32:_path Z32:_numCommands String:_commands Z32:_numCoords Z32:_coordType Any*:_coords ) "libGL.so.1" "glPathCommandsNV" sys optional PathCommandsNV 
 
 	// GLAPI void APIENTRY PathCoordsNV (GLuint path,GLsizei numCoords,GLenum coordType,const void * coords)
 	 ( Z32:_path Z32:_numCoords Z32:_coordType Any*:_coords ) "libGL.so.1" "glPathCoordsNV" sys optional PathCoordsNV 
 
 	// GLAPI void APIENTRY PathSubCommandsNV (GLuint path,GLsizei commandStart,GLsizei commandsToDelete,GLsizei numCommands,const GLubyte * commands,GLsizei numCoords,GLenum coordType,const void * coords)
-	 ( Z32:_path Z32:_commandStart Z32:_commandsToDelete Z32:_numCommands Byte*:_commands Z32:_numCoords Z32:_coordType Any*:_coords ) "libGL.so.1" "glPathSubCommandsNV" sys optional PathSubCommandsNV 
+	 ( Z32:_path Z32:_commandStart Z32:_commandsToDelete Z32:_numCommands String:_commands Z32:_numCoords Z32:_coordType Any*:_coords ) "libGL.so.1" "glPathSubCommandsNV" sys optional PathSubCommandsNV 
 
 	// GLAPI void APIENTRY PathSubCoordsNV (GLuint path,GLsizei coordStart,GLsizei numCoords,GLenum coordType,const void * coords)
 	 ( Z32:_path Z32:_coordStart Z32:_numCoords Z32:_coordType Any*:_coords ) "libGL.so.1" "glPathSubCoordsNV" sys optional PathSubCoordsNV 
@@ -8339,7 +8339,7 @@ section gl
 	 ( Z32:_path Z32:_pname Real*:_value ) "libGL.so.1" "glGetPathParameterfvNV" sys optional GetPathParameterfvNV 
 
 	// GLAPI void APIENTRY GetPathCommandsNV (GLuint path,GLubyte * commands)
-	 ( Z32:_path Byte*:_commands ) "libGL.so.1" "glGetPathCommandsNV" sys optional GetPathCommandsNV 
+	 ( Z32:_path String:_commands ) "libGL.so.1" "glGetPathCommandsNV" sys optional GetPathCommandsNV 
 
 	// GLAPI void APIENTRY GetPathCoordsNV (GLuint path,GLfloat * coords)
 	 ( Z32:_path Real*:_coords ) "libGL.so.1" "glGetPathCoordsNV" sys optional GetPathCoordsNV 

@@ -2,7 +2,8 @@
     10 printchar
 end
 
-"inc/reflect.inc" include
+//"inc/reflect.inc" include
+//"int/sort.inc" include
 
 //string
 
@@ -27,3 +28,11 @@ end
 
 
 
+
+(Z32&:a) proc ++
+    a 1 + a =
+end
+
+(Z32&:a) proc --
+    a 1 - a =
+end

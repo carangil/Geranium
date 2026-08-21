@@ -18,7 +18,7 @@ zbool zgl_init(void* procgetter);
 const char* zglErrorString(GLenum errorCode);
 int zglCheckError(int spot);
 
-
+/*
 
 typedef struct zglShaderT {
 	int v;
@@ -27,6 +27,36 @@ typedef struct zglShaderT {
     char* log;
     zvecT symbols;
 }zglShaderT;
+*/
+
+int zglBuildProgram(char* header, char* vsrc, char* fsrc, char** rlog);
 
 
-int zglBuildProgram(char* vsrc, char* fsrc, char** rlog);
+
+
+
+typedef struct {
+    int optionmask;  //bitmask of which inputs are used
+    int prog;
+}zglShaderVariantT;
+
+typedef struct zglShaderGroup{
+    char* version; //version of glsl
+    char* vsource;
+    char* fsource;
+    zvecT options; //each char*
+    zglShaderVariantT* variants;
+}zglShaderGroupT;
+
+zglShaderGroupT* zglCreateShaderGroup(char* version, char* vsrc, char* fsrc, char* optnames);
+
+int zglFindVariant(zglShaderGroupT* sg, int optionmask, char** rlog);
+
+typedef void* anyArray;
+
+//mark array as dirty
+void zglDirty(void* v);
+
+//update or create vbo from array.
+#define zglBindUpdateArray(ARR,TARGET,USAGE) zglBindUpdateArrayf(ARR, sizeof((ARR)[0]) , TARGET, USAGE);
+int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);

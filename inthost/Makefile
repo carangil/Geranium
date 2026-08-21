@@ -8,9 +8,13 @@ ZLIBS=-lzint -lzmem -lzstructures -lzmem  -lzthread -lffi -lzgl
 LIBS=
 
 
-test: $(SRCtest) *.h ../interpreter/*.c ../interpreter/*.h
-	make -C ..
+test: $(SRCtest) *.h *.c  up
 	$(CC) $(CFLAGS) -o $@ $(SRCtest) -L$(OBJDIR) $(ZLIBS) $(LIBS)
+
+
+
+up:
+	make -C ..
 
 clean: 
 	-rm test

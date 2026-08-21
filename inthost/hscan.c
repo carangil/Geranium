@@ -181,7 +181,7 @@ int scanmain(int argc, char** args){
 	char* outname=NULL;
 	char* incname= NULL;
 	char* typename="typemap.txt";
-
+	char* postname = NULL;
 	char* section = NULL;
 
 	char* t = "t";
@@ -209,6 +209,9 @@ int scanmain(int argc, char** args){
 
 		if (args[i][0]=='+')
 			incname = args[i]+1;
+
+		if (args[i][0]=='a')
+			postname = args[i]+1;
 
 	}
 
@@ -489,6 +492,15 @@ int scanmain(int argc, char** args){
 		fprintf(out, ") \"%s\" \"%s\" sys optional %s \n\n",  libname, override? override: function->cname, function->name);
 
 	}
+
+
+	if (postname){
+		char* i = ram_loadstr(postname);
+		fprintf(out, "%s\n",  i);
+		ram_free(i);
+
+	}
+
 
 	if (section)
 		fprintf(out, "end\n\n");

@@ -30,12 +30,12 @@ tokenT* tnext(tokenT*item){
 	return next;
 }
 
-void myExit(int a){
+void myExit(int a, char* cfile, int cline){
 
-		printf("EXITING  %s:%d\n", lastfile, lastline);
+		printf("EXITING  %s:%d   %s:%d\n", lastfile, lastline, cfile, cline);
 		exit(a);
 }
-#define exit myExit
+#define exit(CODE) myExit(CODE, __FILE__, __LINE__)
 
 //error reporting
 void set_error(errorT* err, int code, char* string){
@@ -100,15 +100,15 @@ void reseterr(errorT* err){
 #define PRINTERR(CONTEXT)    printerr(  &( (CONTEXT)->err))
 #define RESETERR(CONTEXT)    reseterr(  &( (CONTEXT)->err))
 
-char* echo(char* s){
-	fprintf(stderr, "SETERROR %s\n",s);
+char* echo(int line, char* file, char* s){
+	fprintf(stderr, " %s:%d   %s:%d SETERROR %s\n", file, line, lastfile, lastline,       s);
 	//exit(1);
 	return s;
 }
 
 //#define seterrorf(CONTEXT, CODE, ...)  set_error(&(CONTEXT->err), CODE, echo(zstrprintf( (CONTEXT)->err.error_string, __VA_ARGS__))   )
 
-#define PERROR(CONTEXT, ...) set_error(&(CONTEXT->err), ERROR_PARSE, echo(zstrprintf( NULL, __VA_ARGS__)))
+#define PERROR(CONTEXT, ...) set_error(&(CONTEXT->err), ERROR_PARSE, echo(__LINE__, __FILE__, zstrprintf( NULL, __VA_ARGS__)))
 
 
 
@@ -436,7 +436,7 @@ wordT* word_mk(parsectxT* pctx, char* name, typeT* type){
 		//add to the dictionary
 		zvecT* p =  zstringmap_get(pctx->dictionary, name);
 		if (!p){
-				p = zvec_mk(NULL, 1000);	//make new vector
+				p = zvec_mk(NULL, 10);	//make new vector
 				zstringmap_put(pctx->dictionary, name, p);
 		}
 
@@ -451,13 +451,23 @@ wordT* word_mk(parsectxT* pctx, char* name, typeT* type){
 			}
 			//if both same type (proc) then also error
 			//todo:might have more  conflicts, not known yet
-			if (cw->type == w->type){ //todo use cmp_type with 'no wildcards/subst'
-				PERROR(pctx, "Creating second word with no args in same pctx\n");
+			if ((cw->type->category == PROC) && !strcmp(cw->type->key, w->type->key)){ //todo use cmp_type with 'no wildcards/subst'
+
+				if(!cw->target_pctx && ! cw->ffi_caller){
+					tracef(" Taking previous prototype as the word to use %s %s\n", w->name, cw->type->key);
+					ram_free(w);
+					return cw;
+				}
+
+
+				PERROR(pctx, "Creating second word with same args in same pctx\n");
 				ram_free(w);
 				return NULL;
+
 			}
 
 		}
+
 
 		zvec_add(p, w);
 
@@ -480,7 +490,7 @@ wordT* word_mk(parsectxT* pctx, char* name, typeT* type){
 
 
 	}else{
-		PERROR(pctx, "Creating second word with no args in same pctx\n");
+		PERROR(pctx, "no pctx\n");
 		return NULL;
 
 	}
@@ -507,6 +517,8 @@ wordT* word_alias_mk(char* name, typeT* newtype, wordT* original){
 
 	return alias;
 }
+
+
 
 void dump_dictionary(parsectxT* pctx){
 	char*	name=NULL;
@@ -730,6 +742,16 @@ zbool type_cmp(parsectxT* pctx, typeT* expected, typeT* given, int flags, typeT*
 		return ZTRUE;
 	}
 
+	//iterated calls:
+	//The procedure is really called with an array, but the function is defined as taking an iterated array.
+	//what that does in this case, outside the function, we match arrays
+	//later, when inside the function, taking a value will be an element of the array.
+	if (expected->category == ITERATED) {
+		return type_cmp(pctx, expected->ref, given, flags, proctype, stackargs);
+	}
+
+
+
 	if (expected==tAny && (flags&MATCH_ALLOW_LIKE)) //tAny matching anything
 		return ZTRUE;
 
@@ -737,9 +759,22 @@ zbool type_cmp(parsectxT* pctx, typeT* expected, typeT* given, int flags, typeT*
 
 }
 
+zbool type_equal( typeT* expected, typeT* given){
+	//stricter than type_cmp
+	if (expected == given)
+		return ZTRUE;
 
+	if ((expected->category == given->category) && (expected->ref) && (given->ref)){
+		return type_equal(expected->ref, given->ref);
+	}
+	
+	//go by string name 'key'
+	if (!strcmp(expected->key, given->key))
+		return ZTRUE;
 
+	return ZFALSE;
 
+}
 
 void indent(int n){
 		for (int i=0;i<n;i++)
@@ -1029,8 +1064,8 @@ zbool test_word(parsectxT* pctx, typeT** stacktypes, wordT* word, int flags, int
 		typeT* passed_type = stacktypes[i];
 
 		if (!passed_type){
-				errorf(" No result type!\n");
-
+				//errorf(" No result type! on arg %d/%d of %s %s\n", i, argc, word->name , word->type->key);
+				//I don't think this is an error, this is just testing a possible match and we don't have a value on the stack
 				return ZFALSE;
 		}
 
@@ -1246,11 +1281,14 @@ switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* pr
 		return prog;
 	}
 
-	if (inst->opcode == op_arrayinfo && inst->val.as.z32 == 2){
+	/*
+	if (inst->opcode == op_arrayinfo && inst->val.as.z32 == 2 && inst->args[0]->result_type->ref->size){
 		//want the size of the array element.  this is a constant
+		//if the size is zero, then this becomes a dynamic call
 		prog = switch_asmi(prog, op_constant,inst->args[0]->result_type->ref->size , inst);
 		return prog;
 	}
+	*/
 
 	if ((inst->opcode==op_globalvar)||(inst->opcode==op_subvar)||(inst->opcode==op_localvar)){
 		wordT* var = inst->val.as.ptr.address.word;
@@ -1297,7 +1335,11 @@ switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* pr
 			if (word->target_pctx){
 				tracef("To compile switch:%s:%s\n", word->name, word->type->key);
 				compile_for_switch(exe, word->target_pctx);
-			} else {
+			} else if (word->opcode == op_call){
+				errorf("op_call function that has no body\n");
+				exit(1);
+				return NULL;
+			}else {
 				tracef("skip compile switch:%s:%s\n", word->name, word->type->key);
 			}
 
@@ -1823,14 +1865,19 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 				if (pc->imm.as.z32 == 1){
 					exe->stack[exe->sp-1].as.z32 = zarray_size( exe->stack[exe->sp-1].as.ptr.address.block);
-				} else {
+				} else if (pc->imm.as.z32 == 2){
+					typeT* at = zarray_get_meta( exe->stack[exe->sp-1].as.ptr.address.block);
+					//printf(" ARRAY IS TYPE %s\n", at->ref->key);
+					exe->stack[exe->sp-1].as.z32 = at->ref->size;
+				}
+				else {
 					exe->stack[exe->sp-1].as.z32 = zarray_count( exe->stack[exe->sp-1].as.ptr.address.block);
 				}
 
 				//exe->stack[ exe->sp-1].as.ptr.address.block = zarray_cow( exe->stack[exe->sp-1].as.ptr.address.block, pc->imm.as.z32  ) ;
 				pc++;
 				continue;
-/*
+
 			case op_arraysetcount:
 				//sp-2 is array
 				//sp-1 is the new count
@@ -1840,7 +1887,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				exe->sp-=2;
 				pc++;
 				continue;
-*/
+
 
 			case op_arrayindex:
 				//sp-2 is array
@@ -1890,12 +1937,23 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				pc++;
 				continue;
 
-			case op_call:
+			case op_fictional_call:
 				if (pc->immtype != tWord){
 					errorf(" expected word pointer\n");
 					exit(1);
 				}
 				wordT* word = pc->imm.as.ptr.address.word;
+
+				errorf( "Cannot call %s directly, it is fictional.\n", word->name);
+				exit(1);
+				continue;
+
+			case op_call:
+				if (pc->immtype != tWord){
+					errorf(" expected word pointer\n");
+					exit(1);
+				}
+				word = pc->imm.as.ptr.address.word;
 
 				do_call(exe, word);
 
@@ -1973,7 +2031,8 @@ runnerI* compile_for_switch(exectxT* exe, parsectxT* pctx){
 	prog = zarray_more(prog, 1, NULL);
 	prog = zarray_append(prog, op);
 
-	print_switch_listing(prog);
+	//print_switch_listing(prog);
+	printf(" compiled %p\n", prog);
 	sw->prog = prog;
 
 	//sw->local_size = pctx->size;
@@ -2254,7 +2313,7 @@ void dereference_assembly(parsectxT* pctx, char* loadername){
 		instructionT** insts = pop_args(pctx, 1); //get the instruction
 		instructionT* loadinst = push_assembly(pctx, wloader->opcode,0, NULL, NULL, insts, wloader->type->ref);
 	}else {
-		tracef(" %s undefined for type", loadername);
+		errorf(" %s undefined for given type", loadername);
 		exit(1);
 	}
 
@@ -2438,12 +2497,9 @@ tokenT* parse_default(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 //			getc(stdin);
 		}
 
-
-
 		if (w->autoload){
 
 			t = autoload(pctx, w, t);
-
 		}
 
 		return t;
@@ -2454,9 +2510,6 @@ tokenT* parse_default(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 	//not sure if it will stay that way, butis that way for now, so maybe it will merge with the above
 
 	if (w->type->category == ARG){
-
-
-
 		tracef("%s arg  at bp %d\n", w->name, w->val.as.z32);
 
 		push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, NULL, w->type->ref );
@@ -2536,7 +2589,7 @@ tokenT* parse_array(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 			}
 		}
 
-		PERROR(pctx, ERROR_PARSE, "expected type\n");
+		PERROR(pctx, "expected type\n");
 
 		return t;
 }
@@ -2625,7 +2678,7 @@ tokenT* parse_type_list(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 		ret_arg = pop_arg(pctx);
 		if (ret_arg->result_type != tType || ret_arg->val_type != tType || ret_arg->val.as.ptr.address.type == NULL){
-			PERROR(pctx, ERROR_PARSE, "missing or bad type name in arglist\n");
+			PERROR(pctx,  "missing or bad type name in arglist\n");
 		}
 		ret = ret_arg->val.as.ptr.address.type;
 
@@ -2932,7 +2985,7 @@ ffi_type* type_map_to_c(typeT* type){
 		}
 	}
 
-	if (type->category == REFERENCE || type->category == CPOINTER || type->category == ARRAY)
+	if (type->category == REFERENCE || type->category == CPOINTER || type->category == ARRAY|| type->category == STEWARD)
 		return &ffi_type_pointer;
 
 	if (type->category == SUBTREE || type->category == STEWARD && (type->ref->category == REFERENCE || type->ref == tString  ) ){
@@ -3093,7 +3146,7 @@ callerT* caller_lookup(char* soname, char* name, typeT* ret,  typeT** args){
 tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 
 	int tolerate=0;
-
+	int proto=0;
 	parsectxT* install_pctx = pctx;  //by default this item is in THIS context
 
 	instructionT* libname = NULL;//for external functions
@@ -3130,6 +3183,10 @@ tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 		}
 
 	}
+	if (!strcmp(t->str, "proto")){
+		tracef(" creating prototype\n");
+		proto = 1;
+	}
 
 	t = tnext(t);
 
@@ -3152,14 +3209,31 @@ tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 		tracef(" %d CREATING PROC %s of %s\n", argc,varname,  vartype->key  );
 		w = word_mk(install_pctx, varname, vartype); //word for the variable
 
+
+
 	} else {
 
 		PERROR(pctx, "Proc type constant not found\n");
 	}
 
+	ram_free(arg0);
+	arg0 = NULL;
+
+	if(proto){
+		w->opcode=op_call;
+		w->val.as.ptr.address.word =w;
+		w->val_type = tWord;
+		return t;
+	}
+
+
 	if (w && symname && symname->val_type== tString ){
 		//external library function
 
+		if (w->opcode == op_call){
+			errorf("Cannot 'sys' a function that already exists (even if its just a prototype\n");
+			exit(1);
+		}
 		w->opcode = op_sys;
 
 		w->ffi_caller = caller_lookup(libname->val.as.ptr.address.bytes, symname->val.as.ptr.address.bytes, w->type->ref, w->type->argtypes );
@@ -3181,7 +3255,7 @@ tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 
 		ram_free(symname);
 		ram_free(libname);
-		ram_free(arg0);
+
 
 		return t;
 	}
@@ -3222,8 +3296,17 @@ tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 
 		//create the variable arg names
 		for (int i=0;i<proctype->argc;i++){
-			printf("adding arg %s",proctype->opt_argnames[i] );
-			wordT* argvar = word_mk(innerpctx, proctype->opt_argnames[i], OF(pctx, ARG, proctype->argtypes[i]));
+			tracef("adding arg %s",proctype->opt_argnames[i] );
+			typeT* atype = proctype->argtypes[i];
+
+			if (atype->category == ITERATED && atype->ref && atype->ref->category == ARRAY){
+				//if function input is iterated, inside the function treat the arg as an element of the array
+				atype = atype->ref->ref; //get the element inside
+				w->opcode = op_fictional_call;
+
+			}
+
+			wordT* argvar = word_mk(innerpctx, proctype->opt_argnames[i], OF(pctx, ARG, atype));
 			argvar->val.as.z32 = -proctype->argc + i; //offset from bp
 			argvar->val_type = tZ32;
 			argvar->opcode = op_argpick;
@@ -3256,12 +3339,12 @@ tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 		ERRUP(pctx,  innerpctx);
 
 		if (OK(pctx)){
-			codestack_print(innerpctx->codestack,0,ZTRUE);
+			//codestack_print(innerpctx->codestack,0,ZTRUE);
 		}
 
 
 	}
-	ram_free(arg0);
+
 
 	return t;
 }
@@ -3403,9 +3486,12 @@ tokenT* parse_related_type(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 			type = type_find(pctx, NULL, type, SUBTREE, 0, NULL);
 		}
 
+		if (!strcmp(t->str, "~")) //currently only makes sense to array
+			type = type_find(pctx, NULL, type, ITERATED, 0, NULL);
+
 
 	} else {
-			printf(" This requires a constant\n");
+			// printf(" This requires a constant\n");
 			exit(1);
 	}
 
@@ -4122,8 +4208,29 @@ void* word_cfunc(wordT* w){
 
 	return NULL;
 
+}
+
+instructionT** word_instructions(wordT* w){
+
+
+
+	if (!w || !w->target_pctx || !w->target_pctx->codestack)
+		return NULL;
+
+
+	//TODO: it's annoying this is a zvec and not a zarray, but I don't want to change all that now
+
+	instructionT** code = zarray_alloc(instructionT*,  zvec_count(w->target_pctx->codestack));
+
+	for (int i=0;i< zvec_count(w->target_pctx->codestack);i++){
+		code[i] = (zvec_get_at(w->target_pctx->codestack, i));
+	}
+
+	return code;
 
 }
+
+
 
 //instruction constant as a integer
 int instruction_val_z32(instructionT* inst){
@@ -4149,6 +4256,26 @@ void* instruction_val_pointer(instructionT* inst){
 
 	return NULL;
 }
+
+
+void* instruction_val_checked_pointer(instructionT* inst, typeT* expected){
+	if (!inst)
+		return NULL;
+
+	if (!inst->val_type)
+		return NULL;
+
+	if (type_map_to_c (inst->val_type) == &ffi_type_pointer) {
+		
+		if (type_equal( expected, inst->val_type)){
+			return inst->val.as.ptr.address.block;
+		}
+
+	}
+
+	return NULL;
+}
+
 
 
 
@@ -4181,6 +4308,7 @@ char* instruction_opname(instructionT* inst){
 
 
 instructionT** instruction_args(instructionT* inst){
+	//printf("iargs from %p\n", inst);
 	if (!inst)
 		return 0;
 	return inst->args;
@@ -4211,7 +4339,41 @@ char* type_keystr (typeT* t){
 	return t->key;
 }
 
+//return type of a function type OR what an array or pointer type is made of
+typeT* type_ref(typeT* t){
+	if (!t)
+		return NULL;
 
+	return t->ref;
+}
+
+
+
+typeT** type_proc_args(typeT* t){
+	if (!t)
+		return NULL;
+
+	printf(" returning %d argtypes\n", zarray_size(t->argtypes));
+
+	return ram_addref(t->argtypes);
+}
+
+char** type_proc_argnames(typeT* t){
+	if (!t || !t->opt_argnames)
+		return NULL;
+
+	//todo: argnames is not a zarray, but a detatched C array from zvector.
+	//      I could make zvector use zarray for its pointer array so it can be compatible
+
+	//should be same length, if eixsting
+	char** argnames = zarray_alloc( char*, zarray_size(t->argtypes));
+
+	memcpy(argnames, t->opt_argnames, sizeof(char*) * zarray_size(t->argtypes));
+
+	printf(" returning %d argnames\n", zarray_size(argnames));
+
+	return argnames;
+}
 
 //tokenize and parse (evnetually... run)
 void int_run_str(char* src, char* filename){
@@ -4244,7 +4406,8 @@ void int_run_str(char* src, char* filename){
 	ADD_INST(arrayindex);
 	ADD_INST(sys);
 	ADD_INST(sectionvar);
-
+	ADD_INST(mul32);
+	ADD_INST(sub32);
 
 	//C constants
 
@@ -4263,9 +4426,14 @@ void int_run_str(char* src, char* filename){
 	int_add_c_object("instruction_val_typeof", instruction_val_typeof);
 	int_add_c_object("type_sizeof", type_sizeof);
 
+	int_add_c_object("type_proc_args", type_proc_args);
+	int_add_c_object("type_proc_argnames", type_proc_argnames);
+	int_add_c_object("type_ref", type_ref);
+
 	int_add_c_object("word_cfunc", word_cfunc);
-
-
+	int_add_c_object("word_type", word_type);
+	int_add_c_object("word_name", word_name);
+	int_add_c_object("word_instructions", word_instructions);
 
 	//add the string functions I already have to this
 	int_add_c_object("zstrndup" , zstrndup);
@@ -4309,8 +4477,8 @@ void int_run_str(char* src, char* filename){
 	proc_parser_mk(pctx, "@", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into its dereferenced type
 	proc_parser_mk(pctx, "*", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into a c pointer
 	proc_parser_mk(pctx, ".null", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into 0-value.  Z32.null is zero, String.null is null pointer of string type, etc
-
 	proc_parser_mk(pctx, ".Instruction", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into an instruction that produces this type
+	proc_parser_mk(pctx, "~", type_proc_mk(tType, 1, tType), parse_related_type); //makes an array type into an iterated
 
 	proc_parser_mk(pctx, "[", NULL, parse_array); //create array type TODO:consider moving from [Z32] syntax to Z32[]
 
@@ -4322,11 +4490,14 @@ void int_run_str(char* src, char* filename){
 	//define parser words for variables, types and procs
 	proc_parser_mk(pctx, "var",  type_proc_mk(NULL, 1, tType), parse_var); //makes a variable in current context
 	proc_parser_mk(pctx, "var",  type_proc_mk(NULL, 1, tAny), parse_var); //makes a variable in current context
+	proc_parser_mk(pctx, "'",  type_proc_mk(NULL, 1, tAny), parse_var); //makes a variable in current context
+
 	proc_parser_mk(pctx, "constant",  type_proc_mk(NULL, 1, tAny), parse_constant); //makes a const
 
 	proc_parser_mk(pctx, "type", type_proc_mk(NULL, 0), parse_frame);
 	proc_parser_mk(pctx, "section", type_proc_mk(NULL, 0), parse_frame);
 	proc_parser_mk(pctx, "proc", type_proc_mk(NULL, 1, tType), parse_proc);
+	proc_parser_mk(pctx, "proto", type_proc_mk(NULL, 1, tType), parse_proc);
 	proc_parser_mk(pctx, "expose", type_proc_mk(NULL, 1, tType), parse_proc);
 
 	proc_parser_mk(pctx, "sys", type_proc_mk(NULL, 3, tType , tString, tString), parse_proc);//import ffi
@@ -4364,12 +4535,6 @@ void int_run_str(char* src, char* filename){
 	//set count of array
 	proc_opcode_mk2(pctx, op_arraysetcount, ".setcount", "([Any]:a  Z32:count)");
 
-
-	//pass an array to a cprogram as a pointer
-	//proc_opcode_mk2(pctx, op_nop, ".*",  "([Any]:arr -> like arr@*)" );
-
-	//pass a reference to a cprogram as a pointer (like a Z32)
-	//proc_opcode_mk2(pctx, op_nop, ".*",  "(Any&:item -> like item*)" );
 
 
 	//reading a byte from a string returns a StringByte& instead of a Byte&.  StringByte is intentionally is missing a write word
@@ -4413,8 +4578,10 @@ void int_run_str(char* src, char* filename){
 	proc_opcode_mk2(pctx, op_bnot, "not", "(Z32:a  -> Bit)");
 	proc_opcode_mk2(pctx, op_ptrvalid, "?", "(String:s -> Bit  )");
 	proc_opcode_mk2(pctx, op_ptrvalid, "?", "(Type:s -> Bit  )");
-
 	proc_opcode_mk2(pctx, op_ptrvalid, "?", "(Any*:s -> Bit  )");
+	proc_opcode_mk2(pctx, op_ptrvalid, "?", "(Any&:s -> Bit  )");
+	proc_opcode_mk2(pctx, op_ptrvalid, "?", "([Any]:s -> Bit  )");
+	proc_opcode_mk2(pctx, op_ptrvalid, "?", "([Any]$:s -> Bit  )");
 
 	proc_opcode_mk2(pctx, op_printptr, "printptr", "(Any)");
 	proc_opcode_mk2(pctx, op_load, "@",  "(Z32&:a  -> like a@ )" );
@@ -4436,6 +4603,8 @@ void int_run_str(char* src, char* filename){
 	//proc_opcode_mk2(pctx, op_trashstore, "=",  "([Any]$:value  like value&:dst)" );
 
 	proc_opcode_mk2(pctx, op_load, "@",  "(String&:a  -> like a@ )" );
+	proc_opcode_mk2(pctx, op_load, "@",  "(Type&:a  -> like a@ )" );
+
 
 	//switch to generic steward rules
 	proc_opcode_mk2(pctx, op_loadaddref, "$",  "(Any$&:a  -> like a@ )" );
@@ -4471,12 +4640,10 @@ void int_run_str(char* src, char* filename){
 
 
 	//turn an array or reference into a cpointer
-	//consider making this automatic?
+
 	proc_opcode_mk2(pctx, op_nop, ".cptr", "(Any&:a->like a@*)");
 	proc_opcode_mk2(pctx, op_nop, ".cptr", "([Any]:a->like a@*)");
 
-	//specifically o
-	//proc_opcode_mk2(pctx, op_nop, ".cptr", "(Z32 a->Any*)");
 
     zlistT tokens;
     zlist_init(&tokens);

@@ -1,197 +1,60 @@
-//"base.src" include
-
 "inc/base.inc" include
 "inc/stdio.inc" include
 "inc/glfw3.inc" include
 "inc/glcorearb.inc" include
-"inc/glold.inc" include  //legacy opengl
-
-
-
-(String:s String:t) proc cmp
-
-    s print " " print t print " " print
-    s t == if
-        "same" print newline
-    else
-        "different" print newline
-
-    end
-
-end
-
-
-
-"aa" "bb" cmp
-"aa" "aa" cmp
-
-"aa" String.null cmp
-
-String.null String.null cmp
-
-
-
-
-
-//"inc/stdio.inc" include
-
-
-"whatever" "wb" stdio.fopen var f=
-
-"testing" f stdio.fputs
-
-f stdio.ftell print newline
-
-f 3 stdio.SEEK_SET stdio.fseek
-
-"T1" f stdio.fputs
-
-/*
-section stdlib
-    //try qsort
-
-   ( [Any]:array   Z32:len    Z32:size  (->Any):callback )  "_LIBC" "qsort" sys qsort
-end
-*/
-
+"inc/zgl.inc" include
 "inc/stdlib.inc" include
+"inc/reflect.inc" include
 
-section sort
 
-    "cats" constant ss
 
-   (Z32&:a Z32&:b ->Z32)& proc Z32compare
+// a section organizes variables and procedures into a namespace
+// it is a way to organize would-be global variables
+// the alternative to define a type, and then create a single instance of that type
 
-        a b == if
-            0 return
+section stuff
+
+    Z32 var doexit
+
+    (glfw.window*:w Z32:key Z32:scancode Z32:action Z32:mods)& proc keycallback
+
+        key print
+
+        " " print
+
+        scancode print
+
+        10 printchar
+
+        key 65 == if
+            1 doexit&=
         end
-
-        a b < if
-            -1 return
-        end
-
-
-        1 return
 
     end
-
-    (Z32&:a Z32&:b ->Z32)& proc Z32compareR
-
-        a b == if
-            0 return
-        end
-
-        a b < if
-            1 return
-        end
-
-
-        -1 return
-
-    end
-
-
-   ( [Z32]:arr Z32:reverse ) proc sort
-
-        reverse if
-            arr arr.count arr.size1 Z32compareR stdlib.qsort
-        else
-            arr arr.count arr.size1 Z32compare stdlib.qsort
-        end
-   end
-
 
 end
-
-
-//sort.ss print newline
-
-f stdio.fclose
-
-[Z32]$ var v
-
-"PATH" stdlib.getenv print newline
-
-v& 3 3 dim
-
-3 v 0[]=
-1 v 2[]=
-7 v 1[]=
-
-
-v 3 4 sort.Z32compare stdlib.qsort
-
-//v 1 sort.sort
-
-
-v 0 [] print newline
-
-
-v 1 [] print newline
-v 2 [] print newline
-
-
-
-
-v .size1 print newline
-"asdas"$ .Byte var sb=
-sb .size1 print newline
-
 
 glfw.Init
-
 1024 768 "Test" glfw.monitor*.null glfw.window*.null glfw.CreateWindow  var win=
-
-win printptr newline
-
+win stuff.keycallback glfw.SetKeyCallback
 win glfw.MakeContextCurrent
 
-"ctx" print newline
 
 
 
+gl.VERSION gl.GetString print newline
 
-
-"x"
-1.0
-
-
-
-
-//sys_ENDFILE
-
-"Multi
-
-Line
-
-quote " print newline
-
-
-
-
-() proc checkGL
-
-
-    loop
-        gl.GetError var e =
-
-        e gl.NO_ERROR == if
-            break
-        end
-
-        "opengl error: " print e print newline
-    end
-
-
+(Any.Instruction$:inst) proc init_zgl
+    inst.valWord.cfunc printptr newline
+    inst.valWord.cfunc zgl.init
 end
 
+String.null glfw.GetProcAddress >- init_zgl
 
 
-Z32 var w
-Z32 var h
+
 
 0.0 var fx
-
 Z32 var vao
 
 1 vao&.cptr gl.GenVertexArrays
@@ -209,8 +72,8 @@ end
 
 pos& 3 3 dim
 
-(Real:x Real:y Real:z Real:w Vec4&:a ) proc =
 
+(Real:x Real:y Real:z Real:w Vec4&:a ) proc =
     x a.x=
     y a.y=
     z a.z=
@@ -218,24 +81,23 @@ pos& 3 3 dim
 end
 
 
+
+
 0.0 0.0 0.0  1.0 pos 0[]=
 1.0 0.0 0.0  1.0 pos 1[]=
 0.0 1.0 0.0  1.0 pos 2[]=
 
 Z32 var vbo
-1 vbo&.cptr  gl.GenBuffers
+//1 vbo&.cptr  gl.GenBuffers
+//gl.ARRAY_BUFFER  vbo gl.BindBuffer
+//gl.ARRAY_BUFFER 16 4*   pos.cptr   gl.DYNAMIC_DRAW gl.BufferData
 
-gl.ARRAY_BUFFER  vbo gl.BindBuffer
-gl.ARRAY_BUFFER 16 4*   pos.cptr   gl.DYNAMIC_DRAW gl.BufferData
+//pos.cptr pos.size1 gl.ARRAY_BUFFER gl.DYNAMIC_DRAW zgl.BindUpdateArrayf vbo=
+
+pos gl.ARRAY_BUFFER gl.DYNAMIC_DRAW zgl.BindUpdateArray
 
 0 gl.EnableVertexAttribArray
 0 3  gl.FLOAT  0.Bit 16  0    gl.VertexAttribPointer
-
-
-
-
-
-
 
 
 (Real:x Real:y Real:z Real:w [Vec4]:c Z32:n) proc set
@@ -267,57 +129,49 @@ gl.ARRAY_BUFFER 16 4*   colors.cptr   gl.DYNAMIC_DRAW gl.BufferData
 
 
 
-"inc/zgl.inc" include
-
-(Any.Instruction$:inst) proc init_zgl
-    inst.valWord.cfunc printptr newline
-    inst.valWord.cfunc zgl.init
-end
-
-String.null glfw.GetProcAddress >- init_zgl
-
-/*
-String.null glfw.GetProcAddress~ var get_proc_address=
-get_proc_address .opname print newline
-get_proc_address .valTypeOf .key print newline
-
-"GetProcAddress cfunc is ::" print
-get_proc_address .valWord .cfunc printptr newline
-*/
-
-//sys_ENDFILE
-
-
-//get_proc_address .valWord .cfunc zgl.init
-
-(Z32:a) proc glerr
-    a zgl.CheckError  //ignore returned value
-end
-
-
 
 
 //shaders
-    String$ var log
+String$ var log
 
-    "
-        #version 430 core
 
-        in vec4 position;
-        in vec4 color;
+"#version 430 core"
+"
+layout(location = 0) in vec4 position;
+
+#ifdef OPT_color
+    layout(location = 1) in vec4 color;
+#endif
+
+#ifdef OPT_cats
+    layout(location = 0) uniform vec4 co;
+#endif
+
+
 
         out vec4 vf_color;
 
         void main(){
 
             gl_Position = position;
-            vf_color = color;
+
+        #ifdef OPT_color
+            vec4 c  = color;
+        #else
+            vec4 c = vec4(1.0,0.0,1.0,1.0);
+        #endif
+
+
+        #ifdef OPT_cats
+            c = c + co;
+        #endif
+
+        vf_color = c;
         }
     "
 
-
     "
-        #version 430 core
+
         out vec4 color;
 
         in vec4 vf_color;
@@ -327,335 +181,68 @@ end
             color = vf_color;  vec4(1.0,0.0,0.0,1.0);
         }
     "
-    log&
+"color,usechickens,cats"
 
-zgl.BuildProgram var shader=
+zgl.CreateShaderGroup var sg =
+
+"sg " print
+sg printptr newline
 
 
+sg 1 log& zgl.FindVariant gl.UseProgram
+sg 7 log& zgl.FindVariant gl.UseProgram
+sg 7 log& zgl.FindVariant gl.UseProgram
 
-"shader = " print shader printptr newline
+0 .5 .5 .5 1.0  gl.Uniform4f
 
 log print newline
 
+
 200 zgl.CheckError
-shader gl.UseProgram
+//shader gl.UseProgram
 201 zgl.CheckError
+
+
+
+
+pos zgl.BindUpdateArray
+
 
 loop
     glfw.PollEvents
     win glfw.WindowShouldClose if
         break
     end
+    stuff.doexit if
+        break
+    end
+
+    Z32 var w
+    Z32 var h
 
     win w& h& glfw.GetFramebufferSize
 
-
     0 0 w h gl.Viewport
-
-    //test error on purposegi
-    100  glerr
-    //77 9999 gl.BlendFunc
-    200 glerr
-
 
 
     1.0 0.5 0.25 1.0 gl.ClearColor
 
     gl.COLOR_BUFFER_BIT gl.Clear
 
-//    22 "boo"  zgl.test
-
-
-
-
-
-checkGL
     gl.TRIANGLES 0 3  gl.DrawArrays
 
 
 
-/*
-    gl.TRIANGLES glold.Begin
+    pos  zgl.BindUpdateArray
 
-        1.0 0.0 0.0 1.0 glold.Color4f
+    pos 1[].y  .01+ pos 1[].y=
 
-        1.0 0.0 -1.0  glold.Vertex3f
-
-        0.0 1.0 0.0 1.0 glold.Color4f
-       fx 0.5 -1.0  glold.Vertex3f
-
-
-        0.0 0.0 1.0 1.0 glold.Color4f
-        0.5 0.5 -1.0  glold.Vertex3f
-
-    glold.End
-*/
-
-
-    fx 0.01 + fx=
+    pos.cptr zgl.Dirty
 
     win glfw.SwapBuffers
-
-    10
 end
-
-
 
 sys_ENDFILE
-
-
-
-section mod
-
-
-
-    Z32 var a
-    Z32 var b
-    String$ var s
-
-    () proc set
-
-        "Whatever" 4 left s=
-        Z32 var v
-        Z32 var g
-        60 g=
-       20 a =
-       40 b =
-       g print newline "^^^" print newline
-
-    end
-
-
-
-    section aaaa
-        Z32 var h
-        String$ var astr
-        Z32 var g
-    end
-
-    Z32 var c
-
-    () proc get
-
-        b print "_" print a print
-        s print   newline
-        aaaa.g print
-        aaaa.astr print
-    end
-
-//    Z32 var c
-
-    3 constant three
-
-    5 constant five
-
-end
-
-// //mod.a print
-
-//10 mod.a=
-//20 mod.b =
-
-
-[Byte]$ var readbuffer
-
-readbuffer& 256 256 dim
-
-//66 readbuffer 0[]=
-//readbuffer$$.String print newline
-
-
-
-"What"$.Byte var wb=
-wb .count print newline
- // "H" 0[]  wb 2[]=
-64 256 + wb 2[]=
-wb$.String var sbb =
-wb .count print newline
-sbb print newline
-
-
-"testin.txt" "r" libc.fopen var fh=
-
-
-loop
-    readbuffer 8  fh libc.fgets var r=
-
-    r? not if break end
-    "{" print
-        readbuffer.String print
-    "}" print
-
-end
-
-fh printptr newline
-fh $$ libc.fclose
-fh printptr newline
-
-
-
-section kv
-    String$ var k
-    String$ var v
-
-    () proc Print
-        k print  "=" print v print newline
-    end
-end
-
- () proc kvPrint
-        kv.k print  "=" print kv.v print newline
-    end
-
-
-
-"A"$ kv.k=
-
-"aaa"$ kv.v=
-
-kv.Print
-kvPrint
-
-( Z32:index Z32:size Z32:type Bit:normalized Z32:stride Any&:pointer  ) "libGL.so.1" "glVertexAttribPointer" sys glVertexAttribPointer
-
-
-type tkv
-    Z32 var k
-    Z32 var v
-
-    type bee
-        Z32 var B
-    end
-
-    (tkv&:mytkv) expose proc Print
-        bee var b
-        mytkv.k print "-inner-"  print   mytkv.v print
-    end
-
-end
-
-
-(tkv&:mytkv) proc xPrint
-    tkv.bee var b
-    mytkv.k print "-outer-"  print   mytkv.v print newline
-end
-
-
-
-tkv var ttk
-
-10 ttk.k =
-22 ttk.v =
-
-
-ttk Print
-ttk xPrint
-
-sys_ENDFILE
-
-
-Z32 var t3
-100 t3 =
-
-(Z32& : a) proc useref
-    a print newline
-
-    a 1 + a=
-    110 a == not if
-        a& useref
-    end
-
-end
-
-t3& useref
-t3 print newline
-
-
-
-tkv var tk
-
-10 tk.k=
-12 tk.v=
-
-tk Print
-
-sys_ENDFILE
-
-"apple"$ kv.k=
-"A"$ kv.v=
-kv.Print
-
-sys_ENDFILE
-
-
-
- //"banana" 6 1   fh  libc.fwrite
-//fh libc.fclose
-
-
-
-
-mod.set
-
-"Nothing"$ mod.aaaa.astr=
-
-"Stuff"$ var str=
-
-99 mod.aaaa.g =
-
-mod.get
-
-999 mod.aaaa.g =
-
-33 mod.b =
-
-
-mod.get
-
-mod.a print newline
-mod.b print newline
-
-//"((" print
-
-//"))" print newline
-
-mod.three
-sys_ENDFILE
-
-mod.three mod.five + print newline
-
-mod.inner var IN
-
-1 IN.g=
-3 IN.h=
-
-Real var rr
-123.5 rr =
-
-
-IN.g print newline
-IN.h print newline
-
-
-sys_ENDFILE
-//
-
-
-(Z32:a -> Z32) proc fib
-    a 2 > not if
-        1 return
-    else
-        a 2 - fib
-        a 1 - fib + return
-    end
-end
-
-1 fib print newline
-2 fib print newline
-3 fib print newline
-4 fib print newline
-5 fib print newline
-
 
 
 
@@ -1259,69 +846,7 @@ FILE* var af
 
 [
 
-//"BananA!" 7 1 af C_fwrite print " items written" print 10 printchar
 
-
-
-
-
-
-void* var v
-GLFWwindow* var w
-
-
-
-Z32 var doexit
-
-(GLFWwindow*:w Z32:key Z32:scancode Z32:action Z32:mods)& proc keycallback
-
-    key print
-
-    " " print
-
-    scancode print
-
-    10 printchar
-
-    key 65 == if
-        1 doexit&=
-    end
-
-end
-
-
-glfwInit print 10 printchar
-
-600 400 "TEST" v v glfwCreateWindow w&=
-w glfwMakeContextCurrent
-
-1.0 0.5 0.0 1.0 glClearColor
-
-keycallback printptr
-w printptr
-
-
-w keycallback glfwSetKeyCallback
-
-
-"window " print
-w printptr
-
-
-0.0 var f
-
-loop
-
-    glfwPollEvents
-
-    gl.COLOR_BUFFER_BIT gl.COLOR_DEPTH_BIT or  glClear
-
-    gl.TRIANGLES glBegin
-        1.0 0.0 0.0 1.0 glColor4f
-        1.0 0.0 -1.0  glVertex3f
-
-        0.0 1.0 0.0 1.0 glColor4f
-         -1.0 0.5 -1.0  glVertex3f
 
         0.0 0.0 1.0 1.0 glColor4f
         0.5 0.5 -1.0  glVertex3f

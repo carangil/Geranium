@@ -20,7 +20,6 @@
 #define MYMAGIC 0xf1e2f3e4
 #define FREEMAGIC 0xABCDEF88
 
-#define GPU_STORAGE
 
 #define BLANKVAL 0xe3
 
@@ -57,14 +56,47 @@ typedef struct mem_header_s
 		int freeline;
 	#endif
 #endif
-	int size;
+	//int size;
 	int refcount;
 	int shadow_size; //allow alloced buffers to have a shadow buffer of out-of-band data (lets zstrings be passed or ram_free'd like regular c strings, but allows additional metadata
 	int magic;
 #ifdef GPU_STORAGE
-	gpu_storageT gpu_storage;
+	void*  gpu_storage;
 #endif
+
 } mem_headerT;
+
+#ifdef GPU_STORAGE
+
+gpu_storage_interfaceT gpu_storage_interface = {NULL};
+
+void* gpu_storage(void* v) {
+
+		mem_headerT* header = (mem_headerT*)v;
+
+		if (header)
+		{
+			header--; //decrement pointer to header struct
+
+			if (header->magic != MYMAGIC) {
+				printf(" attempt shadow on bad magic!\n");
+				return NULL;
+			}
+
+			if (!header->gpu_storage){
+				printf(" Allocating %d bytes for gpu storage info\n", gpu_storage_interface.storeinfosize);
+				header->gpu_storage = malloc(gpu_storage_interface.storeinfosize);
+				memset(header->gpu_storage, 0,  gpu_storage_interface.storeinfosize);
+
+			}
+			return header->gpu_storage;
+		}
+		return NULL;
+}
+
+
+#endif
+
 
 #ifdef RAM_DEBUG
 zlistT _ram_debuglist = {0};
@@ -103,23 +135,6 @@ int ram_shadow_offset(size_t s) {
 	return -(int)(ram_align_ptr_size(s) + sizeof(mem_headerT));
 }
 
-gpu_storageT* gpu_storage(void* v) {
-
-		mem_headerT* header = (mem_headerT*)v;
-	
-		if (header)
-		{
-			header--; //decrement pointer to header struct
-
-			if (header->magic != MYMAGIC) {
-				printf(" attempt shadow on bad magic!\n");
-				return NULL;
-			}
-
-			return &header->gpu_storage;
-		}
-		return NULL;
-}
 
 /* Allocate memory.  Takes size and destructor */
 #ifdef RAM_DEBUG
@@ -168,7 +183,7 @@ void* ram_alloc_shadow(zsize size, ram_destructor destructor, zuint32 shadow_siz
 		x->destructor = destructor;
 		x->magic = MYMAGIC;
 		x->refcount = 1;
-		x->size = size;
+	//	x->size = size;
                 
 
 #ifdef RAM_DEBUG
@@ -328,7 +343,7 @@ void ram_free(void* thing)
 
 				char p[ sizeof(void*) ] ;
 				*(void**)(&p) = thing;
-				for (int i=0;i<header->size;i++){
+				for (int i=0;i<header->debug_size;i++){
 					((char*)(thing))[i] = p[i % sizeof(void*)];
 				}
 				//memset(thing, BLANKVAL, header->size);
@@ -407,6 +422,8 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 		header --; //decrement to header
 
 
+
+
 #ifdef RAM_DEBUG
                 zlock(&ram_debug_lock);
 		zlist_remove_mid(&header->zlistnode);
@@ -444,6 +461,8 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 		if (!buffer)
 			header = NULL;
 		
+
+
 	//	if (shadow_size) {
 				//printf("Realloced to  physical buffer %p with shadow %d.  Header starts at %p Userdata at %p\n", buffer, shadow_size, header, header+1);
 	//	}
@@ -463,6 +482,17 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 		if (header) {
 			if (okptr)
 				*okptr = ZTRUE;
+
+
+			#ifdef GPU_STORAGE
+
+				if (gpu_storage_interface.set_resize_flag && header->gpu_storage)
+					gpu_storage_interface.set_resize_flag( header->gpu_storage, size);
+
+			#endif
+
+
+
 			return header+1;
 		}
 		
@@ -547,7 +577,7 @@ zuint32 ram_allocs()
 			unsigned char* obj = (void*)(node+1);
 			unsigned char* p = (void*) &obj;
 
-			for (i=0;i<node->size;i++){
+			for (i=0;i<node->debug_size;i++){
 
 				unsigned  b =  p[i % sizeof(void*)];
 

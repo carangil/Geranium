@@ -19,15 +19,38 @@ zglErrorString	zgl.h	/^const char* zglErrorString(GLenum errorCode);$/;"	p	typer
 errorCode	zgl.h	/^const char* zglErrorString(GLenum errorCode);$/;"	z	prototype:zglErrorString	typeref:typename:GLenum	file:
 zglCheckError	zgl.h	/^int zglCheckError(int spot);$/;"	p	typeref:typename:int	signature:(int spot)
 spot	zgl.h	/^int zglCheckError(int spot);$/;"	z	prototype:zglCheckError	typeref:typename:int	file:
-zglShaderT	zgl.h	/^typedef struct zglShaderT {$/;"	s
-v	zgl.h	/^	int v;$/;"	m	struct:zglShaderT	typeref:typename:int
-f	zgl.h	/^	int f;$/;"	m	struct:zglShaderT	typeref:typename:int
-program	zgl.h	/^	int program;$/;"	m	struct:zglShaderT	typeref:typename:int
-log	zgl.h	/^    char* log;$/;"	m	struct:zglShaderT	typeref:typename:char *
-symbols	zgl.h	/^    zvecT symbols;$/;"	m	struct:zglShaderT	typeref:typename:zvecT
-zglShaderT	zgl.h	/^}zglShaderT;$/;"	t	typeref:struct:zglShaderT
-zglBuildProgram	zgl.h	/^int zglBuildProgram(char* vsrc, char* fsrc, char** rlog);$/;"	p	typeref:typename:int	signature:(char * vsrc,char * fsrc,char ** rlog)
-vsrc	zgl.h	/^int zglBuildProgram(char* vsrc, char* fsrc, char** rlog);$/;"	z	prototype:zglBuildProgram	typeref:typename:char *	file:
-fsrc	zgl.h	/^int zglBuildProgram(char* vsrc, char* fsrc, char** rlog);$/;"	z	prototype:zglBuildProgram	typeref:typename:char *	file:
-rlog	zgl.h	/^int zglBuildProgram(char* vsrc, char* fsrc, char** rlog);$/;"	z	prototype:zglBuildProgram	typeref:typename:char **	file:
+zglBuildProgram	zgl.h	/^int zglBuildProgram(char* header, char* vsrc, char* fsrc, char** rlog);$/;"	p	typeref:typename:int	signature:(char * header,char * vsrc,char * fsrc,char ** rlog)
+header	zgl.h	/^int zglBuildProgram(char* header, char* vsrc, char* fsrc, char** rlog);$/;"	z	prototype:zglBuildProgram	typeref:typename:char *	file:
+vsrc	zgl.h	/^int zglBuildProgram(char* header, char* vsrc, char* fsrc, char** rlog);$/;"	z	prototype:zglBuildProgram	typeref:typename:char *	file:
+fsrc	zgl.h	/^int zglBuildProgram(char* header, char* vsrc, char* fsrc, char** rlog);$/;"	z	prototype:zglBuildProgram	typeref:typename:char *	file:
+rlog	zgl.h	/^int zglBuildProgram(char* header, char* vsrc, char* fsrc, char** rlog);$/;"	z	prototype:zglBuildProgram	typeref:typename:char **	file:
+__anon10d8fa680108	zgl.h	/^typedef struct {$/;"	s
+optionmask	zgl.h	/^    int optionmask;  \/\/bitmask of which inputs are used$/;"	m	struct:__anon10d8fa680108	typeref:typename:int
+prog	zgl.h	/^    int prog;$/;"	m	struct:__anon10d8fa680108	typeref:typename:int
+zglShaderVariantT	zgl.h	/^}zglShaderVariantT;$/;"	t	typeref:struct:__anon10d8fa680108
+zglShaderGroup	zgl.h	/^typedef struct zglShaderGroup{$/;"	s
+version	zgl.h	/^    char* version; \/\/version of glsl$/;"	m	struct:zglShaderGroup	typeref:typename:char *
+vsource	zgl.h	/^    char* vsource;$/;"	m	struct:zglShaderGroup	typeref:typename:char *
+fsource	zgl.h	/^    char* fsource;$/;"	m	struct:zglShaderGroup	typeref:typename:char *
+options	zgl.h	/^    zvecT options; \/\/each char*$/;"	m	struct:zglShaderGroup	typeref:typename:zvecT
+variants	zgl.h	/^    zglShaderVariantT* variants;$/;"	m	struct:zglShaderGroup	typeref:typename:zglShaderVariantT *
+zglShaderGroupT	zgl.h	/^}zglShaderGroupT;$/;"	t	typeref:struct:zglShaderGroup
+zglCreateShaderGroup	zgl.h	/^zglShaderGroupT* zglCreateShaderGroup(char* version, char* vsrc, char* fsrc, char* optnames);$/;"	p	typeref:typename:zglShaderGroupT *	signature:(char * version,char * vsrc,char * fsrc,char * optnames)
+version	zgl.h	/^zglShaderGroupT* zglCreateShaderGroup(char* version, char* vsrc, char* fsrc, char* optnames);$/;"	z	prototype:zglCreateShaderGroup	typeref:typename:char *	file:
+vsrc	zgl.h	/^zglShaderGroupT* zglCreateShaderGroup(char* version, char* vsrc, char* fsrc, char* optnames);$/;"	z	prototype:zglCreateShaderGroup	typeref:typename:char *	file:
+fsrc	zgl.h	/^zglShaderGroupT* zglCreateShaderGroup(char* version, char* vsrc, char* fsrc, char* optnames);$/;"	z	prototype:zglCreateShaderGroup	typeref:typename:char *	file:
+optnames	zgl.h	/^zglShaderGroupT* zglCreateShaderGroup(char* version, char* vsrc, char* fsrc, char* optnames);$/;"	z	prototype:zglCreateShaderGroup	typeref:typename:char *	file:
+zglFindVariant	zgl.h	/^int zglFindVariant(zglShaderGroupT* sg, int optionmask, char** rlog);$/;"	p	typeref:typename:int	signature:(zglShaderGroupT * sg,int optionmask,char ** rlog)
+sg	zgl.h	/^int zglFindVariant(zglShaderGroupT* sg, int optionmask, char** rlog);$/;"	z	prototype:zglFindVariant	typeref:typename:zglShaderGroupT *	file:
+optionmask	zgl.h	/^int zglFindVariant(zglShaderGroupT* sg, int optionmask, char** rlog);$/;"	z	prototype:zglFindVariant	typeref:typename:int	file:
+rlog	zgl.h	/^int zglFindVariant(zglShaderGroupT* sg, int optionmask, char** rlog);$/;"	z	prototype:zglFindVariant	typeref:typename:char **	file:
+anyArray	zgl.h	/^typedef void* anyArray;$/;"	t	typeref:typename:void *
+zglDirty	zgl.h	/^void zglDirty(void* v);$/;"	p	typeref:typename:void	signature:(void * v)
+v	zgl.h	/^void zglDirty(void* v);$/;"	z	prototype:zglDirty	typeref:typename:void *	file:
+zglBindUpdateArrayf	zgl.h	/^int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);$/;"	p	typeref:typename:int	signature:(void * v,int elemsize,int target,int usage)
+v	zgl.h	/^int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);$/;"	z	prototype:zglBindUpdateArrayf	typeref:typename:void *	file:
+elemsize	zgl.h	/^int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);$/;"	z	prototype:zglBindUpdateArrayf	typeref:typename:int	file:
+target	zgl.h	/^int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);$/;"	z	prototype:zglBindUpdateArrayf	typeref:typename:int	file:
+usage	zgl.h	/^int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);$/;"	z	prototype:zglBindUpdateArrayf	typeref:typename:int	file:
 #define ZGL_ENABLE_INT
+#define zglBindUpdateArray(ARR,TARGET,USAGE) zglBindUpdateArrayf(ARR, sizeof((ARR)[0]) , TARGET, USAGE);

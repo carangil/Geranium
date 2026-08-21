@@ -27,7 +27,7 @@ typedef zuint32 zcolor;
 zbool zbitmap_cleanup(zbitmapT* bmp);
 
 //create a bitmap
-zbitmapT* zbitmap_mk(zuint32 w, zuint32 h, zuint16 format);
+zbitmapT* zbitmap_mk(zuint32 w, zuint32 h, zuint32 format);
 
 void zpset4(zbitmapT* bmp, zuint32 x, zuint32 y, zuint32 color);
 zuint32  zpget4(zbitmapT* bmp, zuint32 x, zuint32 y);

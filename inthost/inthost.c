@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include "int.h"
 #include "zgl.h"
+#include "zarray.h"
 
 int scanmain(int argc, char** args);
 

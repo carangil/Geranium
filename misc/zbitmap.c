@@ -10,7 +10,7 @@ zbool zbitmap_cleanup(zbitmapT* bmp){
 	return ZTRUE; //free bmp when we exit
 }
 
-zbitmapT* zbitmap_mk(zuint32 w, zuint32 h, zuint16 format){
+zbitmapT* zbitmap_mk(zuint32 w, zuint32 h, zuint32 format){
     
 	zuint32 size=0;
 	

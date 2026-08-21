@@ -37,6 +37,6 @@ cat callbacks.inc  | grep sys | awk -F\"  '{print $4 ";" $1}' >> glfw3types2.txt
 ./geninc gl.tags  ../inc/glold.inc gltypes.txt glold libGL.so.1 pgl
 
 ./tag-header zgl.h
-./geninc zgl.tags  ../inc/zgl.inc zgltypes.txt zgl _INTERNAL pzgl
+./geninc zgl.tags  ../inc/zgl.inc zgltypes.txt zgl _INTERNAL pzgl azgl.post
 
 

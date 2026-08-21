@@ -7,7 +7,7 @@
 #include <malloc.h>
 #include <string.h>
 
-
+#define GPU_STORAGE
 
 int ram_shadow_offset(size_t s);
 
@@ -86,14 +86,24 @@ void* ram_malloc_interface(size_t size);
 #define ram_free_interface ram_free
 
 
+//The gpu storage interface gives a place to put info for gl or other wrappers to track a z object to graphics api object
+#ifdef GPU_STORAGE
 
-//GPU allocation
 
-typedef struct gpu_storageS {
-	int buffer;
-}gpu_storageT;
+	//functions called on the store:
+	typedef struct {
+		void (*set_resize_flag) (void* store, size_t newsize);
+		void (*delete_buffer) (void* store);
+		int storeinfosize;
+	} gpu_storage_interfaceT;
 
-gpu_storageT* gpu_storage(void* v);
+	extern gpu_storage_interfaceT gpu_storage_interface;
+
+
+	//returns the store.  creates a new one of size storesize if needed
+	void* gpu_storage(void* v);  //returns what was set below
+
+#endif
 
 //forbid standard functions
 #ifndef RAM_C

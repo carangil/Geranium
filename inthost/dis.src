@@ -1,0 +1,244 @@
+"inc/base.inc" include
+"inc/stdio.inc" include
+"inc/glfw3.inc" include
+"inc/glcorearb.inc" include
+"inc/zgl.inc" include
+"inc/stdlib.inc" include
+"inc/reflect.inc" include
+
+
+
+
+
+(Any.Instruction: c Z32:indent)   proc disassemble     //function is passed the instruction tree for a Z32
+
+    (Z32:indent) proc tab
+        0 var i= loop i indent == if break end
+            "    " print
+        step
+            i 1+i=
+        end
+    end
+
+
+
+    c.args.count 0 > if
+
+        0 var i=
+        loop
+
+            i c.args.count == if
+                break
+            end
+
+
+           c.args i[] indent 1+ disassemble
+
+            step
+            i 1+ i=
+        end
+
+
+    end
+
+
+    indent tab
+    c.opcode print"(" print   c.opname print ")" print " " print
+
+
+    c.valTypeOf Word == if
+
+        c.valWord.name print
+        c.valWord.type.key print
+
+
+    c.valTypeOf Z32 == elseif
+        c.valZ32 print
+
+    c.valTypeOf String == elseif
+
+        "'" print
+        c.valString print
+        "'" print
+
+    c.valTypeOf? elseif
+
+        c.valTypeOf.key print
+
+    end
+
+
+     c.returnType?if
+            "  ->" print
+            c.returnType.key print
+
+    end
+
+
+    newline
+
+
+
+
+end
+
+
+(Any.Instruction$: cd)   proc disassemble
+    cd 0 disassemble
+end
+
+
+(Any.Instruction$: c) proc procinfo
+
+
+    c.valTypeOf Word == if
+        "is word" print newline
+
+
+        c.valWord.type.args var types=
+        c.valWord.type.argnames var names=
+
+
+
+
+        0 var i =
+        loop i types.size < not if break end
+
+
+            names i[]  print " is " print
+
+            types i[] .key print newline
+
+        step i&++ end
+
+
+        c.valWord.type.@.key print newline
+
+
+        c.valWord.instructions var code=
+
+
+        code.size print "instructions:" print newline
+
+        0    i =
+        loop i code.size < not if break end
+            i print ":" print newline
+
+            code i[] 1 disassemble
+        step
+            i&++
+        end
+
+
+    else
+        "instruction is not a word"
+    end
+
+end
+
+
+newline "disassemble:" print newline
+
+(Z32:a [Z32]~:b->Real) proc TestProc
+
+    b print newline
+
+    3.0 return
+end
+
+
+
+[Z32]$ var s
+
+//1 s TestProc  >-disassemble
+
+"--" print newline
+
+32 s TestProc  >-procinfo
+
+sys_ENDFILE
+
+(Z32:a Z32:b -> Z32 ) proto testp
+
+3 2 testp print newline
+
+
+(Z32:a Z32:b -> Z32 ) proc testp
+    "in fnunction testp" print newline
+    a b * return
+end
+
+
+
+
+
+
+
+"testp " print
+32 s TestProc  >-procinfo
+
+//Type.key print " is " print Type.size print " bytes" print newline
+
+//try writing a 'shader' to disassemble
+
+
+type Vec4
+    Real var x
+    Real var y
+    Real var z
+    Real var w
+end
+
+(Vec4:a Vec4:b -> Vec4) proto +
+
+(Vec4:v) proto Rasterize
+
+
+
+([Vec4]~:position [Vec4]~:color ) proc vshader
+
+    position position + Rasterize
+    // 0.1 0.1 0.1 0.0 .Vec4 + Rasterize
+
+end
+
+
+/*
+layout(location = 0) in vec4 position;
+
+#ifdef OPT_color
+    layout(location = 1) in vec4 color;
+#endif
+
+#ifdef OPT_cats
+    layout(location = 0) uniform vec4 co;
+#endif
+
+
+
+        out vec4 vf_color;
+
+        void main(){
+
+            gl_Position = position;
+
+        #ifdef OPT_color
+            vec4 c  = color;
+        #else
+            vec4 c = vec4(1.0,0.0,1.0,1.0);
+        #endif
+
+
+        #ifdef OPT_cats
+            c = c + co;
+        #endif
+
+        vf_color = c;
+        }
+*/
+
+
+"end " print newline
+
+
+
