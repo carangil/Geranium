@@ -173,9 +173,12 @@ void int_insert_tokenf(tokenT* A, tokenT* B, zbool before) {
 
 //used to recognize 2-letter combinations like ->, etc
 zuint32 find_pair(char* patterns, char a, char b){
-	for(  ;*patterns;patterns+=3){
+	for(  ;*patterns && *(patterns+1) ; patterns+=3){
 		if ( ((*patterns)==a) &&(*(patterns+1)==b))
 			return TOKEN_PAIR(a,b) ;
+
+		if (!*(patterns+2))
+			break;
 	}
 	return 0;
 }
@@ -339,7 +342,7 @@ void  tokenize(tokenT* insert, char* in, char* filename, int line){
 		if (!name || (*in == '.') ){
 			digits  = accept_patterns(in,
 					"-.0123456789", //start with digit or decimal point
-					"e-E-e+E+",  //- and + only accepted after an e or E
+					"e- E- e+ E+",  //- and + only accepted after an e or E
 					"0123456789.eE"); //continues with digits, decimal point, hex letters, type suffix letters
 
 			//special case: if number starts with '-', but has only 1 character, this isn't a negative number, but just a minus sign
@@ -382,8 +385,10 @@ void  tokenize(tokenT* insert, char* in, char* filename, int line){
 		t->line = line;
 		t->sourcefile = ram_addref(fnamecopy);
 
-		zlist_insert_node_after(&insert->zlistnode,&t->zlistnode);
+		tinsert_after(insert,t);
 		insert = t;
+
+
 		in++;
 	}
 	ram_free(fnamecopy);
@@ -4652,6 +4657,9 @@ void int_run_str(char* src, char* filename){
     zlist_addhead(&tokens, &(first->zlistnode));
 
     tokenize(first, src, filename, 1);
+
+
+
 
     parse(pctx, zlist_head(&tokens), NULL);
 

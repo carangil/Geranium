@@ -30,7 +30,7 @@ run: test
 	./test
 
 debugger: test
-	DEBUGINFOD_URLS=""  gdb -q -x cmds.gdb ./test
+	DEBUGINFOD_URLS=""  gdb -q -x cmds.gdb --args ./test $(ARGS)
 
 debugscan: test
 	DEBUGINFOD_URLS=""  gdb -q -x cmds.gdb --args ./test -scan $(ARGS)
