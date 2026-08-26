@@ -3471,9 +3471,9 @@ tokenT* parse_related_type(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 		if (!strcmp(t->str, "*"))
 			type = type_find(pctx, NULL, type, CPOINTER, 0, NULL);
 		if (!strcmp(t->str, "$")){
-			if (type->category != ARRAY && type != tString && type != tAny && type->category!= SUBTREE ){
+			if (type->category != CPOINTER &&  type->category != ARRAY && type != tString && type != tAny && type->category!= SUBTREE ){
 				//seterrorf(exe, ERROR_PARSE, "steward ($) only applies to array or string");
-				PERROR(pctx, "steward ($) only applies to array or string");
+				PERROR(pctx, "steward ($) only applies to array, string or cpointer");
 				return NULL;
 			}
 			type = type_find(pctx, NULL, type, STEWARD, 0, NULL);

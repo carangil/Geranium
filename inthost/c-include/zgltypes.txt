@@ -10,3 +10,4 @@ int(*)(constvoid*,constvoid*);(Any&:a Any&:b ->Z32)
 anyArray;[Any]
 zbool;Bit
 char**;String$&
+zglCreateShaderGroup;(String:_version String:_vsrc String:_fsrc String:_optnames  -> ShaderGroupT*$ ) "_INTERNAL" "zglCreateShaderGroup" sys optional CreateShaderGroup

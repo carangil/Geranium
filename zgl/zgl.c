@@ -108,7 +108,7 @@ int zglBuildProgram(char* header, char* vsrc, char* fsrc, char** rlog){
     int v = zglCompileShaderSource(GL_VERTEX_SHADER, vs, 2, &vlog);
 
     int f = zglCompileShaderSource(GL_FRAGMENT_SHADER, fs, 2, &flog);
-    printf(" %d  %s\n", f, flog);
+   // printf(" %d  %s\n", f, flog);
 
     //link if both shaders compiled
     int p = 0;
@@ -125,7 +125,8 @@ int zglBuildProgram(char* header, char* vsrc, char* fsrc, char** rlog){
         glDeleteShader(f);
 
     if (rlog){
-        *rlog = zstrprintf( NULL, "{V:%s;F:%s;Link:%s}", vlog, flog, plog);
+
+        *rlog = zstrprintf( *rlog, "{V:%s;F:%s;Link:%s}", vlog, flog, plog);
     }
 
     ram_free(vlog);
@@ -138,17 +139,29 @@ int zglBuildProgram(char* header, char* vsrc, char* fsrc, char** rlog){
 //higher level interface to make some things more automatic to enable/disable defines
 
 
+zbool cleanShaderGroup(void* v){
+    zglShaderGroupT* sg = v;
+    ram_free(sg->version);
+    ram_free(sg->vsource);
+    ram_free(sg->fsource);
+    ram_free(sg->variants);
+    zvec_cleanup(&sg->options);
+
+    return ZTRUE;
+}
+
 //creates a shader group, which is a set of shaders that share the same source, but have #define options
 //lets to make attributes/uniforms optional
 //Up to 32 options (probably too many!)
 //optionnames are comma seperated
 zglShaderGroupT* zglCreateShaderGroup(char* version, char* vsrc, char* fsrc, char* optnames){
-    zglShaderGroupT* sg = ram_alloc(sizeof(zglShaderGroupT), NULL); //todo destructor
+    zglShaderGroupT* sg = ram_alloc(sizeof(zglShaderGroupT), cleanShaderGroup); //todo destructor
     zvec_mk(&sg->options, 8);
     zstrsplit(&sg->options, optnames, ',');
     sg->version = ram_strdup(version);
     sg->vsource = ram_strdup(vsrc);
     sg->fsource = ram_strdup(fsrc);
+    ram_free(sg->variants);
     return sg;
 }
 
@@ -192,6 +205,8 @@ int zglFindVariant(zglShaderGroupT* sg, int optionmask, char** rlog){
     }
 
     vari->prog = zglBuildProgram( optstr, sg->vsource, sg->fsource, rlog);
+
+    ram_free(optstr);
 
     return vari->prog;
 }
