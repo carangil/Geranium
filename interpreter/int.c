@@ -249,7 +249,7 @@ void  tokenize(tokenT* insert, char* in, char* filename, int line){
 
 		//find twochar patterns like ->,etc. including comment start/end markers
 		//looking for pairs before chars makes sure the matching is 'greedy'
-		if ((p = find_pair("$$ .* .& .@ .$ -- ++ == -> <- >- /* */ // [] >= <= != .- <> \\\\ /\\ \\/", c, next))){
+		if ((p = find_pair("+= '[ $$ .* .& .@ .$ -- ++ == -> <- >- /* */ // [] >= <= != .- <> \\\\ /\\ \\/" , c, next))){
 			if (  p == TOKEN_PAIR('/','/')  ) { //special handling for // comments
 				while(*in!= '\n')
 					in++;
@@ -887,9 +887,9 @@ instructionT** pop_args(parsectxT* pctx, int n){
 	if (n==0)
 		return NULL;
 
-
 	//pop right to left
-	instructionT** a = zarray_alloc(instructionT*, n);
+	//instructionT** a = zarray_alloc(instructionT*, n);
+	instructionT** a = zarray_allocd(instructionT*, n, zarray_destruct_pointers);
 	for (int i=n-1; i >=0;i--){
 		a[i] = pop_arg(pctx);
 	}
@@ -912,17 +912,7 @@ typeT** inst_result_types(instructionT** a){
 */
 
 
-zbool clean_array_pointers(void* v){
 
-	typeT** t = v;
-	for (int i=0;i<zarray_count(t);i++){
-		//printf(" free arg %d\n", i);
-		ram_free(t[i]);
-	}
-
-	return ZTRUE;
-
-}
 
 //for an array of instructionT*, return an array of the types of the constants they varry
 typeT** inst_const_types(instructionT** a){
@@ -930,7 +920,7 @@ typeT** inst_const_types(instructionT** a){
 	if (!a)
 		return NULL;
 
-	typeT** types = zarray_allocd(typeT*, zarray_count(a), clean_array_pointers );
+	typeT** types = zarray_allocd(typeT*, zarray_count(a), zarray_destruct_pointers );
 	for (int i=0;i<zarray_count(a);i++){
 		if (a[i]->result_type == tType){
 			types[i] = ram_addref(a[i]->val.as.ptr.address.type);
@@ -953,7 +943,7 @@ instructionT** assembly_args_mk(int n, ...){
 
 
 	va_list args;
-	instructionT** a = zarray_alloc( instructionT*, n);
+	instructionT** a = zarray_allocd( instructionT*, n, zarray_destruct_pointers);
 	tracef("%p  %d  args ... \n\n\n",a, n);
 
 	if (n){
@@ -976,12 +966,14 @@ zbool clean_inst(void* v){
 	//printf(" FREE INST ");	instruction_print(inst, 1, ZFALSE);
 
 	int i;
+	/*
 	if(inst->args){
 		for (i=0;i<zarray_count(inst->args); i++){
 			ram_free(inst->args[i]);
 		}
 		ram_free(inst->args);
-	}
+	}*/
+	ram_free(inst->args);
 	ram_free(inst->comment);
 
 	if (inst->flags & INST_FREE_VALUE){
@@ -994,13 +986,14 @@ zbool clean_inst(void* v){
 }
 
 //returns an array item representing one instruction.
+int push_assembly_line=0;
 instructionT* push_assembly(parsectxT* pctx, int opcode, int flags, valueT* pval, typeT* val_type,  instructionT** args , typeT* ret){
 
 	if (!pctx->codestack){
 		pctx->codestack = zvec_mk(NULL, 8);
 	}
 
-	instructionT* inst = ram_alloc(sizeof(instructionT), clean_inst);
+	instructionT* inst = ram_alloc(sizeof(instructionT), clean_inst); push_assembly_line = __LINE__;
 
 
 	inst->opcode=opcode;
@@ -1280,7 +1273,16 @@ switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* pr
 		return prog;
 	}
 
-	if (inst->opcode== op_arrayindex){
+
+	if (inst->opcode== op_indexplusstore ){
+				//put size in
+		int elemsize = inst->args[1]->result_type->size;
+		prog = switch_asmi(prog,op_switch_indexplus,  elemsize, inst);
+		prog = switch_asmi(prog,op_store,  elemsize, inst);
+		return prog;
+	}
+
+	if (inst->opcode== op_arrayindex ){
 		//put size in
 		prog = switch_asmi(prog,inst->opcode,  inst->result_type->ref->size, inst);
 		return prog;
@@ -1471,11 +1473,23 @@ zbool clean_array(void* v){
 		}
 	} else if  (t->ref->category == STEWARD){
 
-		for (int i=0;i<zarray_count(v);i++){
+		if (t->ref->size == sizeof(ptrT)){
+			for (int i=0;i<zarray_count(v);i++){
+			//	printf("regular case for %d\n", t->ref->size);
+				ptrT* item = ((ptrT*)v) + i;
+				ram_free(item->address.block);
 
-			ptrT* item = ((ptrT*)v) + i;
-			ram_free(item->address.block);
+			}
 
+		}
+
+		if (t->ref->size == sizeof(void*)) {
+				//printf("handled case for %d\n", t->ref->size);
+				void **items = (void**) v;
+				for (int i=0;i<zarray_count(v);i++){
+			//		printf("regular case for %d\n", t->ref->size);
+					ram_free(items[i]);
+				}
 		}
 	}
 
@@ -1670,7 +1684,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 			case op_printstr:
 				char* s = exe->stack[exe->sp-1].as.ptr.address.bytes;
-				printf("%s", s?s:"nullstr"); pc++; exe->sp--;continue;
+				printf("%s", s?s:"{nullstr}"); pc++; exe->sp--;continue;
 
 			case op_printchar:   putc( exe->stack[exe->sp-1].as.z32 , stdout); pc++;exe->sp--;continue;
 
@@ -1733,17 +1747,37 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 
 			case op_take:  //takes a pointer from memory, leaving the old one as zero
-				var = (void*)  exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset;
-				exe->stack[exe->sp-1].as.ptr =*var;
-				var->address.bytes = NULL;
+
+
+				if (pc->imm.as.z32 == sizeof(ptrT)){
+
+					var = (void*)  exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset;
+					exe->stack[exe->sp-1].as.ptr =*var;
+					var->address.bytes = NULL;
+				} else { //just a void*
+					printf(" taking void*\n");
+					void** v = (void*) ( exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset);
+					exe->stack[exe->sp-1].as.ptr.address.block  = *v;
+					exe->stack[exe->sp-1].as.ptr.offset=0;
+					*v=NULL;
+				}
+
+
+
 				pc++;
 				continue;
 
 			case op_loadaddref:  //takes a pointer from memory, increasing refcount
-				var = (void*) exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset;
-				exe->stack[exe->sp-1].as.ptr =*var;
 
-				ram_addref(var->address.bytes);
+				if (pc->imm.as.z32 == sizeof(ptrT)){
+					var = (void*) exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset;
+					exe->stack[exe->sp-1].as.ptr =*var;
+				} else {
+					void** v = (void*) ( exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset);
+					exe->stack[exe->sp-1].as.ptr.address.block  = *v;
+					exe->stack[exe->sp-1].as.ptr.offset=0;
+				}
+				ram_addref(exe->stack[exe->sp-1].as.ptr.address.block);
 
 				pc++;
 				continue;
@@ -1763,12 +1797,22 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 
 			case op_trashstore:  //stores a pointer in memory.  if there is already a value there, it is freed
-				var = (void*)  exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset;
 
-				if (var->address.bytes)
-					ram_free(var->address.bytes);
+				if (pc->imm.as.z32 == sizeof(ptrT)){
+					var = (void*)  exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset;
 
-				*var = exe->stack[exe->sp-2].as.ptr;
+					if (var->address.bytes)
+						ram_free(var->address.bytes);
+
+					*var = exe->stack[exe->sp-2].as.ptr;
+				} else if (pc->imm.as.z32 == sizeof(void*)){
+
+					void** v = (void*) ( exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offset);
+					if (*v)
+						ram_free(*v);
+					*v = exe->stack[exe->sp-2].as.ptr.address.bytes;
+				}
+
 
 				exe->sp-=2;
 
@@ -1942,6 +1986,57 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				pc++;
 				continue;
 
+			case op_adim:	//allocates array (or object)
+							//put in stack
+
+				cap = exe->stack[exe->sp-1].as.z32;
+				count = 0;
+
+				arraytype = pc->imm.as.ptr.address.type;
+
+				tracef(" ADIMing array %s for elem size %d  \n", arraytype->key, arraytype->ref->size );
+
+				arrayvar= &(exe->stack[exe->sp-1].as.ptr);
+				arrayvar->address.block = zarray_alloc_size(arraytype->ref->size, cap, clean_array);
+				arrayvar->offset = 0;
+				tracef(" ALLOCATED %d  with elemsize %d  %s\n", count, arraytype->ref->size, arraytype->key);
+
+				zarray_use(arrayvar->address.block, count);
+				zarray_set_meta( arrayvar->address.block, arraytype );
+
+				pc++;
+				continue;
+/*
+			case op_sidevar:
+					//if stack is     PTR VALUE,  this pushes PTR + constant offset
+					exe->stack[exe->sp].as.ptr.address.block = exe->stack[exe->sp-2].as.ptr.address.block;
+					exe->stack[exe->sp].as.ptr.offset = exe->stack[exe->sp-2].as.ptr.offset + pc->imm.as.z32;
+					pc++;
+					exe->sp++;
+			continue;
+*/
+
+			case op_switch_indexplus:
+			{
+				void* array = exe->stack[exe->sp-2].as.ptr.address.block;
+				int count = zarray_count(array);
+
+				printf("change array %p ", array);
+				array = zarray_moref(array, pc->imm.as.z32, 1, NULL);
+				printf("to %p\n", array);
+
+				exe->stack[exe->sp-2].as.ptr.address.block = array;
+
+				zarray_use(array, count+1);
+				exe->stack[ exe->sp].as.ptr.address.bytes = array;
+				exe->stack[ exe->sp].as.ptr.offset = count * pc->imm.as.z32;
+				exe->sp++;
+				printf("INDEXPLUS elemsize:%d %d->%d\n", pc->imm.as.z32, count, zarray_count(array));
+				pc++;
+				continue;
+			}
+
+
 			case op_fictional_call:
 				if (pc->immtype != tWord){
 					errorf(" expected word pointer\n");
@@ -2042,6 +2137,8 @@ runnerI* compile_for_switch(exectxT* exe, parsectxT* pctx){
 
 	//sw->local_size = pctx->size;
 	sw->pctx = pctx;
+
+	print_switch_listing(prog);
 
 	return &sw->runner;
 }
@@ -2315,6 +2412,7 @@ void dereference_assembly(parsectxT* pctx, char* loadername){
 	if (wloader){
 		tracef(" Found loader OPCODE IS %d\n", wloader->opcode);
 		//pop it off
+		//printf("wloader_args %d\n",wloader->type->argc );
 		instructionT** insts = pop_args(pctx, 1); //get the instruction
 		instructionT* loadinst = push_assembly(pctx, wloader->opcode,0, NULL, NULL, insts, wloader->type->ref);
 	}else {
@@ -2569,8 +2667,10 @@ typeT* type_mk(parsectxT* pctx, char* name, typeT* ref, categoryE category, int 
 tokenT* parse_array(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 		int depth = codestack_depth(pctx);
-		char* stops[] = {"]", NULL};
+		char* stops[] = {"]",  NULL};
 		t = tnext(t);
+
+
 		t = parse(pctx, t, stops);
 
 		//should be a datatype on the stack now
@@ -2583,12 +2683,11 @@ tokenT* parse_array(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 			if (typearg->result_type == tType){
 
 
-				typeT* type = type_find(pctx, NULL, typearg->val.as.ptr.address.type, ARRAY, 0, NULL);
+				typeT* array_type = type_find(pctx, NULL, typearg->val.as.ptr.address.type, ARRAY, 0, NULL);
 				valueT v = {0};
-				v.as.ptr.address.type = type;
+				v.as.ptr.address.type = array_type;
 
 				push_assembly(pctx, op_constant, 0, &v, tType, assembly_args_mk(1, typearg) , tType);
-
 
 				return t;
 			}
@@ -2597,6 +2696,56 @@ tokenT* parse_array(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 		PERROR(pctx, "expected type\n");
 
 		return t;
+}
+
+tokenT* parse_array_values(parsectxT* pctx, wordT* w, tokenT* t, int argc){
+
+
+	int depth = codestack_depth(pctx);
+	char* stops[] = {"]",  NULL};
+	valueT v = {0};
+	t = tnext(t);
+	t = parse(pctx, t, stops);
+
+	depth = codestack_depth(pctx) - depth;
+
+	if (depth == 0){
+		errorf("Need at least one to make array\n");
+	}
+
+	instructionT** args = pop_args(pctx, depth);
+	//instructionT** appends = zarray_alloc(instructionT*, depth);
+
+
+	v.as.z32 = depth;
+
+	push_assembly(pctx, op_constant, 0, &v, tZ32, NULL, tZ32);
+	instructionT** icount = pop_args(pctx, 1);
+	v.as.ptr.address.type = OF(pctx,ARRAY,args[0]->result_type);
+	v.as.ptr.offset = 0;
+
+
+	push_assembly(pctx, op_adim, 0, &v, tType, icount , OF(pctx, STEWARD, OF(pctx,ARRAY,args[0]->result_type)) );
+
+	typeT* type = args[0]->result_type;
+
+	for(int i=0;i<zarray_count(args);i++){
+
+		instructionT* inst_array = pop_arg(pctx);
+		if (!type_equal(type, args[i]->result_type)){
+			errorf("Type mismatch in array initializer: expected %s, got %s\n", type->key, args[i]->result_type->key);
+			exit(1);
+
+		}
+		v.as.z32=type->size;
+		push_assembly(pctx, op_indexplusstore, 0, &v, tZ32, assembly_args_mk(2, inst_array, args[i]),  OF(pctx, STEWARD, OF(pctx,ARRAY,type))   );
+		args[i] = NULL;
+	}
+
+	ram_free(args);
+
+
+	return t;
 }
 
 
@@ -2767,31 +2916,79 @@ tokenT* parse_cond(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 wordT* proc_mk(parsectxT* pctx, char* name, typeT* proctype);
 
+/*
+tokenT* parse_idxplusstore(parsectxT* pctx, wordT* w, tokenT* t, int argc){
+	//Stack is  [Any]$  val
+
+	instructionT* val_arg = pop_arg(pctx); //get the value
+
+	instructionT* array_arg = pop_arg(pctx); //get the array
+
+
+	push_subtree( pctx, array_arg); //put the array arg back
+	push_subtree( pctx, val_arg); //put val arg back
+
+
+	valueT v = {0};
+	v.as.z32 = val_arg->result_type->size;
+
+	push_assembly(pctx, op_indexplus, 0, &v, tZ32, NULL, array_arg->result_type);
+	dereference_assembly(pctx, "="); //perform a store
+
+	//	dereference_assembly(
+	//push_assembly(pctx, op_constant, 0, &val, tReal, NULL, tReal);
+
+}
+*/
+
+
 #if 1
 
 
 tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 
+	/*
+	 * 	Z32 var x  		//create variable x
+	 *  20 Z32 .var x& =
+	 *  20 'a=	//create variable from value on stack, and store it
+	 */
+
+
 	instructionT* arg0 = pop_arg(pctx);
 
-	char* varname = tnext(t)->str;
-	wordT* w = NULL;
+	zbool keepvar = ZFALSE;
+	zbool keepexample = ZFALSE;
+
+
+	if (!strcmp(t->str, "'")) {
+		keepvar = ZTRUE; 	//keeping the variable on the stack after creation (so you can immediately reference or assign to it)
+		keepexample = ZTRUE; //keep the example value
+	}
 
 	typeT* innertype = NULL; //type of value the variable contains
 
-	if ( arg0->val_type == tType){
+	if ( arg0->val_type == tType && !keepexample){
 		innertype = arg0->val.as.ptr.address.type; //this is a datatype, like a Z32 or whatever
-		t = tnext(t); //skip to name
-
-	} else {
+	} else if (keepexample) {
 		innertype = arg0->result_type;
 		push_subtree(pctx, arg0);
 		arg0=NULL;
-		//don't skip to name, so that the name is used as the next token
+	} else {
+			errorf("unhandled parse_var case type=%s  token=%s \n", innertype->key, t->str);
 	}
 
+	char* varname = tnext(t)->str;
+
+	if (!keepvar)	//if not keeping the var, advance, so we don't reparse the name
+					//if we ARE keeping the var, not advancing will make the variable name be parsed again, which uses the variable
+		t=tnext(t);
+
+	wordT* w = NULL;
+
+
+
 	if(!innertype){
-		PERROR(pctx,  "Type constant not found\n");
+		PERROR(pctx,  "Type constant or example value not found\n");
 		ERRTOK(pctx, t);
 		return NULL;
 	}
@@ -2852,7 +3049,7 @@ typeT* type_proc_mk(typeT* ret, int n, ...){
 	typeT** types = NULL;
 
 	if (n){
-		types = zarray_allocd( typeT*, n, clean_array_pointers);
+		types = zarray_allocd( typeT*, n, zarray_destruct_pointers);
 		//types = zarray_alloc( typeT*, n);
 		va_start(args, n);
 		for (int i=0;i<n;i++){
@@ -3916,6 +4113,7 @@ char* type_key(char* name, typeT* ref, categoryE category, int size, typeT** arg
 
 int type_mk_line=0;
 
+
 wordT* proc_parser_mk(parsectxT* pctx, char* name, typeT* proctype, void* parsefunc);
 
 //create a type.  takes ownership of 'args' if passed
@@ -3936,9 +4134,12 @@ typeT* type_mk(parsectxT* pctx, char* name, typeT* ref, categoryE category, int 
 	if (type->category == LIKE)
 		type->is_wild = ZTRUE;	//like types are wild
 
-	if (type->category == ARRAY || type->category ==REFERENCE || type->category == STEWARD )
+	if (type->category == ARRAY || type->category ==REFERENCE )
 		type->size = sizeof(ptrT);
 
+	if (type->category == STEWARD){
+		type->size = ref->size;
+	}
 
 	if (type->category == CPOINTER || type->category==SUBTREE)
 		type->size = sizeof(void*);
@@ -4169,6 +4370,10 @@ void leak_viewer(void* item, char* file, int line){
 		if (line == type_mk_line){	//exe->stack[exe->sp-1].as.ptr.address.bytes + exe->stack[exe->sp-1].as.ptr.offsetaaabthis is
 			printf("\t\tLeaked type: %s\n", ((typeT*)item)->key);
 		}
+		if (line == push_assembly_line){
+			instructionT* inst = item;
+	//		printf("\t\tLeaked instruction : %s\n",  inst->result_type->key  );
+		}
 
 }
 
@@ -4382,7 +4587,7 @@ char** type_proc_argnames(typeT* t){
 
 //tokenize and parse (evnetually... run)
 void int_run_str(char* src, char* filename){
-	instruction_names = zarray_allocd( char*, op_MAX, clean_array_pointers );
+	instruction_names = zarray_allocd( char*, op_MAX, zarray_destruct_pointers );
 	zarray_use(instruction_names, op_MAX);
 	ADD_INST(constant);
 	ADD_INST(globalvar);
@@ -4413,6 +4618,11 @@ void int_run_str(char* src, char* filename){
 	ADD_INST(sectionvar);
 	ADD_INST(mul32);
 	ADD_INST(sub32);
+
+
+	ADD_INST(adim);
+	ADD_INST(switch_indexplus);
+	ADD_INST(indexplusstore);
 
 	//C constants
 
@@ -4485,7 +4695,8 @@ void int_run_str(char* src, char* filename){
 	proc_parser_mk(pctx, ".Instruction", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into an instruction that produces this type
 	proc_parser_mk(pctx, "~", type_proc_mk(tType, 1, tType), parse_related_type); //makes an array type into an iterated
 
-	proc_parser_mk(pctx, "[", NULL, parse_array); //create array type TODO:consider moving from [Z32] syntax to Z32[]
+	proc_parser_mk(pctx, "[", NULL, parse_array); //create array type [Z32] for example
+	proc_parser_mk(pctx, "'[", NULL, parse_array_values); //create an array with values  '[10 20]
 
 	//create control structures
 	proc_parser_mk(pctx, "if", type_proc_mk(NULL, 1, tZ32), parse_flow); //parse flow structures
@@ -4494,8 +4705,8 @@ void int_run_str(char* src, char* filename){
 
 	//define parser words for variables, types and procs
 	proc_parser_mk(pctx, "var",  type_proc_mk(NULL, 1, tType), parse_var); //makes a variable in current context
-	proc_parser_mk(pctx, "var",  type_proc_mk(NULL, 1, tAny), parse_var); //makes a variable in current context
-	proc_parser_mk(pctx, "'",  type_proc_mk(NULL, 1, tAny), parse_var); //makes a variable in current context
+	proc_parser_mk(pctx, ".var",  type_proc_mk(NULL, 1, tType), parse_var); //makes a variable in current context, and immediatly uses the variable
+	proc_parser_mk(pctx, "'",  type_proc_mk(NULL, 1, tAny), parse_var); //makes a variable in current context of the same type as top of stack, and returns reference to it (so you can immediately assign to it)
 
 	proc_parser_mk(pctx, "constant",  type_proc_mk(NULL, 1, tAny), parse_constant); //makes a const
 
@@ -4516,11 +4727,15 @@ void int_run_str(char* src, char* filename){
 	proc_parser_mk(pctx, "include", type_proc_mk(NULL, 1, tString), parse_include);
 
 	//create arrays
+	//dim requires a variable exists to populate the array
 	proc_opcode_mk2(pctx, op_dim, "dim", "([Any]$&:array Z32:len Z32:capacity   )");
+
+
 
 	wordT* arrayindex = proc_opcode_mk2(pctx, op_arrayindex, "[]", "( [Any]:a Z32:idx -> like a@&)");
 	arrayindex->autoload = ZTRUE;
 
+	proc_opcode_mk2(pctx, op_indexplusstore, "++", "([Any]$:a  like a@@:b-> like a)");
 
 	wordT* arraycow = proc_opcode_mk2(pctx, op_arraycow, ".Byte", "( String$:a -> [Byte]$)");
 	arraycow->val.as.z32 = 1;

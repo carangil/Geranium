@@ -11,10 +11,15 @@ void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok);
 //allocare len items of ARRAYTYPE.  the array may have a custom destructor for when ram_free is called on it
 //array is discarded by ram_free... can also be reference counted with ram_addref
 
+
+//alloc allocates an array
+//allocd allocates an array, but gives the block a custom destructor (so you can iterate the array elements and free stuff if you need)
 #define  zarray_alloc(ARRAYTYPE, len)  	zarray_allocf( sizeof(ARRAYTYPE), len, NULL, __FILE__, __LINE__)
 #define zarray_allocd(ARRAYTYPE, len, DESTRUCTOR)  	zarray_allocf( sizeof(ARRAYTYPE), len, DESTRUCTOR, __FILE__, __LINE__)
 #define zarray_resize(ARRAYNAME, NEWSIZE, ISOK)  zarray_resizef(ARRAYNAME, sizeof(ARRAYNAME[0]), NEWSIZE, ISOK)
 
+//pass zarray_destruct_pointers to allocd if the array is a bunch of pointers to free
+zbool zarray_destruct_pointers(void* v);
 
 #define zarray_copy(DEST,POS,SRC,SRCS,SRCE)\
 	zarray_copyf(DEST, POS, SRC, SRCS, SRCE, sizeof(DEST[0]), sizeof(SRC[0]))

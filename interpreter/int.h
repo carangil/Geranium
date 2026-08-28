@@ -280,6 +280,9 @@ typedef enum {
 	op_arraycow, //makes a copy of array if it has more than 1 reference
 	op_arrayinfo, //get size or count
 	op_arraysetcount,
+	op_adim,
+	op_sidevar,
+	op_indexplusstore,
 
 	//load
 	op_load,
@@ -324,6 +327,7 @@ typedef enum {
 	//these ones are implementation specific:
 	op_switch_jump,
 	op_switch_jumpfalse,
+	op_switch_indexplus,
 	op_FIRST_EXT,  //first instruction that isn't part of this enum (user-defined)
 
 }opcodeE;

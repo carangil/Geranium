@@ -224,6 +224,18 @@ void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok){
 	return NULL;
 }
 
+zbool zarray_destruct_pointers(void* v){
+
+	void** t = v;
+	for (int i=0;i<zarray_count(t);i++){
+		ram_free(t[i]);
+	}
+
+	return ZTRUE;
+}
+
+
+
 //copies part of source array to destination array
 void zarray_copyf(void* dest, zuint32 pos, void* src, zuint32 srcstart, zuint32 srcend, zsize elemsize1, zsize elemsize2){
 	if  ( (dest == NULL) || (src==NULL) || (elemsize1 != elemsize2)  ||(srcend < srcstart) ) {

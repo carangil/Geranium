@@ -7,6 +7,126 @@
 "inc/reflect.inc" include
 
 
+10 'x=
+20 'y=
+
+x y + print newline
+
+
+
+Z32 var z 99 z =
+
+
+z z + print newline
+
+
+
+
+
+[Z32]$ var arr2
+
+'[1 3 5 ] 'arr =
+
+'[   '["aaaa"$ "bba"$    "dd"$ ]   '["cca"$ "g"$ "dda"$ "fff"$ ] ]  'tl=
+
+"eeeeee"$ tl 1[] 2[] =
+
+
+
+tl 1[]  2[] print "          <<<<<<<<" print newline
+
+
+String$ var g
+String$ var h
+
+"aa"$ "bb" +  "ff" +  g=
+
+"as"$ h=
+
+g$ h+ 'g2=
+
+g2  print newline
+g  print newline
+
+
+
+sys_ENDFILE
+
+1 'aa=
+
+g$ 'h=
+
+
+h print newline
+
+sys_ENDFILE
+
+'["aa"$ "bb"$] 'st=
+
+
+0 'j= loop
+
+    j st.count < not if break end
+
+    j print ":" print
+    st j[] print newline
+
+    step
+        j&++
+end
+
+
+
+arr printptr
+arr .count print newline
+arr .size print newline
+
+/*
+arr$$ 10 ++ 200++ 33++ 4444++ 555555++   arr=
+*/
+
+
+0 'i= loop
+
+    i arr.count < not if break end
+
+    i print ":" print
+    arr i[] print newline
+
+    step
+        i&++
+end
+
+arr printptr
+arr .count print newline
+arr .size print newline
+
+//arr 0[] print newline
+
+sys_ENDFILE
+
+arr printptr
+newline "count,size: " print
+arr .count print "," print
+arr .size print newline
+
+
+
+/*arr$$ 11 +=
+22 +=
+33 += arr=
+*/
+arr 0[] print newline
+arr 1[] print newline
+arr 2[] print newline
+
+
+/*
+
+*/
+
+sys_ENDFILE
+
 
 // a section organizes variables and procedures into a namespace
 // it is a way to organize would-be global variables
@@ -20,7 +140,7 @@ section stuff
 
         key print
 
-        " " print
+       " " print
 
         scancode print
 
@@ -241,6 +361,8 @@ loop
 
     win glfw.SwapBuffers
 end
+
+
 
 sys_ENDFILE
 

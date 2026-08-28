@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include "zvector.h"
 #include <string.h>
+#include <signal.h>
 
 // A simple, generic vector 'class' in C.  
 // A vector just stores void*
@@ -169,6 +170,7 @@ void* zvec_remove_last(zvecT* v)
 
 	if (v->count==0){
 		fprintf(stdout, "Empty vector\n");
+		raise(SIGINT);
 		exit(1);
 		return NULL; //out of range
 	}
