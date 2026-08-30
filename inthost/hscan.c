@@ -32,6 +32,11 @@ int strcommon(char* s, char* t){
 		t++;
 	}
 
+//	if (common == strlen(t))
+//		return common;
+
+	//return 0;
+
 	return common;
 }
 
@@ -57,11 +62,16 @@ char* maptype(char* ctype_in){
 		return NULL;
 
 	int common=0;
+	/*
 	if (prefix){
 		common = strcommon(ctype, prefix);
+		if (common !=strlen(prefix))
+			common=0;
 
+		if (common && ctype[common] == '_')
+			common++;
 	}
-
+*/
 
 	char* mapped = zstringmap_get(types, ctype);
 
@@ -83,6 +93,17 @@ char* maptype(char* ctype_in){
 	}
 
 	if (!mapped){
+
+		if (prefix){
+			common = strcommon(ctype, prefix);
+			printf (" %s ON %s = %s\n",ctype, prefix, ctype+common );
+			if (common !=strlen(prefix))
+				common=0;
+
+			if (common && ctype[common] == '_')
+				common++;
+		}
+
 		zstringmap_put(unmapped_types, common+ctype, "unmapped");
 		mapped = zstrprintf(NULL, "%s", common+ctype);
 	}
@@ -488,15 +509,20 @@ int scanmain(int argc, char** args){
 		if (function->type && strlen(function->type)){
 			fprintf(out, " -> %s ", function->type );  //return type
 		}
+
+
+
+
 		//print the overridden name OR the original name
-		fprintf(out, ") \"%s\" \"%s\" sys optional %s \n\n",  libname, override? override: function->cname, function->name);
+			fprintf(out, ") \"%s\" \"%s\" sys optional %s \n\n",  libname, function->cname, override?override:function->name);
+
 
 	}
 
 
 	if (postname){
 		char* i = ram_loadstr(postname);
-		fprintf(out, "%s\n",  i);
+		fprintf(out, " /*%s*/ %s\n", postname,  i);
 		ram_free(i);
 
 	}

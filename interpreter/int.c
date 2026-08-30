@@ -249,7 +249,7 @@ void  tokenize(tokenT* insert, char* in, char* filename, int line){
 
 		//find twochar patterns like ->,etc. including comment start/end markers
 		//looking for pairs before chars makes sure the matching is 'greedy'
-		if ((p = find_pair("+= '[ $$ .* .& .@ .$ -- ++ == -> <- >- /* */ // [] >= <= != .- <> \\\\ /\\ \\/" , c, next))){
+		if ((p = find_pair("+= '[ $$ :: .* .& .@ .$ -- ++ == -> <- >- /* */ // [] >= <= != .- <> \\\\ /\\ \\/" , c, next))){
 			if (  p == TOKEN_PAIR('/','/')  ) { //special handling for // comments
 				while(*in!= '\n')
 					in++;
@@ -584,7 +584,7 @@ void dump_types(parsectxT* pctx){
 }
 
 //most basic types
-typeT *tZ32, *tType, *tReal, *tType, *tFloat, *tBit, *tWord, *tString, *tByte, *tStringByte, *tSize32, *tLong32, *tDouble32;
+typeT *tZ32, *tType, *tReal, *tType, *tFloat, *tBit, *tWord, *tString, *tByte, *tStringByte, *tSize32, *tLong32, *tDouble32, *tZL16,  *tUL16;
 
 //some special types
 typeT* tAny; //matches any type
@@ -744,6 +744,16 @@ zbool type_cmp(parsectxT* pctx, typeT* expected, typeT* given, int flags, typeT*
 
 	if ((expected == tDouble32) && (given ==tReal)) {
 		//for C functions that need double.
+		return ZTRUE;
+	}
+
+	if ((expected == tZL16) && (given ==tZ32)) {
+		//for C functions that need shorts.
+		return ZTRUE;
+	}
+
+	if ((expected == tUL16) && (given ==tZ32)) {
+		//for C functions that need shorts.
 		return ZTRUE;
 	}
 
@@ -981,6 +991,7 @@ zbool clean_inst(void* v){
 
 		ram_free(inst->val.as.ptr.address.bytes);
 	}
+
 
 	return ZTRUE;
 }
@@ -1561,22 +1572,12 @@ void do_ffi_call(exectxT* exe, wordT* word){
 		exe->stack[exe->sp].as.ptr.address.block = rv;
 		exe->stack[exe->sp].as.ptr.offset = 0;
 		exe->sp++;
-
-	} else if (word->ffi_caller->rettype == &ffi_type_sint){
-		ffi_sarg rv;
+	} else if (word->ffi_caller->rettype->size <= sizeof(ffi_sarg)){
+		ffi_arg rv;
 		ffi_call(&word->ffi_caller->cif, word->ffi_caller->funcptr , &rv, &pargs[0]);
 		exe->stack[exe->sp].as.z32 = (int)rv;
 		exe->sp++;
-	} else if (word->ffi_caller->rettype == &ffi_type_sint64){
-		ffi_sarg rv;
-		ffi_call(&word->ffi_caller->cif, word->ffi_caller->funcptr , &rv, &pargs[0]);
-		exe->stack[exe->sp].as.z32 = (int)rv;
-		exe->sp++;
-	}
-
-
-
-	else {
+	} else {
 		errorf("unhandled ffi return case %p \n", word->ffi_caller->rettype);
 	}
 
@@ -1697,6 +1698,8 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 			BINOP(add32, z32, +)
 			BINOP(sub32, z32, -)
 			BINOP(mul32, z32, *)
+			BINOP(div32, z32, /)
+			BINOP(mod32, z32, %)
 			BINOP(equal32, z32, ==)
 			BINOP(less32, z32, <)
 			BINOP(greater32, z32, >)
@@ -1767,6 +1770,19 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				pc++;
 				continue;
 
+			case op_dup: //duplicate value on stack
+				exe->stack[exe->sp] = exe->stack[exe->sp-1];
+				exe->sp++;
+				pc++;
+				continue;
+
+			case op_dups:
+				exe->stack[exe->sp] = exe->stack[exe->sp-1];
+				ram_addref(  exe->stack[exe->sp].as.ptr.address.block);
+				exe->sp++;
+				pc++;
+				continue;
+
 			case op_loadaddref:  //takes a pointer from memory, increasing refcount
 
 				if (pc->imm.as.z32 == sizeof(ptrT)){
@@ -1782,7 +1798,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				pc++;
 				continue;
 
-			case op_trash:  //takes a pointer from memory, increasing refcount
+			case op_trash:  //frees top pointer on stack
 				exe->sp--;
 
 				ram_free(exe->stack[exe->sp].as.ptr.address.block);
@@ -2109,6 +2125,7 @@ runnerI* compile_for_switch(exectxT* exe, parsectxT* pctx){
 	if (pctx->runners[SWITCHRUNNER])
 		return pctx->runners[SWITCHRUNNER];
 
+
 	switchrunnerT* sw = ram_alloc(sizeof(switchrunnerT), cleansw);
 	sw->runner.execute = run_switch;
 
@@ -2407,14 +2424,21 @@ void dereference_assembly(parsectxT* pctx, char* loadername){
 	if (!loadername) //no loader
 		return;
 
-	wordT* wloader = match_word(pctx, pctx, loadername, MATCH_RECURSE_PCTX| MATCH_ALLOW_LIKE , NULL, NULL);  //find a loader for it
+	int argc=0;
+	wordT* wloader = match_word(pctx, pctx, loadername, MATCH_RECURSE_PCTX| MATCH_ALLOW_LIKE , &argc, NULL);  //find a loader for it
 
 	if (wloader){
 		tracef(" Found loader OPCODE IS %d\n", wloader->opcode);
+		printf(" Found loader OPCODE IS %d args %d\n", wloader->opcode);
 		//pop it off
-		//printf("wloader_args %d\n",wloader->type->argc );
-		instructionT** insts = pop_args(pctx, 1); //get the instruction
-		instructionT* loadinst = push_assembly(pctx, wloader->opcode,0, NULL, NULL, insts, wloader->type->ref);
+		printf("wloader%s wloader_args %d\n",loadername, wloader->type->argc );
+		instructionT** insts = pop_args(pctx, argc); //get the instruction
+
+
+		push_assembly(pctx, wloader->opcode,0, NULL, NULL, insts, wloader->type->ref);
+
+
+
 	}else {
 		errorf(" %s undefined for given type", loadername);
 		exit(1);
@@ -2744,6 +2768,13 @@ tokenT* parse_array_values(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	ram_free(args);
 
+	if (!strcmp(tnext(t)->str, "$")){
+		//skip over $
+		t = tnext(t);
+	} else {
+		errorf("Dynamically allocated array requires steward.  '[...]$");
+		exit(1);
+	}
 
 	return t;
 }
@@ -2956,32 +2987,38 @@ tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 
 	instructionT* arg0 = pop_arg(pctx);
 
-	zbool keepvar = ZFALSE;
-	zbool keepexample = ZFALSE;
+	zbool store = ZFALSE;
+	zbool copy = ZFALSE;
 
 
-	if (!strcmp(t->str, "'")) {
-		keepvar = ZTRUE; 	//keeping the variable on the stack after creation (so you can immediately reference or assign to it)
-		keepexample = ZTRUE; //keep the example value
+	if (!strcmp(t->str, ":")) {
+		store=ZTRUE;
 	}
+
+	if (!strcmp(t->str, "::")) {
+		store = ZTRUE;
+		copy = ZTRUE;
+	}
+
 
 	typeT* innertype = NULL; //type of value the variable contains
 
-	if ( arg0->val_type == tType && !keepexample){
+	if ( arg0->val_type == tType && !store){
 		innertype = arg0->val.as.ptr.address.type; //this is a datatype, like a Z32 or whatever
-	} else if (keepexample) {
+	} else if (store) {
 		innertype = arg0->result_type;
-		push_subtree(pctx, arg0);
-		arg0=NULL;
 	} else {
 			errorf("unhandled parse_var case type=%s  token=%s \n", innertype->key, t->str);
 	}
 
 	char* varname = tnext(t)->str;
 
-	if (!keepvar)	//if not keeping the var, advance, so we don't reparse the name
+	if (!store)	{//if not keeping the var, advance, so we don't reparse the name
 					//if we ARE keeping the var, not advancing will make the variable name be parsed again, which uses the variable
 		t=tnext(t);
+	}
+
+
 
 	wordT* w = NULL;
 
@@ -3035,8 +3072,52 @@ tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 
 		// printf(" set opcode.  w is %s\n", w->val.as.ptr.address.word->name);
 
+
+		if (store){
+
+			if(copy){
+
+					push_subtree(pctx, arg0); //push value
+
+					if (innertype->category == STEWARD)
+						push_assembly( pctx, op_dups, 0, NULL, NULL, NULL, innertype);  //push  duplicate, adding ref
+					else
+						push_assembly( pctx, op_dup, 0, NULL, NULL, NULL, innertype);  //push  duplicate
+
+
+			}
+			else
+				push_subtree(pctx, arg0); //push value
+
+			arg0 = NULL;
+
+			//put the variable on
+			push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, NULL, OF(pctx, REFERENCE, w->type->ref));
+			t=tnext(t);
+			dereference_assembly(pctx, "="); //do a store
+
+
+			if (copy){
+				//if we did a copy, pop the store instruction off, and modify it's result type to be the value type, instead of nothing.
+				//that way it accounts for the dup, and leaves the value on the stack ready to be used
+
+				instructionT* istore = pop_arg(pctx); //grab the store
+				if (istore->result_type == NULL){
+					istore->result_type = innertype;
+				} else {
+					errorf("Unexpected return value from storing var: %s\n", istore->result_type->key);
+					exit(1);
+				}
+				push_subtree(pctx, istore);
+			}
+
+
+		}
+
 	}
 	ram_free(arg0);
+
+
 
 	return t;
 }
@@ -3185,6 +3266,14 @@ ffi_type* type_map_to_c(typeT* type){
 			exit(1);
 
 		}
+	}
+
+	if (type == tZL16){
+		return &ffi_type_sint16;
+	}
+
+	if (type == tUL16){
+		return &ffi_type_uint16;
 	}
 
 	if (type->category == REFERENCE || type->category == CPOINTER || type->category == ARRAY|| type->category == STEWARD)
@@ -3397,6 +3486,14 @@ tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 			t=tnext(t);
 	}
 
+	if (!strcmp(t->str, "^")){ //for 'sys' expose outside section
+			tolerate=1;
+			t=tnext(t);
+			if (pctx->parent){
+				install_pctx = pctx->parent;
+			}
+	}
+
 	char* varname = t->str;
 	if (t->str[0]=='.') {
 
@@ -3454,6 +3551,18 @@ tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 			ram_free(w->type->ref);
 			w->type->ref = ram_addref(tZ32);
 		}
+
+		if (w->type->ref == tZL16) {
+			ram_free(w->type->ref);
+			w->type->ref = ram_addref(tZ32);
+		}
+
+		if (w->type->ref == tUL16) {
+			ram_free(w->type->ref);
+			w->type->ref = ram_addref(tZ32);
+		}
+
+
 
 		ram_free(symname);
 		ram_free(libname);
@@ -4011,7 +4120,8 @@ tokenT* parse(parsectxT* pctx, tokenT* t, char** stop_tokens){
 			instructionT* inst = zvec_get_at(pctx->codestack, i);
 			if (inst->result_type) {
 				msg =  zstrprintf(msg, " %s;", inst->result_type->key );
-			}
+			} else
+				msg = zstrprintf(msg, ".");
 		}
 
 		PERROR(pctx, "UNDEFINED %s  from stack: %s\n", t->str, msg);
@@ -4119,6 +4229,7 @@ wordT* proc_parser_mk(parsectxT* pctx, char* name, typeT* proctype, void* parsef
 //create a type.  takes ownership of 'args' if passed
 typeT* type_mk(parsectxT* pctx, char* name, typeT* ref, categoryE category, int size, typeT** args ){
 									
+	printf(" CREATING TYPE %s\n", name);
 	typeT* type = ram_alloc(sizeof(typeT), typecleanup); type_mk_line = __LINE__;
 
 	type->name = zstrdup(name);
@@ -4145,7 +4256,6 @@ typeT* type_mk(parsectxT* pctx, char* name, typeT* ref, categoryE category, int 
 		type->size = sizeof(void*);
 
 	type->key = type_key(name, ref, category, size, args);
-	debugf("Creating type %s   %s, %d bytes\n", name?name:"noname", type->key, type->size);
 
 	if (args){
 		type->argc = zarray_count(args);
@@ -4153,8 +4263,17 @@ typeT* type_mk(parsectxT* pctx, char* name, typeT* ref, categoryE category, int 
 	}
 	
 	if (pctx){
-		if (zstringmap_get(pctx->types, type->key))
+		typeT* oldtype =zstringmap_get(pctx->types, type->key);
+		printf(" Looking for %s, got %s\n", type->key, oldtype?oldtype->key:"no");
+
+		if (oldtype && oldtype->category == PENDING && category == PENDING){
+			ram_free(type);
+			type = oldtype;
+			type->size = 0;  //reset size
+		} else if (oldtype  ){
 			errorf("!!!/There is already a type entry for %s\n", type->key);
+			exit(1);
+		}
 
 		else{
 			debugf(" putting type in %p -> pctx %d\n",type, pctx->id);
@@ -4386,7 +4505,17 @@ int test_me(int a, int b ,  char* (*callback)(int a, int b)        ){
 	return a*b;
 }
 
+short test_signed_short(short a, unsigned short b){
+		printf("signed a is %d   unsigned b is %d \n", a, b);
 
+		return -31222;
+}
+
+unsigned short test_unsigned_short(short a, unsigned short b){
+		printf("signed a is %d   unsigned b is %d \n", a, b);
+
+		return 65000;
+}
 
 //reflection
 
@@ -4630,6 +4759,10 @@ void int_run_str(char* src, char* filename){
 
 	//C functions
 	int_add_c_object("test_me" , test_me);
+	int_add_c_object("test_signed_short", test_signed_short);
+	int_add_c_object("test_unsigned_short", test_unsigned_short);
+
+
 	int_add_c_object("instruction_opcode", instruction_opcode);
 	int_add_c_object("instruction_opname", instruction_opname);
 
@@ -4677,13 +4810,17 @@ void int_run_str(char* src, char* filename){
 	tByte  = type_mk(pctx, "Byte",  NULL, SIMPLE, 1, NULL);
 	tStringByte  = type_mk(pctx, "StringByte",  NULL, SIMPLE, 1, NULL);
 
-	//These types are internall, 32-bit.  Size32 and Long32 can be used interchangable with zint32
+	//These types are internaly, 32-bit, and really only exist on the stack
+	//Size32 and Long32 can be used interchangable with zint32
 	//Double32 can be used interchangable with Real.
 	//They exist for callng C functions that expect or return 64-bit values.  They are converted to/from 64-bit when calling or returning from C
 	//These types should only be used in C sys definitions.
 	tSize32 = type_mk(pctx, "Size32",  NULL, SIMPLE, sizeof(tZ32), NULL);
 	tLong32 = type_mk(pctx, "Long32",  NULL, SIMPLE, sizeof(tZ32), NULL);
 	tDouble32 = type_mk(pctx, "Double32",  NULL, SIMPLE, sizeof(tReal), NULL);
+	//tZ16: store and save to 16-bit memory locations, or pass/return from functions.  But will be Z32 on the stack.
+	tZL16 = type_mk(pctx, "ZL16", NULL, SIMPLE, 2, NULL);
+	tUL16 = type_mk(pctx, "UL16", NULL, SIMPLE, 2, NULL);
 
 	//create parser words that work in type constants
 	proc_parser_mk(pctx, "(", NULL, parse_type_list); //handle argument lists for functions
@@ -4692,7 +4829,7 @@ void int_run_str(char* src, char* filename){
 	proc_parser_mk(pctx, "@", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into its dereferenced type
 	proc_parser_mk(pctx, "*", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into a c pointer
 	proc_parser_mk(pctx, ".null", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into 0-value.  Z32.null is zero, String.null is null pointer of string type, etc
-	proc_parser_mk(pctx, ".Instruction", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into an instruction that produces this type
+	proc_parser_mk(pctx, ".Instruction", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into an instruction that produces this type(  Z32.Instruction is an instruction that returns a Z32)
 	proc_parser_mk(pctx, "~", type_proc_mk(tType, 1, tType), parse_related_type); //makes an array type into an iterated
 
 	proc_parser_mk(pctx, "[", NULL, parse_array); //create array type [Z32] for example
@@ -4705,8 +4842,8 @@ void int_run_str(char* src, char* filename){
 
 	//define parser words for variables, types and procs
 	proc_parser_mk(pctx, "var",  type_proc_mk(NULL, 1, tType), parse_var); //makes a variable in current context
-	proc_parser_mk(pctx, ".var",  type_proc_mk(NULL, 1, tType), parse_var); //makes a variable in current context, and immediatly uses the variable
-	proc_parser_mk(pctx, "'",  type_proc_mk(NULL, 1, tAny), parse_var); //makes a variable in current context of the same type as top of stack, and returns reference to it (so you can immediately assign to it)
+	proc_parser_mk(pctx, ":",  type_proc_mk(NULL, 1, tAny), parse_var); //makes a variable in current context of the same type as top of stack, and stores the value
+	proc_parser_mk(pctx, "::",  type_proc_mk(NULL, 1, tAny), parse_var); //makes a variable in current context of the same type as top of stack, and stores copy or addref of the value
 
 	proc_parser_mk(pctx, "constant",  type_proc_mk(NULL, 1, tAny), parse_constant); //makes a const
 
@@ -4723,6 +4860,7 @@ void int_run_str(char* src, char* filename){
 	//add some casts
 	proc_opcode_mk2(pctx, op_nop, ".Bit", "(Z32->Bit)");
 	proc_opcode_mk2(pctx, op_nop, ".Z32", "(Bit->Z32)");
+
 
 	proc_parser_mk(pctx, "include", type_proc_mk(NULL, 1, tString), parse_include);
 
@@ -4775,6 +4913,16 @@ void int_run_str(char* src, char* filename){
 	proc_opcode_mk2(pctx, op_break, "break", "()");
 	proc_opcode_mk2(pctx, op_continue, "continue", "()");
 
+	proc_opcode_mk2(pctx, op_load, "@",  "(ZL16& -> Z32)" );
+	proc_opcode_mk2(pctx, op_store, "=",  "(Z32:value  ZL16&:dst)" );
+
+
+/*
+	//16-bit
+	proc_opcode_mk2(pctx, op_load, "@",  "(Z16& -> Z32)" );
+	proc_opcode_mk2(pctx, op_store, "=",  "(Z32:value  Byte&:dst)" );
+*/
+
 	//create primitives. minimal at the moment
 	//these use the above specified parser
 
@@ -4787,6 +4935,7 @@ void int_run_str(char* src, char* filename){
 	proc_opcode_mk2(pctx, op_sub32, "-", "(Z32:a Z32:b -> Z32)");
 	proc_opcode_mk2(pctx, op_mul32, "*", "(Z32:a Z32:b -> Z32)");
 	proc_opcode_mk2(pctx, op_div32, "/", "(Z32:a Z32:b -> Z32)");
+	proc_opcode_mk2(pctx, op_mod32, "mod", "(Z32:a Z32:b -> Z32)");
 	proc_opcode_mk2(pctx, op_less32, "<", "(Z32:a Z32:b -> Z32)");
 	proc_opcode_mk2(pctx, op_greater32, ">", "(Z32:a Z32:b -> Bit)");
 	proc_opcode_mk2(pctx, op_equal32, "==", "(Z32:a Z32:b -> Bit)");
@@ -4864,7 +5013,6 @@ void int_run_str(char* src, char* filename){
 	proc_opcode_mk2(pctx, op_nop, ".cptr", "(Any&:a->like a@*)");
 	proc_opcode_mk2(pctx, op_nop, ".cptr", "([Any]:a->like a@*)");
 
-
     zlistT tokens;
     zlist_init(&tokens);
 
@@ -4898,7 +5046,7 @@ void int_run_str(char* src, char* filename){
 		ram_free(exe->globals);
 
 
-		//ram_free(runme); //runner is part of the pctx, and is freed there
+	//	ram_free(runme); //runner is part of the pctx, and is freed there
 	}
 
 	RESETERR(pctx);

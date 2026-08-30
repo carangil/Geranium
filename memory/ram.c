@@ -10,7 +10,7 @@
 #include <string.h>
 #include "ztypes.h"
 #include "zmem.h"
-
+#include "signal.h"
 
 #ifdef RAM_DEBUG
 #include "zthread.h"
@@ -21,7 +21,7 @@
 #define FREEMAGIC 0xABCDEF88
 
 
-#define BLANKVAL 0xe3
+#define BLANKVAL 0xee
 
 /*****************
  *RAM allocation
@@ -341,16 +341,20 @@ void ram_free(void* thing)
 
 				//fill with the pointer of the object, so debugger can find read-after-free if garbage values read from here
 
+
+#ifdef BLANKVAL
+				memset(thing, BLANKVAL, header->debug_size);
+#else
+
 				char p[ sizeof(void*) ] ;
 				*(void**)(&p) = thing;
+
 				for (int i=0;i<header->debug_size;i++){
 					((char*)(thing))[i] = p[i % sizeof(void*)];
 				}
-				//memset(thing, BLANKVAL, header->size);
-
+#endif
 
 				header->magic = FREEMAGIC;
-
 				header->freefile = file;
 				header->freeline = line;
 				
@@ -448,8 +452,9 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 		} else
 #endif
 
-		if (header->refcount > 1){
-
+		if (header->refcount != 1){
+			errorf("Cannot resize buffer with %d references\n", header->refcount);
+			exit(2);
 		}
 
 		//single reference case
@@ -473,9 +478,10 @@ void* ram_resize(void* ram, zsize size, zbool* okptr)
 		if (header)          /*Put new one on */
 			zlist_addhead_nocheck(&_ram_debuglist, &header->zlistnode);
 		else                    /*Put old one back on list */
-                       	zlist_addhead_nocheck(&_ram_debuglist, &oldheader->zlistnode);
+           	zlist_addhead_nocheck(&_ram_debuglist, &oldheader->zlistnode);
 		
-		header->debug_size = size + shadow_size;
+
+		header->debug_size = size+shadow_size;
                 zunlock(&ram_debug_lock);
 #endif
 
@@ -575,12 +581,18 @@ zuint32 ram_allocs()
 			//check contents
 			int i=0;
 			unsigned char* obj = (void*)(node+1);
+#ifndef BLANKVAL
+
 			unsigned char* p = (void*) &obj;
+#endif
 
 			for (i=0;i<node->debug_size;i++){
 
-				unsigned  b =  p[i % sizeof(void*)];
-
+			#ifdef BLANKVAL
+				unsigned b = BLANKVAL;
+			#else
+					unsigned  b =  p[i % sizeof(void*)];
+				#endif
 				if ( obj[i] != b){
 					printf(" Write-after-free (%x) at %p (%p + %x)\n", obj[i], obj+i, obj,i);
 
@@ -592,7 +604,7 @@ zuint32 ram_allocs()
 
 		} else {
 			 printf(" Bad magic %x on %p\n", node->magic , node);
-
+			raise(SIGINT);
 		}
 
 

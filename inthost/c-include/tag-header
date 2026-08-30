@@ -8,5 +8,9 @@ else
 fi
 
 ctags --sort=no --c-kinds=pstmz --fields=fNkstS -f "$outname" "$1"
+
+#e adds enums
+#ctags --sort=no --c-kinds=pstmze --fields=fNkstS -f "$outname" "$1"
+
 grep "#define" $1 >> "$outname"
 

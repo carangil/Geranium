@@ -94,17 +94,16 @@ tokenT* tnext(tokenT* item);
 typedef enum {
     NAMED=0,    //searching for a type by its name, creating a pending type if not existing
     NAMEDEXISTING, //searching for a type by its name, but only if it already exists
-    OPAQUE,
 	PENDING, //type details aren't defined yet.  But you could have pointers to them, etc
-	PROC,
+    OPAQUE,
 	SIMPLE, //ints, etc
+	PROC,
 	FRAME,	//struct or proc frame
 	REFERENCE,
 	STEWARD,  //owns the pointer to an object
 	ARRAY,	//pointer to array
 	CPOINTER, //for C interop
-	//INDEX, //element of an array
-	VARIABLE, //not a pointer, but refers to the variable itself
+	VARIABLE, //not a pointer, but refers to the variable itself, ref is the contents of the variable
 	ARG,
 	LIKE,
 	SUBTREE,
@@ -258,6 +257,7 @@ typedef enum {
 	op_sub32,
 	op_mul32,
 	op_div32,
+	op_mod32,
 
 	op_ptrvalid,  //returns true if pointer is non-null
 	op_ptrequal,  //returns true if pointers equal
@@ -295,7 +295,7 @@ typedef enum {
 
 	//allocate
 	op_dim,
-	op_trash,
+	op_trash, // (drop with free)
 
 	op_argpick,
 	op_argtake,
@@ -312,6 +312,10 @@ typedef enum {
 	op_loop,
 	op_break,
 	op_continue,
+
+	op_dup, //duplicate value
+	op_dups, //duplicate and add reference
+	//op_drop, //drop without free
 
 	//floating point
 	op_fadd,

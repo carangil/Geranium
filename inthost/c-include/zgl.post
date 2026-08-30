@@ -1,0 +1,8 @@
+	([Any]:a  Z32:target Z32:usage) proc BindUpdateArray
+	    a.cptr a.size1  target usage  BindUpdateArrayf
+	end
+
+
+	([Any]:a) proc BindUpdateArray
+		a.cptr a.size1  gl.ARRAY_BUFFER 0 BindUpdateArrayf
+	end

@@ -6,3 +6,5 @@ void qsort(anyArray base, size_t nmemb, size_t size, int ( *compar )( const void
 
 
 char * getenv( const char * name );
+
+void usleep(int microseconds);

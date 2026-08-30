@@ -6,5 +6,8 @@ section stdlib
 	// char * getenv (const char * name)
 	 ( String:_name  -> String ) "_LIBC" "getenv" sys optional getenv 
 
+	// void usleep (int microseconds)
+	 ( Z32:_microseconds ) "_LIBC" "usleep" sys optional usleep 
+
 end
 

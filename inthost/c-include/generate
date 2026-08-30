@@ -39,4 +39,7 @@ cat callbacks.inc  | grep sys | awk -F\"  '{print $4 ";" $1}' >> glfw3types2.txt
 ./tag-header zgl.h
 ./geninc zgl.tags  ../inc/zgl.inc zgltypes.txt zgl _INTERNAL pzgl azgl.post
 
+./tag-header fluidsynth.h
+./geninc fluidsynth.tags  ../inc/fluidsynth.inc fluidsynthtypes.txt fsynth libfluidsynth.so pfluid  # afluidsynth.post
+
 
