@@ -8,6 +8,42 @@
 "inc/fluidsynth.inc" include
 
 
+
+'[ 10 20 ]$ :d
+
+
+d printptr
+d.cptr :c
+
+c    0[] print newline
+c    1[] print newline
+c    2[] print newline
+
+
+
+type test
+    Z32 var a
+    String$ var b
+    Z32 var c
+end
+
+test var t
+
+
+//t
+  //  "Whatever"$ ..b=
+
+
+
+
+t printptr
+
+t.a print newline
+t.b print newline
+t.c print newline
+
+sys_ENDFILE
+
 /*
 ( ZL16:a Z32:b  -> Z32 ) "_INTERNAL" "test_signed_short" sys optional test_signed_short
 ( ZL16:a Z32:b  -> UL16 ) "_INTERNAL" "test_unsigned_short" sys optional test_unsigned_short

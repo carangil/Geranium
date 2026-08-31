@@ -277,6 +277,7 @@ typedef enum {
 	op_subvar,	//get fields from a
 	op_sectionvar,
 	op_arrayindex,
+	op_carrayindex,
 	op_arraycow, //makes a copy of array if it has more than 1 reference
 	op_arrayinfo, //get size or count
 	op_arraysetcount,

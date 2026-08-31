@@ -1293,7 +1293,7 @@ switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* pr
 		return prog;
 	}
 
-	if (inst->opcode== op_arrayindex ){
+	if (inst->opcode== op_arrayindex  || inst->opcode== op_carrayindex){
 		//put size in
 		prog = switch_asmi(prog,inst->opcode,  inst->result_type->ref->size, inst);
 		return prog;
@@ -1960,10 +1960,27 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				tracef(" --offset is %d , size is %d\n", exe->stack[exe->sp-1].as.z32, pc->imm.as.z32);
 				//getc(stdin);
 
+				if (exe->stack[exe->sp-1].as.z32 >= zarray_count(exe->stack[ exe->sp-2].as.ptr.address.block)){
+					errorf("Exceed array bounds\n");
+				}
+
 				exe->stack[ exe->sp-2].as.ptr.offset += (exe->stack[exe->sp-1].as.z32 * pc->imm.as.z32);
 				exe->sp--;
 				pc++;
 				continue;
+
+			case op_carrayindex:
+				//sp-2 is array
+				//sp-1 is the index
+				tracef(" --offset is %d , size is %d\n", exe->stack[exe->sp-1].as.z32, pc->imm.as.z32);
+
+				//NO bounds checking... this is a C array and that is impossible here
+
+				exe->stack[ exe->sp-2].as.ptr.offset += (exe->stack[exe->sp-1].as.z32 * pc->imm.as.z32);
+				exe->sp--;
+				pc++;
+				continue;
+
 
 			case op_dim:
 
@@ -2100,6 +2117,9 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 				pc++;
 				continue;
+
+
+
 
 			default:
 				errorf(" unhandled %d %s\n", pc->opcode, instruction_names[pc->opcode]?instruction_names[pc->opcode]:"noname");
@@ -4855,11 +4875,18 @@ void int_run_str(char* src, char* filename){
 
 	proc_parser_mk(pctx, "sys", type_proc_mk(NULL, 3, tType , tString, tString), parse_proc);//import ffi
 	proc_parser_mk(pctx, "sys", type_proc_mk(NULL, 2, tType , tString), parse_c_constant);
+//	proc_parser_mk(pctx, "sys", type_proc_mk(NULL, 2, tAny , tType), parse_c_constant);
+
 	proc_parser_mk(pctx, "sys", type_proc_mk(NULL, 2, tType , OF(pctx, CPOINTER, tAny)), parse_proc);
 
 	//add some casts
 	proc_opcode_mk2(pctx, op_nop, ".Bit", "(Z32->Bit)");
 	proc_opcode_mk2(pctx, op_nop, ".Z32", "(Bit->Z32)");
+
+
+
+
+
 
 
 	proc_parser_mk(pctx, "include", type_proc_mk(NULL, 1, tString), parse_include);
@@ -4872,6 +4899,10 @@ void int_run_str(char* src, char* filename){
 
 	wordT* arrayindex = proc_opcode_mk2(pctx, op_arrayindex, "[]", "( [Any]:a Z32:idx -> like a@&)");
 	arrayindex->autoload = ZTRUE;
+
+
+	wordT* carrayindex = proc_opcode_mk2(pctx, op_carrayindex, "[]", "( Any*:a Z32:idx -> like a)");
+	carrayindex->autoload = ZTRUE;
 
 	proc_opcode_mk2(pctx, op_indexplusstore, "++", "([Any]$:a  like a@@:b-> like a)");
 
@@ -4982,13 +5013,17 @@ void int_run_str(char* src, char* filename){
 	proc_opcode_mk2(pctx, op_trashstore, "=",  "(Any$:value  like value&:dst)" );
 
 
+	proc_opcode_mk2(pctx, op_load, "@",  "(Any*:a -> like a@)" );
+
+
+
 	//the following, when applied to a C pointer, fetches the pointer from the variable AND clears the variable.
 	//usage is for 'closing' or 'freeing' something in C, and making sure you null out the pointer
 	//  someFileHandle$$ fclose
 	// instead of having to fo      someFileHandle fclose   null someFileHandle=
 	proc_opcode_mk2(pctx, op_take, "$$",  "(Any*&:a  -> like a@ )" );
 
-	proc_opcode_mk2(pctx, op_load, "@",  "(Any.Instruction&:a -> like a@)" );
+		proc_opcode_mk2(pctx, op_load, "@",  "(Any.Instruction&:a -> like a@)" );
 	proc_opcode_mk2(pctx, op_printstr, "print", "(String)");
 
 	//proc_opcode_mk2(pctx, op_trashstore, "=",  "(String$:value  like value&:dst)" );
@@ -5012,6 +5047,7 @@ void int_run_str(char* src, char* filename){
 
 	proc_opcode_mk2(pctx, op_nop, ".cptr", "(Any&:a->like a@*)");
 	proc_opcode_mk2(pctx, op_nop, ".cptr", "([Any]:a->like a@*)");
+
 
     zlistT tokens;
     zlist_init(&tokens);
