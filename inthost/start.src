@@ -1,3 +1,6 @@
+
+
+
 "inc/base.inc" include
 "inc/stdio.inc" include
 "inc/glfw3.inc" include
@@ -7,6 +10,103 @@
 "inc/reflect.inc" include
 "inc/fluidsynth.inc" include
 
+
+type atype
+    Z32 var A
+    Z32 var B
+    30 constant C
+
+    section d
+        Z32 var B
+    end
+
+    (Z32:a Z32:b ->Z32) proc m
+
+        a b * return
+    end
+
+end
+
+
+section asection
+    Z32 var A
+    Z32 var B
+    30 constant C
+    (Z32:a Z32:b ->Z32) proc m2
+
+        a b * return
+    end
+
+end
+
+
+atype var AT
+atype var BT
+
+
+
+
+
+
+//values of the TYPE
+atype.C print newline
+10 20 atype .m print newline
+
+//atype.B//error (expected)
+
+//values of the item
+
+128 AT.B=
+AT.B AT.B + print newline
+
+asection.C print newline
+
+5 11 asection.m2 print newline
+
+asection printptr
+77 asection.B =
+
+asection.A print " "print
+asection.B print " " print newline
+
+
+
+(Any.Instruction$:inst->Type) proc typeof
+    inst.returnType return
+end
+
+
+11 >-typeof.key print newline
+
+
+sys_ENDFILE
+/*
+type atype
+    Z32 var a
+    Z32 var b
+    30 constant c
+   (Z32:a -> Z32) proc testa
+        a a * return
+   end
+end
+
+section asection
+    Z32 var aa
+    Z32 var bb
+    33 constant cc
+    (Z32:a -> Z32) proc testb
+            a a * return
+   end
+end
+
+*/
+
+
+
+
+
+
+sys_ENDFILE
 
 
 '[ 10 20 ]$ :d
@@ -29,18 +129,6 @@ end
 
 test var t
 
-
-//t
-  //  "Whatever"$ ..b=
-
-
-
-
-t printptr
-
-t.a print newline
-t.b print newline
-t.c print newline
 
 sys_ENDFILE
 

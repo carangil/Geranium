@@ -173,6 +173,7 @@ void int_insert_tokenf(tokenT* A, tokenT* B, zbool before) {
 
 //used to recognize 2-letter combinations like ->, etc
 zuint32 find_pair(char* patterns, char a, char b){
+
 	for(  ;*patterns && *(patterns+1) ; patterns+=3){
 		if ( ((*patterns)==a) &&(*(patterns+1)==b))
 			return TOKEN_PAIR(a,b) ;
@@ -249,7 +250,7 @@ void  tokenize(tokenT* insert, char* in, char* filename, int line){
 
 		//find twochar patterns like ->,etc. including comment start/end markers
 		//looking for pairs before chars makes sure the matching is 'greedy'
-		if ((p = find_pair("+= '[ $$ :: .* .& .@ .$ -- ++ == -> <- >- /* */ // [] >= <= != .- <> \\\\ /\\ \\/" , c, next))){
+		if ((p = find_pair("+= '[ $$ :: >> .* .& .@ .$ -- ++ == -> >- /* */ // [] >= <= != .- <> \\\\ /\\ \\/" , c, next))){
 			if (  p == TOKEN_PAIR('/','/')  ) { //special handling for // comments
 				while(*in!= '\n')
 					in++;
@@ -341,7 +342,7 @@ void  tokenize(tokenT* insert, char* in, char* filename, int line){
 
 		if (!name || (*in == '.') ){
 			digits  = accept_patterns(in,
-					"-.0123456789", //start with digit or decimal point
+					"-0123456789", //start with digit or decimal point
 					"e- E- e+ E+",  //- and + only accepted after an e or E
 					"0123456789.eE"); //continues with digits, decimal point, hex letters, type suffix letters
 
@@ -426,12 +427,17 @@ zbool word_clean(void* v){
 	return ZTRUE;
 }
 
+
+tokenT* parse_default(parsectxT* pctx, wordT* w, tokenT* t, int argc);
+
 //creates a word.  If owntype no reference is added to type, so that freeing the word frees the type.
 
 wordT* word_mk(parsectxT* pctx, char* name, typeT* type){
 
 	wordT* w = ram_alloc(sizeof(wordT), word_clean);
 	
+	w->parse = parse_default;
+
 	w->name = zstrdup(name); //note: null string will give a valid empty string non-null result
 
 	w->type = ram_addref(type);
@@ -1395,9 +1401,9 @@ void print_switch_listing(switchopT* prog){
 
 			else  if (prog[i].immtype == tString)
 				printf(" '%s'", prog[i].imm.as.ptr.address.bytes);
+			else if (prog[i].immtype ->category != SIMPLE)
+				printf("%s %p+%d",prog[i].immtype->key, prog[i].imm.as.ptr.address.block,prog[i].imm.as.ptr.offset );
 			else
-				printf("%d", prog[i].imm.as.z32);
-
 			printf(":%s", prog[i].immtype->key);
 
 		}
@@ -1962,6 +1968,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 				if (exe->stack[exe->sp-1].as.z32 >= zarray_count(exe->stack[ exe->sp-2].as.ptr.address.block)){
 					errorf("Exceed array bounds\n");
+
 				}
 
 				exe->stack[ exe->sp-2].as.ptr.offset += (exe->stack[exe->sp-1].as.z32 * pc->imm.as.z32);
@@ -2610,6 +2617,15 @@ tokenT* parse_cast(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 	return t;
 }
 
+tokenT* parse_get_subtree(parsectxT* pctx, wordT* w, tokenT* t, int argc){
+
+			instructionT* inst = pop_arg(pctx);
+			typeT* inst_type = OF( pctx, STEWARD, OF(pctx, SUBTREE, inst->result_type));
+			valueT v = {0};
+			v.as.ptr.address.subtree = inst;
+			push_assembly( pctx, op_constantaddref, INST_FREE_VALUE, &v, inst_type, NULL, inst_type);
+			return t;
+}
 
 tokenT* parse_default(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
@@ -2627,7 +2643,7 @@ tokenT* parse_default(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 		instructionT* inst = push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, args, w->type->ref);
 		inst->comment = ram_addref(w->comment);
 
-
+/*
 		if (tnext(t) && !strcmp(tnext(t)->str,">-")){
 			t=tnext(t);
 
@@ -2641,11 +2657,11 @@ tokenT* parse_default(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 			push_assembly( pctx, op_constantaddref, INST_FREE_VALUE, &v, inst_type, NULL, inst_type);
 			return t;
 			//			printf(" & after function call\n");
-//			getc(stdin);
+			getc(stdin);
 		}
+*/
 
 		if (w->autoload){
-
 			t = autoload(pctx, w, t);
 		}
 
@@ -3515,9 +3531,7 @@ tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 	}
 
 	char* varname = t->str;
-	if (t->str[0]=='.') {
 
-	}
 	wordT* w = NULL;
 	typeT* vartype = NULL;
 
@@ -3975,12 +3989,90 @@ tokenT* parse(parsectxT* pctx, tokenT* t, char** stop_tokens){
 
 		int argc=0;
 		parsectxT* foundpctx= NULL;
+		tracef(" LOOKING FOR '%s'\n", t->str);
 		wordT* w = match_word(pctx, pctx,  t->str, MATCH_RECURSE_PCTX| MATCH_ALLOW_LIKE, &argc, &foundpctx);
+
+		if (!w && t->str[0] == '.' && codestack_depth(pctx) >= 1  ){
+			//if no match, and there is something on the stack, and it starts with a dotting
+			//it might be a frame member
+
+			zbool is_section = ZFALSE;
+			zbool have_obj_pointer = ZFALSE;
+			instructionT* inst_obj= pop_arg(pctx);
+
+			typeT* ty = inst_obj->result_type; //type the obj on stack is
+
+			if (ty->category == REFERENCE && ty->ref->category == FRAME) { //reference to a frame
+				have_obj_pointer = ZTRUE;
+				ty = ty->ref;
+			} else  if (ty== tType && inst_obj->val_type == tType){
+				ty = inst_obj->val.as.ptr.address.type; //or if it's a type itself
+				tracef(" on %s  %p %d\n", ty->key, ty->word->target_pctx, ty->word->target_pctx->is_section);
+				if (ty->word && ty->word->target_pctx && ty->word->target_pctx->is_section){
+					is_section = ZTRUE;
+					tracef("is section\n");
+				}
+			} else{
+				ty= NULL;
+				errorf(" UNHANDLED '.' case\n");
+			}
+
+			if(ty){
+			//looking in the pointers' type's pctx, or the explicitly given type's pctx
+			tracef(" looking for %s in %s (from %s) \n", t->str+1,ty->key, inst_obj->result_type->key);
+			wordT* m = NULL;
+
+			if(ty && ty->word ){
+				m = match_word(pctx, ty->word->target_pctx, t->str+1,  MATCH_ALLOW_LIKE, &argc, &foundpctx);
+			}
+
+			if (m){
+				tracef(" found %s  %s\n", m->name, m->type->key);
+			}
+
+			//allowed combinations:
+
+			if (m && m->type&& ( m->type->category == PROC  || m->type==tType || m->opcode == op_constant || m->opcode == op_constantaddref) ){
+				//don't need the actual 'type' on the stack
+				if (!have_obj_pointer) {
+					tracef(" omitting pointer\n");
+					w = m;
+				}
+			}
+
+			if(m->type->category == VARIABLE){
+
+				if (is_section){
+					printf(" Need to get variable from inside singleton section\n");
+					w=m;
+
+				} else if (have_obj_pointer){
+					tracef("need to put obj pointer back on\n");
+					//push_subtree(pctx, inst_obj);
+
+
+					valueT v = {0};
+					v.as.ptr.address.word = m;
+					//add offset to the obj pointer
+					push_assembly(pctx, op_subvar, 0, &v, tWord, assembly_args_mk(1, inst_obj), OF(pctx, REFERENCE, m->type->ref));
+					inst_obj = NULL;
+
+
+					t=autoload(pctx, m, t); //apply rules for &, =, etc
+					t=tnext(t);
+					continue;
+
+
+
+				}
+			}
+			}
+			ram_free(inst_obj);
+		}
+
 
 		if (w) {
 			tracef("found word %s %s   %s\n", w->name, w->type?w->type->key:"notype" , t->str  );
-
-			tokenT* tstart = t;
 
 			if (w->restrict_pctx){
 				if (pctx != w->restrict_pctx){
@@ -3990,10 +4082,8 @@ tokenT* parse(parsectxT* pctx, tokenT* t, char** stop_tokens){
 			}
 
 			if (!w->parse){
-				//printf("do default parse\n");
-				t = parse_default(pctx, w, t, argc);
-			} else{
-			//:w	printf("do %s parse\n", w->name);
+				errorf("No parse function for %s\n", w->name);
+			} else {
 				t = w->parse(pctx, w, t, argc);
 			}
 
@@ -4002,137 +4092,17 @@ tokenT* parse(parsectxT* pctx, tokenT* t, char** stop_tokens){
 				return NULL;
 			}
 
-			for (int i=0;i<argc;i++)
-				tstart = tprev(tstart);
-
 			if (!t){
 					PERROR(pctx, "unexpected end of input\n");
-
 					return NULL;
 			}
 
 			t=tnext(t);
 			continue;
+
+
 		}
 		//did not match a word
-
-		//is it a frame member?
-
-		if (zvec_count(pctx->codestack) >= 1 && t->str[0] == '.' ){
-			printf("-------------.%s\n", t->str);
-			instructionT* inst = zvec_get_at(pctx->codestack, zvec_count(pctx->codestack)-1);
-			typeT* ty = inst->result_type;
-
-			//if dotting off a typename:
-			if (ty == tType){
-
-				if (inst->val_type == tType){
-					ty = inst->val.as.ptr.address.type;
-				} else {
-
-					errorf(" type constant not found\n");
-				}
-
-				tracef(" dot off typename %s\n", ty->key);
-				//pop it off stack
-				pop_arg(pctx);
-
-				//search for things in the type itself
-
-				//dump_dictionary(ty->word->target_pctx);
-				tracef(" search for %s\n", t->str+1);
-
-
-				w = match_word(pctx, ty->word->target_pctx, t->str+1 /*skip dot*/, MATCH_ALLOW_LIKE,NULL , NULL);
-
-				if (w)
-					tracef("found %s %s\n", w->name, w->type?w->type->key:"notype");
-
-				if (w && w->type){
-
-
-
-					if (w->type == tType || w->type->category == PROC  || w->opcode == op_constant || w->opcode == op_constantaddref){
-						tracef(" found %s. %s\n", ty->key,  w?w->name : "nothing");
-						if (w && w->type && w->type->key) {
-							tracef(" ^ is %s\n", w->type->key);
-						}
-
-						pctx->next_match = w;
-						ram_free(inst);
-						continue;
-
-					} else if (ty->word->target_pctx->is_section){ //type has a reference to an instance of itself
-
-						valueT val = {0};
-						val.as.ptr.address.word = w;
-
-						tracef("sectionVAR adding op_sectionvar for %s  has pctx %p\n", w->name, w->in_pctx);
-						if (w->in_pctx){
-							tracef("%s\n", w->in_pctx->frametype->key);
-
-						}
-
-						push_assembly(pctx, op_sectionvar, 0, &w->val, w->val_type, NULL, OF(pctx, REFERENCE, w->type->ref));
-
-						ram_free(inst);
-						if (w->autoload){
-							t = autoload(pctx, w,t);
-						}
-						t=tnext(t);
-						continue;
-
-					}else {
-						errorf("Cannot use %s here.\n", w->type->key);
-						exit(1);
-
-					}
-				}  else {
-
-					errorf(" Type/section %s has no member %s\n",ty->name, t->str+1 );
-				//	exit(1);
-					//continue;
-				}
-				errorf(" fell\n");
-			//	exit(1);
-			}
-
-
-			//if dotting off a reference to a frame or pending
-			if (ty&& ty->category == REFERENCE && ty->ref && ( ty->ref->category == FRAME  ||  ty->ref->category == PENDING)   ) {
-
-				ty = ty->ref;
-				tracef("looking for %s in ref %s word %s\n", t->str, ty->key, ty->word->name);
-
-
-				w = match_word(pctx, ty->word->target_pctx, t->str+1 /*skip dot*/, 0,NULL , NULL);
-
-				tracef(" <<<MATCH %s", w->name);
-
-				tracef(" found %s\n", w?w->name : "nothing");
-				if (w && w->type && w->type->key) {
-					tracef(" ^ is %s\n", w->type->key);
-				}
-
-				if (w->type&& w->type->category != VARIABLE){
-
-					errorf(" struct elements must be variables\n");
-					exit(1);
-				}
-
-				valueT v = {0};
-				v.as.ptr.address.word = w;
-
-				//printf(" pushing subvar assembly %d but word actually is a %d\n", op_subvar, w->opcode);
-				push_assembly(pctx, op_subvar, 0, &v, tWord, assembly_args_mk(1, pop_arg(pctx)), OF(pctx, REFERENCE, w->type->ref));
-			//	getc(stdin);
-				t = autoload(pctx, w,t);
-				t=tnext(t);
-				continue;
-			}
-		}
-
-		//not known
 
 
 		char* msg=zstrdup("");
@@ -4182,6 +4152,7 @@ char* type_key(char* name, typeT* ref, categoryE category, int size, typeT** arg
 	if (category == PROC){
 		key = zstrdup("(");
 		if (args) {
+
 			for (int i=0; i<zarray_count(args);i++){
 				key = zstrprintf(key, "%s%s", i>0?",":"", args[i]->key);
 			}
@@ -4430,10 +4401,12 @@ wordT* proc_opcode_mk(parsectxT* pctx,  int opcode, char* name, typeT* proctype)
 		return w;
 }
 
+typeT* type_from_strf(parsectxT* pctx, char* str, int line);
+#define type_from_str(PC, STR) type_from_strf(PC, STR, __LINE__)
 
-typeT* type_from_str(parsectxT* pctx, char* str);
 
 wordT* proc_opcode_mk2(parsectxT* pctx,  int opcode, char* name, char* typestr){
+	printf(" TRYING %s\n", typestr);
 	typeT* proctype = type_from_str(pctx, typestr);
 	wordT* w = proc_mk(pctx, name, proctype);
 	if(ERR(pctx)) {
@@ -4456,7 +4429,7 @@ wordT* proc_parser_mk(parsectxT* pctx, char* name, typeT* proctype, void* parsef
 
 //Takes a string and produces the datatype it represents as a constant.  This is much easier than chaining together multiple lines of C building a data type from the actual structs.
 //The caller of this function is responsible to free this typeT struct, or store it somewhere that will free it
-typeT* type_from_str(parsectxT* pctx, char* str){
+typeT* type_from_strf(parsectxT* pctx, char* str, int line){
 	//takes a string and makes a type
 	zlistT tokens;
     zlist_init(&tokens);
@@ -4464,7 +4437,7 @@ typeT* type_from_str(parsectxT* pctx, char* str){
     tokenT* first = token_mk(TOKEN_STARTFILE, NULL, 0);
     zlist_addhead(&tokens, &(first->zlistnode));
 
-    tokenize(first, str, "type_from_str", 1);
+    tokenize(first, str, "type_from_str", line);
 
     parse(pctx, zlist_head(&tokens), NULL);
 
@@ -4585,6 +4558,7 @@ instructionT** word_instructions(wordT* w){
 		code[i] = (zvec_get_at(w->target_pctx->codestack, i));
 	}
 
+	zarray_use(code, zvec_count(w->target_pctx->codestack));
 	return code;
 
 }
@@ -4730,6 +4704,8 @@ char** type_proc_argnames(typeT* t){
 	memcpy(argnames, t->opt_argnames, sizeof(char*) * zarray_size(t->argtypes));
 
 	printf(" returning %d argnames\n", zarray_size(argnames));
+
+	zarray_use(argnames, zarray_size(argnames));
 
 	return argnames;
 }
@@ -4879,6 +4855,10 @@ void int_run_str(char* src, char* filename){
 
 	proc_parser_mk(pctx, "sys", type_proc_mk(NULL, 2, tType , OF(pctx, CPOINTER, tAny)), parse_proc);
 
+	proc_parser_mk(pctx, ">-",  type_from_str(pctx,"(Any->Any.Instruction)") , parse_get_subtree);
+
+
+
 	//add some casts
 	proc_opcode_mk2(pctx, op_nop, ".Bit", "(Z32->Bit)");
 	proc_opcode_mk2(pctx, op_nop, ".Z32", "(Bit->Z32)");
@@ -4903,6 +4883,8 @@ void int_run_str(char* src, char* filename){
 
 	wordT* carrayindex = proc_opcode_mk2(pctx, op_carrayindex, "[]", "( Any*:a Z32:idx -> like a)");
 	carrayindex->autoload = ZTRUE;
+
+
 
 	proc_opcode_mk2(pctx, op_indexplusstore, "++", "([Any]$:a  like a@@:b-> like a)");
 

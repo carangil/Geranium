@@ -13,7 +13,7 @@ end
 
 (String$:dest String:src Size32:count Size32:count -> String$) "_INTERNAL" "zstrcatsub" sys midcat
 
-(String$:dest String:src -> String$) proc +
+(String$:dest String:src -> String$) proc ++
     dest$$ src 0 -1 midcat
 end
 
@@ -22,7 +22,6 @@ end
     a b strcmp 0 == return
 
 end
-
 
 
 

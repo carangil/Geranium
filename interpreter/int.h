@@ -316,7 +316,6 @@ typedef enum {
 
 	op_dup, //duplicate value
 	op_dups, //duplicate and add reference
-	//op_drop, //drop without free
 
 	//floating point
 	op_fadd,

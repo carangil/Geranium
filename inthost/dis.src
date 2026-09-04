@@ -13,7 +13,7 @@
 (Any.Instruction: c Z32:indent)   proc disassemble     //function is passed the instruction tree for a Z32
 
     (Z32:indent) proc tab
-        0 var i= loop i indent == if break end
+        0 :i loop i indent == if break end
             "    " print
         step
             i 1+i=
@@ -24,7 +24,7 @@
 
     c.args.count 0 > if
 
-        0 var i=
+        0:i
         loop
 
             i c.args.count == if
@@ -95,17 +95,17 @@ end
         "is word" print newline
 
 
-        c.valWord.type.args var types=
-        c.valWord.type.argnames var names=
+        c.valWord.type.args :types
+        c.valWord.type.argnames :names
 
 
 
 
-        0 var i =
+        0:i
         loop i types.size < not if break end
 
 
-            names i[]  print " is " print
+           "NAME " print names i[]  print " is " print
 
             types i[] .key print newline
 
@@ -115,7 +115,7 @@ end
         c.valWord.type.@.key print newline
 
 
-        c.valWord.instructions var code=
+        c.valWord.instructions :code
 
 
         code.size print "instructions:" print newline
