@@ -282,8 +282,8 @@ typedef enum {
 	op_arrayinfo, //get size or count
 	op_arraysetcount,
 	op_adim,
-	op_sidevar,
 	op_indexplusstore,
+
 
 	//load
 	op_load,
@@ -316,6 +316,9 @@ typedef enum {
 
 	op_dup, //duplicate value
 	op_dups, //duplicate and add reference
+
+	op_over,
+	op_drop,
 
 	//floating point
 	op_fadd,

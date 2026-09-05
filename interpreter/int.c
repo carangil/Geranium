@@ -250,7 +250,7 @@ void  tokenize(tokenT* insert, char* in, char* filename, int line){
 
 		//find twochar patterns like ->,etc. including comment start/end markers
 		//looking for pairs before chars makes sure the matching is 'greedy'
-		if ((p = find_pair("+= '[ $$ :: >> .* .& .@ .$ -- ++ == -> >- /* */ // [] >= <= != .- <> \\\\ /\\ \\/" , c, next))){
+		if ((p = find_pair("+= '[ $$ :: $[ =[ .* .& .@ .$ -- ++ == -> >- /* */ // [] >= <= != .- <> \\\\ /\\ \\/" , c, next))){
 			if (  p == TOKEN_PAIR('/','/')  ) { //special handling for // comments
 				while(*in!= '\n')
 					in++;
@@ -1771,8 +1771,6 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 					*v=NULL;
 				}
 
-
-
 				pc++;
 				continue;
 
@@ -1782,9 +1780,20 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				pc++;
 				continue;
 
+			case op_drop: //duplicate value on stack
+				exe->sp--;
+				pc++;
+				continue;
+
 			case op_dups:
 				exe->stack[exe->sp] = exe->stack[exe->sp-1];
 				ram_addref(  exe->stack[exe->sp].as.ptr.address.block);
+				exe->sp++;
+				pc++;
+				continue;
+
+			case op_over: //duplicate next-to-last value on stack
+				exe->stack[exe->sp] = exe->stack[exe->sp-2];
 				exe->sp++;
 				pc++;
 				continue;
@@ -2456,14 +2465,9 @@ void dereference_assembly(parsectxT* pctx, char* loadername){
 
 	if (wloader){
 		tracef(" Found loader OPCODE IS %d\n", wloader->opcode);
-		printf(" Found loader OPCODE IS %d args %d\n", wloader->opcode);
-		//pop it off
-		printf("wloader%s wloader_args %d\n",loadername, wloader->type->argc );
+
 		instructionT** insts = pop_args(pctx, argc); //get the instruction
-
-
 		push_assembly(pctx, wloader->opcode,0, NULL, NULL, insts, wloader->type->ref);
-
 
 
 	}else {
@@ -2804,6 +2808,7 @@ tokenT* parse_array_values(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	ram_free(args);
 
+/*
 	if (!strcmp(tnext(t)->str, "$")){
 		//skip over $
 		t = tnext(t);
@@ -2811,9 +2816,104 @@ tokenT* parse_array_values(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 		errorf("Dynamically allocated array requires steward.  '[...]$");
 		exit(1);
 	}
+*/
+
 
 	return t;
 }
+
+
+tokenT* parse_fill_frame(parsectxT* pctx, wordT* w, tokenT* t, int argc){
+
+
+	int depth = codestack_depth(pctx);
+	char* stops[] = {"]", ":",  NULL};
+	valueT v = {0};
+	t = tnext(t); //skip 'fill'
+
+	instructionT* obj = pop_arg(pctx);
+	push_subtree(pctx, obj);
+
+	typeT* ty = obj->result_type;
+
+	if (ty ->category == REFERENCE && ty->ref->category == FRAME){
+		ty = ty->ref;
+	} else {
+		errorf(" can only fill by struct reference\n");
+		exit(1);
+	}
+
+
+	while(1){
+
+		depth = codestack_depth(pctx);
+		t = parse(pctx, t, stops);
+		if (!strcmp(t->str, "]"))
+			break;
+
+		if (!strcmp(t->str, ":")){
+
+
+			if (codestack_depth(pctx) - depth != 1){
+				errorf(" when filling, : should appear with one 1 stack element\n");
+				exit(1);
+			}
+
+
+			printf(" TO STORE IN %s\n", tnext(t)->str);
+
+			wordT* m =  match_word(pctx, ty->word->target_pctx, tnext(t)->str, 0, NULL, NULL);
+
+			if (m && m->type->category == VARIABLE){
+
+				valueT v = {0};
+				v.as.ptr.address.word = m;
+
+				//copy offset pointer
+				push_assembly(pctx, op_over, 0, NULL, NULL, NULL, obj->result_type);
+				//add offset to the obj pointer
+				push_assembly(pctx, op_subvar, 0, &v, tWord, pop_args(pctx, 1) , OF(pctx, REFERENCE, m->type->ref));
+				dereference_assembly(pctx, "=");
+
+
+
+
+
+				instructionT* assign = pop_arg(pctx);
+				instructionT* obj = pop_arg(pctx);
+				push_assembly(pctx, op_block, 0, NULL, NULL, assembly_args_mk(2, obj, assign), obj->result_type);
+
+
+				printf(" Found %p\n", m);
+
+
+			} else {
+				errorf(" %s not found in %s\n", tnext(t)->str, ty->key);
+				exit(1);
+			}
+
+			t=tnext(t); //skip colon
+			t=tnext(t); //skip name
+
+		}
+
+
+
+	}
+
+	if (codestack_depth(pctx) != depth){
+			printf(" Should be same size %d %d \n", codestack_depth(pctx), depth);
+			exit(1);
+	}
+
+
+	push_assembly(pctx, op_drop, 0, NULL, NULL, pop_args(pctx, 1), NULL); //cleanup stack value
+
+//	exit(1);
+
+	return t;
+}
+
 
 
 tokenT* parse_type_list(parsectxT* pctx, wordT* w, tokenT* t, int argc){
@@ -3023,8 +3123,8 @@ tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 
 	instructionT* arg0 = pop_arg(pctx);
 
-	zbool store = ZFALSE;
-	zbool copy = ZFALSE;
+	zbool store = ZFALSE;	//store the value in variable
+	zbool copy = ZFALSE;	//store the value in variable, and keep a copy on stack
 
 
 	if (!strcmp(t->str, ":")) {
@@ -3049,15 +3149,14 @@ tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 
 	char* varname = tnext(t)->str;
 
+
 	if (!store)	{//if not keeping the var, advance, so we don't reparse the name
 					//if we ARE keeping the var, not advancing will make the variable name be parsed again, which uses the variable
 		t=tnext(t);
 	}
 
 
-
 	wordT* w = NULL;
-
 
 
 	if(!innertype){
@@ -3148,7 +3247,15 @@ tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 			}
 
 
+
 		}
+
+		printf(" NEXT IS %s\n", tnext(t)->str);
+		if (!strcmp(tnext(t)->str, "&")){
+			t=tnext(t);
+			push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, NULL, OF(pctx, REFERENCE, w->type->ref));
+		}
+
 
 	}
 	ram_free(arg0);
@@ -4018,56 +4125,61 @@ tokenT* parse(parsectxT* pctx, tokenT* t, char** stop_tokens){
 			}
 
 			if(ty){
-			//looking in the pointers' type's pctx, or the explicitly given type's pctx
-			tracef(" looking for %s in %s (from %s) \n", t->str+1,ty->key, inst_obj->result_type->key);
-			wordT* m = NULL;
+				//looking in the pointers' type's pctx, or the explicitly given type's pctx
+				tracef(" looking for %s in %s (from %s) \n", t->str+1,ty->key, inst_obj->result_type->key);
+				wordT* m = NULL;
 
-			if(ty && ty->word ){
-				m = match_word(pctx, ty->word->target_pctx, t->str+1,  MATCH_ALLOW_LIKE, &argc, &foundpctx);
-			}
-
-			if (m){
-				tracef(" found %s  %s\n", m->name, m->type->key);
-			}
-
-			//allowed combinations:
-
-			if (m && m->type&& ( m->type->category == PROC  || m->type==tType || m->opcode == op_constant || m->opcode == op_constantaddref) ){
-				//don't need the actual 'type' on the stack
-				if (!have_obj_pointer) {
-					tracef(" omitting pointer\n");
-					w = m;
+				if(ty && ty->word ){
+					m = match_word(pctx, ty->word->target_pctx, t->str+1,  MATCH_ALLOW_LIKE, &argc, &foundpctx);
 				}
-			}
 
-			if(m->type->category == VARIABLE){
+				if (m){
+					tracef(" found %s  %s\n", m->name, m->type->key);
+				}
 
-				if (is_section){
-					printf(" Need to get variable from inside singleton section\n");
-					w=m;
+				//allowed combinations:
 
-				} else if (have_obj_pointer){
-					tracef("need to put obj pointer back on\n");
-					//push_subtree(pctx, inst_obj);
-
-
-					valueT v = {0};
-					v.as.ptr.address.word = m;
-					//add offset to the obj pointer
-					push_assembly(pctx, op_subvar, 0, &v, tWord, assembly_args_mk(1, inst_obj), OF(pctx, REFERENCE, m->type->ref));
+				if (m && m->type&& ( m->type->category == PROC  || m->type==tType || m->opcode == op_constant || m->opcode == op_constantaddref) ){
+					//don't need the actual 'type' on the stack
+					if (!have_obj_pointer) {
+						tracef(" omitting pointer\n");
+						w = m;
+					}
+					ram_free(inst_obj);
 					inst_obj = NULL;
+				}
+
+				if(m && m->type->category == VARIABLE){
+
+					if (is_section){
+						printf(" Need to get variable from inside singleton section\n");
+						w=m;
+						ram_free(inst_obj);
+						inst_obj = NULL;
+					} else if (have_obj_pointer){
+						tracef("need to put obj pointer back on\n");
+						//push_subtree(pctx, inst_obj);
 
 
-					t=autoload(pctx, m, t); //apply rules for &, =, etc
-					t=tnext(t);
-					continue;
+						valueT v = {0};
+						v.as.ptr.address.word = m;
+						//add offset to the obj pointer
+						push_assembly(pctx, op_subvar, 0, &v, tWord, assembly_args_mk(1, inst_obj), OF(pctx, REFERENCE, m->type->ref));
+						inst_obj = NULL;
+
+
+						t=autoload(pctx, m, t); //apply rules for &, =, etc
+						t=tnext(t);
+						continue;
 
 
 
+					}
 				}
 			}
-			}
-			ram_free(inst_obj);
+			if (inst_obj)
+				push_subtree(pctx, inst_obj);
+			inst_obj = NULL;
 		}
 
 
@@ -4743,8 +4855,10 @@ void int_run_str(char* src, char* filename){
 	ADD_INST(sectionvar);
 	ADD_INST(mul32);
 	ADD_INST(sub32);
-
-
+	ADD_INST(over)
+	ADD_INST(dup)
+	ADD_INST(dups)
+	ADD_INST(drop)
 	ADD_INST(adim);
 	ADD_INST(switch_indexplus);
 	ADD_INST(indexplusstore);
@@ -4829,7 +4943,9 @@ void int_run_str(char* src, char* filename){
 	proc_parser_mk(pctx, "~", type_proc_mk(tType, 1, tType), parse_related_type); //makes an array type into an iterated
 
 	proc_parser_mk(pctx, "[", NULL, parse_array); //create array type [Z32] for example
-	proc_parser_mk(pctx, "'[", NULL, parse_array_values); //create an array with values  '[10 20]
+	proc_parser_mk(pctx, "$[", NULL, parse_array_values); //create an array with values  '[10 20]
+
+	proc_parser_mk(pctx, "=[", type_from_str(pctx,"(Any&)") , parse_fill_frame );
 
 	//create control structures
 	proc_parser_mk(pctx, "if", type_proc_mk(NULL, 1, tZ32), parse_flow); //parse flow structures
@@ -4928,13 +5044,6 @@ void int_run_str(char* src, char* filename){
 
 	proc_opcode_mk2(pctx, op_load, "@",  "(ZL16& -> Z32)" );
 	proc_opcode_mk2(pctx, op_store, "=",  "(Z32:value  ZL16&:dst)" );
-
-
-/*
-	//16-bit
-	proc_opcode_mk2(pctx, op_load, "@",  "(Z16& -> Z32)" );
-	proc_opcode_mk2(pctx, op_store, "=",  "(Z32:value  Byte&:dst)" );
-*/
 
 	//create primitives. minimal at the moment
 	//these use the above specified parser
