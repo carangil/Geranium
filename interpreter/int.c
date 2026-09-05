@@ -1486,7 +1486,7 @@ zbool clean_array(void* v){
 		for (int i=0;i<zarray_count(v);i++){
 			tracef(" item %d  size %d\n", i, t->ref->size);
 			void* item = ((char*)v) + i* t->ref->size;
-			//clean_by_list(item, t->ref->word->target_pctx);
+			clean_by_list(item, t->ref->word->target_pctx);
 		}
 	} else if  (t->ref->category == STEWARD){
 
