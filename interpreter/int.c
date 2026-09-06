@@ -455,11 +455,7 @@ wordT* word_mk(parsectxT* pctx, char* name, typeT* type){
 		for (int i=0;i<zvec_count(p); i++){
 
 			wordT* cw = zvec_get_at(p, i);
-			if (cw->type->argc == 0 && w->type->argc ==0){
-				PERROR(pctx, "Creating second word with no args in same pctx\n");
-				ram_free(w);
-				return NULL;
-			}
+
 			//if both same type (proc) then also error
 			//todo:might have more  conflicts, not known yet
 			if ((cw->type->category == PROC) && !strcmp(cw->type->key, w->type->key)){ //todo use cmp_type with 'no wildcards/subst'
@@ -475,6 +471,12 @@ wordT* word_mk(parsectxT* pctx, char* name, typeT* type){
 				ram_free(w);
 				return NULL;
 
+			}
+
+			if (cw->type->argc == 0 && w->type->argc ==0){
+				PERROR(pctx, "Creating second word with no args in same pctx\n");
+				ram_free(w);
+				return NULL;
 			}
 
 		}
@@ -2706,6 +2708,13 @@ tokenT* parse_default(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 			exit(1);
 		}
 
+		if (w->opcode == op_localvar){
+			if (w->restrict_pctx != pctx){
+				errorf(" Cannot use here\n");
+				exit(1);
+			}
+		}
+
 		push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, NULL, OF(pctx, REFERENCE, w->type->ref));
 
 		if (w->autoload){
@@ -3197,8 +3206,10 @@ tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 			w->opcode = op_sectionvar;
 		} else if (pctx->is_frame){
 			w->opcode = op_subvar;
-		} else if( pctx->parent)
+		} else if( pctx->parent){
 			w->opcode = op_localvar;
+			w->restrict_pctx = pctx; //can only be addressed relative to this context
+		}
 		else
 			w->opcode = op_globalvar;
 
@@ -3250,10 +3261,12 @@ tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 
 		}
 
-		printf(" NEXT IS %s\n", tnext(t)->str);
-		if (!strcmp(tnext(t)->str, "&")){
-			t=tnext(t);
-			push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, NULL, OF(pctx, REFERENCE, w->type->ref));
+		if (tnext(t)){
+			printf(" NEXT IS %s\n", tnext(t)->str);
+			if (!strcmp(tnext(t)->str, "&")){
+				t=tnext(t);
+				push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, NULL, OF(pctx, REFERENCE, w->type->ref));
+			}
 		}
 
 
@@ -3645,6 +3658,8 @@ tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 	if ( arg0->val_type == tType){
 
 		vartype = arg0->val.as.ptr.address.type;  //this is a datatype, like a proc
+
+
 
 		tracef(" %d CREATING PROC %s of %s\n", argc,varname,  vartype->key  );
 		w = word_mk(install_pctx, varname, vartype); //word for the variable

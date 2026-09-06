@@ -25,6 +25,7 @@ type atype
         a b * return
     end
 
+    String$ var s
 end
 
 
@@ -40,11 +41,14 @@ section asection
 end
 
 
-atype var AT
-atype var BT
+atype var AT &=[
+   13:B
+   "test"$ :s
+  100:A
+]
 
 
-
+[atype]$ var BT
 
 
 
@@ -77,6 +81,104 @@ end
 
 
 11 >-typeof.key print newline
+
+
+
+
+
+
+AT.B print newline
+AT.A print newline
+AT.s print newline
+
+
+AT =[
+    "banana"$:s
+]
+
+
+AT.B print newline
+AT.A print newline
+AT.s print newline
+
+$[10 20 30] :aa
+
+aa.count print newline
+aa 1[] print newline
+
+
+
+BT& 3 3 dim
+
+
+BT 1[] =[
+        22:B
+        "cat"$ :s
+]
+
+BT 0[] =[
+        22:B
+        "abc"$ :s
+]
+
+BT 2[] =[
+        22:B
+        "def"$ :s
+]
+
+
+BT 0[].s print newline
+BT 1[].s print newline
+BT 2[].s print newline
+
+BT.count print newline
+"a" print newline
+
+0:i loop i BT.count == if  break end
+
+
+    i print newline
+    BT i[] =[
+            "boo"$:s
+            13 i*1+:A
+    ]
+
+step
+    i&++
+end
+
+
+
+
+
+
+() proto Z
+0 i= loop i BT.count == if  break end
+
+   1 2 Z
+
+step
+    i&++
+end
+
+
+
+()proc Z
+    11:j
+
+    (atype&:v Z32&:j ) proc F
+        v.A print newline
+        v.s print newline
+        j&++
+        j print newline
+
+    end
+
+
+    BT i[] j& F
+
+
+end
 
 
 sys_ENDFILE
