@@ -11,6 +11,97 @@
 "inc/fluidsynth.inc" include
 
 
+Z32 var x
+
+Z32 var y
+
+() proc foo
+
+    section stuff       //static variables
+        Z32 var a
+    end
+
+    stuff.a&++
+    stuff.a print newline
+
+    x print newline
+
+end
+
+
+40 x=
+
+foo
+foo
+foo
+
+
+
+sys_ENDFILE
+
+
+loop end
+
+$[ $[10 20 30] $[11 12 13] $[64 12] ] :f
+
+0:a loop  a f.count == if break end
+
+    "(" print
+    0:b loop b f a[] .count == if break end
+
+        b 0 == not if " " print end
+        b print
+
+
+
+    step b&++ end
+    ")" print
+
+step a&++ end
+newline
+
+loop end
+
+fsynth.new_fluid_settings :settings
+
+
+settings new_fluid_synth :synth
+synth "example.sf2" 1 sfload :sfid
+
+settings synth new_fluid_audio_driver :driver
+
+
+synth 0   1   program_change
+synth 1   15  program_change
+
+
+1000000 constant second
+
+
+$[20 20 33 36 18 18 33 36] :n
+
+
+0:i loop i n.count == if break end
+
+    n i[]print newline
+
+    synth 9  55 100 noteon
+    synth 0 n i[] 100 noteon
+
+    second 8/stdlib.usleep
+   synth 0 n i [] noteoff
+    second 5/stdlib.usleep
+    synth 9 55 noteoff
+
+    step i&++
+end
+
+
+
+
+sys_ENDFILE
+
+
 type atype
     Z32 var A
     Z32 var B
@@ -31,7 +122,7 @@ end
 
 section asection
     Z32 var A
-    Z32 var B
+    Z32 var B1 4 ==
     30 constant C
     (Z32:a Z32:b ->Z32) proc m2
 
@@ -73,7 +164,7 @@ asection printptr
 asection.A print " "print
 asection.B print " " print newline
 
-
+1 4 ==
 
 (Any.Instruction$:inst->Type) proc typeof
     inst.returnType return
@@ -264,46 +355,6 @@ y print newline
 
 
 
-
-
-fsynth.new_fluid_settings :settings
-
-
-settings new_fluid_synth :synth
-synth "example.sf2" 1 sfload :sfid
-
-settings synth new_fluid_audio_driver :driver
-
-
-synth 0   1   program_change
-synth 1   15  program_change
-
-
-1000000 constant second
-
-
-'[20 20 33 36 18 18 33 36]$ :n
-
-
-0:i loop i n.count == if break end
-
-    n i[]print newline
-
-    synth 9  55 100 noteon
-    synth 0 n i[] 100 noteon
-
-    second 8/stdlib.usleep
-   synth 0 n i [] noteoff
-    second 5/stdlib.usleep
-    synth 9 55 noteoff
-
-    step i&++
-end
-
-
-
-
-//sys_ENDFILE
 
 
 // a section organizes variables and procedures into a namespace

@@ -1155,6 +1155,9 @@ switchopT* switch_asmi(switchopT* prog , int opcode, int i,  instructionT* sourc
 
 }
 
+
+void* alloc_frame(parsectxT* pctx);
+
 switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* prog, instructionT* inst){
 
 	zbool skipargs = ZFALSE;
@@ -1209,6 +1212,7 @@ switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* pr
 		/*  goto startloop
 		 *  goto end
 		 *  goto step
+		 *  startloop:
 		 *  body
 		 *
 		 *  step:
@@ -1316,7 +1320,7 @@ switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* pr
 	}
 	*/
 
-	if ((inst->opcode==op_globalvar)||(inst->opcode==op_subvar)||(inst->opcode==op_localvar)){
+	if ((inst->opcode==op_subvar)||(inst->opcode==op_localvar)){
 		wordT* var = inst->val.as.ptr.address.word;
 		prog = switch_asmi(prog, inst->opcode,var->offset, inst);
 		return prog;
@@ -1337,6 +1341,11 @@ switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* pr
 
 
 	if (inst->opcode == op_sectionvar){
+
+		if(inst->val.as.ptr.address.word->in_pctx->frame == NULL){
+			//need to allocate
+			inst->val.as.ptr.address.word->in_pctx->frame = alloc_frame(inst->val.as.ptr.address.word->in_pctx);
+		}
 
 		valueT v={0};
 
@@ -1660,11 +1669,6 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 	exe->locals = alloc_frame(sw->pctx);
 
-	//if global frame doesn't exist, this is it
-	if (!exe->globals){
-		debugf("take locals as global\n");
-		exe->globals = ram_addref(exe->locals);
-	}
 
 	for(;;){
 		ptrT* var;
@@ -1909,17 +1913,6 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				exe->stack[exe->sp].as.ptr.address.block = exe->locals;
 				exe->stack[exe->sp].as.ptr.offset = pc->imm.as.z32;
 				tracef(" ADDRESS FROM local+%d   %p\n", pc->imm.as.z32, exe->locals);
-
-				exe->sp++;
-				pc++;
-				continue;
-
-
-
-			case op_globalvar:
-				exe->stack[exe->sp].as.ptr.address.block = exe->globals;
-				exe->stack[exe->sp].as.ptr.offset = pc->imm.as.z32;
-				tracef(" ADDRESS FROM global+%d   %p\n", pc->imm.as.z32, exe->globals);
 
 				exe->sp++;
 				pc++;
@@ -3209,9 +3202,10 @@ tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 		} else if( pctx->parent){
 			w->opcode = op_localvar;
 			w->restrict_pctx = pctx; //can only be addressed relative to this context
+		} else {
+			printf("what\n");
+			exit(1);
 		}
-		else
-			w->opcode = op_globalvar;
 
 		if (innertype->category != FRAME) //for all variables except 'static' structs, load them
 			w->autoload = ZTRUE;
@@ -3864,7 +3858,7 @@ tokenT* parse_frame(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	type->category = FRAME; //it's done
 	type->size = innerpctx->size;
-
+/*
 	if (issection){
 		if (type->size != 0 ){
 
@@ -3874,7 +3868,7 @@ tokenT* parse_frame(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 		}
 
 	}
-
+*/
 
 	debugf("done at %s\n", t->str);
 	return t;
@@ -4842,7 +4836,6 @@ void int_run_str(char* src, char* filename){
 	instruction_names = zarray_allocd( char*, op_MAX, zarray_destruct_pointers );
 	zarray_use(instruction_names, op_MAX);
 	ADD_INST(constant);
-	ADD_INST(globalvar);
 	ADD_INST(load);
 	ADD_INST(take);
 	ADD_INST(loadaddref);
@@ -4919,6 +4912,7 @@ void int_run_str(char* src, char* filename){
 	int_add_c_object("ram_numrefs" , ram_numrefs);
 
 	parsectxT* pctx= parsectx_mk(NULL, zstrdup("global"));
+	pctx->is_section = ZTRUE; //global is just the top-level section
 
 
 	//create basic types
@@ -5184,8 +5178,8 @@ void int_run_str(char* src, char* filename){
 		debugf(" to Alloc %d global space\n", pctx->size);
 		runme->execute(exe, runme, 0);
 
-		debugf(" free globals\n");
-		ram_free(exe->globals);
+		//debugf(" free globals\n");
+	//	ram_free(exe->globals);
 
 
 	//	ram_free(runme); //runner is part of the pctx, and is freed there

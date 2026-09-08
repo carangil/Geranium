@@ -218,7 +218,6 @@ typedef struct parsectxS{
 
 typedef struct exectxS{
 	valueT*	stack;
-	valueT*	globals;
 	valueT*	locals;
 
 	//todo typeinfo for selectors?
@@ -272,7 +271,6 @@ typedef enum {
 	op_bnot,	//true<->false
 
 	//get pointer to variable, struct member, or array element
-	op_globalvar,
 	op_localvar,
 	op_subvar,	//get fields from a
 	op_sectionvar,
