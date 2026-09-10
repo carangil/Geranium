@@ -609,9 +609,13 @@ typeT* tAny; //matches any type
 #define MATCH_RECURSE_PCTX	0x0001
 
 
-
 //allow LIKE type matching
 #define MATCH_ALLOW_LIKE	0x0002
+
+
+//allow matching to change the stack (like automatic typecasting, etc.)
+// this is destructive, in that if you match... you now have to go with that.
+#define MATCH_ALLOW_MODIFY	0x0100
 
 
 
@@ -679,7 +683,7 @@ typeT* resolve_like_type_for_caller(parsectxT* pctx, typeT* expected, typeT* pro
 	return expected;
 }
 
-
+#define OF(PCTX, CAT, REF) type_find(PCTX, NULL, REF, CAT, 0, NULL)
 
 //Compare two types to see if they are compatible/equivalent
 
@@ -842,6 +846,13 @@ void instruction_print(instructionT* inst, int level, zbool recurse){
 			printf( " %s:(%s) ", inst->val.as.ptr.address.type ?inst->val.as.ptr.address.type->key:"nil", inst->val_type->key);
 		else if( inst->val_type == tWord)
 			printf( " %s:(%s) ", inst->val.as.ptr.address.word->name, inst->val_type->key);
+		else if (inst->val_type->category == STEWARD && inst->val_type->ref->category == SUBTREE){
+
+			printf( " Subtree:(%s) ", inst->val_type->key);
+
+			instruction_print(inst->val.as.ptr.address.subtree, level+1, recurse);
+
+		}
 		else
 			printf( " %x:(%s) ", inst->val.as.z32, inst->val_type->key);
 	} else {
@@ -915,6 +926,27 @@ instructionT** pop_args(parsectxT* pctx, int n){
 	zarray_use(a,n);
 
 	return a;
+}
+
+instructionT* get_arg(parsectxT* pctx,int i, int argc){
+
+	int s = zvec_count(pctx->codestack)-argc+i;
+	if (s<0)
+		return NULL;
+
+	instructionT* arginst = zvec_get_at(pctx->codestack, s);
+	return arginst;
+}
+
+ void put_arg(parsectxT* pctx,int i, int argc, instructionT* arg){
+
+	int s = zvec_count(pctx->codestack)-argc+i;
+	if (s<0){
+		errorf(" BAD ARG INDEX\n");
+		exit(1);
+	}
+
+	zvec_set_at(pctx->codestack, s, arg);
 }
 
 /*
@@ -1047,11 +1079,13 @@ instructionT* push_subtree(parsectxT* pctx, instructionT* inst){
 //t is the token trying to be matched
 //tprev(t) is the last arg to it, if there are any
 
+#define MATCHED_NOTE_SUBTREEIZE 0x100
+
 
 #define DEBUG_MATCH 0
 //tests of a word matches the current typestack of pctx
 
-zbool test_word(parsectxT* pctx, typeT** stacktypes, wordT* word, int flags, int argc){
+zbool test_word(parsectxT* pctx, typeT** stacktypes, wordT* word, int flags, int argc, int* match_notes){
 
 
 	if (argc != word->type->argc){ 
@@ -1077,6 +1111,8 @@ zbool test_word(parsectxT* pctx, typeT** stacktypes, wordT* word, int flags, int
 	//try to match args	
 	void* csr=NULL;
 	for (int i=0;i<argc;i++){
+		if (match_notes)
+			match_notes[i] = 0;
 
 		typeT* passed_type = stacktypes[i];
 
@@ -1090,6 +1126,22 @@ zbool test_word(parsectxT* pctx, typeT** stacktypes, wordT* word, int flags, int
 		typeT* argtype = word->type->argtypes[i];
 		tracef("Compare sp%d  %s s %s\n", i, argtype->key,  passed_type->key);
 
+		if ((flags & MATCH_ALLOW_MODIFY) && (argtype->category == STEWARD) && (argtype->ref->category == SUBTREE)){
+
+			debugf(" Expecting subtree... attempting to match with that instead\n");
+
+			if (type_cmp( pctx, argtype->ref->ref, passed_type, flags, word->type, stacktypes)){
+				debugf(" %s is ok for subtree %s\n", passed_type->key, argtype->key);
+				if (match_notes)
+					match_notes[i] = MATCHED_NOTE_SUBTREEIZE;  //arg needs to be turned into a subtree constant
+				else
+				{
+					errorf(" Matching requires a SUBTREE note!\n");
+				}
+				continue;
+			}
+
+		}
 
 
 		if (!type_cmp( pctx, argtype, passed_type, flags, word->type, stacktypes)){
@@ -1972,7 +2024,7 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 				if (exe->stack[exe->sp-1].as.z32 >= zarray_count(exe->stack[ exe->sp-2].as.ptr.address.block)){
 					errorf("Exceed array bounds\n");
-
+					exit(1);
 				}
 
 				exe->stack[ exe->sp-2].as.ptr.offset += (exe->stack[exe->sp-1].as.z32 * pc->imm.as.z32);
@@ -2196,8 +2248,11 @@ runnerI* compile_for_switch(exectxT* exe, parsectxT* pctx){
 //end of simple runner
 
 
+
+
+
 //find words
-wordT* match_word(parsectxT* pctx, parsectxT* searchpctx,  char* name, int inflags, int* rarg, parsectxT** foundpctx){
+wordT* match_word(parsectxT* pctx, parsectxT* searchpctx,  char* name, int inflags, int* rarg, parsectxT** foundpctx /*, int* matched_notes*/  ){
 
 	int argc = 0;
 	int maxarg = zvec_count(pctx->codestack); //most args possible is whole stack
@@ -2218,7 +2273,7 @@ wordT* match_word(parsectxT* pctx, parsectxT* searchpctx,  char* name, int infla
 
 	typeT** argtypes = zarray_alloc(typeT*, maxarg);  //place to keep arg types
 
-
+	int* match_notes = zarray_alloc(int, maxarg);
 
 	for (int phase=0; phase < 2; phase++){
 
@@ -2229,8 +2284,8 @@ wordT* match_word(parsectxT* pctx, parsectxT* searchpctx,  char* name, int infla
 
 		//todo: if not all flags are set, some searches will be done twice
 		//for now I don't care
-		if (phase == 0) flags = inflags & (MATCH_RECURSE_PCTX);	//exact match, going up contexts if allowed
-		if (phase == 1) flags = inflags & (MATCH_RECURSE_PCTX | MATCH_ALLOW_LIKE); //allow like-types
+		if (phase == 0) flags = inflags & (MATCH_RECURSE_PCTX | MATCH_ALLOW_MODIFY);	//exact match, going up contexts if allowed, and modifiers
+		if (phase == 1) flags = inflags & (MATCH_RECURSE_PCTX | MATCH_ALLOW_MODIFY| MATCH_ALLOW_LIKE); //allow like-types
 
 
 		if (phase > 0){
@@ -2269,9 +2324,22 @@ wordT* match_word(parsectxT* pctx, parsectxT* searchpctx,  char* name, int infla
 					word = zvec_get_at(words, i);
 
 					//test if the word from sc matches the stack in pctx
-					if (test_word(pctx, argtypes, word, flags, argc)){
+					if (test_word(pctx, argtypes, word, flags, argc, match_notes)){
 						if (rarg)
 							*rarg = word->type->argc;
+
+
+						for (int j=0;j<argc;j++){
+							if (match_notes[j]&MATCHED_NOTE_SUBTREEIZE){
+								instructionT* arg = get_arg(pctx,j, argc); //get this arg
+								valueT v = {0};
+								v.as.ptr.address.subtree = arg;
+								typeT* stype = OF(pctx, STEWARD, OF(pctx, SUBTREE, arg->result_type ));
+								push_assembly(pctx, op_constantaddref, INST_FREE_VALUE, &v, stype, NULL, stype );
+								arg = pop_arg(pctx); //get the assembled code
+								put_arg(pctx, j, argc, arg); //put back in the correct place
+							}
+						}
 
 						//find return value for word if its a like-type
 						if(word->type && word->type->ref && word->type->ref->is_wild){
@@ -2279,16 +2347,18 @@ wordT* match_word(parsectxT* pctx, parsectxT* searchpctx,  char* name, int infla
 
 								typeT* rettype = resolve_like_type_for_caller(pctx, word->type->ref, word->type, argtypes);
 								tracef(" rettype is %s\n", rettype->key);
-								typeT* pt = type_find(pctx, NULL, rettype, PROC, 0, argtypes);
+								typeT* pt = type_find(pctx, NULL, rettype, PROC, 0, argtypes); //takes ownership of argtypes
+								argtypes = NULL;
 								tracef(" new type for word is %s\n", pt->key);
 
-
+								ram_free(match_notes);
 								wordT* new_word = word_alias_mk(word->name, pt, word);
 								return new_word;
 
 						}
 
 						ram_free(argtypes);
+						ram_free(match_notes);
 
 						if (foundpctx)
 							*foundpctx = sc;
@@ -2303,6 +2373,7 @@ wordT* match_word(parsectxT* pctx, parsectxT* searchpctx,  char* name, int infla
 		} //for argc
 	} //for phase
 	ram_free(argtypes);
+	ram_free(match_notes);
 	return NULL;
 
 }
@@ -2423,7 +2494,7 @@ tokenT* parse_include(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 }
 
 
-#define OF(PCTX, CAT, REF) type_find(PCTX, NULL, REF, CAT, 0, NULL)
+
 
 tokenT* parse_string_literal(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
@@ -2616,6 +2687,10 @@ tokenT* parse_cast(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 	return t;
 }
 
+
+
+
+/*
 tokenT* parse_get_subtree(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 			instructionT* inst = pop_arg(pctx);
@@ -2625,6 +2700,7 @@ tokenT* parse_get_subtree(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 			push_assembly( pctx, op_constantaddref, INST_FREE_VALUE, &v, inst_type, NULL, inst_type);
 			return t;
 }
+*/
 
 tokenT* parse_default(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
@@ -2639,8 +2715,15 @@ tokenT* parse_default(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 	if (w->type->category == PROC) {
 
 
+		//need to check args are passed as-is and not as instructions
+
+
+
 		instructionT* inst = push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, args, w->type->ref);
 		inst->comment = ram_addref(w->comment);
+
+
+
 
 /*
 		if (tnext(t) && !strcmp(tnext(t)->str,">-")){
@@ -3896,6 +3979,29 @@ tokenT* parse_type_name(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 	exit(1);
 }
 
+
+
+
+
+tokenT* parse_typeof(parsectxT* pctx, wordT* w, tokenT* t, int argc){
+
+	//typestack_pop(pctx, argc);
+	instructionT* arg0 = pop_arg(pctx);
+
+
+	valueT v = {0};
+	v.as.ptr.address.type = arg0->result_type;
+
+	//type -> other
+	push_assembly(pctx, op_constant, 0, &v, tType, NULL , tType);
+
+	ram_free(arg0);
+
+	return t;
+
+}
+
+
 typeT* type_find_related(parsectxT* pctx, typeT* type, char* selection){
 
 
@@ -4106,7 +4212,7 @@ tokenT* parse(parsectxT* pctx, tokenT* t, char** stop_tokens){
 		int argc=0;
 		parsectxT* foundpctx= NULL;
 		tracef(" LOOKING FOR '%s'\n", t->str);
-		wordT* w = match_word(pctx, pctx,  t->str, MATCH_RECURSE_PCTX| MATCH_ALLOW_LIKE, &argc, &foundpctx);
+		wordT* w = match_word(pctx, pctx,  t->str, MATCH_RECURSE_PCTX| MATCH_ALLOW_LIKE |MATCH_ALLOW_MODIFY, &argc, &foundpctx);
 
 		if (!w && t->str[0] == '.' && codestack_depth(pctx) >= 1  ){
 			//if no match, and there is something on the stack, and it starts with a dotting
@@ -4836,6 +4942,7 @@ void int_run_str(char* src, char* filename){
 	instruction_names = zarray_allocd( char*, op_MAX, zarray_destruct_pointers );
 	zarray_use(instruction_names, op_MAX);
 	ADD_INST(constant);
+	ADD_INST(constantaddref);
 	ADD_INST(load);
 	ADD_INST(take);
 	ADD_INST(loadaddref);
@@ -4844,6 +4951,7 @@ void int_run_str(char* src, char* filename){
 	ADD_INST(trashstore);
 	ADD_INST(print32);
 	ADD_INST(printptr);
+	ADD_INST(printstr);
 	ADD_INST(add32);
 	ADD_INST(call);
 	ADD_INST(return);
@@ -4951,6 +5059,9 @@ void int_run_str(char* src, char* filename){
 	proc_parser_mk(pctx, ".Instruction", type_proc_mk(tType, 1, tType), parse_related_type); //makes a type into an instruction that produces this type(  Z32.Instruction is an instruction that returns a Z32)
 	proc_parser_mk(pctx, "~", type_proc_mk(tType, 1, tType), parse_related_type); //makes an array type into an iterated
 
+
+	proc_parser_mk(pctx, "typeof", type_proc_mk(tType, 1, tAny), parse_typeof); //gives the constant type of the top of the stack, and discards the code.  That code is compiled but never run.
+
 	proc_parser_mk(pctx, "[", NULL, parse_array); //create array type [Z32] for example
 	proc_parser_mk(pctx, "$[", NULL, parse_array_values); //create an array with values  '[10 20]
 
@@ -4964,7 +5075,7 @@ void int_run_str(char* src, char* filename){
 	//define parser words for variables, types and procs
 	proc_parser_mk(pctx, "var",  type_proc_mk(NULL, 1, tType), parse_var); //makes a variable in current context
 	proc_parser_mk(pctx, ":",  type_proc_mk(NULL, 1, tAny), parse_var); //makes a variable in current context of the same type as top of stack, and stores the value
-	proc_parser_mk(pctx, "::",  type_proc_mk(NULL, 1, tAny), parse_var); //makes a variable in current context of the same type as top of stack, and stores copy or addref of the value
+	proc_parser_mk(pctx, "::",  type_proc_mk(NULL, 1, tAny), parse_var); //makes a variable in current context of the same type as top of stack, and stores copy or addref of the value (keeps value on the stack)
 
 	proc_parser_mk(pctx, "constant",  type_proc_mk(NULL, 1, tAny), parse_constant); //makes a const
 
@@ -4980,7 +5091,7 @@ void int_run_str(char* src, char* filename){
 
 	proc_parser_mk(pctx, "sys", type_proc_mk(NULL, 2, tType , OF(pctx, CPOINTER, tAny)), parse_proc);
 
-	proc_parser_mk(pctx, ">-",  type_from_str(pctx,"(Any->Any.Instruction)") , parse_get_subtree);
+	//proc_parser_mk(pctx, ">-",  type_from_str(pctx,"(Any->Any.Instruction)") , parse_get_subtree);
 
 
 
@@ -5012,6 +5123,7 @@ void int_run_str(char* src, char* filename){
 
 
 	proc_opcode_mk2(pctx, op_indexplusstore, "++", "([Any]$:a  like a@@:b-> like a)");
+
 
 	wordT* arraycow = proc_opcode_mk2(pctx, op_arraycow, ".Byte", "( String$:a -> [Byte]$)");
 	arraycow->val.as.z32 = 1;

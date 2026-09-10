@@ -31,6 +31,9 @@ section zgl
 	// int BindUpdateArrayf (void * v,int elemsize,int target,int usage)
 	 ( Any*:_v Z32:_elemsize Z32:_target Z32:_usage  -> Z32 ) "_INTERNAL" "zglBindUpdateArrayf" sys optional BindUpdateArrayf 
 
+	// int BindArrayf (void * v,int target)
+	 ( Any*:_v Z32:_target  -> Z32 ) "_INTERNAL" "zglBindArrayf" sys optional BindArrayf 
+
  /*zgl.post*/ 	([Any]:a  Z32:target Z32:usage) proc BindUpdateArray
 	    a.cptr a.size1  target usage  BindUpdateArrayf
 	end
@@ -38,6 +41,11 @@ section zgl
 
 	([Any]:a) proc BindUpdateArray
 		a.cptr a.size1  gl.ARRAY_BUFFER 0 BindUpdateArrayf
+	end
+
+
+	([Any]:a Z32:target ) proc BindArray
+		a.cptr  target BindArrayf
 	end
 
 end

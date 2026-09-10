@@ -225,6 +225,32 @@ typedef struct {
     int flags;
 } zgl_storage_infoT;
 
+
+//binds the vbo associated with the array, creating one if necessary
+//does not send any data, it just assigns a place for it
+
+int zglBindArrayf(void* v, int target){
+    zgl_storage_infoT* gpu = gpu_storage(v);
+
+    if (!gpu) {
+      printf("automatic GPU storage not available\n");
+      exit(1);
+    }
+
+    if (!gpu->buffer){
+        //create the buffer
+        gpu->flags = ZGL_RESIZE;
+        glGenBuffers(1, &gpu->buffer);
+        printf(" Making new buffer %d for %p\n", gpu->buffer, v);
+    }
+
+    glBindBuffer(target, gpu->buffer);
+
+    return gpu->buffer;
+
+}
+
+
 //pass in 0 for usage to not change the usage
 //returns the id of the bound buffer (0 for error)
 int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage){
@@ -256,12 +282,12 @@ int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage){
     if (gpu->buffer){
 
         glBindBuffer(target, gpu->buffer);
-
+        printf(" target %x buffer %d  %x\n", target, gpu->buffer, GL_ARRAY_BUFFER);
         //if changing usage or is set to resize
         if ( (usage != gpu->usage) || (gpu->flags&ZGL_RESIZE)   ){
             //if changing the target, usage, or if it has been resized, needs to make it
             glBufferData( target,  elemsize * zarray_size(v), v, usage);
-            printf("call glBufferData\n");
+            printf("call glBufferData %d * %d\n", elemsize, zarray_size(v));
             gpu->flags = 0; //reset
             //update usage and target
             gpu->usage = usage;
@@ -342,6 +368,7 @@ void zgl_int_init(){
     EXPORT(zglCreateShaderGroup);
     EXPORT(zglFindVariant);
     EXPORT(zglBindUpdateArrayf);
+    EXPORT(zglBindArrayf);
     EXPORT(zglDirty);
 }
 #endif

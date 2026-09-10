@@ -52,5 +52,8 @@ v	zgl.h	/^int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);
 elemsize	zgl.h	/^int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);$/;"	z	prototype:zglBindUpdateArrayf	typeref:typename:int	file:
 target	zgl.h	/^int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);$/;"	z	prototype:zglBindUpdateArrayf	typeref:typename:int	file:
 usage	zgl.h	/^int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);$/;"	z	prototype:zglBindUpdateArrayf	typeref:typename:int	file:
+zglBindArrayf	zgl.h	/^int zglBindArrayf(void* v, int target);$/;"	p	typeref:typename:int	signature:(void * v,int target)
+v	zgl.h	/^int zglBindArrayf(void* v, int target);$/;"	z	prototype:zglBindArrayf	typeref:typename:void *	file:
+target	zgl.h	/^int zglBindArrayf(void* v, int target);$/;"	z	prototype:zglBindArrayf	typeref:typename:int	file:
 #define ZGL_ENABLE_INT
 #define zglBindUpdateArray(ARR,TARGET,USAGE) zglBindUpdateArrayf(ARR, sizeof((ARR)[0]) , TARGET, USAGE);

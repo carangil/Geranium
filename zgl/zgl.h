@@ -60,3 +60,8 @@ void zglDirty(void* v);
 //update or create vbo from array.
 #define zglBindUpdateArray(ARR,TARGET,USAGE) zglBindUpdateArrayf(ARR, sizeof((ARR)[0]) , TARGET, USAGE);
 int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);
+
+
+
+
+int zglBindArrayf(void* v, int target);

@@ -15,27 +15,36 @@ Z32 var x
 
 Z32 var y
 
-() proc foo
 
-    section stuff       //static variables
-        Z32 var a
-    end
-
-    stuff.a&++
-    stuff.a print newline
-
-    x print newline
-
+(Z32: a  Z32.Instruction$:b Z32:c Z32.Instruction$:d) proc foo
+    a print
+    b.returnType.key print newline
+    c print
+    b.returnType.key print newline
 end
 
 
-40 x=
+(Z32:a Z32:b ) proc boo
+    a print "," print b print newline
+end
 
-foo
-foo
-foo
+45 44 boo
+10 12 13  20 30 + foo
+
+$[ $[ "abc"$  "abc"$ ] ] typeof var s // .key print newline
+
+s typeof.key print newline
 
 
+
+(Z32:a Z32:b)& proc add
+    a b + return
+end
+
+
+add typeof.key print newline
+
+7 6 add& print newline
 
 sys_ENDFILE
 
