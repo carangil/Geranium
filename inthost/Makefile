@@ -4,7 +4,7 @@ include $(ZHOME)/includes/zmake.inc
 
 
 SRCtest=*.c
-ZLIBS=-lzint -lzmem -lzstructures -lzmem  -lzthread -lffi -lzgl
+ZLIBS=-lzint  -lzstructures -lzmem  -lzthread -lffi -lzgl -lzbitmap
 LIBS=
 
 

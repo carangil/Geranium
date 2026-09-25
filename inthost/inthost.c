@@ -11,6 +11,12 @@ int scanmain(int argc, char** args);
 //set any platform-specific constants
 void set_platform_constants();
 
+
+#include "zbitmap.h"
+
+
+
+
 int main(int argc, char** args){
 
 	//scanmain is in hscan.c
@@ -31,6 +37,9 @@ int main(int argc, char** args){
 
 	zgl_int_init();
 
+
+	int_add_c_object( "zbitmap_load_tga", zbitmap_load_tga);
+	int_add_c_object( "zbitmap_mk", zbitmap_mk);
 
 
 	src = ram_loadstr(filename);

@@ -55,9 +55,9 @@ fluid_log_function_t;Any*
 
 #rename some functions
 
-fluid_synth_program_change;^program_change
-new_fluid_synth;^new_fluid_synth
-fluid_synth_sfload;^sfload
-new_fluid_audio_driver;^new_fluid_audio_driver
-fluid_synth_noteon;^noteon
-fluid_synth_noteoff;^noteoff
+#fluid_synth_program_change;^program_change
+#new_fluid_synth;^new_fluid_synth
+#fluid_synth_sfload;^sfload
+#new_fluid_audio_driver;^new_fluid_audio_driver
+#fluid_synth_noteon;^noteon
+#fluid_synth_noteoff;^noteoff

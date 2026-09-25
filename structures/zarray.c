@@ -166,6 +166,14 @@ void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok){
 
 	size_t newsize = elemsize * elemnum;
 
+
+	if (newsize < oldsize){
+		errorf(" TODO: shrinking array is nop.  caution: what to do about the destructor for partial array? \n");
+		if(ok)
+			*ok = ZTRUE;
+		return array;
+	}
+
 #ifdef STRUCT_DEBUG
 	printf(" array resize needs %d /*for*/ %d * %d\n", (int)newsize, (int)elemsize, (int)elemnum);
 #endif
@@ -176,8 +184,11 @@ void* zarray_resizef(void* array, zsize elemsize, zuint32 elemnum, zbool* ok){
 		
 	
 	void * newarray = ram_resize(array, newsize, ok);
+	if (newsize > oldsize){
+		memset(((char*)newarray)+oldsize, 0, newsize - oldsize );
+	}
 
-	memset(((char*)newarray)+oldsize, 0, newsize - oldsize );
+
 
 #if 0
 	printf(" resize %d to %d \n", oldsize, newsize);

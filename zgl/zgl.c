@@ -1,17 +1,8 @@
-
 #define ZGLC
 #define GLAD_GL_IMPLEMENTATION
 #include "glad/gl.h"
 #include "zgl.h"
-//#include "zstringmap.h"
 
-
-
-
-void zgl_test(int a, char* s){
-        glClear(GL_COLOR_BUFFER_BIT);
-        printf(" ZGL TEST %s %d\n", s, a);
-}
 
 int lastCheck = 0;
 
@@ -28,6 +19,10 @@ int zglCheckError(int spot){
 
     return e;
 }
+
+
+//SHADERS
+
 
 //Low-level helpers that work with opengl shader and program ids
 
@@ -216,20 +211,38 @@ int zglFindVariant(zglShaderGroupT* sg, int optionmask, char** rlog){
 
 //integration with zarray and zmemory
 
-#define ZGL_DIRTY   1
-#define ZGL_RESIZE  2
+//These functions use 'gpu_storage' on top of zarrays and z alloced data structures
+//Arrays of data (like [Vec4] [Vec2] can be stored on the GPU as buffer objects (VBO)
+//Bitmaps can be stored on the GPU as Textures
+
+
+
+#define ZGL_DIRTY       1
+#define ZGL_RESIZE      2
 
 typedef struct {
     int usage;
-    int buffer;
+    int id; //bufferid
     int flags;
-} zgl_storage_infoT;
+} zgl_buffer_storage_infoT;
 
+typedef struct {
+    zbitmapT* bitmap;
+    int id; //texture id
+    int flags;
+} zgl_texture_storage_infoT;
+
+typedef union {
+    zgl_texture_storage_infoT texture;
+    zgl_buffer_storage_infoT buffer;
+} zgl_storage_infoT;
 
 //binds the vbo associated with the array, creating one if necessary
 //does not send any data, it just assigns a place for it
 
-int zglBindArrayf(void* v, int target){
+
+
+zgl_storage_infoT* izglBindArray(void* v, int target){
     zgl_storage_infoT* gpu = gpu_storage(v);
 
     if (!gpu) {
@@ -237,39 +250,56 @@ int zglBindArrayf(void* v, int target){
       exit(1);
     }
 
-    if (!gpu->buffer){
+    if (!gpu->buffer.id){
         //create the buffer
-        gpu->flags = ZGL_RESIZE;
-        glGenBuffers(1, &gpu->buffer);
-        printf(" Making new buffer %d for %p\n", gpu->buffer, v);
+        gpu->buffer.flags = ZGL_RESIZE;
+        glGenBuffers(1, &gpu->buffer.id);
+        printf(" Making new buffer %d for %p\n", gpu->buffer.id, v);
+
     }
 
-    glBindBuffer(target, gpu->buffer);
+    glBindBuffer(target, gpu->buffer.id);
 
-    return gpu->buffer;
-
+    return gpu;
 }
 
+//bind array to target, return the ID
+int zglBindArray(void* v, int target){
+    //bind the array
+    zgl_storage_infoT* gpu = izglBindArray(v, target);
+    return gpu->buffer.id;
+}
+
+//set up the vertex attrib pointer for an array.
+//this will bind the array to GL_ARRAY_BUFFER
+
+int zglUseAttrib(int attridx, void* v, int gltype, int size){
+
+    int n = zglBindArray(v, GL_ARRAY_BUFFER); //bind and/or create buffer
+
+    if (gltype == GL_FLOAT){
+        glVertexAttribPointer(attridx, size, gltype, GL_FALSE, size *sizeof(float), 0);
+    } else {
+        errorf("Unknown zglSetAttrib type\n");
+        exit(1);
+    }
+
+    return n;
+}
 
 //pass in 0 for usage to not change the usage
+
+//this creates VBO (if necessary)
+//binds the VBO
+//uploads the array contents (if dirty or the buffer is new/resized)
 //returns the id of the bound buffer (0 for error)
+
 int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage){
-    zgl_storage_infoT* gpu = gpu_storage(v);
 
-    if (!gpu) {
-      printf("automatic GPU storage not available\n");
-      exit(1);
-    }
-
-    if (!gpu->buffer){
-        //create the buffer
-        gpu->flags = ZGL_RESIZE;
-        glGenBuffers(1, &gpu->buffer);
-        printf(" Making new buffer %d for %p\n", gpu->buffer, v);
-    }
+    zgl_storage_infoT* gpu = izglBindArray(v, target);
 
     if (!usage) {//take existing usage, if exists
-        usage = gpu->usage;
+        usage = gpu->buffer.usage;
         printf(" taking existing usage %d\n", usage);
 
         if (!usage){
@@ -279,45 +309,41 @@ int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage){
 
     }
 
-    if (gpu->buffer){
+    if (gpu->buffer.id){
 
-        glBindBuffer(target, gpu->buffer);
-        printf(" target %x buffer %d  %x\n", target, gpu->buffer, GL_ARRAY_BUFFER);
+        printf(" target %x buffer %d  %x\n", target, gpu->buffer.id, GL_ARRAY_BUFFER);
         //if changing usage or is set to resize
-        if ( (usage != gpu->usage) || (gpu->flags&ZGL_RESIZE)   ){
+        if ( (usage != gpu->buffer.usage) || (gpu->buffer.flags&ZGL_RESIZE)   ){
             //if changing the target, usage, or if it has been resized, needs to make it
             glBufferData( target,  elemsize * zarray_size(v), v, usage);
             printf("call glBufferData %d * %d\n", elemsize, zarray_size(v));
-            gpu->flags = 0; //reset
+            gpu->buffer.flags = 0; //reset
             //update usage and target
-            gpu->usage = usage;
-        } else if (gpu->flags & ZGL_DIRTY) {
+            gpu->buffer.usage = usage;
+        } else if (gpu->buffer.flags & ZGL_DIRTY) {
             printf("call glBufferSubData to update dirty buffer\n");
             glBufferSubData(target, 0, elemsize * zarray_size(v) , v);
         } else {
            // printf("Do nothing to clean buffer\n");
         }
-        gpu->flags =0; //clean
+        gpu->buffer.flags =0; //clean
     }
-    return gpu->buffer;
+    return gpu->buffer.id;
 
 }
-
 
 //sets an array as dirty (needs update)
-//can be called directly by user
-void zglDirty(void* v){
+//called directly by user
+void zglDirtyBuffer(void* v){
     zgl_storage_infoT* store = gpu_storage(v);
     if (store)
-        store ->flags |= ZGL_DIRTY;
+        store->buffer.flags |= ZGL_DIRTY;
 }
-
-
 
 //sets an array as resized, for use by the memory allocator
 void zglResizedCallback(void* v, size_t  newsize){
     zgl_storage_infoT* store = v;
-    store->flags |= ZGL_RESIZE;
+    store->buffer.flags |= ZGL_RESIZE;
 }
 
 //for use by the memory allocator
@@ -329,7 +355,48 @@ void zglDeleteCallback(void* v){
     }
 }
 
+//TEXTURES
+//these give gpu storage to an existing zbitmapT object
 
+void zglDirtyBitmap(zbitmapT* bmp){
+    zgl_storage_infoT* store = gpu_storage(bmp);
+    if (store)
+        store->texture.flags |= ZGL_DIRTY;
+}
+
+int zglBindUpdateTextureBitmap(int unit, zbitmapT* bmp){
+    zgl_storage_infoT* gpu = gpu_storage(bmp);
+    zbool init = ZFALSE;
+
+    if (!gpu->texture.id){
+        //create the texture
+        glGenTextures(1, &gpu->texture.id);
+        gpu->texture.flags = ZGL_DIRTY | ZGL_RESIZE;
+        init=ZTRUE;
+        printf(" Created texture %d\n", gpu->texture.id);
+
+    }
+
+    glActiveTexture(GL_TEXTURE0 + unit);
+    glBindTexture(GL_TEXTURE_2D, gpu->texture.id);
+
+     printf(" Bound texture %d\n", gpu->texture.id);
+
+    if (init){
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+
+    if ( gpu->texture.flags & ZGL_DIRTY){
+        //need to refresh
+         printf(" update texture %d\n", gpu->texture.id);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,  bmp->w , bmp->h,0, GL_BGRA, GL_UNSIGNED_BYTE, bmp->data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        gpu->texture.flags &= ~(ZGL_DIRTY|ZGL_RESIZE);  //clear dirty or resize bits
+    }
+
+    return gpu->texture.id;
+}
 
 
 //initializes this.  procgetter is glfwGetProcAddress or equivalent
@@ -362,14 +429,15 @@ void zgl_int_init(){
     debugf(" adding interpreter C objects for zgl\n");
 
     EXPORT(zgl_init);
-    EXPORT(zgl_test);
     EXPORT(zglCheckError);
     EXPORT(zglBuildProgram);
     EXPORT(zglCreateShaderGroup);
     EXPORT(zglFindVariant);
     EXPORT(zglBindUpdateArrayf);
-    EXPORT(zglBindArrayf);
-    EXPORT(zglDirty);
+    EXPORT(zglBindArray);
+    EXPORT(zglUseAttrib);
+    EXPORT(zglDirtyBuffer);
+    EXPORT(zglBindUpdateTextureBitmap);
 }
 #endif
 

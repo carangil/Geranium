@@ -9,5 +9,8 @@
 
 
 	([Any]:a Z32:target ) proc BindArray
-		a.cptr  target BindArrayf
+		a.cptr  target BindArray
 	end
+
+
+

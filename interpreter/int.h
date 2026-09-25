@@ -258,6 +258,13 @@ typedef enum {
 	op_div32,
 	op_mod32,
 
+
+	op_and32,
+	op_or32,
+	op_xor32,
+
+
+
 	op_ptrvalid,  //returns true if pointer is non-null
 	op_ptrequal,  //returns true if pointers equal
 
@@ -280,7 +287,7 @@ typedef enum {
 	op_arrayinfo, //get size or count
 	op_arraysetcount,
 	op_adim,
-	op_indexplusstore,
+	op_arrayindexplus,
 
 
 	//load
@@ -332,7 +339,7 @@ typedef enum {
 	//these ones are implementation specific:
 	op_switch_jump,
 	op_switch_jumpfalse,
-	op_switch_indexplus,
+	//op_switch_overindexplus,
 	op_FIRST_EXT,  //first instruction that isn't part of this enum (user-defined)
 
 }opcodeE;

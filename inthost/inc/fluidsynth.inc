@@ -99,7 +99,7 @@ section fsynth
 	 ( settings_t*:_settings Any&:_data Any*:_func ) "libfluidsynth.so" "fluid_settings_foreach" sys optional settings_foreach 
 
 	// FLUIDSYNTH_API fluid_synth_t * new_fluid_synth (fluid_settings_t * settings)
-	 ( settings_t*:_settings  -> synth_t* ) "libfluidsynth.so" "new_fluid_synth" sys optional ^new_fluid_synth 
+	 ( settings_t*:_settings  -> synth_t* ) "libfluidsynth.so" "new_fluid_synth" sys optional new_fluid_synth 
 
 	// FLUIDSYNTH_API void delete_fluid_synth (fluid_synth_t * synth)
 	 ( synth_t*:_synth ) "libfluidsynth.so" "delete_fluid_synth" sys optional delete_fluid_synth 
@@ -111,10 +111,10 @@ section fsynth
 	 ( synth_t*:_synth  -> String ) "libfluidsynth.so" "fluid_synth_error" sys optional synth_error 
 
 	// FLUIDSYNTH_API int synth_noteon (fluid_synth_t * synth,int chan,int key,int vel)
-	 ( synth_t*:_synth Z32:_chan Z32:_key Z32:_vel  -> Z32 ) "libfluidsynth.so" "fluid_synth_noteon" sys optional ^noteon 
+	 ( synth_t*:_synth Z32:_chan Z32:_key Z32:_vel  -> Z32 ) "libfluidsynth.so" "fluid_synth_noteon" sys optional synth_noteon 
 
 	// FLUIDSYNTH_API int synth_noteoff (fluid_synth_t * synth,int chan,int key)
-	 ( synth_t*:_synth Z32:_chan Z32:_key  -> Z32 ) "libfluidsynth.so" "fluid_synth_noteoff" sys optional ^noteoff 
+	 ( synth_t*:_synth Z32:_chan Z32:_key  -> Z32 ) "libfluidsynth.so" "fluid_synth_noteoff" sys optional synth_noteoff 
 
 	// FLUIDSYNTH_API int synth_cc (fluid_synth_t * synth,int chan,int ctrl,int val)
 	 ( synth_t*:_synth Z32:_chan Z32:_ctrl Z32:_val  -> Z32 ) "libfluidsynth.so" "fluid_synth_cc" sys optional synth_cc 
@@ -138,7 +138,7 @@ section fsynth
 	 ( synth_t*:_synth Z32:_chan Z32*:_pval  -> Z32 ) "libfluidsynth.so" "fluid_synth_get_pitch_wheel_sens" sys optional synth_get_pitch_wheel_sens 
 
 	// FLUIDSYNTH_API int synth_program_change (fluid_synth_t * synth,int chan,int program)
-	 ( synth_t*:_synth Z32:_chan Z32:_program  -> Z32 ) "libfluidsynth.so" "fluid_synth_program_change" sys optional ^program_change 
+	 ( synth_t*:_synth Z32:_chan Z32:_program  -> Z32 ) "libfluidsynth.so" "fluid_synth_program_change" sys optional synth_program_change 
 
 	// FLUIDSYNTH_API int synth_channel_pressure (fluid_synth_t * synth,int chan,int val)
 	 ( synth_t*:_synth Z32:_chan Z32:_val  -> Z32 ) "libfluidsynth.so" "fluid_synth_channel_pressure" sys optional synth_channel_pressure 
@@ -198,7 +198,7 @@ section fsynth
 	 ( synth_t*:_synth [voice_t*]:_buf Z32:_bufsize Z32:_ID ) "libfluidsynth.so" "fluid_synth_get_voicelist" sys optional synth_get_voicelist 
 
 	// FLUIDSYNTH_API int synth_sfload (fluid_synth_t * synth,const char * filename,int reset_presets)
-	 ( synth_t*:_synth String:_filename Z32:_reset_presets  -> Z32 ) "libfluidsynth.so" "fluid_synth_sfload" sys optional ^sfload 
+	 ( synth_t*:_synth String:_filename Z32:_reset_presets  -> Z32 ) "libfluidsynth.so" "fluid_synth_sfload" sys optional synth_sfload 
 
 	// FLUIDSYNTH_API int synth_sfreload (fluid_synth_t * synth,int id)
 	 ( synth_t*:_synth Z32:_id  -> Z32 ) "libfluidsynth.so" "fluid_synth_sfreload" sys optional synth_sfreload 
@@ -633,7 +633,7 @@ section fsynth
 	 ( sample_t*:_sample Z32:_root_key Z32:_fine_tune  -> Z32 ) "libfluidsynth.so" "fluid_sample_set_pitch" sys optional sample_set_pitch 
 
 	// FLUIDSYNTH_API fluid_audio_driver_t * new_fluid_audio_driver (fluid_settings_t * settings,fluid_synth_t * synth)
-	 ( settings_t*:_settings synth_t*:_synth  -> audio_driver_t* ) "libfluidsynth.so" "new_fluid_audio_driver" sys optional ^new_fluid_audio_driver 
+	 ( settings_t*:_settings synth_t*:_synth  -> audio_driver_t* ) "libfluidsynth.so" "new_fluid_audio_driver" sys optional new_fluid_audio_driver 
 
 	// FLUIDSYNTH_API fluid_audio_driver_t * new_fluid_audio_driver2 (fluid_settings_t * settings,fluid_audio_func_t func,void * data)
 	 ( settings_t*:_settings Any*:_func Any&:_data  -> audio_driver_t* ) "libfluidsynth.so" "new_fluid_audio_driver2" sys optional new_fluid_audio_driver2 

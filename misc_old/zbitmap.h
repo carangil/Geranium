@@ -10,12 +10,10 @@
 #define zbitmap_pxsize(ZZZ) ((ZZZ)->format & ZBITMAP_PXSIZE)
 
 
-
-//Zdef struct zbitmapT ZBitmap:w=width:N16;h=height:N16;
 typedef struct zbitmap_s{
 	zuint32 size;
-	zuint16 w;
-	zuint16 h;
+	zuint32 w;
+	zuint32 h;
 	zuint32 format;
 	void* data;
 
@@ -23,8 +21,7 @@ typedef struct zbitmap_s{
 
 typedef zuint32 zcolor;
 
-//cleanup a bitmap
-zbool zbitmap_cleanup(zbitmapT* bmp);
+
 
 //create a bitmap
 zbitmapT* zbitmap_mk(zuint32 w, zuint32 h, zuint32 format);
@@ -47,7 +44,6 @@ void zpblit4adebug(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 s
 //intended use is to draw text, but could be used to draw sprites or even a row of tiles for a tile-based renderer
 void zdrawtext4(zbitmapT* dest, zbitmapT* font, char* text, int px, int py, zuint32 color, zuint32 flags);
 
-//Zdef proc zbitmap_load_tga BitmapLoadTGA
 zbitmapT* zbitmap_load_tga( zchar* f, zuint32 flags);
 
 #define ZTGA_TOP			0x001

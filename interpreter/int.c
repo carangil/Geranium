@@ -1348,16 +1348,19 @@ switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* pr
 		return prog;
 	}
 
-
-	if (inst->opcode== op_indexplusstore ){
+/*
+	if (inst->opcode== op_overindexplusstore ){
 				//put size in
 		int elemsize = inst->args[1]->result_type->size;
-		prog = switch_asmi(prog,op_switch_indexplus,  elemsize, inst);
+		prog = switch_asmi(prog,op_switch_overindexplus,  elemsize, inst);
 		prog = switch_asmi(prog,op_store,  elemsize, inst);
 		return prog;
 	}
+	*/
 
-	if (inst->opcode== op_arrayindex  || inst->opcode== op_carrayindex){
+
+
+	if (inst->opcode== op_arrayindex || inst->opcode== op_arrayindexplus || inst->opcode== op_carrayindex){
 		//put size in
 		prog = switch_asmi(prog,inst->opcode,  inst->result_type->ref->size, inst);
 		return prog;
@@ -1464,8 +1467,12 @@ void print_switch_listing(switchopT* prog){
 
 			else  if (prog[i].immtype == tString)
 				printf(" '%s'", prog[i].imm.as.ptr.address.bytes);
+			else  if (prog[i].immtype->category == STEWARD && prog[i].immtype->ref == tString)
+				printf(" '%s'", prog[i].imm.as.ptr.address.bytes);
 			else if (prog[i].immtype ->category != SIMPLE)
 				printf("%s %p+%d",prog[i].immtype->key, prog[i].imm.as.ptr.address.block,prog[i].imm.as.ptr.offset );
+			else if (prog[i].immtype  ==tZ32)
+				printf("%s %d",prog[i].immtype->key, prog[i].imm.as.z32 );
 			else
 			printf(":%s", prog[i].immtype->key);
 
@@ -1767,6 +1774,10 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 			BINOP(equal32, z32, ==)
 			BINOP(less32, z32, <)
 			BINOP(greater32, z32, >)
+
+			BINOP(and32, z32, &)
+			BINOP(or32, z32, |)
+			BINOP(xor32, z32, ^)
 
 			#define UNOP(NAME, AS, OPFUNC, ASARG) case op_ ## NAME:     exe->stack[exe->sp-1].as.AS = OPFUNC(exe->stack[exe->sp-1].as.ASARG);  pc++; continue;
 
@@ -2070,6 +2081,8 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 				} else{
 
+					if (count < 0)
+						count = 0;
 					arrayvar->address.block = zarray_alloc_size(arraytype->ref->size, cap, clean_array);
 					zarray_use( arrayvar->address.block, count);
 					arrayvar->offset = 0;
@@ -2111,15 +2124,21 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 					exe->sp++;
 			continue;
 */
-
-			case op_switch_indexplus:
+/*
+			case op_switch_overindexplus:
 			{
 				void* array = exe->stack[exe->sp-2].as.ptr.address.block;
+
+				if (!array){
+					errorf(" Cannot append to null array\n");
+					exit(1);
+				}
+
 				int count = zarray_count(array);
 
-				printf("change array %p ", array);
+				printf("change array %p  %d/%d", array, zarray_count(array), zarray_size(array) );
 				array = zarray_moref(array, pc->imm.as.z32, 1, NULL);
-				printf("to %p\n", array);
+				printf("to %p\n", array,zarray_count(array), zarray_size(array) );
 
 				exe->stack[exe->sp-2].as.ptr.address.block = array;
 
@@ -2127,7 +2146,34 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				exe->stack[ exe->sp].as.ptr.address.bytes = array;
 				exe->stack[ exe->sp].as.ptr.offset = count * pc->imm.as.z32;
 				exe->sp++;
-				printf("INDEXPLUS elemsize:%d %d->%d\n", pc->imm.as.z32, count, zarray_count(array));
+				printf("OVERINDEXPLUS elemsize:%d %d->%d\n", pc->imm.as.z32, count, zarray_count(array));
+				pc++;
+				continue;
+			}
+*/
+
+			case op_arrayindexplus:
+			{
+				void* array = exe->stack[exe->sp-1].as.ptr.address.block;
+
+				if (!array){
+					errorf(" Cannot append to null array\n");
+					exit(1);
+				}
+
+				int count = zarray_count(array);
+
+				if (count >= zarray_size(array)){
+					errorf("Grow past allocated size\n");
+					exit(1);
+				}
+
+
+				zarray_use(array, count+1);
+
+
+				exe->stack[ exe->sp-1].as.ptr.offset = count * pc->imm.as.z32;
+
 				pc++;
 				continue;
 			}
@@ -2849,7 +2895,7 @@ tokenT* parse_array(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 tokenT* parse_array_values(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
-
+#if 1
 	int depth = codestack_depth(pctx);
 	char* stops[] = {"]",  NULL};
 	valueT v = {0};
@@ -2873,23 +2919,36 @@ tokenT* parse_array_values(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 	v.as.ptr.address.type = OF(pctx,ARRAY,args[0]->result_type);
 	v.as.ptr.offset = 0;
 
-
-	push_assembly(pctx, op_adim, 0, &v, tType, icount , OF(pctx, STEWARD, OF(pctx,ARRAY,args[0]->result_type)) );
-
 	typeT* type = args[0]->result_type;
+
+
+	depth = codestack_depth(pctx); //track depth from here
+
+	push_assembly(pctx, op_adim, 0, &v, tType, icount , OF(pctx, STEWARD, OF(pctx,ARRAY,type)) );
+
+
 
 	for(int i=0;i<zarray_count(args);i++){
 
-		instructionT* inst_array = pop_arg(pctx);
+	//	instructionT* inst_array = pop_arg(pctx);
 		if (!type_equal(type, args[i]->result_type)){
 			errorf("Type mismatch in array initializer: expected %s, got %s\n", type->key, args[i]->result_type->key);
 			exit(1);
 
 		}
 		v.as.z32=type->size;
-		push_assembly(pctx, op_indexplusstore, 0, &v, tZ32, assembly_args_mk(2, inst_array, args[i]),  OF(pctx, STEWARD, OF(pctx,ARRAY,type))   );
+
+
+		push_subtree(pctx, args[i]); //push value
+
+		push_assembly(pctx, op_over, 0, &v, tZ32, NULL,  OF(pctx, ARRAY, type)); //copy array address
+			push_assembly(pctx, op_arrayindexplus, 0, &v, tZ32, pop_args(pctx, 1) , OF(pctx, REFERENCE,type)); //ofset pointer
+
+		dereference_assembly(pctx, "="); //store
 		args[i] = NULL;
 	}
+	//put whole array fill into one instruciton block
+	push_assembly(pctx, op_block, 0, NULL, NULL, pop_args(pctx, codestack_depth(pctx)-depth),  OF(pctx, STEWARD, OF(pctx, ARRAY, type)));
 
 	ram_free(args);
 
@@ -2902,6 +2961,7 @@ tokenT* parse_array_values(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 		exit(1);
 	}
 */
+#endif
 
 
 	return t;
@@ -2928,7 +2988,7 @@ tokenT* parse_fill_frame(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 		exit(1);
 	}
 
-
+	printf(" FILL FOR %s\n", ty->word->name);
 	while(1){
 
 		depth = codestack_depth(pctx);
@@ -2939,37 +2999,59 @@ tokenT* parse_fill_frame(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 		if (!strcmp(t->str, ":")){
 
 
-			if (codestack_depth(pctx) - depth != 1){
-				errorf(" when filling, : should appear with one 1 stack element\n");
-				exit(1);
-			}
 
 
 			printf(" TO STORE IN %s\n", tnext(t)->str);
 
 			wordT* m =  match_word(pctx, ty->word->target_pctx, tnext(t)->str, 0, NULL, NULL);
 
+
+
 			if (m && m->type->category == VARIABLE){
 
 				valueT v = {0};
 				v.as.ptr.address.word = m;
 
-				//copy offset pointer
-				push_assembly(pctx, op_over, 0, NULL, NULL, NULL, obj->result_type);
-				//add offset to the obj pointer
-				push_assembly(pctx, op_subvar, 0, &v, tWord, pop_args(pctx, 1) , OF(pctx, REFERENCE, m->type->ref));
-				dereference_assembly(pctx, "=");
+
+				if (m->type->ref->category == FRAME){
+					if (codestack_depth(pctx) - depth != 0){
+						errorf(" when filling substruct, : should appear with no stack elements\n");
+						exit(1);
+					}
+
+					//copy offset pointer
+					push_assembly(pctx, op_dup, 0, NULL, NULL, NULL, obj->result_type);
+					//add offset to the obj pointer
+					push_assembly(pctx, op_subvar, 0, &v, tWord, pop_args(pctx, 1) , OF(pctx, REFERENCE, m->type->ref));
+					printf("ZZ compiling to %s\n", m->type->ref->key);
+				} else {
+
+					if (codestack_depth(pctx) - depth != 1){
+						errorf(" when filling, : should appear with one 1 stack element\n");
+						exit(1);
+					}
+
+
+
+					//copy offset pointer
+					push_assembly(pctx, op_over, 0, NULL, NULL, NULL, obj->result_type);
+					//add offset to the obj pointer
+					push_assembly(pctx, op_subvar, 0, &v, tWord, pop_args(pctx, 1) , OF(pctx, REFERENCE, m->type->ref));
+					dereference_assembly(pctx, "=");
+
+
+					instructionT* assign = pop_arg(pctx);
+					instructionT* obj = pop_arg(pctx);
+					push_assembly(pctx, op_block, 0, NULL, NULL, assembly_args_mk(2, obj, assign), obj->result_type);
+
+				}
 
 
 
 
 
-				instructionT* assign = pop_arg(pctx);
-				instructionT* obj = pop_arg(pctx);
-				push_assembly(pctx, op_block, 0, NULL, NULL, assembly_args_mk(2, obj, assign), obj->result_type);
 
-
-				printf(" Found %p\n", m);
+				printf(" Found %s\n", m->name);
 
 
 			} else {
@@ -2979,6 +3061,8 @@ tokenT* parse_fill_frame(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 			t=tnext(t); //skip colon
 			t=tnext(t); //skip name
+
+
 
 		}
 
@@ -3066,7 +3150,7 @@ tokenT* parse_type_list(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 				if (is_like != -1) {
 					v.as.ptr.address.type = type_mk(NULL, t->str, NULL, LIKE, 0, NULL);
 					v.as.ptr.address.type->argc = is_like;
-					push_assembly(pctx, op_constant, INST_FREE_VALUE, &v, tType, NULL, tType);
+					push_assembly(pctx, op_constant, INST_FREE_VALUE , &v, tType, NULL, tType);
 				} else {
 						errorf("like no named arg %s\n", t->str);
 						exit(1);
@@ -3232,7 +3316,32 @@ tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 			errorf("unhandled parse_var case type=%s  token=%s \n", innertype->key, t->str);
 	}
 
+	int req_offset = -1;
 	char* varname = tnext(t)->str;
+
+	if (tnext(t)->str[0]=='@'){
+
+		t=tnext(t); //t is now '@'
+
+		t=tnext(t); //t is now the cname
+
+		c_constantT* cc = zstringmap_get(c_constants, t->str);
+		if (cc){
+			req_offset = cc->val32;
+		}
+		varname = tnext(t)->str;
+		printf("Var %s requested offset %s %d\n",varname, t->str, req_offset);
+
+	}
+
+
+
+	if (tnext(t)->tok == TOKEN_NUMBER){
+		req_offset = atoi(tnext(t)->str);
+		t=tnext(t);
+		varname = tnext(t)->str;
+		printf(" REQUESTING OFFSET %d\n");
+	}
 
 
 	if (!store)	{//if not keeping the var, advance, so we don't reparse the name
@@ -3271,12 +3380,18 @@ tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 	typeT* vartype = OF(pctx, VARIABLE, innertype);
 
 	w = word_mk(pctx, varname, vartype); //word for the variable
-	printf(" %d CREATING VAR %s of %s  @%d %d\n", argc,varname,  vartype->key , w->offset, vartype->size );
 
 
 	if (w) {
 		w->val.as.ptr.address.word =w;
 		w->val_type = tWord;
+
+		if (req_offset != -1){
+			w->offset = req_offset;
+		}
+
+		printf(" %d CREATING VAR %s of %s  @%d %d\n", argc,varname,  vartype->key , w->offset, vartype->size );
+
 
 		if (pctx->is_section){
 			w->opcode = op_sectionvar;
@@ -3343,6 +3458,7 @@ tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 			if (!strcmp(tnext(t)->str, "&")){
 				t=tnext(t);
 				push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, NULL, OF(pctx, REFERENCE, w->type->ref));
+
 			}
 		}
 
@@ -3907,6 +4023,23 @@ tokenT* parse_frame(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	t=tnext(t); //skip 'type' string
 
+	int req_size = 0;
+
+	if (t->str[0]=='@'){
+		t=tnext(t);
+		c_constantT* cc = zstringmap_get(c_constants, t->str);
+		if (cc){
+			req_size = cc->val32;
+		}
+		printf("Frame requested size %s %d\n", t->str, req_size);
+		t = tnext(t);
+
+	} else if (t->tok == TOKEN_NUMBER){
+		req_size = atoi(t->str);
+		printf("Frame requested size %d\n", req_size);
+		t=tnext(t);
+	}
+
 	//should be the name now
 	char* name = t->str;
 
@@ -3940,7 +4073,15 @@ tokenT* parse_frame(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 
 	type->category = FRAME; //it's done
+
 	type->size = innerpctx->size;
+
+	if (req_size && req_size > innerpctx->size) //if requested size is larger than needed, use whats requested
+		type->size=req_size;
+
+
+
+
 /*
 	if (issection){
 		if (type->size != 0 ){
@@ -4002,13 +4143,6 @@ tokenT* parse_typeof(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 }
 
 
-typeT* type_find_related(parsectxT* pctx, typeT* type, char* selection){
-
-
-
-}
-
-
 tokenT* parse_related_type(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	//typestack_pop(pctx, argc);
@@ -4042,8 +4176,8 @@ tokenT* parse_related_type(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 		}
 		if (!strcmp(t->str, "@")){
 			if (type->is_wild){
-				type = type_mk(NULL, NULL,type, DEREFERENCE,0, NULL);
-				instflags = INST_FREE_VALUE; //the type created above is not attached to a pctx, so free it when done
+				type = type_mk(pctx, NULL,type, DEREFERENCE,0, NULL);
+				//instflags = INST_FREE_VALUE; //the type created above is not attached to a pctx, so free it when done
 			} else {
 				type = type->ref;
 			}
@@ -4224,7 +4358,7 @@ tokenT* parse(parsectxT* pctx, tokenT* t, char** stop_tokens){
 
 			typeT* ty = inst_obj->result_type; //type the obj on stack is
 
-			if (ty->category == REFERENCE && ty->ref->category == FRAME) { //reference to a frame
+			if ( ((ty->category == REFERENCE)||(ty->category==CPOINTER)) && ty->ref->category == FRAME) { //reference (or cpointer) to a frame
 				have_obj_pointer = ZTRUE;
 				ty = ty->ref;
 			} else  if (ty== tType && inst_obj->val_type == tType){
@@ -4375,6 +4509,10 @@ char* type_key(char* name, typeT* ref, categoryE category, int size, typeT** arg
 		return zstrprintf(NULL, "like{%s}", name); //
 	}
 
+	if (category == DEREFERENCE){
+		return zstrprintf(NULL, "deref %s %p\n", ref->name, ref);
+	}
+
 	//'function' types.. These don't have a name
 	if (category == PROC){
 		key = zstrdup("(");
@@ -4505,7 +4643,8 @@ typeT* type_mk(parsectxT* pctx, char* name, typeT* ref, categoryE category, int 
 				w->val_type = tType; //is a type
 			}
 		}
-	} else {tracef("creating type with no pctx\n");
+	} else {
+		tracef("creating type with no pctx\n");
 	}
 
 	return type;
@@ -4971,13 +5110,14 @@ void int_run_str(char* src, char* filename){
 	ADD_INST(sectionvar);
 	ADD_INST(mul32);
 	ADD_INST(sub32);
+	ADD_INST(and32);
+	ADD_INST(or32);
+	ADD_INST(xor32);
 	ADD_INST(over)
 	ADD_INST(dup)
 	ADD_INST(dups)
 	ADD_INST(drop)
 	ADD_INST(adim);
-	ADD_INST(switch_indexplus);
-	ADD_INST(indexplusstore);
 
 	//C constants
 
@@ -5122,7 +5262,10 @@ void int_run_str(char* src, char* filename){
 
 
 
-	proc_opcode_mk2(pctx, op_indexplusstore, "++", "([Any]$:a  like a@@:b-> like a)");
+	//proc_opcode_mk2(pctx, op_overindexplusstore, "++", "([Any]$:a  like a@@:b-> like a)");
+
+
+	proc_opcode_mk2(pctx, op_arrayindexplus, "++", "([Any]:a -> like a@&)");
 
 
 	wordT* arraycow = proc_opcode_mk2(pctx, op_arraycow, ".Byte", "( String$:a -> [Byte]$)");
@@ -5182,6 +5325,10 @@ void int_run_str(char* src, char* filename){
 	proc_opcode_mk2(pctx, op_less32, "<", "(Z32:a Z32:b -> Z32)");
 	proc_opcode_mk2(pctx, op_greater32, ">", "(Z32:a Z32:b -> Bit)");
 	proc_opcode_mk2(pctx, op_equal32, "==", "(Z32:a Z32:b -> Bit)");
+
+	proc_opcode_mk2(pctx, op_and32, "and", "(Z32:a Z32:b -> Z32)");
+	proc_opcode_mk2(pctx, op_or32, "or", "(Z32:a Z32:b -> Z32)");
+	proc_opcode_mk2(pctx, op_xor32, "xor", "(Z32:a Z32:b -> Z32)");
 
 	proc_opcode_mk2(pctx, op_ptrequal, "==", "(Type:a Type:b -> Bit)");
 

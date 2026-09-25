@@ -25,14 +25,20 @@ section zgl
 	// int FindVariant (zglShaderGroupT * sg,int optionmask,char ** rlog)
 	 ( ShaderGroupT*:_sg Z32:_optionmask String$&:_rlog  -> Z32 ) "_INTERNAL" "zglFindVariant" sys optional FindVariant 
 
-	// void Dirty (void * v)
-	 ( Any*:_v ) "_INTERNAL" "zglDirty" sys optional Dirty 
+	// void DirtyBuffer (void * v)
+	 ( Any*:_v ) "_INTERNAL" "zglDirtyBuffer" sys optional DirtyBuffer 
 
 	// int BindUpdateArrayf (void * v,int elemsize,int target,int usage)
 	 ( Any*:_v Z32:_elemsize Z32:_target Z32:_usage  -> Z32 ) "_INTERNAL" "zglBindUpdateArrayf" sys optional BindUpdateArrayf 
 
-	// int BindArrayf (void * v,int target)
-	 ( Any*:_v Z32:_target  -> Z32 ) "_INTERNAL" "zglBindArrayf" sys optional BindArrayf 
+	// int UseAttrib (int attridx,void * v,int gltype,int size)
+	 ( Z32:_attridx Any*:_v Z32:_gltype Z32:_size  -> Z32 ) "_INTERNAL" "zglUseAttrib" sys optional UseAttrib 
+
+	// int BindArray (void * v,int target)
+	 ( Any*:_v Z32:_target  -> Z32 ) "_INTERNAL" "zglBindArray" sys optional BindArray 
+
+	// int BindUpdateTextureBitmap (int unit,zbitmapT * bmp)
+	 ( Z32:_unit zbitmap.Bitmap*:_bmp  -> Z32 ) "_INTERNAL" "zglBindUpdateTextureBitmap" sys optional BindUpdateTextureBitmap 
 
  /*zgl.post*/ 	([Any]:a  Z32:target Z32:usage) proc BindUpdateArray
 	    a.cptr a.size1  target usage  BindUpdateArrayf
@@ -45,8 +51,11 @@ section zgl
 
 
 	([Any]:a Z32:target ) proc BindArray
-		a.cptr  target BindArrayf
+		a.cptr  target BindArray
 	end
+
+
+
 
 end
 

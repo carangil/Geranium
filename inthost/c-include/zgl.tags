@@ -45,15 +45,23 @@ sg	zgl.h	/^int zglFindVariant(zglShaderGroupT* sg, int optionmask, char** rlog);
 optionmask	zgl.h	/^int zglFindVariant(zglShaderGroupT* sg, int optionmask, char** rlog);$/;"	z	prototype:zglFindVariant	typeref:typename:int	file:
 rlog	zgl.h	/^int zglFindVariant(zglShaderGroupT* sg, int optionmask, char** rlog);$/;"	z	prototype:zglFindVariant	typeref:typename:char **	file:
 anyArray	zgl.h	/^typedef void* anyArray;$/;"	t	typeref:typename:void *
-zglDirty	zgl.h	/^void zglDirty(void* v);$/;"	p	typeref:typename:void	signature:(void * v)
-v	zgl.h	/^void zglDirty(void* v);$/;"	z	prototype:zglDirty	typeref:typename:void *	file:
+zglDirtyBuffer	zgl.h	/^void zglDirtyBuffer(void* v);$/;"	p	typeref:typename:void	signature:(void * v)
+v	zgl.h	/^void zglDirtyBuffer(void* v);$/;"	z	prototype:zglDirtyBuffer	typeref:typename:void *	file:
 zglBindUpdateArrayf	zgl.h	/^int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);$/;"	p	typeref:typename:int	signature:(void * v,int elemsize,int target,int usage)
 v	zgl.h	/^int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);$/;"	z	prototype:zglBindUpdateArrayf	typeref:typename:void *	file:
 elemsize	zgl.h	/^int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);$/;"	z	prototype:zglBindUpdateArrayf	typeref:typename:int	file:
 target	zgl.h	/^int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);$/;"	z	prototype:zglBindUpdateArrayf	typeref:typename:int	file:
 usage	zgl.h	/^int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);$/;"	z	prototype:zglBindUpdateArrayf	typeref:typename:int	file:
-zglBindArrayf	zgl.h	/^int zglBindArrayf(void* v, int target);$/;"	p	typeref:typename:int	signature:(void * v,int target)
-v	zgl.h	/^int zglBindArrayf(void* v, int target);$/;"	z	prototype:zglBindArrayf	typeref:typename:void *	file:
-target	zgl.h	/^int zglBindArrayf(void* v, int target);$/;"	z	prototype:zglBindArrayf	typeref:typename:int	file:
+zglUseAttrib	zgl.h	/^int zglUseAttrib(int attridx, void* v, int gltype, int size);$/;"	p	typeref:typename:int	signature:(int attridx,void * v,int gltype,int size)
+attridx	zgl.h	/^int zglUseAttrib(int attridx, void* v, int gltype, int size);$/;"	z	prototype:zglUseAttrib	typeref:typename:int	file:
+v	zgl.h	/^int zglUseAttrib(int attridx, void* v, int gltype, int size);$/;"	z	prototype:zglUseAttrib	typeref:typename:void *	file:
+gltype	zgl.h	/^int zglUseAttrib(int attridx, void* v, int gltype, int size);$/;"	z	prototype:zglUseAttrib	typeref:typename:int	file:
+size	zgl.h	/^int zglUseAttrib(int attridx, void* v, int gltype, int size);$/;"	z	prototype:zglUseAttrib	typeref:typename:int	file:
+zglBindArray	zgl.h	/^int zglBindArray(void* v, int target);$/;"	p	typeref:typename:int	signature:(void * v,int target)
+v	zgl.h	/^int zglBindArray(void* v, int target);$/;"	z	prototype:zglBindArray	typeref:typename:void *	file:
+target	zgl.h	/^int zglBindArray(void* v, int target);$/;"	z	prototype:zglBindArray	typeref:typename:int	file:
+zglBindUpdateTextureBitmap	zgl.h	/^int zglBindUpdateTextureBitmap(int unit, zbitmapT* bmp);$/;"	p	typeref:typename:int	signature:(int unit,zbitmapT * bmp)
+unit	zgl.h	/^int zglBindUpdateTextureBitmap(int unit, zbitmapT* bmp);$/;"	z	prototype:zglBindUpdateTextureBitmap	typeref:typename:int	file:
+bmp	zgl.h	/^int zglBindUpdateTextureBitmap(int unit, zbitmapT* bmp);$/;"	z	prototype:zglBindUpdateTextureBitmap	typeref:typename:zbitmapT *	file:
 #define ZGL_ENABLE_INT
 #define zglBindUpdateArray(ARR,TARGET,USAGE) zglBindUpdateArrayf(ARR, sizeof((ARR)[0]) , TARGET, USAGE);

@@ -1,5 +1,9 @@
 #include "ztypes.h"
 #include "zmem.h"
+#include "zvector.h"
+#include "zarray.h"
+#include "zbitmap.h"
+
 #include "GL/glcorearb.h"
 
 #define ZGL_ENABLE_INT
@@ -33,8 +37,6 @@ int zglBuildProgram(char* header, char* vsrc, char* fsrc, char** rlog);
 
 
 
-
-
 typedef struct {
     int optionmask;  //bitmask of which inputs are used
     int prog;
@@ -55,13 +57,23 @@ int zglFindVariant(zglShaderGroupT* sg, int optionmask, char** rlog);
 typedef void* anyArray;
 
 //mark array as dirty
-void zglDirty(void* v);
+void zglDirtyBuffer(void* v);
 
 //update or create vbo from array.
 #define zglBindUpdateArray(ARR,TARGET,USAGE) zglBindUpdateArrayf(ARR, sizeof((ARR)[0]) , TARGET, USAGE);
 int zglBindUpdateArrayf(void* v, int elemsize, int target, int usage);
 
+int zglUseAttrib(int attridx, void* v, int gltype, int size);
+
+int zglBindArray(void* v, int target);
+
+//textures
+
+
+int zglBindUpdateTextureBitmap(int unit, zbitmapT* bmp);
 
 
 
-int zglBindArrayf(void* v, int target);
+//todo: texture arrays and such
+
+
