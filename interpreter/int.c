@@ -12,8 +12,8 @@
 #define iftrace(...)
 //#define iftrace(A) A
 
-#undef debugf
-#define debugf(...)
+//#undef debugf
+//#define debugf(...)
 
 //quick hack for fast error messages
 int lastline = 0;
@@ -592,7 +592,7 @@ void dump_types(parsectxT* pctx){
 }
 
 //most basic types
-typeT *tZ32, *tType, *tReal, *tType, *tFloat, *tBit, *tWord, *tString, *tByte, *tStringByte, *tSize32, *tLong32, *tDouble32, *tZL16,  *tUL16;
+typeT *tZ32, *tType, *tReal, *tType, *tFloat, *tBit, *tWord, *tString, *tByte, *tStringByte, *tSize32, *tLong32, *tDouble32, *tZL16,  *tUL16, *tByteArray;
 
 //some special types
 typeT* tAny; //matches any type
@@ -1990,6 +1990,11 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 			case op_arraycow:
 
 				exe->stack[ exe->sp-1].as.ptr.address.block = zarray_cow( exe->stack[exe->sp-1].as.ptr.address.block, pc->imm.as.z32  ) ;
+
+				if (pc->imm.as.z32 == 1){
+					zarray_set_meta(exe->stack[ exe->sp-1].as.ptr.address.block, tByteArray);
+				}
+
 				pc++;
 				continue;
 
@@ -2007,6 +2012,11 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 					typeT* at = zarray_get_meta( exe->stack[exe->sp-1].as.ptr.address.block);
 					//printf(" ARRAY IS TYPE %s\n", at->ref->key);
 					exe->stack[exe->sp-1].as.z32 = at->ref->size;
+				} else if (pc->imm.as.z32 == 3){
+					typeT* at = zarray_get_meta( exe->stack[exe->sp-1].as.ptr.address.block);
+					//printf(" ARRAY IS TYPE %s\n", at->ref->key);
+					exe->stack[exe->sp-1].as.ptr.address.type = at->ref;
+					exe->stack[exe->sp-1].as.ptr.offset=0;
 				}
 				else {
 					exe->stack[exe->sp-1].as.z32 = zarray_count( exe->stack[exe->sp-1].as.ptr.address.block);
@@ -2063,11 +2073,17 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				int count = exe->stack[exe->sp-2].as.z32;
 				int cap = exe->stack[exe->sp-1].as.z32;
 
-				typeT* arraytype = pc->imm.as.ptr.address.type; // [type]$
-				tracef(" DIMing array %s for elem size %d  \n", arraytype->key, arraytype->ref->size );
+				typeT* arraytype = pc->imm.as.ptr.address.type; // [type]
+
 
 				if (arrayvar->address.block){
 					//array already exists... resize
+					arraytype = zarray_get_meta(arrayvar->address.block);
+					//tracef(" DIMing array %s for elem size %d  \n", arraytype->key, arraytype->ref->size );
+					printf(" REDIMing array %s for elem size %d  \n", arraytype->key, arraytype->ref->size );
+
+
+
 					if (cap >= 0){
 						tracef("%d resize\n", cap);
 						arrayvar->address.block = zarray_resizef(arrayvar->address.block, arraytype->ref->size, cap, NULL);
@@ -2080,6 +2096,10 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 					}
 
 				} else{
+
+
+					//tracef(" DIMing array %s for elem size %d  \n", arraytype->key, arraytype->ref->size );
+					printf(" DIMing array %s for elem size %d  \n", arraytype->key, arraytype->ref->size );
 
 					if (count < 0)
 						count = 0;
@@ -2611,7 +2631,7 @@ tokenT* autoload(parsectxT* pctx, wordT* w, tokenT* t){
 
 		if (r->opcode == op_argpick && r->result_type->category != REFERENCE){
 
-			//if using & on an arg that is't a reference doesn't make sense.  the higher-level parser will see the & next and do something with it
+			//if using & on an arg that is't a reference doesn't make sense.  the higher-level parser will see the & next and do something with it or generate error
 			push_subtree(pctx, r); //put it back
 			return t;
 		}
@@ -2638,19 +2658,32 @@ tokenT* autoload(parsectxT* pctx, wordT* w, tokenT* t){
 
 
 	if (r->opcode == op_argpick){
-		tracef(" p loadername %s\n", loadername);
+		tracef(" pick loadername %s  %s\n", loadername, r->result_type->key);
 
-		if (loadername &&!strcmp(loadername, "$")){
-			r->opcode = op_argaddref;
-			loadername = NULL;
+
+		if (r->result_type->category == STEWARD){
+
+			//If the value on the stack is the steward itself, and the user wants $ or $$, then picking needs to do reference counting
+			//NOTE: If the value on the stack was a reference to a steward variable, then the normal handing of '&' will result in a proper argpick, $ or $$ will do a normal addref or take after the pick, or a normal load after the pick
+
+			if (loadername &&!strcmp(loadername, "$")){
+				tracef(" change op_argpick to op_argaddref\n");
+				r->opcode = op_argaddref;
+				loadername = NULL;
+			}
+
+			if (loadername&&!strcmp(loadername, "$$")){
+				tracef(" change op_argpick to op_argtake\n");
+				r->opcode = op_argtake;
+				loadername = NULL;
+			}
+
 		}
 
-		if (loadername&&!strcmp(loadername, "$$")){
-			r->opcode = op_argtake;
-			loadername = NULL;
-		}
+
 
 		if (loadername&&!strcmp(loadername, "@") && r->result_type->category ==STEWARD){
+			//if doing a normal load from a steward (demote to normal reference), demote it here for a normal '@' can deal with it
 			r->result_type = r->result_type->ref;
 			loadername = NULL;
 		}
@@ -5176,6 +5209,7 @@ void int_run_str(char* src, char* filename){
 	tString  = type_mk(pctx, "String",  NULL, SIMPLE, sizeof(char*), NULL);
 	tByte  = type_mk(pctx, "Byte",  NULL, SIMPLE, 1, NULL);
 	tStringByte  = type_mk(pctx, "StringByte",  NULL, SIMPLE, 1, NULL);
+	tByteArray = OF(pctx, ARRAY, tByte);
 
 	//These types are internaly, 32-bit, and really only exist on the stack
 	//Size32 and Long32 can be used interchangable with zint32
@@ -5240,7 +5274,8 @@ void int_run_str(char* src, char* filename){
 	proc_opcode_mk2(pctx, op_nop, ".Z32", "(Bit->Z32)");
 
 
-
+	//demote any array type to an 'any' array
+	proc_opcode_mk2(pctx, op_nop, ".Any", "([Any]$ -> [Any]$  )   ");
 
 
 
@@ -5282,6 +5317,9 @@ void int_run_str(char* src, char* filename){
 
 	arraysize = proc_opcode_mk2(pctx, op_arrayinfo, ".size1", "([Any]:a -> Z32)");
 	arraysize->val.as.z32=2;
+
+	arraysize = proc_opcode_mk2(pctx, op_arrayinfo, ".elemtype", "([Any]:a -> Type)");
+	arraysize->val.as.z32=3;
 
 	//set count of array
 	proc_opcode_mk2(pctx, op_arraysetcount, ".setcount", "([Any]:a  Z32:count)");
@@ -5376,13 +5414,14 @@ void int_run_str(char* src, char* filename){
 
 
 
+
 	//the following, when applied to a C pointer, fetches the pointer from the variable AND clears the variable.
 	//usage is for 'closing' or 'freeing' something in C, and making sure you null out the pointer
 	//  someFileHandle$$ fclose
 	// instead of having to fo      someFileHandle fclose   null someFileHandle=
 	proc_opcode_mk2(pctx, op_take, "$$",  "(Any*&:a  -> like a@ )" );
 
-		proc_opcode_mk2(pctx, op_load, "@",  "(Any.Instruction&:a -> like a@)" );
+	proc_opcode_mk2(pctx, op_load, "@",  "(Any.Instruction&:a -> like a@)" );
 	proc_opcode_mk2(pctx, op_printstr, "print", "(String)");
 
 	//proc_opcode_mk2(pctx, op_trashstore, "=",  "(String$:value  like value&:dst)" );
