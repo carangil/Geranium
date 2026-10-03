@@ -164,8 +164,6 @@ typedef struct typeS{
 //'val' contains a pointer that must be freed when instriction is freed:
 #define INST_FREE_VALUE 1
 
-
-
 typedef struct instructionS{
 	int opcode;
 	valueT val;
@@ -324,6 +322,9 @@ typedef enum {
 
 	op_over,
 	op_drop,
+
+	op_arraycast, //dynamic cast based on array element type
+	op_arraycasttrash,//dynamic cast, with free on failure
 
 	//floating point
 	op_fadd,

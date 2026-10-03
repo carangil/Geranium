@@ -1,0 +1,306 @@
+"inc/base.inc" include
+"inc/stdio.inc" include
+"inc/glfw3.inc" include
+"inc/glcorearb.inc" include
+
+"inc/stdlib.inc" include
+"inc/reflect.inc" include
+"inc/fluidsynth.inc" include
+
+"inc/zbitmap.inc" include
+"inc/zgl.inc" include
+
+
+([Z32]:a) proc print
+
+    0:i loop i a.count < not if break end
+        a i[] print " "print
+        step i&++
+    end
+end
+
+([[Z32]$]:a) proc print
+
+    0:i loop i a.count < not if break end
+        a i[] print " "print
+        step i&++
+    end
+end
+
+
+
+type bar
+    Z32 var j
+    Z32 var k
+end
+
+type foo
+    Z32 var n
+    String$ var s
+    bar var bb
+end
+
+([foo]:a) proc print
+    0:i loop i a.count < not if break end
+        a i[].n print  " " a i[].s print " "print
+
+        a i[].bb.j print "-" print a i[].bb.k print newline
+        step i&++
+    end
+
+end
+
+
+
+([Any] : a ) proc lenof
+
+    "array:" print
+
+
+    a .count print
+
+    "/" print
+    a.size print
+    " " print
+    a.elemtype.key print
+    " each " print
+    a.size1 print
+
+
+end
+
+
+([Any]$&:a  Z32:extra) proc reserve
+    "---"print
+    a? not if
+
+        "Cannot reserve from null array, because it has no type information" print newline
+        return
+    end
+
+    a.elemtype .key print newline
+    a.count extra + :need   //how many elements does user need?
+
+    need a.size > if    //if need more than the current size
+
+        //if doubleing more than covers, we will double to amortize growth like a vector
+        need  a.size 2*  <  if
+            a.size 2* need=
+        end
+
+        a& -1 need dim  //resize array
+
+    else
+        "OK size" print newline
+    end
+
+end
+
+
+
+Z32 var asdf
+
+(Z32:a -> String) immediate  testi
+
+    //asdf print newline
+
+    a print newline
+
+    "banana" return
+
+
+end
+
+
+
+[Z32]$ var c
+c& 0 5 dim
+
+10 c++=
+12 c++=
+66 c++=
+
+[bar]$ var b
+b& 0 5 dim
+
+
+$[c$.Any b$$.Any] : cb
+
+
+
+cb 0[] lenof
+cb 1[] lenof
+
+"stuff"$.Byte :sb
+
+cb 0[]  [Z32]
+
+
+
+//cb 0 []$ :hcb
+
+
+sb typeof.key print newline
+sb lenof
+sb$$.String :s2
+//c& 100 reserve
+
+
+
+
+
+
+(String:s String:t) proc cmp
+
+    "Compare " print s print " " print t print "  " print
+    s t == if
+        "equal" print
+    s t > elseif
+        ">" print
+    s t < elseif
+        "<" print
+    else
+        "unhandled" print
+    end
+
+    newline
+
+end
+
+
+
+"aa" "aa" cmp
+"bb" "aa" cmp
+"aa" "bb" cmp
+
+
+"aa"$ "ff" ++ :j
+j print newline
+
+j& "dd" ++
+
+j printptr  j print newline
+
+/*
+(Z32:a) proc outer
+
+    Z32 var aa
+    (Z32:b) proc inner
+        //a print newline
+        aa print newline
+    end
+
+end
+*/
+
+
+
+89 testi print newline
+
+
+
+[Z32]$ var mm
+
+
+"Stuff" print newline
+
+
+"as Z32 " print
+c [Z32].as printptr
+
+
+"as Real " print
+c [Real].as printptr
+
+
+
+c$ [Real]$.as :cr  cr printptr
+c$ [Z32]$.as :cz  cz printptr
+
+c 2[]print newline
+cz 2[] print newline
+
+"z" print newline
+sys_ENDFILE
+
+
+//c$$.Any ac=
+
+//ac& 120 reserve
+
+//ac lenof
+
+/*
+100 c++=
+200 c++=
+300 c++=
+c print
+*/
+
+
+//c lenof
+//ac lenof
+
+
+
+newline
+
+loop end
+
+10 c++=
+26 c++=
+99 c++=
+c& -1 10 dim
+101 c++=
+c  print
+
+
+
+[foo]$ var foos
+
+foos&0 3 dim
+
+foos printptr newline
+
+foos++ =[
+       44 :n
+
+    :bb =[ 55:j 110:k ]
+
+ "Whatever"$:s
+
+
+]
+
+
+foos++ =[
+    "stuff"$:s
+    30:n
+]
+
+
+foos print
+
+"foos" print newline
+foos 1[] printptr
+foos 1[] =[
+    41:n
+    :bb =[
+        111:j
+    ]
+    "stuff$"$ :s
+
+]
+
+newline
+
+
+$[ 13 11  123 4] : ar
+ar print newline
+
+$[ "Sdf"$ "s"$  ] :ll
+
+
+$[ $[888 33]  $[66 77 8 1]] :m
+
+m print

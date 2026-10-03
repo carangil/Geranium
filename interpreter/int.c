@@ -12,8 +12,8 @@
 #define iftrace(...)
 //#define iftrace(A) A
 
-//#undef debugf
-//#define debugf(...)
+#undef debugf
+#define debugf(...)
 
 //quick hack for fast error messages
 int lastline = 0;
@@ -486,7 +486,10 @@ wordT* word_mk(parsectxT* pctx, char* name, typeT* type){
 
 		if (type->category == VARIABLE){
 
-
+			if (pctx->frame){
+				errorf(" Cannot add variable to section that has already been created  %s %s\n", pctx->comment , w->name);
+				exit(1);
+			}
 			//todo: deal with alignment
 			w->offset = pctx->size;
 			tracef(" made word %s  %s  %d\n", name, type->key, type->ref->size);
@@ -1398,6 +1401,7 @@ switchopT* compile_switch_subtree(exectxT* exe, switchrunnerT* sw, switchopT* pr
 	if (inst->opcode == op_sectionvar){
 
 		if(inst->val.as.ptr.address.word->in_pctx->frame == NULL){
+			printf(" ALLOCATING FRAME FOR %s.%s\n", inst->val.as.ptr.address.word->in_pctx->comment, inst->val.as.ptr.address.word->name);
 			//need to allocate
 			inst->val.as.ptr.address.word->in_pctx->frame = alloc_frame(inst->val.as.ptr.address.word->in_pctx);
 		}
@@ -1998,6 +2002,34 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				pc++;
 				continue;
 
+			case op_arraycast:
+			case op_arraycasttrash:
+
+				void* array = 	exe->stack[ exe->sp-1].as.ptr.address.block;
+
+				if (array){
+
+					typeT* atype = zarray_get_meta(array);
+
+					printf( "Compare array %s with wanted %s\n", atype->key, pc->imm.as.ptr.address.type->key);
+					if (type_equal(  pc->imm.as.ptr.address.type,  atype->ref)){
+						printf("PASS\n");
+						pc++;
+						continue;	//keep the pointer on stack
+					}
+
+					if (pc->opcode == op_arraycasttrash){
+						//free the pointer if it didn't pass
+						ram_free( exe->stack[exe->sp-1].as.ptr.address.block);
+					}
+
+				}
+
+				exe->stack[exe->sp-1].as.ptr.address.block = NULL; //null if failed the test
+
+				pc++;
+				continue;
+
 			case op_arrayinfo:
 
 				if (!exe->stack[exe->sp-1].as.ptr.address.block) {
@@ -2496,6 +2528,53 @@ tokenT* parse_constant(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 	return t;
 }
 
+
+
+tokenT* parse_dcast(parsectxT* pctx, wordT* w, tokenT* t, int argc){
+
+	instructionT* typeinst = pop_arg(pctx);
+	instructionT* item = pop_arg(pctx);
+
+	typeT* dtype = typeinst->val.as.ptr.address.type;
+	typeT* stype = item->result_type;
+
+	if (!dtype){
+		errorf(" no type constant found for dcast\n");
+		exit(1);
+	}
+
+
+	typeT* elemtype = NULL;
+	int opcode = op_arraycast;
+
+	if (dtype->category == STEWARD && stype->category == STEWARD){
+		if (dtype->ref->category == ARRAY && stype->ref->category == ARRAY){
+			elemtype = dtype->ref->ref;
+			opcode = op_arraycasttrash;
+		}
+	}
+
+	if (dtype->category == ARRAY && stype->category == ARRAY){
+			elemtype = dtype->ref;
+
+	}
+
+	if (!elemtype){
+		errorf("Could not determine element type or is mismatch\n");
+		exit(1);
+	}
+	valueT v = {0};
+	v.as.ptr.address.type = elemtype;
+
+	push_assembly(pctx, opcode, 0, &v, tType, assembly_args_mk(1, item),  dtype);
+
+	ram_free(typeinst);
+
+	return t;
+}
+
+
+
 zstringmapT* c_objects=NULL;
 zstringmapT* c_constants=NULL;
 
@@ -2789,20 +2868,12 @@ tokenT* parse_default(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 
 	//if word is a PROC, assemble it using the word's opcode and value
 
-
-
 	if (w->type->category == PROC) {
-
 
 		//need to check args are passed as-is and not as instructions
 
-
-
 		instructionT* inst = push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, args, w->type->ref);
 		inst->comment = ram_addref(w->comment);
-
-
-
 
 /*
 		if (tnext(t) && !strcmp(tnext(t)->str,">-")){
@@ -2836,6 +2907,7 @@ tokenT* parse_default(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 	if (w->type->category == ARG){
 		tracef("%s arg  at bp %d\n", w->name, w->val.as.z32);
 
+
 		push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, NULL, w->type->ref );
 
 		if (w->autoload) //enforce autoload rules
@@ -2863,12 +2935,13 @@ tokenT* parse_default(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 			exit(1);
 		}
 
+		/* restrict_pctx is now checked before calling parse_default
 		if (w->opcode == op_localvar){
 			if (w->restrict_pctx != pctx){
 				errorf(" Cannot use here\n");
 				exit(1);
 			}
-		}
+		}*/
 
 		push_assembly(pctx, w->opcode, 0, &w->val, w->val_type, NULL, OF(pctx, REFERENCE, w->type->ref));
 
@@ -3373,7 +3446,7 @@ tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 		req_offset = atoi(tnext(t)->str);
 		t=tnext(t);
 		varname = tnext(t)->str;
-		printf(" REQUESTING OFFSET %d\n");
+		printf(" REQUESTING OFFSET %d\n", req_offset);
 	}
 
 
@@ -3816,10 +3889,69 @@ callerT* caller_lookup(char* soname, char* name, typeT* ret,  typeT** args){
 
 
 
+tokenT* parse_immediate(parsectxT* pctx, wordT* w, tokenT* t, int argc){
+
+	printf(" TO run %s during compilation\n", w->name);
+
+	//pop off the args
+	instructionT** args = pop_args(pctx, argc);
+
+	//need to create a context
+	parsectxT* immpc = parsectx_mk(NULL, zstrprintf(NULL, "immediate %s", w->name)  );
+
+	//push the function call into that context (includes creating the args)
+	push_assembly(immpc, w->opcode, 0, &w->val, w->val_type, args, w->type->ref);
+
+	//TODO:
+	// need to make sure immediate being called does not use local variables in its args.  subtrees can, but only if they are later put in the same context
+	// if immediate proc accesses sectionvars, it will 'lock' the size of those sections.  Need to allow resize or clear those.
+	// perhaps have an 'immediate' section so different immediate procs can have a space for compilation globals and such
+
+	//run it
+	exectxT* exe = exectx_mk();
+	runnerI* runme = compile_for_switch(exe, immpc);
+	runme->execute(exe, runme, 0);
+
+	//take out return value
+
+	if(w->type->ref ){
+		printf(" TO RETURN CONSTANT OF %s and sp is %d\n", w->type->ref->key, exe->sp);
+
+		if (exe->sp != 1){
+			errorf(" Bad stack\n");
+			exit(1);
+		}
+
+		if (w->type->ref->category == STEWARD){
+			push_assembly( pctx, op_constantaddref, INST_FREE_VALUE, &exe->stack[0], w->type->ref, NULL, w->type->ref);
+		} else if (w->type->ref == tString){
+			//for a normal string, return a copy of it as a constant instruction.
+			valueT v = {0};
+			v.as.ptr.address.bytes = zstrdup( exe->stack[0].as.ptr.address.bytes);
+			push_assembly( pctx, op_constant, INST_FREE_VALUE, &v , w->type->ref, NULL, w->type->ref);
+		}else {
+			push_assembly( pctx, op_constant, 0, &exe->stack[0], w->type->ref, NULL, w->type->ref);
+		}
+
+	} else {
+		printf(" TO RETURN nothing and sp is %d\n",  exe->sp);
+	}
+
+	ram_free(exe);
+	ram_free(immpc);
+
+	return t;
+
+	//exit(1);
+}
+
+
+
 tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 
 	int tolerate=0;
 	int proto=0;
+	int immediate=0;
 	parsectxT* install_pctx = pctx;  //by default this item is in THIS context
 
 	instructionT* libname = NULL;//for external functions
@@ -3842,23 +3974,14 @@ tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 	instructionT* arg0 = pop_arg(pctx);
 
 
-	if (!strcmp(t->str, "expose" )){
 
-		t=tnext(t);
-
-		if (!strcmp(t->str, "proc" ) && pctx->frametype && pctx->parent) {
-			printf(" put in parent namespace");
-			install_pctx = pctx->parent; //install in the parent context
-		} else {
-			errorf(" cannot use expose here\n");
-			exit(1);
-
-		}
-
-	}
 	if (!strcmp(t->str, "proto")){
-		tracef(" creating prototype\n");
+
 		proto = 1;
+	}
+
+	if (!strcmp(t->str, "immediate")){
+		immediate = 1;
 	}
 
 	t = tnext(t);
@@ -3976,9 +4099,12 @@ tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 			//this makes it so C can call the function
 			w->ffi_caller = callback_mk(w->name, vartype->ref->ref, vartype->ref->argtypes, w);
 			printf("XXX Made ffi closure OK caller struct %s %p %p\n", w->name, w->ffi_caller, w->ffi_caller->ffi_closure_code);
-		} else {
+		}  else {
 			w->opcode = op_call;
 		}
+
+		if (immediate)
+			w->parse = parse_immediate;
 
 		typeT* proctype = w->type;
 		if (proctype->category == REFERENCE){
@@ -4011,6 +4137,13 @@ tokenT* parse_proc(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 		//create the 'return' keyword for this context, using the return value
 		if (proctype->ref && proctype->ref->category == REFERENCE){
 			errorf(" Cannot return a reference\n");
+			exit(1);
+		}
+
+
+
+		if (!immediate && proctype->ref == tString){
+			errorf(" Cannot return a string\n");
 			exit(1);
 		}
 
@@ -5196,6 +5329,13 @@ void int_run_str(char* src, char* filename){
 	pctx->is_section = ZTRUE; //global is just the top-level section
 
 
+	/*
+	parsectxT* immpctx= parsectx_mk(NULL, zstrdup("immediate"));
+	pctx->is_section = ZTRUE; //global is just the top-level section
+	*/
+
+
+
 	//create basic types
 	tType = type_mk(pctx, "Type", NULL, OPAQUE, sizeof(typeT*), NULL);
 	tType->word->val_type = tType;
@@ -5257,7 +5397,7 @@ void int_run_str(char* src, char* filename){
 	proc_parser_mk(pctx, "section", type_proc_mk(NULL, 0), parse_frame);
 	proc_parser_mk(pctx, "proc", type_proc_mk(NULL, 1, tType), parse_proc);
 	proc_parser_mk(pctx, "proto", type_proc_mk(NULL, 1, tType), parse_proc);
-	proc_parser_mk(pctx, "expose", type_proc_mk(NULL, 1, tType), parse_proc);
+	proc_parser_mk(pctx, "immediate", type_proc_mk(NULL, 1, tType), parse_proc);
 
 	proc_parser_mk(pctx, "sys", type_proc_mk(NULL, 3, tType , tString, tString), parse_proc);//import ffi
 	proc_parser_mk(pctx, "sys", type_proc_mk(NULL, 2, tType , tString), parse_c_constant);
@@ -5286,6 +5426,8 @@ void int_run_str(char* src, char* filename){
 	//dim requires a variable exists to populate the array
 	proc_opcode_mk2(pctx, op_dim, "dim", "([Any]$&:array Z32:len Z32:capacity   )");
 
+	proc_parser_mk(pctx, ".as", type_from_str(pctx,  "([Any]:array  Type:ty)") , parse_dcast);
+	proc_parser_mk(pctx, ".as", type_from_str(pctx,  "([Any]$:array  Type:ty)") , parse_dcast);
 
 
 	wordT* arrayindex = proc_opcode_mk2(pctx, op_arrayindex, "[]", "( [Any]:a Z32:idx -> like a@&)");

@@ -642,6 +642,8 @@ Ps ++ =[
 ```
 
 
+### The following parts of the documentation is very rough, incomplete, and are about features that are works in progress.
+
 ## FFI (Foreign Function Interface)
 
 C functions from dynamic libraries (.so files) can be loaded and called by Geranium programs using libffi.  Not all types are supported, but major things like ints, pointers, etc are supported, and support is slowly growing with time.  Currently the main limitation is you can't pass or return a C struct through libffi.  (You CAN pass and return pointers to C structs.  Many APIs can be supported through this, such as OpenGL.)
