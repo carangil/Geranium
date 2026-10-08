@@ -29,6 +29,15 @@ end
 
 
 
+([String$]:a) proc print
+
+    0:i loop i a.count < not if break end
+        a i[] print " "print
+        step i&++
+    end
+end
+
+
 type bar
     Z32 var j
     Z32 var k
@@ -37,6 +46,7 @@ end
 type foo
     Z32 var n
     String$ var s
+
     bar var bb
 end
 
@@ -186,7 +196,7 @@ j printptr  j print newline
 
     Z32 var aa
     (Z32:b) proc inner
-        //a print newline
+        //a print newline:t
         aa print newline
     end
 
@@ -195,7 +205,7 @@ end
 
 
 
-89 testi print newline
+//89 testi print newline
 
 
 
@@ -206,101 +216,97 @@ end
 
 
 "as Z32 " print
-c [Z32].as printptr
+c.Any typeof .key print newline
 
 
 "as Real " print
 c [Real].as printptr
 
+c [Z32].as printptr
+
+c$ [Real]$.as ::cr printptr
+c$ [Z32]$.as ::cz printptr
 
 
-c$ [Real]$.as :cr  cr printptr
-c$ [Z32]$.as :cz  cz printptr
 
 c 2[]print newline
 cz 2[] print newline
 
+
+
 "z" print newline
-sys_ENDFILE
 
+"stuff"$ ::s
 
-//c$$.Any ac=
+$[ 10 20 30 ] :ci
+$["as"$ "a"$ "string"$] :cs
 
-//ac& 120 reserve
+ci print
+cs print
 
-//ac lenof
+$[ ci$.Any cs$.Any ] : mx
+
+mx typeof .key print newline
+"zzzzz" print newline
+( [[Any]$]:arr) proc print
+
+    0:i loop i arr.count < not if break end
+
+        arr i[].elemtype.key print newline
+
+        arr i[]$ [Z32]$.as ::z print
+        arr i[]$ [String$]$.as ::s print
+
 
 /*
-100 c++=
-200 c++=
-300 c++=
-c print
+        arr i[].elemtype Z32 == if
+            arr i[] [Z32].as print
+
+        arr i[].elemtype String$ == elseif
+
+
+
+            "is string" print newline
+            arr i[] [String$].as print
+        end
 */
 
+        step
+            i&++
 
-//c lenof
-//ac lenof
+    end
 
-
-
-newline
-
-loop end
-
-10 c++=
-26 c++=
-99 c++=
-c& -1 10 dim
-101 c++=
-c  print
+end
 
 
 
-[foo]$ var foos
 
-foos&0 3 dim
-
-foos printptr newline
-
-foos++ =[
-       44 :n
-
-    :bb =[ 55:j 110:k ]
-
- "Whatever"$:s
+mx print
 
 
-]
+pop: take the top instruction off codestack
+push: put an instruction on codestack
 
 
-foos++ =[
-    "stuff"$:s
-    30:n
-]
+
+section tc
+
+    (Z32.Instruction$:A) immediate twice
+        A push A push
+    end
+
+end
 
 
-foos print
-
-"foos" print newline
-foos 1[] printptr
-foos 1[] =[
-    41:n
-    :bb =[
-        111:j
-    ]
-    "stuff$"$ :s
-
-]
-
-newline
 
 
-$[ 13 11  123 4] : ar
-ar print newline
-
-$[ "Sdf"$ "s"$  ] :ll
 
 
-$[ $[888 33]  $[66 77 8 1]] :m
 
-m print
+
+//44 tc.ins
+
+44 tc.boo + print newline
+
+sys_ENDFILE
+

@@ -227,6 +227,8 @@ typedef struct exectxS{
 //	char* error_string;
 //	int error_code;
 
+	parsectxT* curparsecontext;  //If this is running during compilation, the context being compiled is put here
+
 }exectxT;
 
 
@@ -332,6 +334,8 @@ typedef enum {
 	op_fmul,
 	op_fdiv,
 	op_fpow,
+
+	op_curparsecontext,
 
 	op_fictional_call, //don't really call the function.  This instruction is not ever implemented in the interpreter and produces a runtime error.  But exists to allow the concept of 'calling' something that another part of the compiler will resolve into something.
 

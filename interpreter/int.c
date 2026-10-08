@@ -1120,21 +1120,23 @@ zbool test_word(parsectxT* pctx, typeT** stacktypes, wordT* word, int flags, int
 		typeT* passed_type = stacktypes[i];
 
 		if (!passed_type){
-				//errorf(" No result type! on arg %d/%d of %s %s\n", i, argc, word->name , word->type->key);
+				errorf(" No result type! on arg %d/%d of %s %s\n", i, argc, word->name , word->type->key);
 				//I don't think this is an error, this is just testing a possible match and we don't have a value on the stack
 				return ZFALSE;
 		}
 
 
 		typeT* argtype = word->type->argtypes[i];
-		tracef("Compare sp%d  %s s %s\n", i, argtype->key,  passed_type->key);
+		printf("%x flags Compare sp%d  %s = %s\n",flags, i, argtype->key,  passed_type->key);
 
 		if ((flags & MATCH_ALLOW_MODIFY) && (argtype->category == STEWARD) && (argtype->ref->category == SUBTREE)){
 
 			debugf(" Expecting subtree... attempting to match with that instead\n");
+			printf(" Expecting subtree... attempting to match with that instead\n");
 
 			if (type_cmp( pctx, argtype->ref->ref, passed_type, flags, word->type, stacktypes)){
 				debugf(" %s is ok for subtree %s\n", passed_type->key, argtype->key);
+				printf(" %s is ok for subtree %s\n", passed_type->key, argtype->key);
 				if (match_notes)
 					match_notes[i] = MATCHED_NOTE_SUBTREEIZE;  //arg needs to be turned into a subtree constant
 				else
@@ -1732,7 +1734,6 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 
 	exe->locals = alloc_frame(sw->pctx);
 
-
 	for(;;){
 		ptrT* var;
 		ptrT* arrayvar;
@@ -2260,6 +2261,16 @@ void run_switch(exectxT* exe, runnerI* r, int start){
 				ram_free (exe->locals);
 				exe->locals = old_locals;
 				return;
+
+			case op_curparsecontext:
+				printf("running op_curparsecontext\n");
+				printf(" Parse context where this is running %p\n", exe->curparsecontext);
+
+				exe->stack[exe->sp].as.ptr.address.block = exe->curparsecontext;
+				exe->stack[exe->sp].as.ptr.offset =0;
+				exe->sp++;
+				pc++;
+				continue;
 
 			case op_sys:
 
@@ -3522,10 +3533,11 @@ tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 			if(copy){
 
 					push_subtree(pctx, arg0); //push value
-
+/*
 					if (innertype->category == STEWARD)
 						push_assembly( pctx, op_dups, 0, NULL, NULL, NULL, innertype);  //push  duplicate, adding ref
 					else
+						*/
 						push_assembly( pctx, op_dup, 0, NULL, NULL, NULL, innertype);  //push  duplicate
 
 
@@ -3547,7 +3559,14 @@ tokenT* parse_var(parsectxT* pctx, wordT* wi, tokenT* t, int argc){
 
 				instructionT* istore = pop_arg(pctx); //grab the store
 				if (istore->result_type == NULL){
-					istore->result_type = innertype;
+
+					if(innertype->category == STEWARD)	//demote to normal pointer
+						istore->result_type = innertype->ref;
+					else
+						istore->result_type = innertype;
+
+
+
 				} else {
 					errorf("Unexpected return value from storing var: %s\n", istore->result_type->key);
 					exit(1);
@@ -3910,8 +3929,9 @@ tokenT* parse_immediate(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 	//run it
 	exectxT* exe = exectx_mk();
 	runnerI* runme = compile_for_switch(exe, immpc);
+	exe->curparsecontext = pctx;
 	runme->execute(exe, runme, 0);
-
+	printf(" Completed immediate\n");
 	//take out return value
 
 	if(w->type->ref ){
@@ -4465,6 +4485,28 @@ tokenT* parse_flow(parsectxT* pctx, wordT* w, tokenT* t, int argc){
 	return NULL;
 }
 
+char* codestack_text(parsectxT* pctx){
+
+	char* msg = zstrdup("");
+	for (int i=0;i<zvec_count(pctx->codestack);i++){
+		instructionT* inst = zvec_get_at(pctx->codestack, i);
+		if (inst->result_type) {
+			msg =  zstrprintf(msg, " %s,;", inst->result_type->key );
+		} else
+			msg = zstrprintf(msg, ".");
+	}
+
+	return msg;
+}
+
+void codestack_list(parsectxT* pctx){
+
+	char* msg = codestack_text(pctx);
+	printf("stack: %s\n", msg);
+	ram_free(msg);
+
+}
+
 //parse until either end of input or any stop_tokens
 //topparse
 tokenT* parse(parsectxT* pctx, tokenT* t, char** stop_tokens){
@@ -4511,7 +4553,7 @@ tokenT* parse(parsectxT* pctx, tokenT* t, char** stop_tokens){
 
 		int argc=0;
 		parsectxT* foundpctx= NULL;
-		tracef(" LOOKING FOR '%s'\n", t->str);
+		printf(" LOOKING FOR '%s'\n", t->str);
 		wordT* w = match_word(pctx, pctx,  t->str, MATCH_RECURSE_PCTX| MATCH_ALLOW_LIKE |MATCH_ALLOW_MODIFY, &argc, &foundpctx);
 
 		if (!w && t->str[0] == '.' && codestack_depth(pctx) >= 1  ){
@@ -4524,15 +4566,17 @@ tokenT* parse(parsectxT* pctx, tokenT* t, char** stop_tokens){
 
 			typeT* ty = inst_obj->result_type; //type the obj on stack is
 
+
+
 			if ( ((ty->category == REFERENCE)||(ty->category==CPOINTER)) && ty->ref->category == FRAME) { //reference (or cpointer) to a frame
 				have_obj_pointer = ZTRUE;
 				ty = ty->ref;
 			} else  if (ty== tType && inst_obj->val_type == tType){
 				ty = inst_obj->val.as.ptr.address.type; //or if it's a type itself
-				tracef(" on %s  %p %d\n", ty->key, ty->word->target_pctx, ty->word->target_pctx->is_section);
+				printf(" on %s  %p %d\n", ty->key, ty->word->target_pctx, ty->word->target_pctx->is_section);
 				if (ty->word && ty->word->target_pctx && ty->word->target_pctx->is_section){
 					is_section = ZTRUE;
-					tracef("is section\n");
+					printf("is section\n");
 				}
 			} else{
 				ty= NULL;
@@ -4541,15 +4585,18 @@ tokenT* parse(parsectxT* pctx, tokenT* t, char** stop_tokens){
 
 			if(ty){
 				//looking in the pointers' type's pctx, or the explicitly given type's pctx
-				tracef(" looking for %s in %s (from %s) \n", t->str+1,ty->key, inst_obj->result_type->key);
+				printf(" looking for %s in %s (from %s) \n", t->str+1,ty->key, inst_obj->result_type->key);
+
+				codestack_list(pctx);
+
 				wordT* m = NULL;
 
 				if(ty && ty->word ){
-					m = match_word(pctx, ty->word->target_pctx, t->str+1,  MATCH_ALLOW_LIKE, &argc, &foundpctx);
+					m = match_word(pctx, ty->word->target_pctx, t->str+1,  MATCH_ALLOW_LIKE|MATCH_ALLOW_MODIFY, &argc, &foundpctx);
 				}
 
 				if (m){
-					tracef(" found %s  %s\n", m->name, m->type->key);
+					printf(" found %s  %s\n", m->name, m->type->key);
 				}
 
 				//allowed combinations:
@@ -4632,14 +4679,7 @@ tokenT* parse(parsectxT* pctx, tokenT* t, char** stop_tokens){
 		//did not match a word
 
 
-		char* msg=zstrdup("");
-		for (int i=0;i<zvec_count(pctx->codestack);i++){
-			instructionT* inst = zvec_get_at(pctx->codestack, i);
-			if (inst->result_type) {
-				msg =  zstrprintf(msg, " %s;", inst->result_type->key );
-			} else
-				msg = zstrprintf(msg, ".");
-		}
+		char* msg=codestack_text(pctx);
 
 		PERROR(pctx, "UNDEFINED %s  from stack: %s\n", t->str, msg);
 		ERRTOK(pctx, t);
@@ -4833,16 +4873,38 @@ typeT* type_find(parsectxT* pctx, char* name, typeT* ref, categoryE category, in
 			exit(1);
 		}
 	}
+	int xd=0;
+
 
 	//lookup type
 	char* key = type_key(name, ref, category, size, args);
 
-	typeT* type = zstringmap_get(pctx->types, key);
+	parsectxT* search_pctx= pctx;
+	typeT* type = NULL;
+
+	while(search_pctx){
+
+
+		if (ref && !strcmp(ref->key, "String") && category == STEWARD  ){
+			printf("FIND  String$ from  %p in %p %s\n", ref, search_pctx, search_pctx->comment    );
+			xd=1;
+		}
+
+		type = zstringmap_get(search_pctx->types, key);
+		if (type)
+			break;
+		search_pctx = search_pctx->parent;
+	}
+
 	ram_free(key);
 	key = NULL;
 
 	if (type) {
 		debugf("Found existing type %s %p\n", type->key, type);
+
+		if (xd)
+			printf("Found existing type %s %p\n", type->key, type);
+
 		//todo : free args?
 		if (category != NAMED  && category != NAMEDEXISTING && category != type->category){
 			errorf("Type is not expected category %d\n", category);
@@ -4852,6 +4914,9 @@ typeT* type_find(parsectxT* pctx, char* name, typeT* ref, categoryE category, in
 		return type;
 	}
 
+	if (xd){
+		printf("FIND Creating\n");
+	}
 
 	if (category == NAMED){
 		//wanted a type by name (like a struct), but the type is not yet
@@ -5082,7 +5147,7 @@ instructionT** word_instructions(wordT* w){
 		return NULL;
 
 
-	//TODO: it's annoying this is a zvec and not a zarray, but I don't want to change all that now
+	//TODO: it's annoying this is a zve'Any' does not have a size (but any& does)c and not a zarray, but I don't want to change all that now
 
 	instructionT** code = zarray_alloc(instructionT*,  zvec_count(w->target_pctx->codestack));
 
@@ -5346,6 +5411,8 @@ void int_run_str(char* src, char* filename){
 	tWord = type_mk(pctx, "Word", NULL, OPAQUE, sizeof(wordT*),  NULL);
 	tAny =  type_mk(pctx, "Any", NULL, OPAQUE, 0, NULL);  //'Any' does not have a size (but any& does)
 
+
+
 	tString  = type_mk(pctx, "String",  NULL, SIMPLE, sizeof(char*), NULL);
 	tByte  = type_mk(pctx, "Byte",  NULL, SIMPLE, 1, NULL);
 	tStringByte  = type_mk(pctx, "StringByte",  NULL, SIMPLE, 1, NULL);
@@ -5416,7 +5483,7 @@ void int_run_str(char* src, char* filename){
 
 	//demote any array type to an 'any' array
 	proc_opcode_mk2(pctx, op_nop, ".Any", "([Any]$ -> [Any]$  )   ");
-
+	proc_opcode_mk2(pctx, op_nop, ".Any", "([Any] -> [Any]  )   ");
 
 
 
@@ -5510,7 +5577,9 @@ void int_run_str(char* src, char* filename){
 	proc_opcode_mk2(pctx, op_or32, "or", "(Z32:a Z32:b -> Z32)");
 	proc_opcode_mk2(pctx, op_xor32, "xor", "(Z32:a Z32:b -> Z32)");
 
+	//proc_opcode_mk2(pctx, op_ptrequal, "==", "(Type:a Type:b -> Bit)");
 	proc_opcode_mk2(pctx, op_ptrequal, "==", "(Type:a Type:b -> Bit)");
+
 
 	proc_opcode_mk2(pctx, op_neg32, ".-", "(Z32:a  -> Z32)");
 	proc_opcode_mk2(pctx, op_bnot, "not", "(Bit:a  -> Bit)");
@@ -5587,6 +5656,12 @@ void int_run_str(char* src, char* filename){
 
 	proc_opcode_mk2(pctx, op_nop, ".cptr", "(Any&:a->like a@*)");
 	proc_opcode_mk2(pctx, op_nop, ".cptr", "([Any]:a->like a@*)");
+
+
+	//parse context for immediate
+	//proc_opcode_mk2(pctx, op_curparsecontext, "sys_Context", "(->Any*)");
+
+
 
 
     zlistT tokens;
