@@ -8,15 +8,7 @@
 
 
 
-//#define ZGL_ENABLE_INT
-
-#ifdef ZGL_ENABLE_INT
-//enable integration with interpreter
-#include "int.h"
-void zgl_int_init();
-#endif
-
-
+void zgl_int_init( void (*reg_c_obj) (char* name, void* obj)   );
 
 void zgl_test(int a, char* s);
 zbool zgl_init(void* procgetter);

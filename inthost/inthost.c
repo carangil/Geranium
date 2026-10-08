@@ -35,7 +35,7 @@ int main(int argc, char** args){
 
 	set_platform_constants();
 
-	zgl_int_init();
+	zgl_int_init(int_add_c_object);
 
 
 	int_add_c_object( "zbitmap_load_tga", zbitmap_load_tga);

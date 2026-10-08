@@ -488,11 +488,18 @@ zbool zgl_init(void* procgetter){
 }
 
 
-#ifdef ZGL_ENABLE_INT
-#define EXPORT(XXX)  int_add_c_object( #XXX,XXX)
 
-void zgl_int_init(){
+#define EXPORT(XXX)  reg_c_obj( #XXX,XXX)
+
+//If you call zgl_int_init with a callback, it will export functions by name
+//This is intended for the interpreter, but could be used in other ways
+void zgl_int_init( void (*reg_c_obj) (char* name, void* obj)   ){
+
     debugf(" adding interpreter C objects for zgl\n");
+
+    if (!reg_c_obj){
+        errorf("No function registrar!\n");
+    }
 
     EXPORT(zgl_init);
     EXPORT(zglCheckError);
@@ -505,5 +512,5 @@ void zgl_int_init(){
     EXPORT(zglDirtyBuffer);
     EXPORT(zglBindUpdateTextureBitmap);
 }
-#endif
+
 
