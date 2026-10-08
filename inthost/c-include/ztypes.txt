@@ -1,0 +1,15 @@
+#ctype;ztype
+int;Z32
+longint;Long32
+size_t;Size32
+char*;String
+constchar*;String
+void*;Any&
+constvoid*;Any&
+anyArray;[Any]
+bool;Bit
+zbool;Bit
+zuint32;Z32
+zint32;Z32
+zchar;Byte
+zchar*;String

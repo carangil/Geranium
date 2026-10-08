@@ -1,0 +1,83 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	0	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	//
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/home/mars/projects/Zcore/inthost/c-include/	//
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+zbitmap_s	zbitmap.h	/^typedef struct zbitmap_s{$/;"	s
+size	zbitmap.h	/^	zuint32 size;$/;"	m	struct:zbitmap_s	typeref:typename:zuint32
+w	zbitmap.h	/^	zuint32 w;$/;"	m	struct:zbitmap_s	typeref:typename:zuint32
+h	zbitmap.h	/^	zuint32 h;$/;"	m	struct:zbitmap_s	typeref:typename:zuint32
+format	zbitmap.h	/^	zuint32 format;$/;"	m	struct:zbitmap_s	typeref:typename:zuint32
+data	zbitmap.h	/^	void* data;$/;"	m	struct:zbitmap_s	typeref:typename:void *
+zbitmapT	zbitmap.h	/^}zbitmapT;$/;"	t	typeref:struct:zbitmap_s
+zcolor	zbitmap.h	/^typedef zuint32 zcolor;$/;"	t	typeref:typename:zuint32
+zbitmap_mk	zbitmap.h	/^zbitmapT* zbitmap_mk(zuint32 w, zuint32 h, zuint32 format);$/;"	p	typeref:typename:zbitmapT *	signature:(zuint32 w,zuint32 h,zuint32 format)
+w	zbitmap.h	/^zbitmapT* zbitmap_mk(zuint32 w, zuint32 h, zuint32 format);$/;"	z	prototype:zbitmap_mk	typeref:typename:zuint32	file:
+h	zbitmap.h	/^zbitmapT* zbitmap_mk(zuint32 w, zuint32 h, zuint32 format);$/;"	z	prototype:zbitmap_mk	typeref:typename:zuint32	file:
+format	zbitmap.h	/^zbitmapT* zbitmap_mk(zuint32 w, zuint32 h, zuint32 format);$/;"	z	prototype:zbitmap_mk	typeref:typename:zuint32	file:
+zpset4	zbitmap.h	/^void zpset4(zbitmapT* bmp, zuint32 x, zuint32 y, zuint32 color);$/;"	p	typeref:typename:void	signature:(zbitmapT * bmp,zuint32 x,zuint32 y,zuint32 color)
+bmp	zbitmap.h	/^void zpset4(zbitmapT* bmp, zuint32 x, zuint32 y, zuint32 color);$/;"	z	prototype:zpset4	typeref:typename:zbitmapT *	file:
+x	zbitmap.h	/^void zpset4(zbitmapT* bmp, zuint32 x, zuint32 y, zuint32 color);$/;"	z	prototype:zpset4	typeref:typename:zuint32	file:
+y	zbitmap.h	/^void zpset4(zbitmapT* bmp, zuint32 x, zuint32 y, zuint32 color);$/;"	z	prototype:zpset4	typeref:typename:zuint32	file:
+color	zbitmap.h	/^void zpset4(zbitmapT* bmp, zuint32 x, zuint32 y, zuint32 color);$/;"	z	prototype:zpset4	typeref:typename:zuint32	file:
+zpget4	zbitmap.h	/^zuint32  zpget4(zbitmapT* bmp, zuint32 x, zuint32 y);$/;"	p	typeref:typename:zuint32	signature:(zbitmapT * bmp,zuint32 x,zuint32 y)
+bmp	zbitmap.h	/^zuint32  zpget4(zbitmapT* bmp, zuint32 x, zuint32 y);$/;"	z	prototype:zpget4	typeref:typename:zbitmapT *	file:
+x	zbitmap.h	/^zuint32  zpget4(zbitmapT* bmp, zuint32 x, zuint32 y);$/;"	z	prototype:zpget4	typeref:typename:zuint32	file:
+y	zbitmap.h	/^zuint32  zpget4(zbitmapT* bmp, zuint32 x, zuint32 y);$/;"	z	prototype:zpget4	typeref:typename:zuint32	file:
+zline4	zbitmap.h	/^void zline4(zbitmapT *bmp, zuint32 x, zuint32 y, zuint32 x2, zuint32 y2, zuint32 color);$/;"	p	typeref:typename:void	signature:(zbitmapT * bmp,zuint32 x,zuint32 y,zuint32 x2,zuint32 y2,zuint32 color)
+bmp	zbitmap.h	/^void zline4(zbitmapT *bmp, zuint32 x, zuint32 y, zuint32 x2, zuint32 y2, zuint32 color);$/;"	z	prototype:zline4	typeref:typename:zbitmapT *	file:
+x	zbitmap.h	/^void zline4(zbitmapT *bmp, zuint32 x, zuint32 y, zuint32 x2, zuint32 y2, zuint32 color);$/;"	z	prototype:zline4	typeref:typename:zuint32	file:
+y	zbitmap.h	/^void zline4(zbitmapT *bmp, zuint32 x, zuint32 y, zuint32 x2, zuint32 y2, zuint32 color);$/;"	z	prototype:zline4	typeref:typename:zuint32	file:
+x2	zbitmap.h	/^void zline4(zbitmapT *bmp, zuint32 x, zuint32 y, zuint32 x2, zuint32 y2, zuint32 color);$/;"	z	prototype:zline4	typeref:typename:zuint32	file:
+y2	zbitmap.h	/^void zline4(zbitmapT *bmp, zuint32 x, zuint32 y, zuint32 x2, zuint32 y2, zuint32 color);$/;"	z	prototype:zline4	typeref:typename:zuint32	file:
+color	zbitmap.h	/^void zline4(zbitmapT *bmp, zuint32 x, zuint32 y, zuint32 x2, zuint32 y2, zuint32 color);$/;"	z	prototype:zline4	typeref:typename:zuint32	file:
+zpblit4	zbitmap.h	/^void zpblit4(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zui/;"	p	typeref:typename:void	signature:(zbitmapT * bmp,zuint32 x,zuint32 y,zbitmapT * src,zuint32 srcx,zuint32 srcy,zuint32 srcw,zuint32 srch)
+bmp	zbitmap.h	/^void zpblit4(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zui/;"	z	prototype:zpblit4	typeref:typename:zbitmapT *	file:
+x	zbitmap.h	/^void zpblit4(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zui/;"	z	prototype:zpblit4	typeref:typename:zuint32	file:
+y	zbitmap.h	/^void zpblit4(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zui/;"	z	prototype:zpblit4	typeref:typename:zuint32	file:
+src	zbitmap.h	/^void zpblit4(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zui/;"	z	prototype:zpblit4	typeref:typename:zbitmapT *	file:
+srcx	zbitmap.h	/^void zpblit4(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zui/;"	z	prototype:zpblit4	typeref:typename:zuint32	file:
+srcy	zbitmap.h	/^void zpblit4(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zui/;"	z	prototype:zpblit4	typeref:typename:zuint32	file:
+srcw	zbitmap.h	/^void zpblit4(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zui/;"	z	prototype:zpblit4	typeref:typename:zuint32	file:
+srch	zbitmap.h	/^void zpblit4(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zui/;"	z	prototype:zpblit4	typeref:typename:zuint32	file:
+zpblit4c	zbitmap.h	/^void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zu/;"	p	typeref:typename:void	signature:(zbitmapT * bmp,zuint32 x,zuint32 y,zbitmapT * src,zuint32 srcx,zuint32 srcy,zuint32 srcw,zuint32 srch,zuint32 color,zuint32 flags)
+bmp	zbitmap.h	/^void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zu/;"	z	prototype:zpblit4c	typeref:typename:zbitmapT *	file:
+x	zbitmap.h	/^void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zu/;"	z	prototype:zpblit4c	typeref:typename:zuint32	file:
+y	zbitmap.h	/^void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zu/;"	z	prototype:zpblit4c	typeref:typename:zuint32	file:
+src	zbitmap.h	/^void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zu/;"	z	prototype:zpblit4c	typeref:typename:zbitmapT *	file:
+srcx	zbitmap.h	/^void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zu/;"	z	prototype:zpblit4c	typeref:typename:zuint32	file:
+srcy	zbitmap.h	/^void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zu/;"	z	prototype:zpblit4c	typeref:typename:zuint32	file:
+srcw	zbitmap.h	/^void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zu/;"	z	prototype:zpblit4c	typeref:typename:zuint32	file:
+srch	zbitmap.h	/^void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zu/;"	z	prototype:zpblit4c	typeref:typename:zuint32	file:
+color	zbitmap.h	/^void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zu/;"	z	prototype:zpblit4c	typeref:typename:zuint32	file:
+flags	zbitmap.h	/^void zpblit4c(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 srcy, zu/;"	z	prototype:zpblit4c	typeref:typename:zuint32	file:
+zpblit4adebug	zbitmap.h	/^void zpblit4adebug(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 src/;"	p	typeref:typename:void	signature:(zbitmapT * bmp,zuint32 x,zuint32 y,zbitmapT * src,zuint32 srcx,zuint32 srcy,zuint32 srcw,zuint32 srch)
+bmp	zbitmap.h	/^void zpblit4adebug(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 src/;"	z	prototype:zpblit4adebug	typeref:typename:zbitmapT *	file:
+x	zbitmap.h	/^void zpblit4adebug(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 src/;"	z	prototype:zpblit4adebug	typeref:typename:zuint32	file:
+y	zbitmap.h	/^void zpblit4adebug(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 src/;"	z	prototype:zpblit4adebug	typeref:typename:zuint32	file:
+src	zbitmap.h	/^void zpblit4adebug(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 src/;"	z	prototype:zpblit4adebug	typeref:typename:zbitmapT *	file:
+srcx	zbitmap.h	/^void zpblit4adebug(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 src/;"	z	prototype:zpblit4adebug	typeref:typename:zuint32	file:
+srcy	zbitmap.h	/^void zpblit4adebug(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 src/;"	z	prototype:zpblit4adebug	typeref:typename:zuint32	file:
+srcw	zbitmap.h	/^void zpblit4adebug(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 src/;"	z	prototype:zpblit4adebug	typeref:typename:zuint32	file:
+srch	zbitmap.h	/^void zpblit4adebug(zbitmapT *bmp, zuint32 x, zuint32 y, zbitmapT* src, zuint32 srcx, zuint32 src/;"	z	prototype:zpblit4adebug	typeref:typename:zuint32	file:
+zbitmap_load_tga	zbitmap.h	/^zbitmapT* zbitmap_load_tga( zchar* f, zuint32 flags);$/;"	p	typeref:typename:zbitmapT *	signature:(zchar * f,zuint32 flags)
+f	zbitmap.h	/^zbitmapT* zbitmap_load_tga( zchar* f, zuint32 flags);$/;"	z	prototype:zbitmap_load_tga	typeref:typename:zchar *	file:
+flags	zbitmap.h	/^zbitmapT* zbitmap_load_tga( zchar* f, zuint32 flags);$/;"	z	prototype:zbitmap_load_tga	typeref:typename:zuint32	file:
+#define ZBITMAP_GRAY	0x0001
+#define ZBITMAP_BGR		0x0003
+#define ZBITMAP_BGRX	0x0104
+#define ZBITMAP_BGRA	0x0004
+#define ZBITMAP_PXSIZE	0x00FF
+#define ZBITMAP_FAKEA	0x0100
+#define zbitmap_pxsize(ZZZ) ((ZZZ)->format & ZBITMAP_PXSIZE)
+#define ZBLIT_COLORMASK 0x0100
+#define ZBLIT_ALPHATEST 0x0200
+#define ZTGA_TOP			0x001
+#define ZTGA_GRAY_AS_ALPHA		0x100
+#define ZTGA_COPY_GRAY_TO_ALPHA		0x200

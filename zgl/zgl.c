@@ -1,6 +1,6 @@
 #define ZGLC
 #define GLAD_GL_IMPLEMENTATION
-#include "glad/gl.h"
+
 #include "zgl.h"
 
 
@@ -54,15 +54,20 @@ int zglCompileShaderSource(int stype, char** srcs, int n, char** rlog){
     return 0;
 }
 
-//Links an opengl vertex and fragment shader and returns a program, or 0 for failure
-int zglLinkProgramShaders(int v, int f, char** rlog){
+//Links an opengl vertex and fragment shader or compute shader and returns a program, or 0 for failure
+//vc: vertex or compute shader
+//vf: fragment shader, only if vc is a vertex shader
 
-    if (!v || !f)
+int zglLinkProgramShaders(int vc, int f, char** rlog){
+
+    if (!vc)
         return 0;
 
     int p = glCreateProgram();
-    glAttachShader(p, v);
-    glAttachShader(p, f);
+    glAttachShader(p, vc);
+
+    if (f)
+        glAttachShader(p, f);
 
     glLinkProgram(p);
 
@@ -114,7 +119,7 @@ int zglBuildProgram(char* header, char* vsrc, char* fsrc, char** rlog){
 
     //delete any compiled shaders (no longer needed after successful link)
     if (v)
-        glDeleteShader(v);
+    if (f)       glDeleteShader(v);
 
     if (f)
         glDeleteShader(f);
@@ -131,6 +136,45 @@ int zglBuildProgram(char* header, char* vsrc, char* fsrc, char** rlog){
     return p;
 }
 
+int zglBuildComputeProgram(char* header, char* src, char** rlog){
+
+    tracef("header %s\n %sn\n", header?header:"none", src);
+
+    char* vlog = NULL;
+    char* plog = NULL;
+
+
+    if (!header)
+        header = "";
+
+    char* vs[] = {header, src};
+
+    int v = zglCompileShaderSource(GL_COMPUTE_SHADER, vs, 2, &vlog);
+
+
+    int p = 0;
+
+    if (v) {
+        p = zglLinkProgramShaders(v, 0, &plog);
+    }
+
+    //delete any compiled shaders (no longer needed after successful link)
+    if (v)
+        glDeleteShader(v);
+
+
+    if (rlog){
+
+        *rlog = zstrprintf( *rlog, "{C:%s;Link:%s}", vlog, plog);
+    }
+
+    ram_free(vlog);
+    ram_free(plog);
+
+    return p;
+}
+
+
 //higher level interface to make some things more automatic to enable/disable defines
 
 
@@ -139,6 +183,7 @@ zbool cleanShaderGroup(void* v){
     ram_free(sg->version);
     ram_free(sg->vsource);
     ram_free(sg->fsource);
+    ram_free(sg->csource);
     ram_free(sg->variants);
     zvec_cleanup(&sg->options);
 
@@ -152,11 +197,25 @@ zbool cleanShaderGroup(void* v){
 zglShaderGroupT* zglCreateShaderGroup(char* version, char* vsrc, char* fsrc, char* optnames){
     zglShaderGroupT* sg = ram_alloc(sizeof(zglShaderGroupT), cleanShaderGroup); //todo destructor
     zvec_mk(&sg->options, 8);
-    zstrsplit(&sg->options, optnames, ',');
+    if (optnames)
+        zstrsplit(&sg->options, optnames, ',');
     sg->version = ram_strdup(version);
     sg->vsource = ram_strdup(vsrc);
     sg->fsource = ram_strdup(fsrc);
-    ram_free(sg->variants);
+    return sg;
+}
+
+zglShaderGroupT* zglCreateComputeShader(char* version, char* src, char* optnames){
+    zglShaderGroupT* sg = ram_alloc(sizeof(zglShaderGroupT), cleanShaderGroup); //todo destructor
+    zvec_mk(&sg->options, 8);
+    if (optnames)
+        zstrsplit(&sg->options, optnames, ',');
+
+    if (version)
+        sg->version = ram_strdup(version);
+
+    sg->csource = ram_strdup(src);
+
     return sg;
 }
 
@@ -188,7 +247,11 @@ int zglFindVariant(zglShaderGroupT* sg, int optionmask, char** rlog){
     unsigned int  m = (unsigned int)optionmask;
 
     //start with the version string
-    char* optstr = zstrdup(sg->version);
+
+    char* optstr = NULL;
+
+    if (sg->version)
+        optstr = zstrdup(sg->version);
 
     //build header from #defines enabling options
     for (int i=0; i < zvec_count(&sg->options); i++){
@@ -199,7 +262,10 @@ int zglFindVariant(zglShaderGroupT* sg, int optionmask, char** rlog){
         m=m>>1;
     }
 
-    vari->prog = zglBuildProgram( optstr, sg->vsource, sg->fsource, rlog);
+    if (sg->csource)
+        vari->prog = zglBuildComputeProgram( optstr, sg->csource, rlog);
+    else
+        vari->prog = zglBuildProgram( optstr, sg->vsource, sg->fsource, rlog);
 
     ram_free(optstr);
 

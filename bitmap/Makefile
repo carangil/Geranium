@@ -1,16 +1,14 @@
 ZHOME=..
-LIBNAME=zgl
+LIBNAME=zbitmap
 include $(ZHOME)/includes/zmake.inc
 
 
 CFILES=$(wildcard *.c)
 OFILES=$(CFILES:%.c=%.o)
 
-$(OBJDIR)/lib$(LIBNAME).a: $(OFILES) *.h *.c Makefile
+$(OBJDIR)/lib$(LIBNAME).a: $(OFILES) *.h *.c
 	ar rvcs $@ $(OFILES)
 	$(COPY) *.h $(INCDIR)
-	mkdir -p $(INCDIR)/glad
-	$(COPY) glad/gl.h $(INCDIR)/glad/gl.h
 
 
 %.o: %.c *.h  $(INCDIR)/.made

@@ -1,12 +1,14 @@
+#include "glad/gl.h"
+
 #include "ztypes.h"
 #include "zmem.h"
 #include "zvector.h"
 #include "zarray.h"
 #include "zbitmap.h"
 
-#include "GL/glcorearb.h"
 
-#define ZGL_ENABLE_INT
+
+//#define ZGL_ENABLE_INT
 
 #ifdef ZGL_ENABLE_INT
 //enable integration with interpreter
@@ -46,13 +48,18 @@ typedef struct zglShaderGroup{
     char* version; //version of glsl
     char* vsource;
     char* fsource;
+    char* csource; //compute
     zvecT options; //each char*
     zglShaderVariantT* variants;
 }zglShaderGroupT;
 
+//specify source and options for shaders
 zglShaderGroupT* zglCreateShaderGroup(char* version, char* vsrc, char* fsrc, char* optnames);
+zglShaderGroupT* zglCreateComputeShader(char* version, char* csrc, char* optnames);
 
+//create or find the required variant of a shader based on its options
 int zglFindVariant(zglShaderGroupT* sg, int optionmask, char** rlog);
+
 
 typedef void* anyArray;
 
